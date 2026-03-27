@@ -23,11 +23,25 @@ export interface AiSettings {
   model: string
 }
 
+export interface JobSourceCustomUrl {
+  id: string
+  label: string
+  url: string
+  enabled: boolean
+}
+
+export interface JobSources {
+  adzuna?: { enabled: boolean }
+  reed?: { enabled: boolean; api_key?: string }
+  custom?: JobSourceCustomUrl[]
+}
+
 export interface UserPreferences {
   ai_provider?: AiProvider
   ai_model?: string
   anthropic_api_key?: string
   openai_api_key?: string
+  job_sources?: JobSources
 }
 
 export function resolveAiSettings(preferences: UserPreferences | null): AiSettings {

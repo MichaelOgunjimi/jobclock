@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { revalidatePath } from "next/cache"
-import { PROVIDER_MODELS, type AiProvider, type UserPreferences } from "@/lib/ai"
+import { PROVIDER_MODELS, type AiProvider, type UserPreferences, type JobSources } from "@/lib/ai"
 
 const VALID_PROVIDERS = new Set<AiProvider>(["anthropic", "openai"])
 
@@ -59,6 +59,31 @@ export async function saveAiSettings(formData: FormData) {
     return { error: "Failed to save settings" }
   }
 
+  revalidatePath("/settings")
+  return { success: true }
+}
+
+export async function saveJobSources(sources: JobSources) {
+  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Unauthorized" }
+
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("preferences")
+    .eq("id", user.id)
+    .single()
+
+  const prev = (existing?.preferences ?? {}) as UserPreferences
+  const updated: UserPreferences = { ...prev, job_sources: sources }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ preferences: updated as unknown as import("@/lib/supabase/database.types").Json })
+    .eq("id", user.id)
+
+  if (error) return { error: error.message }
   revalidatePath("/settings")
   return { success: true }
 }

@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect } from "next/navigation"
-import { resolveAiSettings, type UserPreferences } from "@/lib/ai"
+import { resolveAiSettings, type UserPreferences, type JobSources } from "@/lib/ai"
 import { SettingsTabs } from "./settings-tabs"
 
 export default async function SettingsPage() {
@@ -27,6 +27,8 @@ export default async function SettingsPage() {
     ? "saved"
     : process.env.OPENAI_API_KEY ? "env" : "none"
 
+  const jobSources: JobSources = (preferences?.job_sources as JobSources) ?? {}
+
   return (
     <div className="page-shell max-w-4xl lg:min-h-0 lg:flex-1">
       <div className="page-header">
@@ -46,6 +48,7 @@ export default async function SettingsPage() {
         keyStatus={{ anthropic: anthropicKeySource as "saved" | "env" | "none", openai: openaiKeySource as "saved" | "env" | "none" }}
         hasCvTemplate={!!profile?.cv_template_path}
         hasCoverLetterTemplate={!!profile?.cover_letter_template_path}
+        jobSources={jobSources}
       />
     </div>
   )

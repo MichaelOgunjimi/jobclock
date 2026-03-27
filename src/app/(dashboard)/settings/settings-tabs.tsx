@@ -5,7 +5,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AiSettingsForm } from "./ai-settings-form"
 import { TemplateUpload } from "./template-upload"
-import type { AiSettings } from "@/lib/ai"
+import { JobSourcesForm } from "./job-sources-form"
+import type { AiSettings, JobSources } from "@/lib/ai"
 
 type KeyStatus = { anthropic: "saved" | "env" | "none"; openai: "saved" | "env" | "none" }
 
@@ -14,11 +15,13 @@ export function SettingsTabs({
   keyStatus,
   hasCvTemplate,
   hasCoverLetterTemplate,
+  jobSources,
 }: {
   aiSettings: AiSettings
   keyStatus: KeyStatus
   hasCvTemplate: boolean
   hasCoverLetterTemplate: boolean
+  jobSources: JobSources
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -93,14 +96,11 @@ export function SettingsTabs({
             <p className="section-label">Jobs</p>
             <CardTitle>Job Sources</CardTitle>
             <CardDescription>
-              Configure where the assistant searches for jobs matching your preferences.
+              Configure where the assistant searches for jobs. Filters (roles, locations, salary) come from your Profile preferences.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="py-10 text-center text-muted-foreground">
-              <p className="text-sm">Job sources configuration coming soon.</p>
-              <p className="text-xs mt-1 opacity-60">You&apos;ll be able to add Reed API, LinkedIn, and custom job board URLs here.</p>
-            </div>
+            <JobSourcesForm initial={jobSources} />
           </CardContent>
         </Card>
       </TabsContent>
