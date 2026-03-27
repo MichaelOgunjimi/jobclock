@@ -8,6 +8,20 @@
       "when": 1774605444068,
       "tag": "0000_tiresome_microbe",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774608749006,
+      "tag": "0001_even_cerise",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774609285709,
+      "tag": "0002_typical_smiling_tiger",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ALTER COLUMN "locations_uk" SET DATA TYPE text[];

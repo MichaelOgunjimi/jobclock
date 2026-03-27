@@ -35,7 +35,7 @@ export const profiles = pgTable("profiles", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   preferences: jsonb("preferences").default({}),
   rightToWorkUk: boolean("right_to_work_uk"),
-  locationUk: text("location_uk"),
+  locationsUk: text("locations_uk").array(),
   desiredRoles: text("desired_roles").array(),
   targetSalaryMin: numeric("target_salary_min"),
   cvTemplatePath: text("cv_template_path"),
