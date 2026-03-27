@@ -22,6 +22,20 @@
       "when": 1774609285709,
       "tag": "0002_typical_smiling_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774612713840,
+      "tag": "0003_mean_mac_gargan",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774613675146,
+      "tag": "0004_exotic_diamondback",
+      "breakpoints": true
     }
   ]
 }

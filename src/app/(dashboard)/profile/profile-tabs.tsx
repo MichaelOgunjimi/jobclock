@@ -13,6 +13,7 @@ import { TagInput } from "@/components/ui/tag-input"
 import { FileText, Star } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 import { CvCardActions } from "./cv-card-actions"
 import { CvUploadDialog } from "./cv-upload-dialog"
 import { CoverLettersTab } from "./cover-letters-tab"
@@ -34,11 +35,19 @@ type LetterTemplate = {
   tone: "professional" | "enthusiastic" | "conservative" | null
 }
 
+export const EXPERIENCE_LEVELS = [
+  { value: "graduate", label: "Graduate / Entry Level" },
+  { value: "junior", label: "Junior (1–3 yrs)" },
+  { value: "mid", label: "Mid (3-5 yrs"},
+  { value: "senior", label: "Senior (5+ yrs"}
+] as const
+
 type ProfileData = {
   desired_roles: string[] | null
   locations_uk: string[] | null
   target_salary_min: number | null
   right_to_work_uk: boolean | null
+  experience_level: string[] | null
 } | null
 
 export function ProfileTabs({
@@ -57,6 +66,7 @@ export function ProfileTabs({
   const [locations, setLocations] = useState<string[]>(profile?.locations_uk ?? [])
   const [salary, setSalary] = useState(profile?.target_salary_min?.toString() ?? "")
   const [rightToWork, setRightToWork] = useState(profile?.right_to_work_uk ?? false)
+  const [experienceLevels, setExperienceLevels] = useState<string[]>(profile?.experience_level ?? [] as string[])
   const [isPending, startTransition] = useTransition()
 
   function handleSavePreferences() {
@@ -66,6 +76,7 @@ export function ProfileTabs({
         locationsUk: locations,
         targetSalaryMin: salary ? Number(salary) : null,
         rightToWorkUk: rightToWork,
+        experienceLevel: experienceLevels,
       })
       if (result?.error) {
         toast.error(result.error)
@@ -182,6 +193,35 @@ export function ProfileTabs({
                   />
                   <p className="text-xs text-muted-foreground">e.g. London, Manchester, Remote — press Enter to add each</p>
                 </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Experience Level</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {EXPERIENCE_LEVELS.map((level) => {
+                      const active = experienceLevels.includes(level.value)
+                      return (
+                        <button
+                          key={level.value}
+                          type="button"
+                          onClick={() =>
+                            setExperienceLevels((prev) =>
+                              active ? prev.filter((v) => v !== level.value) : [...prev, level.value]
+                            )
+                          }
+                          className={cn(
+                            "border px-4 py-2 text-sm font-medium transition-colors",
+                            active
+                              ? "border-foreground bg-foreground text-background"
+                              : "border-border bg-secondary text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          {level.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Used to filter Adzuna and Reed results</p>
+                </div>
+
                 <div className="space-y-2">
                   <Label>Minimum Salary (£)</Label>
                   <Input

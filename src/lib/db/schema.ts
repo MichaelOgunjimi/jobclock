@@ -40,6 +40,7 @@ export const profiles = pgTable("profiles", {
   targetSalaryMin: numeric("target_salary_min"),
   cvTemplatePath: text("cv_template_path"),
   coverLetterTemplatePath: text("cover_letter_template_path"),
+  experienceLevel: text("experience_level").array(),
 })
 
 // ============================================================

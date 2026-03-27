@@ -21,6 +21,7 @@ export type Database = {
           target_salary_min: number | null
           cv_template_path: string | null
           cover_letter_template_path: string | null
+          experience_level: string[] | null
         }
         Insert: {
           id: string
@@ -33,6 +34,7 @@ export type Database = {
           target_salary_min?: number | null
           cv_template_path?: string | null
           cover_letter_template_path?: string | null
+          experience_level?: string[] | null
         }
         Update: {
           id?: string
@@ -45,6 +47,7 @@ export type Database = {
           target_salary_min?: number | null
           cv_template_path?: string | null
           cover_letter_template_path?: string | null
+          experience_level?: string[] | null
         }
         Relationships: []
       }

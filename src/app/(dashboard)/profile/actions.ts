@@ -158,6 +158,7 @@ export async function savePreferences(payload: {
   locationsUk: string[]
   targetSalaryMin: number | null
   rightToWorkUk: boolean
+  experienceLevel: string[]
 }) {
   if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
   const supabase = await createClient()
@@ -171,6 +172,7 @@ export async function savePreferences(payload: {
       locations_uk: payload.locationsUk.length > 0 ? payload.locationsUk : null,
       target_salary_min: payload.targetSalaryMin,
       right_to_work_uk: payload.rightToWorkUk,
+      experience_level: payload.experienceLevel.length > 0 ? payload.experienceLevel : null as unknown as string[] | null,
     })
     .eq("id", user.id)
 
