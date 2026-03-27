@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -8,8 +9,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { TagInput } from "@/components/ui/tag-input"
 import { FileText, Star } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
+import { toast } from "sonner"
 import { CvCardActions } from "./cv-card-actions"
 import { CvUploadDialog } from "./cv-upload-dialog"
 import { CoverLettersTab } from "./cover-letters-tab"
@@ -33,7 +36,7 @@ type LetterTemplate = {
 
 type ProfileData = {
   desired_roles: string[] | null
-  location_uk: string | null
+  locations_uk: string[] | null
   target_salary_min: number | null
   right_to_work_uk: boolean | null
 } | null
@@ -49,6 +52,28 @@ export function ProfileTabs({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  const [roles, setRoles] = useState<string[]>(profile?.desired_roles ?? [])
+  const [locations, setLocations] = useState<string[]>(profile?.locations_uk ?? [])
+  const [salary, setSalary] = useState(profile?.target_salary_min?.toString() ?? "")
+  const [rightToWork, setRightToWork] = useState(profile?.right_to_work_uk ?? false)
+  const [isPending, startTransition] = useTransition()
+
+  function handleSavePreferences() {
+    startTransition(async () => {
+      const result = await savePreferences({
+        desiredRoles: roles,
+        locationsUk: locations,
+        targetSalaryMin: salary ? Number(salary) : null,
+        rightToWorkUk: rightToWork,
+      })
+      if (result?.error) {
+        toast.error(result.error)
+      } else {
+        toast.success("Preferences saved")
+      }
+    })
+  }
   const validTabs = ["cvs", "cover-letters", "preferences"]
   const activeTab = validTabs.includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "cvs"
 
@@ -135,55 +160,56 @@ export function ProfileTabs({
 
       {/* Preferences Tab */}
       <TabsContent value="preferences">
-        <div>
-          <Card>
-            <CardContent className="pt-6">
-              <form action={savePreferences as unknown as (formData: FormData) => void} className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Target Roles</Label>
-                    <Input
-                      name="desired_roles"
-                      defaultValue={profile?.desired_roles?.join(", ") ?? ""}
-                      placeholder="Software Engineer, Developer…"
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-5">
+              <div className="grid gap-5 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Target Roles</Label>
+                  <TagInput
+                    value={roles}
+                    onChange={setRoles}
+                    placeholder="Type a role and press Enter…"
+                  />
+                  <p className="text-xs text-muted-foreground">Press Enter or comma to add each role</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Preferred Locations</Label>
+                  <TagInput
+                    value={locations}
+                    onChange={setLocations}
+                    placeholder="Type a city and press Enter…"
+                  />
+                  <p className="text-xs text-muted-foreground">e.g. London, Manchester, Remote — press Enter to add each</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Minimum Salary (£)</Label>
+                  <Input
+                    type="number"
+                    value={salary}
+                    onChange={(e) => setSalary(e.target.value)}
+                    placeholder="30000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Right to Work UK</Label>
+                  <div className="flex items-center gap-2 h-11">
+                    <input
+                      type="checkbox"
+                      checked={rightToWork}
+                      onChange={(e) => setRightToWork(e.target.checked)}
+                      className="h-4 w-4"
                     />
-                    <p className="text-xs text-muted-foreground">Comma-separated</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Location</Label>
-                    <Input
-                      name="location_uk"
-                      defaultValue={profile?.location_uk ?? ""}
-                      placeholder="London, UK"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Minimum Salary (£)</Label>
-                    <Input
-                      name="target_salary_min"
-                      type="number"
-                      defaultValue={profile?.target_salary_min ?? ""}
-                      placeholder="30000"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Right to Work UK</Label>
-                    <div className="flex items-center gap-2 h-11">
-                      <input
-                        type="checkbox"
-                        name="right_to_work_uk"
-                        defaultChecked={profile?.right_to_work_uk ?? false}
-                        className="h-4 w-4"
-                      />
-                      <span className="text-sm">I have the right to work in the UK</span>
-                    </div>
+                    <span className="text-sm">I have the right to work in the UK</span>
                   </div>
                 </div>
-                <Button type="submit" variant="outline">Save Preferences</Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+              </div>
+              <Button onClick={handleSavePreferences} disabled={isPending} variant="outline">
+                {isPending ? "Saving…" : "Save Preferences"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </TabsContent>
     </Tabs>
   )

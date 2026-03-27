@@ -153,28 +153,28 @@ export async function deleteLetterTemplate(formData: FormData) {
   revalidatePath("/profile")
 }
 
-export async function savePreferences(formData: FormData) {
-  if (!isSupabaseConfigured()) return
+export async function savePreferences(payload: {
+  desiredRoles: string[]
+  locationsUk: string[]
+  targetSalaryMin: number | null
+  rightToWorkUk: boolean
+}) {
+  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
+  if (!user) return { error: "Unauthorized" }
 
-  const rolesRaw = (formData.get("desired_roles") as string).trim()
-  const desiredRoles = rolesRaw ? rolesRaw.split(",").map((r) => r.trim()).filter(Boolean) : []
-  const locationUk = (formData.get("location_uk") as string).trim() || null
-  const salaryRaw = formData.get("target_salary_min") as string
-  const targetSalaryMin = salaryRaw ? Number(salaryRaw) : null
-  const rightToWorkUk = formData.get("right_to_work_uk") === "on"
-
-  await supabase
+  const { error } = await supabase
     .from("profiles")
     .update({
-      desired_roles: desiredRoles,
-      location_uk: locationUk,
-      target_salary_min: targetSalaryMin,
-      right_to_work_uk: rightToWorkUk,
+      desired_roles: payload.desiredRoles,
+      locations_uk: payload.locationsUk.length > 0 ? payload.locationsUk : null,
+      target_salary_min: payload.targetSalaryMin,
+      right_to_work_uk: payload.rightToWorkUk,
     })
     .eq("id", user.id)
 
+  if (error) return { error: error.message }
   revalidatePath("/profile")
+  return { success: true }
 }

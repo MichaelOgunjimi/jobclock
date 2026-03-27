@@ -26,7 +26,7 @@ export default async function ProfilePage() {
       .order("created_at", { ascending: false }),
     supabase
       .from("profiles")
-      .select("desired_roles, location_uk, target_salary_min, right_to_work_uk")
+      .select("desired_roles, locations_uk, target_salary_min, right_to_work_uk")
       .eq("id", user.id)
       .single(),
   ])

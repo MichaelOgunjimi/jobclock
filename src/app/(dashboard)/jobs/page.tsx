@@ -270,28 +270,33 @@ function JobCard({ job, onSave }: { job: Job; onSave: () => void }) {
   return (
     <Card className="transition-colors hover:bg-secondary/70">
       <CardHeader className="border-b pb-5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <CardTitle className="truncate text-[1.45rem]">{job.title}</CardTitle>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <CardTitle className="text-[1.2rem] leading-tight break-words sm:text-[1.45rem]">
+              {job.title}
+            </CardTitle>
             <CardDescription className="mt-2 flex items-center gap-1">
               <Briefcase className="h-3 w-3" />
               {job.company}
             </CardDescription>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
             {job.isEasyApply && (
-              <Badge variant="outline" className="border-accent/20 bg-accent/10 text-accent">
+              <Badge
+                variant="outline"
+                className="max-w-full border-accent/20 bg-accent/10 px-2 text-[10px] tracking-[0.06em] text-accent"
+              >
                 Easy Apply
               </Badge>
             )}
-            <Button variant="ghost" size="sm" onClick={onSave}>
+            <Button variant="ghost" size="sm" className="shrink-0" onClick={onSave}>
               <Bookmark className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4 pt-5">
-        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-muted-foreground sm:text-sm">
           {job.location && (
             <span className="flex items-center gap-1">
               <MapPin className="h-3 w-3" />
@@ -318,14 +323,14 @@ function JobCard({ job, onSave }: { job: Job; onSave: () => void }) {
           </p>
         )}
 
-        <div className="flex items-center gap-2 pt-2">
-          <Button size="sm" asChild>
+        <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:items-center">
+          <Button size="sm" className="w-full sm:w-auto" asChild>
             <a href={job.url} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-3 w-3" />
               View role
             </a>
           </Button>
-          <Button size="sm" variant="outline" onClick={onSave}>
+          <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={onSave}>
             Save Job
           </Button>
         </div>

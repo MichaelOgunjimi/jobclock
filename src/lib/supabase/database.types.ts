@@ -16,7 +16,7 @@ export type Database = {
           created_at: string
           preferences: Json
           right_to_work_uk: boolean | null
-          location_uk: string | null
+          locations_uk: string[] | null
           desired_roles: string[] | null
           target_salary_min: number | null
           cv_template_path: string | null
@@ -28,7 +28,7 @@ export type Database = {
           created_at?: string
           preferences?: Json
           right_to_work_uk?: boolean | null
-          location_uk?: string | null
+          locations_uk?: string[] | null
           desired_roles?: string[] | null
           target_salary_min?: number | null
           cv_template_path?: string | null
@@ -40,7 +40,7 @@ export type Database = {
           created_at?: string
           preferences?: Json
           right_to_work_uk?: boolean | null
-          location_uk?: string | null
+          locations_uk?: string[] | null
           desired_roles?: string[] | null
           target_salary_min?: number | null
           cv_template_path?: string | null
