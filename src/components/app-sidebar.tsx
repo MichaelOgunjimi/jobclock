@@ -27,11 +27,16 @@ const navItems = [
   { href: "/profile", label: "My CV", icon: FileText },
 ]
 
-export function AppSidebar() {
+export function AppSidebar({
+  isMobileOpen,
+  onMobileOpenChange,
+}: {
+  isMobileOpen: boolean
+  onMobileOpenChange: (open: boolean) => void
+}) {
   const pathname = usePathname()
   const supabase = isSupabaseConfigured() ? createClient() : null
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isMobileOpen, setIsMobileOpen] = useState(false)
 
   async function handleSignOut() {
     if (!supabase) {
@@ -73,7 +78,7 @@ export function AppSidebar() {
             variant="ghost"
             size="icon-sm"
             className="border-0 text-sidebar-foreground hover:bg-white/5 hover:text-white lg:hidden"
-            onClick={() => setIsMobileOpen(false)}
+            onClick={() => onMobileOpenChange(false)}
             aria-label="Close sidebar"
           >
             <X className="h-4 w-4" />
@@ -91,7 +96,7 @@ export function AppSidebar() {
                 key={item.href}
                 href={item.href}
                 title={item.label}
-                onClick={() => setIsMobileOpen(false)}
+                onClick={() => onMobileOpenChange(false)}
                 className={cn(
                   "group flex items-center gap-3 border border-transparent px-4 py-3 text-[13px] font-medium tracking-[0.02em] text-sidebar-foreground transition-colors",
                   isActive
@@ -111,7 +116,7 @@ export function AppSidebar() {
           <Link
             href="/settings"
             title="Settings"
-            onClick={() => setIsMobileOpen(false)}
+            onClick={() => onMobileOpenChange(false)}
             className={cn(
               "mb-2 flex items-center gap-3 border border-transparent px-4 py-3 text-[13px] font-medium tracking-[0.02em] text-sidebar-foreground transition-colors hover:border-white/10 hover:bg-white/5 hover:text-white",
               pathname.startsWith("/settings") && "border-white/10 bg-sidebar-primary text-sidebar-primary-foreground",
@@ -139,23 +144,12 @@ export function AppSidebar() {
 
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        className="fixed left-4 top-4 z-40 border-border bg-background lg:hidden"
-        onClick={() => setIsMobileOpen(true)}
-        aria-label="Open navigation"
-      >
-        <PanelLeftOpen className="h-4 w-4" />
-      </Button>
-
       <div
         className={cn(
           "fixed inset-0 z-40 bg-black/40 transition-opacity lg:hidden",
           isMobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
         )}
-        onClick={() => setIsMobileOpen(false)}
+        onClick={() => onMobileOpenChange(false)}
         aria-hidden="true"
       />
 
