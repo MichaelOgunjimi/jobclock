@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, Menu, X } from "lucide-react"
+import { ArrowRight, LayoutDashboard, Menu, UserCircle, X } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { useDismissibleLayer } from "@/hooks/use-dismissible-layer"
 import { Button } from "@/components/ui/button"
@@ -157,6 +157,17 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
                       getInitials(userProfile.fullName, userProfile.email)
                     )}
                   </Link>
+                  <Button
+                    ref={mobileMenuButtonRef}
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    className="md:hidden"
+                    aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+                    onClick={() => setIsMobileMenuOpen((open) => !open)}
+                  >
+                    {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+                  </Button>
                 </>
               ) : (
                 <>
@@ -187,47 +198,70 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
             </div>
           </div>
 
-          {isMobileMenuOpen && !userProfile && (
+          {isMobileMenuOpen && (
             <div ref={mobileMenuRef} className="border-b md:hidden">
-              <nav className="grid gap-px bg-border">
-                {sections.map((section) => {
-                  const isActive = activeSection === section.id
+              {userProfile ? (
+                <div className="flex flex-col gap-2 px-4 py-4">
+                  <Link
+                    href="/dashboard"
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center")}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    Dashboard
+                  </Link>
+                  <Link
+                    href="/account"
+                    className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-center")}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <UserCircle className="h-4 w-4" />
+                    Account
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <nav className="grid gap-px bg-border">
+                    {sections.map((section) => {
+                      const isActive = activeSection === section.id
 
-                  return (
-                    <LandingAnchorLink
-                      key={section.id}
-                      href={`#${section.id}`}
-                      onNavigate={() => setIsMobileMenuOpen(false)}
-                      className={cn(
-                        "bg-background px-4 py-3 text-sm transition-colors",
-                        isActive
-                          ? "text-foreground shadow-[inset_3px_0_0_0_var(--color-foreground)]"
-                          : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
-                      )}
+                      return (
+                        <LandingAnchorLink
+                          key={section.id}
+                          href={`#${section.id}`}
+                          onNavigate={() => setIsMobileMenuOpen(false)}
+                          className={cn(
+                            "bg-background px-4 py-3 text-sm transition-colors",
+                            isActive
+                              ? "text-foreground shadow-[inset_3px_0_0_0_var(--color-foreground)]"
+                              : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
+                          )}
+                        >
+                          {section.label}
+                        </LandingAnchorLink>
+                      )
+                    })}
+                  </nav>
+
+                  <div className="flex flex-col gap-2 border-t px-4 py-4">
+                    <Link
+                      href="/auth"
+                      className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-center")}
+                      onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      {section.label}
-                    </LandingAnchorLink>
-                  )
-                })}
-              </nav>
-
-              <div className="flex flex-col gap-2 border-t px-4 py-4">
-                <Link
-                  href="/auth"
-                  className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-center")}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Sign in
-                </Link>
-                <Link
-                  href="/auth"
-                  className={cn(buttonVariants({ size: "sm" }), "w-full justify-center")}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Open workspace
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
+                      Sign in
+                    </Link>
+                    <Link
+                      href="/auth"
+                      className={cn(buttonVariants({ size: "sm" }), "w-full justify-center")}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Open workspace
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
