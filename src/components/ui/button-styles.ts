@@ -1,12 +1,12 @@
 import { cva, type VariantProps } from "class-variance-authority"
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center border bg-clip-padding font-sans text-[13px] font-medium tracking-[0.02em] whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:pointer-events-none disabled:opacity-40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center border bg-clip-padding font-sans text-[13px] font-medium tracking-[0.02em] whitespace-nowrap transition-[color,background-color,border-color,box-shadow,transform] duration-150 outline-none select-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:pointer-events-none disabled:opacity-40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default:
-          "border-primary bg-primary text-primary-foreground hover:border-foreground hover:bg-foreground hover:text-background",
+          "border-primary bg-primary text-primary-foreground shadow-none hover:-translate-y-px hover:border-primary hover:bg-primary hover:text-primary-foreground hover:shadow-[0_12px_28px_rgba(0,0,0,0.16)] active:translate-y-0 active:shadow-none",
         outline:
           "border-border bg-background text-foreground hover:border-foreground hover:bg-secondary",
         secondary:

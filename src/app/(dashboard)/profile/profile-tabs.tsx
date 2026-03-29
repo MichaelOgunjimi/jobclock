@@ -4,13 +4,12 @@ import { useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { TagInput } from "@/components/ui/tag-input"
-import { FileText, Star } from "lucide-react"
+import { ArrowUpRight, Check, FileText, ShieldCheck, Star } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -117,49 +116,81 @@ export function ProfileTabs({
           <CvUploadDialog />
         </div>
         {cvs.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid auto-rows-fr gap-4 lg:grid-cols-2">
             {cvs.map((cv) => {
               const parsed = cv.parsed_json as CvData | null
               const label = cv.name ?? parsed?.name ?? "Untitled CV"
               const skills = parsed?.skills?.slice(0, 4) ?? []
               const expCount = parsed?.experience?.length ?? 0
               return (
-                <div key={cv.id} className="group relative flex flex-col border border-border bg-card transition-colors hover:border-foreground/30">
-                  <Link href={`/profile/${cv.id}`} className="flex flex-1 flex-col p-5 gap-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="flex size-9 shrink-0 items-center justify-center border border-border bg-secondary">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium leading-tight">{label}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {formatDistanceToNow(new Date(cv.created_at), { addSuffix: true })}
+                <Card
+                  key={cv.id}
+                  size="sm"
+                  className={cn(
+                    "group relative gap-0 overflow-hidden border-border/90 bg-card transition-[border-color,transform,box-shadow] hover:-translate-y-px hover:border-foreground/15 hover:shadow-[0_18px_40px_-30px_rgba(10,10,10,0.28)]",
+                    cv.is_primary && "border-foreground/20 bg-secondary/20 shadow-[0_18px_40px_-34px_rgba(10,10,10,0.34)]"
+                  )}
+                >
+                  <Link href={`/profile/${cv.id}`} className="flex flex-1 flex-col gap-5 p-5 sm:p-6">
+                    <div className="flex items-center justify-between gap-3 border-b border-border/80 pb-4">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                          {cv.is_primary ? "Primary CV" : "Saved CV"}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Updated {formatDistanceToNow(new Date(cv.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                      <span className="flex size-9 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors group-hover:text-foreground">
+                        <ArrowUpRight className="h-4 w-4" />
+                      </span>
+                    </div>
+
+                    <div className="flex min-w-0 items-start gap-4">
+                      <div
+                        className={cn(
+                          "flex size-12 shrink-0 items-center justify-center border bg-secondary text-muted-foreground",
+                          cv.is_primary && "border-foreground/15 bg-background text-foreground"
+                        )}
+                      >
+                        {cv.is_primary ? <Star className="h-4.5 w-4.5" /> : <FileText className="h-4.5 w-4.5" />}
+                      </div>
+                      <div className="min-w-0 space-y-2">
+                        <div className="space-y-1">
+                          <p className="line-clamp-2 text-lg font-medium leading-tight tracking-[-0.02em] text-foreground">
+                            {label}
+                          </p>
+                          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                            {expCount} experience {expCount === 1 ? "entry" : "entries"}
                           </p>
                         </div>
                       </div>
-                      {cv.is_primary && (
-                        <Badge variant="secondary" className="shrink-0 text-[10px]">
-                          <Star className="h-2.5 w-2.5 mr-1" />
-                          Primary
-                        </Badge>
-                      )}
                     </div>
+
                     {skills.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-2">
                         {skills.map((s) => (
-                          <span key={s} className="border border-border bg-secondary px-1.5 py-0.5 text-[10px] tracking-wide text-muted-foreground uppercase">
+                          <span
+                            key={s}
+                            className="border border-border bg-background px-2.5 py-1 text-[10px] tracking-[0.14em] text-muted-foreground uppercase"
+                          >
                             {s}
                           </span>
                         ))}
                       </div>
                     )}
-                    <p className="text-xs text-muted-foreground mt-auto">
-                      {expCount} experience {expCount === 1 ? "entry" : "entries"}
-                    </p>
+
+                    <div className="mt-auto flex items-center justify-between gap-3 border-t border-border/80 pt-4">
+                      <p className="text-xs text-muted-foreground">
+                        {skills.length > 0 ? `${skills.length} highlighted skill${skills.length === 1 ? "" : "s"}` : "No highlighted skills yet"}
+                      </p>
+                      <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors group-hover:text-foreground">
+                        View details
+                      </span>
+                    </div>
                   </Link>
                   <CvCardActions cvId={cv.id} isPrimary={cv.is_primary ?? false} />
-                </div>
+                </Card>
               )
             })}
           </div>
@@ -242,18 +273,45 @@ export function ProfileTabs({
                 </div>
                 <div className="space-y-2">
                   <Label>Right to Work UK</Label>
-                  <div className="flex items-center gap-2 h-11">
-                    <input
-                      type="checkbox"
-                      checked={rightToWork}
-                      onChange={(e) => setRightToWork(e.target.checked)}
-                      className="h-4 w-4"
-                    />
-                    <span className="text-sm">I have the right to work in the UK</span>
-                  </div>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={rightToWork}
+                    onClick={() => setRightToWork((value) => !value)}
+                    className={cn(
+                      "flex min-h-14 w-full items-center gap-3 border px-4 py-3 text-left transition-colors",
+                      rightToWork
+                        ? "border-foreground/15 bg-secondary text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex size-9 shrink-0 items-center justify-center border transition-colors",
+                        rightToWork
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border bg-secondary text-transparent"
+                      )}
+                    >
+                      <Check className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 space-y-1">
+                      <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                        Right to work confirmed
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        I have the right to work in the UK
+                      </span>
+                    </span>
+                  </button>
                 </div>
               </div>
-              <Button onClick={handleSavePreferences} disabled={!isPreferencesDirty || isPending} variant="outline">
+              <Button
+                onClick={handleSavePreferences}
+                disabled={!isPreferencesDirty || isPending}
+                className="min-w-44"
+              >
                 {isPending ? "Saving…" : "Save Preferences"}
               </Button>
             </div>

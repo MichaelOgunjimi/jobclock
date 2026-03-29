@@ -18,18 +18,21 @@ export function CvCardActions({ cvId, isPrimary }: { cvId: string; isPrimary: bo
 
   return (
     <>
-      <div className="flex gap-1 border-t border-border px-3 py-2">
+      <div className="flex items-center gap-2 border-t border-border/80 px-4 py-3">
         {!isPrimary && (
           <form action={setPrimaryCV}>
             <input type="hidden" name="cvId" value={cvId} />
-            <button type="submit" className="px-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
+            <button
+              type="submit"
+              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+            >
               Set primary
             </button>
           </form>
         )}
         <button
           type="button"
-          className="ml-auto px-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
+          className="ml-auto text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-destructive"
           onClick={() => setIsDeleteOpen(true)}
         >
           Delete
