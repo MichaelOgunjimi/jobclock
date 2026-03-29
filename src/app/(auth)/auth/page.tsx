@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { toast } from "sonner"
 import { ArrowRight, Briefcase, Sparkles } from "lucide-react"
 
@@ -80,14 +81,17 @@ export default function AuthPage() {
     <div className="min-h-screen bg-background">
       <div className="grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]">
         <section className="flex flex-col justify-between bg-sidebar px-8 py-8 text-white md:px-12 md:py-10">
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-[8px] border border-white/10 bg-sidebar-primary">
-              <span className="font-heading text-[24px] font-semibold">J</span>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-11 items-center justify-center rounded-[8px] border border-white/10 bg-sidebar-primary">
+                <span className="font-heading text-[24px] font-semibold">J</span>
+              </div>
+              <div>
+                <p className="section-label text-white/45">Job Assistant</p>
+                <p className="font-heading text-[1.55rem] leading-none">Editorial career workflow</p>
+              </div>
             </div>
-            <div>
-              <p className="section-label text-white/45">Job Assistant</p>
-              <p className="font-heading text-[1.55rem] leading-none">Swiss elegant workflow</p>
-            </div>
+            <ThemeToggle />
           </div>
 
           <div className="max-w-xl space-y-8 py-12">
@@ -120,7 +124,7 @@ export default function AuthPage() {
 
           <div className="flex items-center gap-2 text-[12px] text-white/45">
             <Sparkles className="h-4 w-4" />
-            <span>Designed after the Pencil guide: webapp-02-swisselegant_light</span>
+            <span>A calmer way to organize your applications.</span>
           </div>
         </section>
 
@@ -206,7 +210,7 @@ export default function AuthPage() {
                 <span>{mode === "signin" ? "Need an account?" : "Already registered?"}</span>
                 <button
                   type="button"
-                  className="font-medium text-foreground transition-colors hover:text-accent"
+                  className="font-medium text-foreground transition-opacity hover:opacity-70"
                   onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
                 >
                   {mode === "signin" ? "Create one" : "Sign in"}
