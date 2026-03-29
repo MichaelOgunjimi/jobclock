@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 const LABELS: Record<string, string> = {
+  dashboard: "Dashboard",
   jobs: "Job Search",
   applications: "Applications",
   profile: "My CV",
@@ -43,13 +44,14 @@ export function DashboardTopbar({
 }) {
   const pathname = usePathname()
   const segments = pathname.split("/").filter(Boolean)
-  const crumbs = [
-    { href: "/", label: "Dashboard" },
-    ...segments.map((segment, index) => ({
-      href: `/${segments.slice(0, index + 1).join("/")}`,
-      label: toLabel(segment),
-    })),
-  ]
+  const pageCrumbs = segments.map((segment, index) => ({
+    href: `/${segments.slice(0, index + 1).join("/")}`,
+    label: toLabel(segment),
+  }))
+  const crumbs =
+    pageCrumbs[0]?.href === "/dashboard"
+      ? pageCrumbs
+      : [{ href: "/dashboard", label: "Dashboard" }, ...pageCrumbs]
 
   const initials = getInitials(userProfile.fullName, userProfile.email)
 
