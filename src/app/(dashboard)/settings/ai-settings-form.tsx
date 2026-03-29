@@ -36,7 +36,17 @@ function KeyStatusBadge({ source }: { source: KeySource }) {
   )
 }
 
-function ApiKeyInput({ name, label, source }: { name: string; label: string; source: KeySource }) {
+function ApiKeyInput({
+  name,
+  label,
+  source,
+  onTyped,
+}: {
+  name: string
+  label: string
+  source: KeySource
+  onTyped?: () => void
+}) {
   const [show, setShow] = useState(false)
   const placeholder = source === "none" ? "Enter your API key" : "Enter new key to replace existing"
 
@@ -54,6 +64,7 @@ function ApiKeyInput({ name, label, source }: { name: string; label: string; sou
           placeholder={placeholder}
           autoComplete="off"
           className="pr-10"
+          onChange={(e) => { if (e.target.value) onTyped?.() }}
         />
         <button
           type="button"
@@ -77,7 +88,10 @@ export function AiSettingsForm({
 }) {
   const [provider, setProvider] = useState<AiProvider>(current.provider)
   const [model, setModel] = useState(current.model)
+  const [hasKeyInput, setHasKeyInput] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  const isDirty = provider !== current.provider || model !== current.model || hasKeyInput
 
   function handleProviderChange(next: AiProvider) {
     setProvider(next)
@@ -86,6 +100,7 @@ export function AiSettingsForm({
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (!isDirty) return
     const formData = new FormData(e.currentTarget)
     formData.set("provider", provider)
     formData.set("model", model)
@@ -96,6 +111,7 @@ export function AiSettingsForm({
         toast.error(result.error)
       } else {
         toast.success("Settings saved")
+        setHasKeyInput(false)
       }
     })
   }
@@ -154,18 +170,20 @@ export function AiSettingsForm({
           name="anthropic_api_key"
           label="Anthropic API Key"
           source={keyStatus.anthropic}
+          onTyped={() => setHasKeyInput(true)}
         />
         <ApiKeyInput
           name="openai_api_key"
           label="OpenAI API Key"
           source={keyStatus.openai}
+          onTyped={() => setHasKeyInput(true)}
         />
         <p className="text-xs text-muted-foreground">
           Leave blank to keep existing key. Keys are stored securely and only accessible to you.
         </p>
       </div>
 
-      <Button type="submit" disabled={isPending}>
+      <Button type="submit" disabled={!isDirty || isPending}>
         {isPending ? "Saving…" : "Save Settings"}
       </Button>
     </form>

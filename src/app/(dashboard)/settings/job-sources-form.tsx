@@ -38,6 +38,18 @@ export function JobSourcesForm({ initial }: { initial: JobSources }) {
   const [newLabel, setNewLabel] = useState("")
   const [newUrl, setNewUrl] = useState("")
   const [isPending, startTransition] = useTransition()
+  const [savedSources, setSavedSources] = useState({
+    adzunaEnabled: initial.adzuna?.enabled ?? true,
+    reedEnabled: initial.reed?.enabled ?? false,
+    reedKey: initial.reed?.api_key ?? "",
+    customUrls: initial.custom ?? [] as JobSourceCustomUrl[],
+  })
+
+  const isDirty =
+    adzunaEnabled !== savedSources.adzunaEnabled ||
+    reedEnabled !== savedSources.reedEnabled ||
+    reedKey !== savedSources.reedKey ||
+    JSON.stringify(customUrls) !== JSON.stringify(savedSources.customUrls)
 
   function addCustomUrl() {
     const label = newLabel.trim()
@@ -59,14 +71,19 @@ export function JobSourcesForm({ initial }: { initial: JobSources }) {
   }
 
   function handleSave() {
+    if (!isDirty) return
     startTransition(async () => {
       const result = await saveJobSources({
         adzuna: { enabled: adzunaEnabled },
         reed: { enabled: reedEnabled, api_key: reedKey || undefined },
         custom: customUrls,
       })
-      if (result?.error) toast.error(result.error)
-      else toast.success("Job sources saved")
+      if (result?.error) {
+        toast.error(result.error)
+      } else {
+        toast.success("Job sources saved")
+        setSavedSources({ adzunaEnabled, reedEnabled, reedKey, customUrls })
+      }
     })
   }
 
@@ -179,7 +196,7 @@ export function JobSourcesForm({ initial }: { initial: JobSources }) {
         </div>
       </div>
 
-      <Button onClick={handleSave} disabled={isPending}>
+      <Button onClick={handleSave} disabled={!isDirty || isPending}>
         {isPending ? "Saving…" : "Save Job Sources"}
       </Button>
     </div>

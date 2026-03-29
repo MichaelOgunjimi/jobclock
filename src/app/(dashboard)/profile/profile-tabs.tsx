@@ -61,8 +61,23 @@ export function ProfileTabs({
   const [rightToWork, setRightToWork] = useState(profile?.right_to_work_uk ?? false)
   const [experienceLevels, setExperienceLevels] = useState<string[]>(profile?.experience_level ?? [] as string[])
   const [isPending, startTransition] = useTransition()
+  const [savedPrefs, setSavedPrefs] = useState({
+    roles: profile?.desired_roles ?? [],
+    locations: profile?.locations_uk ?? [],
+    salary: profile?.target_salary_min?.toString() ?? "",
+    rightToWork: profile?.right_to_work_uk ?? false,
+    experienceLevels: profile?.experience_level ?? [] as string[],
+  })
+
+  const isPreferencesDirty =
+    JSON.stringify(roles) !== JSON.stringify(savedPrefs.roles) ||
+    JSON.stringify(locations) !== JSON.stringify(savedPrefs.locations) ||
+    salary !== savedPrefs.salary ||
+    rightToWork !== savedPrefs.rightToWork ||
+    JSON.stringify(experienceLevels) !== JSON.stringify(savedPrefs.experienceLevels)
 
   function handleSavePreferences() {
+    if (!isPreferencesDirty) return
     startTransition(async () => {
       const result = await savePreferences({
         desiredRoles: roles,
@@ -75,6 +90,7 @@ export function ProfileTabs({
         toast.error(result.error)
       } else {
         toast.success("Preferences saved")
+        setSavedPrefs({ roles, locations, salary, rightToWork, experienceLevels })
       }
     })
   }
@@ -237,7 +253,7 @@ export function ProfileTabs({
                   </div>
                 </div>
               </div>
-              <Button onClick={handleSavePreferences} disabled={isPending} variant="outline">
+              <Button onClick={handleSavePreferences} disabled={!isPreferencesDirty || isPending} variant="outline">
                 {isPending ? "Saving…" : "Save Preferences"}
               </Button>
             </div>

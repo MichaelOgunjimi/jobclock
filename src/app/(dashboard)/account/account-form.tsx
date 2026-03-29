@@ -28,9 +28,19 @@ export function AccountForm({ initialData }: AccountFormProps) {
   const [portfolioUrl, setPortfolioUrl] = useState(initialData.portfolioUrl)
   const [avatarUrl, setAvatarUrl] = useState(initialData.avatarUrl)
   const [isPending, startTransition] = useTransition()
+  const [saved, setSaved] = useState(initialData)
+
+  const isDirty =
+    fullName !== saved.fullName ||
+    phone !== saved.phone ||
+    linkedinUrl !== saved.linkedinUrl ||
+    githubUrl !== saved.githubUrl ||
+    portfolioUrl !== saved.portfolioUrl ||
+    avatarUrl !== saved.avatarUrl
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!isDirty) return
     startTransition(async () => {
       const result = await saveAccountInfo({
         fullName,
@@ -44,6 +54,7 @@ export function AccountForm({ initialData }: AccountFormProps) {
         toast.error(result.error)
       } else {
         toast.success("Account updated")
+        setSaved({ ...saved, fullName, phone, linkedinUrl, githubUrl, portfolioUrl, avatarUrl })
       }
     })
   }
@@ -134,7 +145,7 @@ export function AccountForm({ initialData }: AccountFormProps) {
         </div>
       </div>
 
-      <Button type="submit" disabled={isPending}>
+      <Button type="submit" disabled={!isDirty || isPending}>
         {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
         Save changes
       </Button>
