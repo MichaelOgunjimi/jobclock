@@ -1,23 +1,20 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useRef, useState } from "react"
 import { AlertTriangle, X } from "lucide-react"
+import { useDismissibleLayer } from "@/hooks/use-dismissible-layer"
 import { Button } from "@/components/ui/button"
 import { deleteCv, setPrimaryCV } from "./actions"
 
 export function CvCardActions({ cvId, isPrimary }: { cvId: string; isPrimary: boolean }) {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const dialogRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!isDeleteOpen) return
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setIsDeleteOpen(false)
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [isDeleteOpen])
+  useDismissibleLayer({
+    enabled: isDeleteOpen,
+    onDismiss: () => setIsDeleteOpen(false),
+    refs: [dialogRef],
+  })
 
   return (
     <>
@@ -40,16 +37,13 @@ export function CvCardActions({ cvId, isPrimary }: { cvId: string; isPrimary: bo
       </div>
 
       {isDeleteOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setIsDeleteOpen(false)}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby={`delete-cv-title-${cvId}`}
             className="w-full max-w-md border border-border bg-background shadow-lg"
-            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div className="flex items-center gap-3">

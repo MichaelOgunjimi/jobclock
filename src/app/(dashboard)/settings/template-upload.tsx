@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useTransition, useEffect, useRef } from "react"
 import { useDropzone } from "react-dropzone"
+import { useDismissibleLayer } from "@/hooks/use-dismissible-layer"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { Upload, Loader2, Trash2, Eye, EyeOff, CheckCircle, AlertTriangle, X } from "lucide-react"
@@ -37,13 +38,13 @@ export function TemplateUpload({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const previewRef = useRef<HTMLDivElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!isDeleteOpen) return
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setIsDeleteOpen(false) }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [isDeleteOpen])
+  useDismissibleLayer({
+    enabled: isDeleteOpen,
+    onDismiss: () => setIsDeleteOpen(false),
+    refs: [dialogRef],
+  })
 
   // Render existing saved template when preview is toggled on
   useEffect(() => {
@@ -231,15 +232,12 @@ export function TemplateUpload({
 
       {/* Delete dialog */}
       {isDeleteOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setIsDeleteOpen(false)}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             className="w-full max-w-md border border-border bg-background shadow-lg"
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div className="flex items-center gap-3">
