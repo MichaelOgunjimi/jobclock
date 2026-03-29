@@ -43,19 +43,17 @@ const proofPoints = [
 ]
 
 export default async function HomePage() {
-  let userProfile: { email: string; fullName: string | null; avatarUrl: string | null } | null = null
+  let userProfile = null
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("full_name, avatar_url")
         .eq("id", user.id)
         .single()
-
       userProfile = {
         email: user.email ?? "",
         fullName: profile?.full_name ?? null,

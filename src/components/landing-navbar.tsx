@@ -139,7 +139,7 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
               {userProfile ? (
                 <>
                   <Link
-                    href="/jobs"
+                    href="/dashboard"
                     className={cn(buttonVariants({ size: "sm" }), "hidden sm:inline-flex")}
                   >
                     Dashboard
