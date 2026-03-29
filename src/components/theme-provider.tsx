@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useSyncExternalStore } from "react"
 
 type Theme = "light" | "dark"
 
@@ -19,6 +19,10 @@ function getSystemTheme() {
 }
 
 function resolveTheme() {
+  if (typeof window === "undefined") {
+    return "light"
+  }
+
   const storedTheme = window.localStorage.getItem(STORAGE_KEY)
   if (storedTheme === "light" || storedTheme === "dark") {
     return storedTheme
@@ -40,29 +44,29 @@ export function ThemeProvider({
   children: React.ReactNode
   initialTheme: Theme
 }) {
-  const [mounted, setMounted] = useState(false)
-  const [resolvedTheme, setResolvedTheme] = useState<Theme>(initialTheme)
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  )
+  const resolvedTheme = useSyncExternalStore(
+    (onStoreChange) => {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+      const handleThemeChange = () => onStoreChange()
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
-    const frame = window.requestAnimationFrame(() => {
-      const theme = resolveTheme()
-      applyTheme(theme)
-      setResolvedTheme(theme)
-      setMounted(true)
-    })
+      mediaQuery.addEventListener("change", handleThemeChange)
+      window.addEventListener("storage", handleThemeChange)
+      window.addEventListener("job-assistant-theme-change", handleThemeChange)
 
-    function handleSystemChange() {
-      if (window.localStorage.getItem(STORAGE_KEY)) return
-      setResolvedTheme(getSystemTheme())
-    }
-
-    mediaQuery.addEventListener("change", handleSystemChange)
-    return () => {
-      window.cancelAnimationFrame(frame)
-      mediaQuery.removeEventListener("change", handleSystemChange)
-    }
-  }, [])
+      return () => {
+        mediaQuery.removeEventListener("change", handleThemeChange)
+        window.removeEventListener("storage", handleThemeChange)
+        window.removeEventListener("job-assistant-theme-change", handleThemeChange)
+      }
+    },
+    () => resolveTheme(),
+    () => initialTheme
+  )
 
   useEffect(() => {
     applyTheme(resolvedTheme)
@@ -72,7 +76,7 @@ export function ThemeProvider({
     window.localStorage.setItem(STORAGE_KEY, theme)
     document.cookie = `${STORAGE_KEY}=${theme}; path=/; max-age=31536000; samesite=lax`
     applyTheme(theme)
-    setResolvedTheme(theme)
+    window.dispatchEvent(new Event("job-assistant-theme-change"))
   }
 
   return (
