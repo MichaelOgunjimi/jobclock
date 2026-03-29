@@ -423,6 +423,7 @@ export interface CvEducation {
 export interface CvProject {
 	name: string;
 	description: string;
+	highlights?: string[];
 	technologies?: string[];
 	url?: string;
 	start_date?: string;

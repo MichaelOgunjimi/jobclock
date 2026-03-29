@@ -127,6 +127,23 @@ function ProjectForm({
   const setTech = (value: string) =>
     onChange(index, { ...entry, technologies: value.split(",").map((t) => t.trim()).filter(Boolean) })
 
+  const highlights = entry.highlights ?? [""]
+
+  function setHighlight(i: number, value: string) {
+    const next = [...highlights]
+    next[i] = value
+    onChange(index, { ...entry, highlights: next })
+  }
+
+  function addHighlight() {
+    onChange(index, { ...entry, highlights: [...highlights, ""] })
+  }
+
+  function removeHighlight(i: number) {
+    const next = highlights.filter((_, idx) => idx !== i)
+    onChange(index, { ...entry, highlights: next.length ? next : [""] })
+  }
+
   return (
     <div className="border border-border bg-secondary p-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -142,7 +159,31 @@ function ProjectForm({
         <Field label="End Date" value={entry.end_date ?? ""} onChange={(v) => set("end_date", v)} placeholder="2024 or Present" />
       </div>
       <Field label="Technologies (comma-separated)" value={entry.technologies?.join(", ") ?? ""} onChange={setTech} placeholder="React, Node.js, Postgres" />
-      <Field label="Description" value={entry.description} onChange={(v) => set("description", v)} placeholder="What you built and why…" multiline />
+      <Field label="Summary" value={entry.description} onChange={(v) => set("description", v)} placeholder="One-line overview of the project" />
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground">Bullet points</span>
+          <button type="button" onClick={addHighlight} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+            <Plus className="h-3 w-3" /> Add point
+          </button>
+        </div>
+        {highlights.map((point, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="text-muted-foreground text-sm select-none">•</span>
+            <Input
+              value={point}
+              onChange={(e) => setHighlight(i, e.target.value)}
+              placeholder={`Highlight ${i + 1}…`}
+              className="flex-1"
+            />
+            {highlights.length > 1 && (
+              <button type="button" onClick={() => removeHighlight(i)} className="shrink-0 text-muted-foreground hover:text-destructive transition-colors">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

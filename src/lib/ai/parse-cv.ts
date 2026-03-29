@@ -40,7 +40,8 @@ function buildPrompt(rawText: string): string {
   "projects": [
     {
       "name": "Project Name",
-      "description": "What the project does and what you built",
+      "description": "One-line summary of the project",
+      "highlights": ["Key achievement or feature", "Another bullet point"],
       "technologies": ["React", "Node.js"],
       "url": "https://github.com/... or null",
       "start_date": "2023 or null",
