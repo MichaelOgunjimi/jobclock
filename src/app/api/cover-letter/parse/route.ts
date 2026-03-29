@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { PDFParse } from "pdf-parse"
+import pdfParse from "pdf-parse"
 import mammoth from "mammoth"
 
 export async function POST(req: NextRequest) {
@@ -19,8 +19,7 @@ export async function POST(req: NextRequest) {
     let text = ""
 
     if (ext === "pdf") {
-      const parser = new PDFParse({ data: buffer })
-      const result = await parser.getText()
+      const result = await pdfParse(buffer)
       text = result.text
     } else if (ext === "docx" || ext === "doc") {
       const result = await mammoth.extractRawText({ buffer })
