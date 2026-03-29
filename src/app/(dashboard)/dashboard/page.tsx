@@ -191,9 +191,13 @@ export default async function DashboardPage() {
                   }
 
                   return (
-                    <div key={app.id} className="flex items-start justify-between gap-4 py-5 first:pt-0 last:pb-0">
+                    <Link
+                      key={app.id}
+                      href={`/applications/${app.id}`}
+                      className="group -mx-6 flex items-start justify-between gap-4 px-6 py-5 transition-colors hover:bg-secondary/60 first:pt-0 last:pb-0"
+                    >
                       <div className="space-y-2">
-                        <p className="font-heading text-[1.2rem] leading-none tracking-[-0.03em]">
+                        <p className="font-heading text-[1.2rem] leading-none tracking-[-0.03em] transition-colors group-hover:text-foreground/80">
                           {app.jobs_cache?.title ?? "Unknown job"}
                         </p>
                         <div className="space-y-1">
@@ -206,7 +210,7 @@ export default async function DashboardPage() {
                         </div>
                       </div>
                       <Badge className={config.color}>{config.label}</Badge>
-                    </div>
+                    </Link>
                   )
                 })}
               </div>

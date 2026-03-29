@@ -25,7 +25,7 @@ export function DashboardShell({
         isMobileOpen={isMobileSidebarOpen}
         onMobileOpenChange={setIsMobileSidebarOpen}
       />
-      <main className="min-w-0 flex-1 overflow-x-hidden pt-16 lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pt-0">
+      <main className="min-w-0 flex-1 overflow-x-hidden lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden">
         <DashboardTopbar
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
           userProfile={userProfile}

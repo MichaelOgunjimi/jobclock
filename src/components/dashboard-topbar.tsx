@@ -54,11 +54,12 @@ export function DashboardTopbar({
       : [{ href: "/dashboard", label: "Dashboard" }, ...pageCrumbs]
 
   const initials = getInitials(userProfile.fullName, userProfile.email)
+  const mobileCrumb = crumbs[crumbs.length - 1] ?? { href: pathname, label: "Dashboard" }
 
   return (
     <div className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
-      <div className="mx-auto flex h-[73px] w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6 md:px-10 xl:px-12">
-        <div className="flex min-w-0 items-center gap-3">
+      <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-3 px-4 sm:h-[73px] sm:px-6 md:px-10 xl:px-12">
+        <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           <Button
             type="button"
             variant="outline"
@@ -70,7 +71,7 @@ export function DashboardTopbar({
             <PanelLeftOpen className="h-4 w-4" />
           </Button>
           <nav aria-label="Breadcrumb" className="min-w-0">
-            <ol className="flex min-w-0 items-center gap-2 overflow-x-auto text-[12px] text-muted-foreground">
+            <ol className="hidden min-w-0 items-center gap-2 overflow-x-auto text-[12px] text-muted-foreground sm:flex">
               {crumbs.map((crumb, index) => {
                 const isLast = index === crumbs.length - 1
                 return (
@@ -87,10 +88,15 @@ export function DashboardTopbar({
                 )
               })}
             </ol>
+            <div className="sm:hidden">
+              <span className="text-[13px] font-medium tracking-[0.01em] text-foreground">
+                {mobileCrumb.label}
+              </span>
+            </div>
           </nav>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <ThemeToggle />
           <Link
             href="/account"

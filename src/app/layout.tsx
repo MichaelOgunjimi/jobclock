@@ -35,6 +35,7 @@ export default async function RootLayout({
       lang="en"
       className={initialTheme === "dark" ? "dark" : undefined}
       data-theme={initialTheme}
+      data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
       <body className={`${uiSans.variable} ${geistMono.variable} font-sans antialiased`}>
