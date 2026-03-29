@@ -13,6 +13,7 @@ export function parseCvText(text: string): CvData {
     education: [],
     skills: [],
   }
+  const experience = cv.experience ?? []
 
   // Try to extract name (first substantial non-section line)
   if (lines.length > 0) {
@@ -29,7 +30,7 @@ export function parseCvText(text: string): CvData {
     // Section detection
     if (lower.startsWith("experience") || lower.startsWith("work history") || lower.startsWith("employment")) {
       if (currentBlock.company && currentSection === "experience") {
-        cv.experience.push(currentBlock as CvExperience)
+        experience.push(currentBlock as CvExperience)
         currentBlock = {}
       }
       currentSection = "experience"
@@ -38,7 +39,7 @@ export function parseCvText(text: string): CvData {
 
     if (lower.startsWith("education") || lower.startsWith("academic") || lower.startsWith("qualification")) {
       if (currentBlock.company && currentSection === "experience") {
-        cv.experience.push(currentBlock as CvExperience)
+        experience.push(currentBlock as CvExperience)
         currentBlock = {}
       }
       currentSection = "education"
@@ -72,7 +73,7 @@ export function parseCvText(text: string): CvData {
       // Try to detect job entry start (Company | Title or Title at Company)
       if (line.includes("|") || (i > 0 && lines[i - 1]?.toLowerCase().startsWith("experience"))) {
         if (currentBlock.company) {
-          cv.experience.push(currentBlock as CvExperience)
+          experience.push(currentBlock as CvExperience)
         }
         const parts = line.split("|").map((p) => p.trim())
         currentBlock = {
@@ -111,7 +112,7 @@ export function parseCvText(text: string): CvData {
 
   // Push last block
   if (currentBlock.company) {
-    cv.experience.push(currentBlock as CvExperience)
+    experience.push(currentBlock as CvExperience)
   }
 
   // Deduplicate skills

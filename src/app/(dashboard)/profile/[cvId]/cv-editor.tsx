@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import { Plus, Trash2, Save, Briefcase, GraduationCap, Award, Languages, FileText, FolderKanban } from "lucide-react"
 import type { CvData, CvExperience, CvEducation, CvProject } from "@/lib/supabase/database.types"
+import { normalizeCvData, type NormalizedCvData } from "@/lib/cv-data"
 import { saveCvData, renameCv } from "../actions"
 
 function Field({
@@ -33,7 +34,7 @@ function Field({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           rows={4}
-          className="flex min-h-[96px] w-full border border-input bg-muted px-4 py-3 text-[13px] tracking-[0.02em] outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/15 resize-none"
+          className="flex min-h-24 w-full border border-input bg-muted px-4 py-3 text-[13px] tracking-[0.02em] outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/15 resize-none"
         />
       ) : (
         <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
@@ -216,11 +217,11 @@ export function CvEditor({
   cvName: string
   initialData: CvData
 }) {
-  const [data, setData] = useState<CvData>(initialData)
+  const [data, setData] = useState<NormalizedCvData>(() => normalizeCvData(initialData))
   const [name, setName] = useState(cvName)
   const [isPending, startTransition] = useTransition()
 
-  const set = <K extends keyof CvData>(field: K, value: CvData[K]) =>
+  const set = <K extends keyof NormalizedCvData>(field: K, value: NormalizedCvData[K]) =>
     setData((d) => ({ ...d, [field]: value }))
 
   function updateExperience(i: number, entry: CvExperience) {

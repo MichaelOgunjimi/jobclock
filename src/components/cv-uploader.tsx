@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import type { CvData } from "@/lib/supabase/database.types"
+import { normalizeCvData } from "@/lib/cv-data"
 
 interface UploadedCv {
   id: string
@@ -207,6 +208,8 @@ export function CvUploader({ onUploadSuccess, existingCv }: CvUploaderProps) {
 }
 
 function CvPreview({ cv }: { cv: CvData }) {
+  const normalizedCv = normalizeCvData(cv)
+
   return (
     <div className="space-y-4 border bg-secondary p-5">
       <div className="flex items-center gap-2 text-sm font-medium">
@@ -214,34 +217,34 @@ function CvPreview({ cv }: { cv: CvData }) {
         Parsed CV Data
       </div>
 
-      {cv.name && (
+      {normalizedCv.name && (
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div>
-            <span className="text-muted-foreground">Name:</span> {cv.name}
+            <span className="text-muted-foreground">Name:</span> {normalizedCv.name}
           </div>
-          {cv.email && (
+          {normalizedCv.email && (
             <div>
-              <span className="text-muted-foreground">Email:</span> {cv.email}
+              <span className="text-muted-foreground">Email:</span> {normalizedCv.email}
             </div>
           )}
-          {cv.phone && (
+          {normalizedCv.phone && (
             <div>
-              <span className="text-muted-foreground">Phone:</span> {cv.phone}
+              <span className="text-muted-foreground">Phone:</span> {normalizedCv.phone}
             </div>
           )}
-          {cv.location && (
+          {normalizedCv.location && (
             <div>
-              <span className="text-muted-foreground">Location:</span> {cv.location}
+              <span className="text-muted-foreground">Location:</span> {normalizedCv.location}
             </div>
           )}
         </div>
       )}
 
-      {cv.skills.length > 0 && (
+      {normalizedCv.skills.length > 0 && (
         <div>
           <span className="text-sm text-muted-foreground">Skills: </span>
           <div className="flex flex-wrap gap-1 mt-1">
-            {cv.skills.slice(0, 15).map((skill) => (
+            {normalizedCv.skills.slice(0, 15).map((skill) => (
               <span
                 key={skill}
                 className="inline-flex items-center border border-border bg-background px-2 py-1 text-[11px] font-semibold tracking-[0.08em] text-foreground uppercase"
@@ -249,18 +252,18 @@ function CvPreview({ cv }: { cv: CvData }) {
                 {skill}
               </span>
             ))}
-            {cv.skills.length > 15 && (
-              <span className="text-xs text-muted-foreground">+{cv.skills.length - 15} more</span>
+            {normalizedCv.skills.length > 15 && (
+              <span className="text-xs text-muted-foreground">+{normalizedCv.skills.length - 15} more</span>
             )}
           </div>
         </div>
       )}
 
-      {cv.experience.length > 0 && (
+      {normalizedCv.experience.length > 0 && (
         <div>
           <span className="text-sm text-muted-foreground">Experience: </span>
           <div className="text-sm mt-1 space-y-1">
-            {cv.experience.slice(0, 2).map((exp, i) => (
+            {normalizedCv.experience.slice(0, 2).map((exp, i) => (
               <div key={i} className="bg-background rounded px-2 py-1">
                 <span className="font-medium">{exp.title}</span> at {exp.company}
               </div>
@@ -269,11 +272,11 @@ function CvPreview({ cv }: { cv: CvData }) {
         </div>
       )}
 
-      {cv.education.length > 0 && (
+      {normalizedCv.education.length > 0 && (
         <div>
           <span className="text-sm text-muted-foreground">Education: </span>
           <div className="text-sm mt-1 space-y-1">
-            {cv.education.slice(0, 2).map((edu, i) => (
+            {normalizedCv.education.slice(0, 2).map((edu, i) => (
               <div key={i} className="bg-background rounded px-2 py-1">
                 <span className="font-medium">{edu.degree}</span> at {edu.institution}
               </div>
