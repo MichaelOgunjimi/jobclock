@@ -90,7 +90,7 @@ export function CvUploader({ onUploadSuccess, existingCv }: CvUploaderProps) {
       <Card>
         <CardHeader className="border-b pb-6">
           <CardTitle className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-accent" />
+            <CheckCircle2 className="h-5 w-5 text-foreground" />
             CV Uploaded
           </CardTitle>
           <CardDescription>
@@ -163,8 +163,8 @@ export function CvUploader({ onUploadSuccess, existingCv }: CvUploaderProps) {
           className={`
             cursor-pointer border border-dashed p-10 text-center transition-colors
             ${isDragReject ? "border-destructive bg-destructive/5" : ""}
-            ${dragActive && !isDragReject ? "border-accent bg-accent/5" : ""}
-            ${!dragActive ? "border-border bg-secondary hover:border-accent/40" : ""}
+            ${dragActive && !isDragReject ? "border-foreground/30 bg-foreground/5" : ""}
+            ${!dragActive ? "border-border bg-secondary hover:border-foreground/30" : ""}
           `}
         >
           <input {...getInputProps()} />
@@ -244,7 +244,7 @@ function CvPreview({ cv }: { cv: CvData }) {
             {cv.skills.slice(0, 15).map((skill) => (
               <span
                 key={skill}
-                className="inline-flex items-center border border-accent/20 bg-accent/10 px-2 py-1 text-[11px] font-semibold tracking-[0.08em] text-accent uppercase"
+                className="inline-flex items-center border border-border bg-background px-2 py-1 text-[11px] font-semibold tracking-[0.08em] text-foreground uppercase"
               >
                 {skill}
               </span>

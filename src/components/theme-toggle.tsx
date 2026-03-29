@@ -13,13 +13,11 @@ export function ThemeToggle() {
       <Button
         type="button"
         variant="outline"
-        size="sm"
-        className="gap-2"
+        size="icon-sm"
         disabled
         aria-label="Toggle theme"
       >
         <Moon className="h-4 w-4" />
-        <span className="hidden sm:inline">Theme</span>
       </Button>
     )
   }
@@ -28,13 +26,11 @@ export function ThemeToggle() {
     <Button
       type="button"
       variant="outline"
-      size="sm"
-      className="gap-2"
+      size="icon-sm"
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
       {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-      <span className="hidden sm:inline">{isDark ? "Light" : "Dark"}</span>
     </Button>
   )
 }

@@ -33,22 +33,29 @@ function applyTheme(theme: Theme) {
   root.dataset.theme = theme
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({
+  children,
+  initialTheme,
+}: {
+  children: React.ReactNode
+  initialTheme: Theme
+}) {
   const [mounted, setMounted] = useState(false)
-  const [resolvedTheme, setResolvedTheme] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "light"
-    return resolveTheme()
-  })
+  const [resolvedTheme, setResolvedTheme] = useState<Theme>(initialTheme)
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+    const frame = window.requestAnimationFrame(() => {
+      const theme = resolveTheme()
+      applyTheme(theme)
+      setResolvedTheme(theme)
+      setMounted(true)
+    })
 
     function handleSystemChange() {
       if (window.localStorage.getItem(STORAGE_KEY)) return
       setResolvedTheme(getSystemTheme())
     }
-
-    const frame = window.requestAnimationFrame(() => setMounted(true))
 
     mediaQuery.addEventListener("change", handleSystemChange)
     return () => {
@@ -63,6 +70,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   function setTheme(theme: Theme) {
     window.localStorage.setItem(STORAGE_KEY, theme)
+    document.cookie = `${STORAGE_KEY}=${theme}; path=/; max-age=31536000; samesite=lax`
     applyTheme(theme)
     setResolvedTheme(theme)
   }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
+import { cookies } from "next/headers"
 import { Geist_Mono, IBM_Plex_Sans } from "next/font/google"
-import Script from "next/script"
 import "./globals.css"
 import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -21,31 +21,24 @@ export const metadata: Metadata = {
   description: "AI-powered job application assistant for UK graduate roles",
 }
 
-const themeInitScript = `
-  try {
-    var storageKey = "job-assistant-theme";
-    var storedTheme = window.localStorage.getItem(storageKey);
-    var theme = storedTheme === "light" || storedTheme === "dark"
-      ? storedTheme
-      : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    var root = document.documentElement;
-    root.classList.toggle("dark", theme === "dark");
-    root.dataset.theme = theme;
-  } catch (error) {}
-`
-
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const cookieStore = await cookies()
+  const cookieTheme = cookieStore.get("job-assistant-theme")?.value
+  const initialTheme = cookieTheme === "dark" ? "dark" : "light"
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={initialTheme === "dark" ? "dark" : undefined}
+      data-theme={initialTheme}
+      suppressHydrationWarning
+    >
       <body className={`${uiSans.variable} ${geistMono.variable} font-sans antialiased`}>
-        <Script id="theme-init" strategy="beforeInteractive">
-          {themeInitScript}
-        </Script>
-        <ThemeProvider>
+        <ThemeProvider initialTheme={initialTheme}>
           {children}
           <Toaster />
         </ThemeProvider>

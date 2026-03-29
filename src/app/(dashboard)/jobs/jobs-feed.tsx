@@ -354,7 +354,7 @@ function JobCard({
               {SOURCE_LABELS[job.source] ?? job.source}
             </span>
             {job.isEasyApply && (
-              <span className="border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent">
+              <span className="border border-foreground/15 bg-foreground/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-foreground">
                 Easy Apply
               </span>
             )}
