@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
-import { PDFParse } from "pdf-parse"
+import pdfParse from "pdf-parse"
 import mammoth from "mammoth"
 import { parseCvWithAi } from "@/lib/ai/parse-cv"
 import type { UserPreferences } from "@/lib/ai"
@@ -50,9 +50,8 @@ export async function POST(request: NextRequest) {
     let rawText = ""
 
     if (file.type === "application/pdf") {
-      const parser = new PDFParse({ data: buffer })
       try {
-        const result = await parser.getText()
+        const result = await pdfParse(buffer)
         rawText = result.text
       } catch (parseError) {
         console.error("PDF parse error:", parseError)
@@ -60,8 +59,6 @@ export async function POST(request: NextRequest) {
           { error: "Failed to parse PDF. Please ensure it's a valid PDF file." },
           { status: 422 }
         )
-      } finally {
-        await parser.destroy()
       }
     } else {
       try {
