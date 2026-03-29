@@ -22,7 +22,7 @@ import {
 import { toast } from "sonner"
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/jobs", label: "Job Search", icon: Search },
   { href: "/applications", label: "Applications", icon: Send },
   { href: "/profile", label: "My CV", icon: FileText },
