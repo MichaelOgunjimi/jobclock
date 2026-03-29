@@ -1,5 +1,4 @@
 import Link from "next/link"
-import { redirect } from "next/navigation"
 import { ArrowRight, BadgeCheck, BriefcaseBusiness, FileCheck2, FolderKanban, Search, ShieldCheck, Sparkles } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
@@ -44,20 +43,30 @@ const proofPoints = [
 ]
 
 export default async function HomePage() {
+  let userProfile: { email: string; fullName: string | null; avatarUrl: string | null } | null = null
+
   if (isSupabaseConfigured()) {
     const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
 
     if (user) {
-      redirect("/jobs")
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url")
+        .eq("id", user.id)
+        .single()
+
+      userProfile = {
+        email: user.email ?? "",
+        fullName: profile?.full_name ?? null,
+        avatarUrl: profile?.avatar_url ?? null,
+      }
     }
   }
 
   return (
     <main className="landing-page min-h-screen overflow-x-hidden bg-background text-foreground">
-      <LandingNavbar />
+      <LandingNavbar userProfile={userProfile} />
 
       <section className="relative isolate border-b">
         <div className="landing-glow landing-glow-one" aria-hidden="true" />

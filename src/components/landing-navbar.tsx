@@ -16,7 +16,23 @@ const sections = [
   { id: "start", label: "Start" },
 ]
 
-export function LandingNavbar() {
+interface UserProfile {
+  email: string
+  fullName: string | null
+  avatarUrl: string | null
+}
+
+function getInitials(fullName: string | null, email: string): string {
+  if (fullName?.trim()) {
+    const parts = fullName.trim().split(/\s+/)
+    return parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : parts[0][0].toUpperCase()
+  }
+  return email[0].toUpperCase()
+}
+
+export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null }) {
   const [activeSection, setActiveSection] = useState<string>(() => {
     if (typeof window === "undefined") {
       return "features"
@@ -120,32 +136,58 @@ export function LandingNavbar() {
 
             <div className="flex items-center gap-2 justify-self-end">
               <ThemeToggle />
-              <Button
-                ref={mobileMenuButtonRef}
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                className="md:hidden"
-                aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-                onClick={() => setIsMobileMenuOpen((open) => !open)}
-              >
-                {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-              </Button>
-              <Link
-                href="/auth"
-                className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden sm:inline-flex")}
-              >
-                Sign in
-              </Link>
-              <Link href="/auth" className={cn(buttonVariants({ size: "sm" }), "hidden sm:inline-flex")}>
-                <span className="hidden sm:inline">Open workspace</span>
-                <span className="sm:hidden">Open</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
+              {userProfile ? (
+                <>
+                  <Link
+                    href="/jobs"
+                    className={cn(buttonVariants({ size: "sm" }), "hidden sm:inline-flex")}
+                  >
+                    Dashboard
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    href="/account"
+                    aria-label="Account"
+                    title={userProfile.fullName ?? userProfile.email}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden border bg-secondary text-[11px] font-semibold uppercase tracking-wide text-foreground transition-colors hover:border-foreground/40"
+                  >
+                    {userProfile.avatarUrl ? (
+                      <img src={userProfile.avatarUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      getInitials(userProfile.fullName, userProfile.email)
+                    )}
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Button
+                    ref={mobileMenuButtonRef}
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    className="md:hidden"
+                    aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+                    onClick={() => setIsMobileMenuOpen((open) => !open)}
+                  >
+                    {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+                  </Button>
+                  <Link
+                    href="/auth"
+                    className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden sm:inline-flex")}
+                  >
+                    Sign in
+                  </Link>
+                  <Link href="/auth" className={cn(buttonVariants({ size: "sm" }), "hidden sm:inline-flex")}>
+                    <span className="hidden sm:inline">Open workspace</span>
+                    <span className="sm:hidden">Open</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 
-          {isMobileMenuOpen && (
+          {isMobileMenuOpen && !userProfile && (
             <div ref={mobileMenuRef} className="border-b md:hidden">
               <nav className="grid gap-px bg-border">
                 {sections.map((section) => {
