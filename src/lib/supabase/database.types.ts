@@ -22,6 +22,12 @@ export type Database = {
 					cv_template_path: string | null;
 					cover_letter_template_path: string | null;
 					experience_level: string[] | null;
+					full_name: string | null;
+					phone: string | null;
+					linkedin_url: string | null;
+					github_url: string | null;
+					portfolio_url: string | null;
+					avatar_url: string | null;
 				};
 				Insert: {
 					id: string;
@@ -35,6 +41,12 @@ export type Database = {
 					cv_template_path?: string | null;
 					cover_letter_template_path?: string | null;
 					experience_level?: string[] | null;
+					full_name?: string | null;
+					phone?: string | null;
+					linkedin_url?: string | null;
+					github_url?: string | null;
+					portfolio_url?: string | null;
+					avatar_url?: string | null;
 				};
 				Update: {
 					id?: string;
@@ -48,6 +60,12 @@ export type Database = {
 					cv_template_path?: string | null;
 					cover_letter_template_path?: string | null;
 					experience_level?: string[] | null;
+					full_name?: string | null;
+					phone?: string | null;
+					linkedin_url?: string | null;
+					github_url?: string | null;
+					portfolio_url?: string | null;
+					avatar_url?: string | null;
 				};
 				Relationships: [];
 			};

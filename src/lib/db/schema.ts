@@ -41,6 +41,12 @@ export const profiles = pgTable("profiles", {
   cvTemplatePath: text("cv_template_path"),
   coverLetterTemplatePath: text("cover_letter_template_path"),
   experienceLevel: text("experience_level").array(),
+  fullName: text("full_name"),
+  phone: text("phone"),
+  linkedinUrl: text("linkedin_url"),
+  githubUrl: text("github_url"),
+  portfolioUrl: text("portfolio_url"),
+  avatarUrl: text("avatar_url"),
 })
 
 // ============================================================
