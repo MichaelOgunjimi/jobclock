@@ -28,8 +28,11 @@ npm install
 ### 2. Set Up Supabase
 
 1. Create a project at supabase.com
-2. Run the migration SQL in `supabase/migrations/001_initial_schema.sql`
-3. Copy `.env.local.example` to `.env.local` and fill in your credentials
+2. Copy `.env.local.example` to `.env.local` and fill in your credentials
+3. Run `npm run db:migrate` to apply the Drizzle-managed schema
+4. Run `supabase/sql/platform-setup.sql` in the Supabase SQL editor to apply Supabase-specific setup (RLS, auth trigger, storage buckets/policies)
+
+Do not use `supabase/migrations/001_initial_schema.sql` for a fresh Drizzle-managed database. That file is part of the older Supabase-first setup and overlaps with the Drizzle table creation.
 
 ### 3. (Optional) Adzuna API
 
@@ -72,8 +75,16 @@ src/
 ## Phase 1 Status
 
 - [x] Project scaffold (Next.js 15, TypeScript, Tailwind v4, shadcn/ui)
-- [x] Supabase schema (all tables from PRD)
+- [x] Database schema (Drizzle-managed tables plus Supabase platform setup)
 - [x] CV upload flow (PDF/DOCX parsing, Supabase Storage)
 - [x] Profile page (view/edit parsed CV data)
 - [x] Job search UI with Adzuna integration (mock data ready)
 - [ ] Phase 2: AI CV customization + cover letter generation
+
+## Database Workflow
+
+- Drizzle is the primary owner of application schema: edit [src/lib/db/schema.ts](src/lib/db/schema.ts), then run `npm run db:generate` and `npm run db:migrate`
+- Supabase SQL is reserved for platform-specific setup: RLS, auth triggers, storage buckets, storage policies, and auth-related foreign keys
+- The legacy files in `supabase/migrations/` are historical reference from the earlier Supabase-first setup and should not be used to initialize a fresh Drizzle-managed database
+
+See `docs/database-workflow.md` for the full migration strategy.
