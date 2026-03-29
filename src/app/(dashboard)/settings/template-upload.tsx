@@ -147,7 +147,7 @@ export function TemplateUpload({
       <div className="space-y-4">
         {/* Saved status bar */}
         {saved && !pendingPath && (
-          <div className="flex items-center justify-between border border-border bg-secondary px-4 py-3">
+          <div className="flex flex-col gap-3 border border-border bg-secondary px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-sm">
               <CheckCircle className="h-4 w-4 text-green-600" />
               <span>Template saved</span>
@@ -202,7 +202,7 @@ export function TemplateUpload({
         {/* Preview container */}
         {showPreview && (
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Preview</p>
               {pendingPath && (
                 <p className="text-xs text-amber-600">Unsaved — click Save to confirm</p>
@@ -221,9 +221,9 @@ export function TemplateUpload({
 
         {/* Save / discard */}
         {pendingPath && (
-          <div className="flex gap-2 justify-end">
-            <Button type="button" variant="outline" onClick={handleDiscard}>Discard</Button>
-            <Button type="button" onClick={handleSave} disabled={isPending}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={handleDiscard} className="w-full sm:w-auto">Discard</Button>
+            <Button type="button" onClick={handleSave} disabled={isPending} className="w-full sm:w-auto">
               {isPending ? "Saving…" : `Save ${label} Template`}
             </Button>
           </div>

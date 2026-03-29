@@ -30,8 +30,8 @@ export default async function SettingsPage() {
   const jobSources: JobSources = (preferences?.job_sources as JobSources) ?? {}
 
   return (
-    <div className="page-shell max-w-4xl lg:min-h-0 lg:flex-1">
-      <div className="page-header">
+    <div className="page-shell max-w-4xl gap-6 py-5 md:gap-8 md:py-8 lg:min-h-0 lg:flex-1">
+      <div className="page-header gap-3 pb-5 md:pb-6">
         <div className="space-y-3">
           <p className="page-kicker">Settings</p>
           <div className="space-y-2">

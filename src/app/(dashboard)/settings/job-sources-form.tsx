@@ -18,7 +18,7 @@ function SourceToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () =>
       aria-checked={enabled}
       onClick={onToggle}
       className={cn(
-        "flex items-center gap-1.5 border px-3 py-1.5 text-xs font-medium transition-colors",
+        "inline-flex items-center gap-1.5 border px-3 py-1.5 text-xs font-medium transition-colors",
         enabled
           ? "border-foreground/30 bg-foreground text-background"
           : "border-border bg-secondary text-muted-foreground hover:text-foreground"
@@ -92,8 +92,8 @@ export function JobSourcesForm({ initial }: { initial: JobSources }) {
 
       {/* Adzuna */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <p className="text-sm font-medium">Adzuna</p>
             <p className="text-xs text-muted-foreground mt-0.5">
               UK job board aggregator — uses your <code className="text-xs">ADZUNA_APP_ID</code> and <code className="text-xs">ADZUNA_APP_KEY</code> env vars
@@ -107,8 +107,8 @@ export function JobSourcesForm({ initial }: { initial: JobSources }) {
 
       {/* Reed */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <p className="text-sm font-medium">Reed</p>
             <p className="text-xs text-muted-foreground mt-0.5">
               UK&apos;s largest job board — free API key at{" "}
@@ -146,22 +146,26 @@ export function JobSourcesForm({ initial }: { initial: JobSources }) {
             {customUrls.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center gap-3 border border-border bg-secondary px-4 py-3"
+                className="flex flex-col gap-3 border border-border bg-secondary px-4 py-3 sm:flex-row sm:items-center"
               >
-                <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{item.label}</p>
-                  <p className="text-xs text-muted-foreground truncate">{item.url}</p>
+                <div className="flex min-w-0 items-start gap-3">
+                  <Globe className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium break-words">{item.label}</p>
+                    <p className="text-xs text-muted-foreground break-all">{item.url}</p>
+                  </div>
                 </div>
-                <SourceToggle enabled={item.enabled} onToggle={() => toggleCustomUrl(item.id)} />
-                <button
-                  type="button"
-                  onClick={() => removeCustomUrl(item.id)}
-                  className="text-muted-foreground hover:text-destructive transition-colors"
-                  aria-label="Remove"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                <div className="flex items-center gap-2 sm:ml-auto">
+                  <SourceToggle enabled={item.enabled} onToggle={() => toggleCustomUrl(item.id)} />
+                  <button
+                    type="button"
+                    onClick={() => removeCustomUrl(item.id)}
+                    className="text-muted-foreground hover:text-destructive transition-colors"
+                    aria-label="Remove"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -188,7 +192,7 @@ export function JobSourcesForm({ initial }: { initial: JobSources }) {
             size="sm"
             onClick={addCustomUrl}
             disabled={!newLabel.trim() || !newUrl.trim()}
-            className="mt-2"
+            className="mt-2 w-full sm:w-auto"
           >
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             Add
@@ -196,7 +200,7 @@ export function JobSourcesForm({ initial }: { initial: JobSources }) {
         </div>
       </div>
 
-      <Button onClick={handleSave} disabled={!isDirty || isPending}>
+      <Button onClick={handleSave} disabled={!isDirty || isPending} className="w-full sm:w-auto">
         {isPending ? "Saving…" : "Save Job Sources"}
       </Button>
     </div>

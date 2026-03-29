@@ -36,10 +36,10 @@ export function SettingsTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange}>
-      <TabsList className="mb-8 shrink-0">
-        <TabsTrigger value="ai">AI</TabsTrigger>
-        <TabsTrigger value="documents">Documents</TabsTrigger>
-        <TabsTrigger value="job-sources">Job Sources</TabsTrigger>
+      <TabsList className="mb-6 shrink-0 gap-1 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mb-8">
+        <TabsTrigger value="ai" className="shrink-0 px-2.5 sm:px-4">AI</TabsTrigger>
+        <TabsTrigger value="documents" className="shrink-0 px-2.5 sm:px-4">Documents</TabsTrigger>
+        <TabsTrigger value="job-sources" className="shrink-0 px-2.5 sm:px-4">Job Sources</TabsTrigger>
       </TabsList>
 
       {/* AI Tab */}

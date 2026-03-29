@@ -236,7 +236,7 @@ function LetterForm({
 					<select
 						name="tone"
 						defaultValue={initial?.tone ?? "professional"}
-						className="flex h-11 w-full border border-input bg-muted px-4 text-[13px] tracking-[0.02em] outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/15"
+						className="form-select"
 					>
 						{TONES.map((t) => (
 							<option key={t.value} value={t.value}>

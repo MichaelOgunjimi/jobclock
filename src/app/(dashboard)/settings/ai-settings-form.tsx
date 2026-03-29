@@ -52,7 +52,7 @@ function ApiKeyInput({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between">
         <Label htmlFor={name}>{label}</Label>
         <KeyStatusBadge source={source} />
       </div>
@@ -120,7 +120,7 @@ export function AiSettingsForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-3">
         <Label>Provider</Label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           {(["anthropic", "openai"] as AiProvider[]).map((p) => (
             <button
               key={p}
@@ -154,7 +154,7 @@ export function AiSettingsForm({
           name="model"
           value={model}
           onChange={(e) => setModel(e.target.value)}
-          className="flex h-11 w-full border border-input bg-muted px-4 py-2 text-[13px] tracking-[0.02em] outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/15 appearance-none"
+          className="form-select"
         >
           {PROVIDER_MODELS[provider].map((m) => (
             <option key={m.id} value={m.id}>
@@ -183,7 +183,7 @@ export function AiSettingsForm({
         </p>
       </div>
 
-      <Button type="submit" disabled={!isDirty || isPending}>
+      <Button type="submit" disabled={!isDirty || isPending} className="w-full sm:w-auto">
         {isPending ? "Saving…" : "Save Settings"}
       </Button>
     </form>
