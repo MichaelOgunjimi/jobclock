@@ -11,19 +11,47 @@ const LABELS: Record<string, string> = {
   applications: "Applications",
   profile: "My CV",
   settings: "Settings",
+  account: "Account",
 }
 
 function toLabel(segment: string) {
   return LABELS[segment] ?? segment.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-export function DashboardTopbar({ onOpenMobileSidebar }: { onOpenMobileSidebar: () => void }) {
+function getInitials(fullName: string | null, email: string): string {
+  if (fullName && fullName.trim()) {
+    const parts = fullName.trim().split(/\s+/)
+    return parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : parts[0][0].toUpperCase()
+  }
+  return email[0].toUpperCase()
+}
+
+interface UserProfile {
+  email: string
+  fullName: string | null
+  avatarUrl: string | null
+}
+
+export function DashboardTopbar({
+  onOpenMobileSidebar,
+  userProfile,
+}: {
+  onOpenMobileSidebar: () => void
+  userProfile: UserProfile
+}) {
   const pathname = usePathname()
   const segments = pathname.split("/").filter(Boolean)
-  const crumbs = [{ href: "/", label: "Dashboard" }, ...segments.map((segment, index) => ({
-    href: `/${segments.slice(0, index + 1).join("/")}`,
-    label: toLabel(segment),
-  }))]
+  const crumbs = [
+    { href: "/", label: "Dashboard" },
+    ...segments.map((segment, index) => ({
+      href: `/${segments.slice(0, index + 1).join("/")}`,
+      label: toLabel(segment),
+    })),
+  ]
+
+  const initials = getInitials(userProfile.fullName, userProfile.email)
 
   return (
     <div className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
@@ -59,7 +87,26 @@ export function DashboardTopbar({ onOpenMobileSidebar }: { onOpenMobileSidebar: 
             </ol>
           </nav>
         </div>
-        <ThemeToggle />
+
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <Link
+            href="/account"
+            aria-label="Account"
+            title={userProfile.fullName ?? userProfile.email}
+            className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden border bg-secondary text-[11px] font-semibold uppercase tracking-wide text-foreground transition-colors hover:border-foreground/40"
+          >
+            {userProfile.avatarUrl ? (
+              <img
+                src={userProfile.avatarUrl}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              initials
+            )}
+          </Link>
+        </div>
       </div>
     </div>
   )

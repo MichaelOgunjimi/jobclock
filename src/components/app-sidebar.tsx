@@ -14,6 +14,7 @@ import {
   LogOut,
   Search,
   Settings,
+  UserCircle,
   PanelLeftClose,
   PanelLeftOpen,
   X,
@@ -113,6 +114,19 @@ export function AppSidebar({
         </nav>
 
         <div className="border-t border-sidebar-border px-4 py-5">
+          <Link
+            href="/account"
+            title="Account"
+            onClick={() => onMobileOpenChange(false)}
+            className={cn(
+              "mb-2 flex items-center gap-3 border border-transparent px-4 py-3 text-[13px] font-medium tracking-[0.02em] text-sidebar-foreground transition-colors hover:border-white/10 hover:bg-white/5 hover:text-white",
+              pathname.startsWith("/account") && "border-white/10 bg-sidebar-primary text-sidebar-primary-foreground",
+              isCollapsed && "lg:mx-auto lg:w-12 lg:justify-center lg:px-0"
+            )}
+          >
+            <UserCircle className="h-4 w-4 shrink-0" />
+            <span className={cn(isCollapsed && "lg:hidden")}>Account</span>
+          </Link>
           <Link
             href="/settings"
             title="Settings"
