@@ -36,6 +36,8 @@ const SOURCE_LABELS: Record<string, string> = {
   reed: "Reed",
 }
 
+const JOBS_PER_PAGE = 20
+
 export function JobsFeed({
   initialQuery,
   initialLocation,
@@ -55,13 +57,11 @@ export function JobsFeed({
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [searching, setSearching] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set(initialSavedIds))
   const [hasSearched, setHasSearched] = useState(false)
 
-  async function fetchJobs(searchPage = 1, append = false) {
-    if (searchPage === 1) setSearching(true)
-    else setLoadingMore(true)
+  async function fetchJobs(searchPage = 1) {
+    setSearching(true)
 
     try {
       const params = new URLSearchParams()
@@ -70,6 +70,7 @@ export function JobsFeed({
       if (salary) params.set("salary_min", salary)
       if (selectedSources.length > 0) params.set("sources", selectedSources.join(","))
       params.set("page", String(searchPage))
+      params.set("per_page", String(JOBS_PER_PAGE))
 
       const res = await fetch(`/api/jobs/search?${params.toString()}`)
       const data = await res.json()
@@ -79,11 +80,7 @@ export function JobsFeed({
         return
       }
 
-      if (append) {
-        setJobs((prev) => [...prev, ...data.jobs])
-      } else {
-        setJobs(data.jobs)
-      }
+      setJobs(data.jobs)
       setTotal(data.total)
       setPage(searchPage)
       setHasSearched(true)
@@ -91,7 +88,6 @@ export function JobsFeed({
       toast.error("Failed to fetch jobs")
     } finally {
       setSearching(false)
-      setLoadingMore(false)
     }
   }
 
@@ -133,6 +129,8 @@ export function JobsFeed({
       setSavedIds((prev) => new Set([...prev, job.id]))
     }
   }
+
+  const totalPages = Math.max(1, Math.ceil(total / JOBS_PER_PAGE))
 
   return (
     <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] xl:gap-8">
@@ -246,6 +244,11 @@ export function JobsFeed({
         {hasSearched && (
           <div className="text-[13px] text-muted-foreground">
             <p className="font-medium text-foreground">{total.toLocaleString()} roles found</p>
+            {jobs.length > 0 && (
+              <p className="mt-1">
+                Page {page} of {totalPages}
+              </p>
+            )}
           </div>
         )}
       </aside>
@@ -298,26 +301,78 @@ export function JobsFeed({
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             )}
-
-            {!searching && jobs.length > 0 && jobs.length < total && (
-              <div className="pt-4 text-center">
-                <Button
-                  variant="outline"
-                  onClick={() => fetchJobs(page + 1, true)}
-                  disabled={loadingMore}
-                >
-                  {loadingMore ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : null}
-                  Load more ({total - jobs.length} remaining)
-                </Button>
-              </div>
-            )}
           </div>
         </ScrollArea>
+
+        {hasSearched && jobs.length > 0 && totalPages > 1 && (
+          <div className="flex flex-col gap-3 border-t px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing page <span className="font-medium text-foreground">{page}</span> of{" "}
+              <span className="font-medium text-foreground">{totalPages}</span>
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fetchJobs(page - 1)}
+                disabled={searching || page === 1}
+              >
+                Previous
+              </Button>
+              {getVisiblePages(page, totalPages).map((entry, index) =>
+                entry === "ellipsis" ? (
+                  <span
+                    key={`ellipsis-${index}`}
+                    className="px-2 text-sm text-muted-foreground"
+                  >
+                    …
+                  </span>
+                ) : (
+                  <Button
+                    key={entry}
+                    type="button"
+                    size="sm"
+                    variant={entry === page ? "default" : "outline"}
+                    onClick={() => fetchJobs(entry)}
+                    disabled={searching}
+                    aria-current={entry === page ? "page" : undefined}
+                  >
+                    {entry}
+                  </Button>
+                )
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fetchJobs(page + 1)}
+                disabled={searching || page === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
+}
+
+function getVisiblePages(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
+  if (totalPages <= 5) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1)
+  }
+
+  if (currentPage <= 3) {
+    return [1, 2, 3, 4, "ellipsis", totalPages]
+  }
+
+  if (currentPage >= totalPages - 2) {
+    return [1, "ellipsis", totalPages - 3, totalPages - 2, totalPages - 1, totalPages]
+  }
+
+  return [1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages]
 }
 
 function JobCard({

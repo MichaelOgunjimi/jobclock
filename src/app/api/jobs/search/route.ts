@@ -12,10 +12,12 @@ export async function GET(request: NextRequest) {
   const location = searchParams.get("location") ?? undefined
   const salaryMin = searchParams.get("salary_min")
   const page = searchParams.get("page")
+  const perPage = searchParams.get("per_page")
   const sourcesParam = searchParams.get("sources")
   const sources = sourcesParam ? sourcesParam.split(",").filter(Boolean) : ["adzuna"]
 
   const pageNum = page ? parseInt(page) : 1
+  const perPageNum = perPage ? parseInt(perPage) : 20
   const salaryMinNum = salaryMin ? parseInt(salaryMin) : undefined
 
   const fetchers: Promise<{ jobs: Job[]; total: number; page: number }>[] = []
@@ -27,6 +29,7 @@ export async function GET(request: NextRequest) {
         location,
         salaryMin: salaryMinNum,
         page: pageNum,
+        resultsPerPage: perPageNum,
         sort: "relevance",
       })
     )
@@ -56,6 +59,7 @@ export async function GET(request: NextRequest) {
               location,
               salaryMin: salaryMinNum,
               page: pageNum,
+              resultsPerPage: perPageNum,
               apiKey: reedKey,
             })
           )
@@ -87,7 +91,7 @@ export async function GET(request: NextRequest) {
       return true
     })
 
-    return NextResponse.json({ jobs, total: totalCount, page: pageNum })
+    return NextResponse.json({ jobs, total: totalCount, page: pageNum, perPage: perPageNum })
   } catch (error) {
     console.error("Job search error:", error)
     return NextResponse.json({ error: "Failed to search jobs" }, { status: 500 })
