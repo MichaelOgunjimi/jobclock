@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect } from "next/navigation"
+import type { CoverLetterTemplate } from "@/lib/supabase/database.types"
 import { ProfileTabs } from "./profile-tabs"
 
 export default async function ProfilePage() {
@@ -47,7 +48,7 @@ export default async function ProfilePage() {
 
       <ProfileTabs
         cvs={cvs ?? []}
-        coverLetters={(coverLetters ?? []) as { id: string; label: string | null; content: string; tone: "professional" | "enthusiastic" | "conservative" | null }[]}
+        coverLetters={(coverLetters ?? []) as CoverLetterTemplate[]}
         profile={profile ?? null}
       />
     </div>

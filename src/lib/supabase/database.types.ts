@@ -1,397 +1,419 @@
 export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+	| string
+	| number
+	| boolean
+	| null
+	| { [key: string]: Json | undefined }
+	| Json[];
 
 export type Database = {
-  public: {
-    Tables: {
-      profiles: {
-        Row: {
-          id: string
-          email: string
-          created_at: string
-          preferences: Json
-          right_to_work_uk: boolean | null
-          locations_uk: string[] | null
-          desired_roles: string[] | null
-          target_salary_min: number | null
-          cv_template_path: string | null
-          cover_letter_template_path: string | null
-          experience_level: string[] | null
-        }
-        Insert: {
-          id: string
-          email: string
-          created_at?: string
-          preferences?: Json
-          right_to_work_uk?: boolean | null
-          locations_uk?: string[] | null
-          desired_roles?: string[] | null
-          target_salary_min?: number | null
-          cv_template_path?: string | null
-          cover_letter_template_path?: string | null
-          experience_level?: string[] | null
-        }
-        Update: {
-          id?: string
-          email?: string
-          created_at?: string
-          preferences?: Json
-          right_to_work_uk?: boolean | null
-          locations_uk?: string[] | null
-          desired_roles?: string[] | null
-          target_salary_min?: number | null
-          cv_template_path?: string | null
-          cover_letter_template_path?: string | null
-          experience_level?: string[] | null
-        }
-        Relationships: []
-      }
-      user_cvs: {
-        Row: {
-          id: string
-          user_id: string
-          name: string | null
-          original_file_path: string | null
-          parsed_json: Json | null
-          file_path: string | null
-          created_at: string
-          is_primary: boolean
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          name?: string | null
-          original_file_path?: string | null
-          parsed_json?: Json | null
-          file_path?: string | null
-          created_at?: string
-          is_primary?: boolean
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          name?: string | null
-          original_file_path?: string | null
-          parsed_json?: Json | null
-          file_path?: string | null
-          created_at?: string
-          is_primary?: boolean
-        }
-        Relationships: []
-      }
-      jobs_cache: {
-        Row: {
-          id: string
-          url: string
-          source: string
-          title: string
-          company: string
-          location: string | null
-          description: string | null
-          salary_min: number | null
-          salary_max: number | null
-          salary_currency: string | null
-          posted_at: string | null
-          scraped_at: string
-          is_easy_apply: boolean | null
-          apply_deadline: string | null
-        }
-        Insert: {
-          id?: string
-          url: string
-          source: string
-          title: string
-          company: string
-          location?: string | null
-          description?: string | null
-          salary_min?: number | null
-          salary_max?: number | null
-          salary_currency?: string | null
-          posted_at?: string | null
-          scraped_at?: string
-          is_easy_apply?: boolean | null
-          apply_deadline?: string | null
-        }
-        Update: {
-          id?: string
-          url?: string
-          source?: string
-          title?: string
-          company?: string
-          location?: string | null
-          description?: string | null
-          salary_min?: number | null
-          salary_max?: number | null
-          salary_currency?: string | null
-          posted_at?: string | null
-          scraped_at?: string
-          is_easy_apply?: boolean | null
-          apply_deadline?: string | null
-        }
-        Relationships: []
-      }
-      applications: {
-        Row: {
-          id: string
-          user_id: string
-          job_id: string | null
-          status: ApplicationStatus
-          applied_at: string | null
-          cover_letter_id: string | null
-          customized_cv_id: string | null
-          source: string | null
-          notes: string | null
-          tags: string[] | null
-          created_at: string
-          last_status_update: string
-          auto_apply_attempted: boolean | null
-          auto_apply_success: boolean | null
-          application_quality_score: number | null
-          right_to_work_confirmed: boolean | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          job_id?: string | null
-          status?: ApplicationStatus
-          applied_at?: string | null
-          cover_letter_id?: string | null
-          customized_cv_id?: string | null
-          source?: string | null
-          notes?: string | null
-          tags?: string[] | null
-          created_at?: string
-          last_status_update?: string
-          auto_apply_attempted?: boolean | null
-          auto_apply_success?: boolean | null
-          application_quality_score?: number | null
-          right_to_work_confirmed?: boolean | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          job_id?: string | null
-          status?: ApplicationStatus
-          applied_at?: string | null
-          cover_letter_id?: string | null
-          customized_cv_id?: string | null
-          source?: string | null
-          notes?: string | null
-          tags?: string[] | null
-          created_at?: string
-          last_status_update?: string
-          auto_apply_attempted?: boolean | null
-          auto_apply_success?: boolean | null
-          application_quality_score?: number | null
-          right_to_work_confirmed?: boolean | null
-        }
-        Relationships: []
-      }
-      cover_letters: {
-        Row: {
-          id: string
-          user_id: string
-          application_id: string | null
-          label: string | null
-          content: string
-          tone: "professional" | "enthusiastic" | "conservative" | "story" | null
-          created_at: string
-          reviewed: boolean | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          application_id?: string | null
-          label?: string | null
-          content: string
-          tone?: "professional" | "enthusiastic" | "conservative" | "story" | null
-          created_at?: string
-          reviewed?: boolean | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          application_id?: string | null
-          label?: string | null
-          content?: string
-          tone?: "professional" | "enthusiastic" | "conservative" | "story" | null
-          created_at?: string
-          reviewed?: boolean | null
-        }
-        Relationships: []
-      }
-      customized_cvs: {
-        Row: {
-          id: string
-          user_id: string
-          application_id: string | null
-          cv_json: Json | null
-          pdf_path: string | null
-          ats_score: number | null
-          skills_gap: Json | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          application_id?: string | null
-          cv_json?: Json | null
-          pdf_path?: string | null
-          ats_score?: number | null
-          skills_gap?: Json | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          application_id?: string | null
-          cv_json?: Json | null
-          pdf_path?: string | null
-          ats_score?: number | null
-          skills_gap?: Json | null
-          created_at?: string
-        }
-        Relationships: []
-      }
-      interview_prep: {
-        Row: {
-          id: string
-          application_id: string
-          questions: string[] | null
-          suggested_answers: Json | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          application_id: string
-          questions?: string[] | null
-          suggested_answers?: Json | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          application_id?: string
-          questions?: string[] | null
-          suggested_answers?: Json | null
-          created_at?: string
-        }
-        Relationships: []
-      }
-      offers: {
-        Row: {
-          id: string
-          user_id: string
-          application_id: string | null
-          company: string
-          role: string
-          base_salary: number | null
-          bonus: string | null
-          equity: string | null
-          benefits: Json | null
-          remote_policy: string | null
-          start_date: string | null
-          negotiation_notes: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          application_id?: string | null
-          company: string
-          role: string
-          base_salary?: number | null
-          bonus?: string | null
-          equity?: string | null
-          benefits?: Json | null
-          remote_policy?: string | null
-          start_date?: string | null
-          negotiation_notes?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          application_id?: string | null
-          company?: string
-          role?: string
-          base_salary?: number | null
-          bonus?: string | null
-          equity?: string | null
-          benefits?: Json | null
-          remote_policy?: string | null
-          start_date?: string | null
-          negotiation_notes?: string | null
-        }
-        Relationships: []
-      }
-    }
-    Views: Record<string, never>
-    Functions: Record<string, never>
-    Enums: {
-      application_status: ApplicationStatus
-    }
-    CompositeTypes: Record<string, never>
-  }
-}
+	public: {
+		Tables: {
+			profiles: {
+				Row: {
+					id: string;
+					email: string;
+					created_at: string;
+					preferences: Json;
+					right_to_work_uk: boolean | null;
+					locations_uk: string[] | null;
+					desired_roles: string[] | null;
+					target_salary_min: number | null;
+					cv_template_path: string | null;
+					cover_letter_template_path: string | null;
+					experience_level: string[] | null;
+				};
+				Insert: {
+					id: string;
+					email: string;
+					created_at?: string;
+					preferences?: Json;
+					right_to_work_uk?: boolean | null;
+					locations_uk?: string[] | null;
+					desired_roles?: string[] | null;
+					target_salary_min?: number | null;
+					cv_template_path?: string | null;
+					cover_letter_template_path?: string | null;
+					experience_level?: string[] | null;
+				};
+				Update: {
+					id?: string;
+					email?: string;
+					created_at?: string;
+					preferences?: Json;
+					right_to_work_uk?: boolean | null;
+					locations_uk?: string[] | null;
+					desired_roles?: string[] | null;
+					target_salary_min?: number | null;
+					cv_template_path?: string | null;
+					cover_letter_template_path?: string | null;
+					experience_level?: string[] | null;
+				};
+				Relationships: [];
+			};
+			user_cvs: {
+				Row: {
+					id: string;
+					user_id: string;
+					name: string | null;
+					original_file_path: string | null;
+					parsed_json: Json | null;
+					file_path: string | null;
+					created_at: string;
+					is_primary: boolean;
+				};
+				Insert: {
+					id?: string;
+					user_id: string;
+					name?: string | null;
+					original_file_path?: string | null;
+					parsed_json?: Json | null;
+					file_path?: string | null;
+					created_at?: string;
+					is_primary?: boolean;
+				};
+				Update: {
+					id?: string;
+					user_id?: string;
+					name?: string | null;
+					original_file_path?: string | null;
+					parsed_json?: Json | null;
+					file_path?: string | null;
+					created_at?: string;
+					is_primary?: boolean;
+				};
+				Relationships: [];
+			};
+			jobs_cache: {
+				Row: {
+					id: string;
+					url: string;
+					source: string;
+					title: string;
+					company: string;
+					location: string | null;
+					description: string | null;
+					salary_min: number | null;
+					salary_max: number | null;
+					salary_currency: string | null;
+					posted_at: string | null;
+					scraped_at: string;
+					is_easy_apply: boolean | null;
+					apply_deadline: string | null;
+				};
+				Insert: {
+					id?: string;
+					url: string;
+					source: string;
+					title: string;
+					company: string;
+					location?: string | null;
+					description?: string | null;
+					salary_min?: number | null;
+					salary_max?: number | null;
+					salary_currency?: string | null;
+					posted_at?: string | null;
+					scraped_at?: string;
+					is_easy_apply?: boolean | null;
+					apply_deadline?: string | null;
+				};
+				Update: {
+					id?: string;
+					url?: string;
+					source?: string;
+					title?: string;
+					company?: string;
+					location?: string | null;
+					description?: string | null;
+					salary_min?: number | null;
+					salary_max?: number | null;
+					salary_currency?: string | null;
+					posted_at?: string | null;
+					scraped_at?: string;
+					is_easy_apply?: boolean | null;
+					apply_deadline?: string | null;
+				};
+				Relationships: [];
+			};
+			applications: {
+				Row: {
+					id: string;
+					user_id: string;
+					job_id: string | null;
+					status: ApplicationStatus;
+					applied_at: string | null;
+					cover_letter_id: string | null;
+					customized_cv_id: string | null;
+					source: string | null;
+					notes: string | null;
+					tags: string[] | null;
+					created_at: string;
+					last_status_update: string;
+					auto_apply_attempted: boolean | null;
+					auto_apply_success: boolean | null;
+					application_quality_score: number | null;
+					right_to_work_confirmed: boolean | null;
+				};
+				Insert: {
+					id?: string;
+					user_id: string;
+					job_id?: string | null;
+					status?: ApplicationStatus;
+					applied_at?: string | null;
+					cover_letter_id?: string | null;
+					customized_cv_id?: string | null;
+					source?: string | null;
+					notes?: string | null;
+					tags?: string[] | null;
+					created_at?: string;
+					last_status_update?: string;
+					auto_apply_attempted?: boolean | null;
+					auto_apply_success?: boolean | null;
+					application_quality_score?: number | null;
+					right_to_work_confirmed?: boolean | null;
+				};
+				Update: {
+					id?: string;
+					user_id?: string;
+					job_id?: string | null;
+					status?: ApplicationStatus;
+					applied_at?: string | null;
+					cover_letter_id?: string | null;
+					customized_cv_id?: string | null;
+					source?: string | null;
+					notes?: string | null;
+					tags?: string[] | null;
+					created_at?: string;
+					last_status_update?: string;
+					auto_apply_attempted?: boolean | null;
+					auto_apply_success?: boolean | null;
+					application_quality_score?: number | null;
+					right_to_work_confirmed?: boolean | null;
+				};
+				Relationships: [];
+			};
+			cover_letters: {
+				Row: {
+					id: string;
+					user_id: string;
+					application_id: string | null;
+					label: string | null;
+					content: string;
+					tone:
+						| "professional"
+						| "enthusiastic"
+						| "conservative"
+						| "story"
+						| null;
+					created_at: string;
+					reviewed: boolean | null;
+				};
+				Insert: {
+					id?: string;
+					user_id: string;
+					application_id?: string | null;
+					label?: string | null;
+					content: string;
+					tone?:
+						| "professional"
+						| "enthusiastic"
+						| "conservative"
+						| "story"
+						| null;
+					created_at?: string;
+					reviewed?: boolean | null;
+				};
+				Update: {
+					id?: string;
+					user_id?: string;
+					application_id?: string | null;
+					label?: string | null;
+					content?: string;
+					tone?:
+						| "professional"
+						| "enthusiastic"
+						| "conservative"
+						| "story"
+						| null;
+					created_at?: string;
+					reviewed?: boolean | null;
+				};
+				Relationships: [];
+			};
+			customized_cvs: {
+				Row: {
+					id: string;
+					user_id: string;
+					application_id: string | null;
+					cv_json: Json | null;
+					pdf_path: string | null;
+					ats_score: number | null;
+					skills_gap: Json | null;
+					created_at: string;
+				};
+				Insert: {
+					id?: string;
+					user_id: string;
+					application_id?: string | null;
+					cv_json?: Json | null;
+					pdf_path?: string | null;
+					ats_score?: number | null;
+					skills_gap?: Json | null;
+					created_at?: string;
+				};
+				Update: {
+					id?: string;
+					user_id?: string;
+					application_id?: string | null;
+					cv_json?: Json | null;
+					pdf_path?: string | null;
+					ats_score?: number | null;
+					skills_gap?: Json | null;
+					created_at?: string;
+				};
+				Relationships: [];
+			};
+			interview_prep: {
+				Row: {
+					id: string;
+					application_id: string;
+					questions: string[] | null;
+					suggested_answers: Json | null;
+					created_at: string;
+				};
+				Insert: {
+					id?: string;
+					application_id: string;
+					questions?: string[] | null;
+					suggested_answers?: Json | null;
+					created_at?: string;
+				};
+				Update: {
+					id?: string;
+					application_id?: string;
+					questions?: string[] | null;
+					suggested_answers?: Json | null;
+					created_at?: string;
+				};
+				Relationships: [];
+			};
+			offers: {
+				Row: {
+					id: string;
+					user_id: string;
+					application_id: string | null;
+					company: string;
+					role: string;
+					base_salary: number | null;
+					bonus: string | null;
+					equity: string | null;
+					benefits: Json | null;
+					remote_policy: string | null;
+					start_date: string | null;
+					negotiation_notes: string | null;
+				};
+				Insert: {
+					id?: string;
+					user_id: string;
+					application_id?: string | null;
+					company: string;
+					role: string;
+					base_salary?: number | null;
+					bonus?: string | null;
+					equity?: string | null;
+					benefits?: Json | null;
+					remote_policy?: string | null;
+					start_date?: string | null;
+					negotiation_notes?: string | null;
+				};
+				Update: {
+					id?: string;
+					user_id?: string;
+					application_id?: string | null;
+					company?: string;
+					role?: string;
+					base_salary?: number | null;
+					bonus?: string | null;
+					equity?: string | null;
+					benefits?: Json | null;
+					remote_policy?: string | null;
+					start_date?: string | null;
+					negotiation_notes?: string | null;
+				};
+				Relationships: [];
+			};
+		};
+		Views: Record<string, never>;
+		Functions: Record<string, never>;
+		Enums: {
+			application_status: ApplicationStatus;
+		};
+		CompositeTypes: Record<string, never>;
+	};
+};
 
 // Application status enum
 export type ApplicationStatus =
-  | "saved"
-  | "applied"
-  | "screening"
-  | "interview"
-  | "offer"
-  | "rejected"
-  | "withdrawn"
+	| "saved"
+	| "applied"
+	| "screening"
+	| "interview"
+	| "offer"
+	| "rejected"
+	| "withdrawn";
+
+export type CoverLetterTone = Database["public"]["Tables"]["cover_letters"]["Row"]["tone"];
+
+export type CoverLetterTemplate = Pick<
+	Database["public"]["Tables"]["cover_letters"]["Row"],
+	"id" | "label" | "content" | "tone"
+>;
 
 // Parsed CV data structure
 export interface CvData {
-  name?: string
-  email?: string
-  phone?: string
-  location?: string
-  summary?: string
-  experience: CvExperience[]
-  education: CvEducation[]
-  projects?: CvProject[]
-  skills: string[]
-  languages?: string[]
-  certifications?: string[]
+	name?: string;
+	email?: string;
+	phone?: string;
+	location?: string;
+	summary?: string;
+	experience?: CvExperience[];
+	education: CvEducation[];
+	projects?: CvProject[];
+	skills: string[];
+	languages?: string[];
+	certifications?: string[];
 }
 
 export interface CvExperience {
-  company: string
-  title: string
-  start_date?: string
-  end_date?: string
-  description: string
-  highlights?: string[]
+	company: string;
+	title: string;
+	start_date?: string;
+	end_date?: string;
+	description: string;
+	highlights?: string[];
 }
 
 export interface CvEducation {
-  institution: string
-  degree: string
-  field?: string
-  start_date?: string
-  end_date?: string
-  grade?: string
+	institution: string;
+	degree: string;
+	field?: string;
+	start_date?: string;
+	end_date?: string;
+	grade?: string;
 }
 
 export interface CvProject {
-  name: string
-  description: string
-  technologies?: string[]
-  url?: string
-  start_date?: string
-  end_date?: string
+	name: string;
+	description: string;
+	technologies?: string[];
+	url?: string;
+	start_date?: string;
+	end_date?: string;
 }
 
 // Skills gap analysis result
 export interface SkillsGap {
-  matched: string[]
-  missing: string[]
-  suggestions: string[]
+	matched: string[];
+	missing: string[];
+	suggestions: string[];
 }

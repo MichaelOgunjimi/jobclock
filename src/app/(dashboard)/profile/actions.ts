@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { revalidatePath } from "next/cache"
-import type { CvData, Json } from "@/lib/supabase/database.types"
+import type { CoverLetterTone, CvData, Json } from "@/lib/supabase/database.types"
 
 export async function setPrimaryCV(formData: FormData) {
   if (!isSupabaseConfigured()) return
@@ -115,8 +115,7 @@ export async function saveLetterTemplate(formData: FormData) {
 
   if (!label || !content) return { error: "Label and content are required" }
 
-  type Tone = "professional" | "enthusiastic" | "conservative" | "story" | null
-  const toneCast = tone as Tone
+  const toneCast = tone as CoverLetterTone
 
   if (id) {
     const { data, error } = await supabase

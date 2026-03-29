@@ -18,7 +18,7 @@ import { CvCardActions } from "./cv-card-actions"
 import { CvUploadDialog } from "./cv-upload-dialog"
 import { CoverLettersTab } from "./cover-letters-tab"
 import { savePreferences } from "./actions"
-import type { CvData } from "@/lib/supabase/database.types"
+import type { CoverLetterTemplate, CvData } from "@/lib/supabase/database.types"
 
 type CvRow = {
   id: string
@@ -26,13 +26,6 @@ type CvRow = {
   is_primary: boolean | null
   created_at: string
   parsed_json: unknown
-}
-
-type LetterTemplate = {
-  id: string
-  label: string | null
-  content: string
-  tone: "professional" | "enthusiastic" | "conservative" | null
 }
 
 export const EXPERIENCE_LEVELS = [
@@ -56,7 +49,7 @@ export function ProfileTabs({
   profile,
 }: {
   cvs: CvRow[]
-  coverLetters: LetterTemplate[]
+  coverLetters: CoverLetterTemplate[]
   profile: ProfileData
 }) {
   const router = useRouter()
