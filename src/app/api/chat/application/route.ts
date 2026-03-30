@@ -21,10 +21,12 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { messages, applicationId } = await request.json()
-  if (!applicationId || !Array.isArray(messages)) {
+  const { messages: rawMessages, applicationId } = await request.json()
+  if (!applicationId || !Array.isArray(rawMessages)) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 })
   }
+  // Cap history to last 20 messages to prevent unbounded context growth
+  const messages = rawMessages.slice(-20)
 
   // Fetch application + job context (ownership enforced via user_id)
   const { data: app } = await supabase
