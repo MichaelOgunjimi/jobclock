@@ -7,6 +7,10 @@ import type { Job } from "@/lib/jobs/types"
 import type { UserPreferences } from "@/lib/ai"
 
 export async function GET(request: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
   const searchParams = request.nextUrl.searchParams
 
   const query = searchParams.get("q") ?? undefined
@@ -38,7 +42,7 @@ export async function GET(request: NextRequest) {
     entry_level: ["entry level", "entry-level", "trainee", "apprentice"],
     graduate:    ["graduate", "new grad", "grad scheme"],
     junior:      ["junior", "jr."],
-    mid_level:   ["mid-level", "intermediate", "mid level"],
+    mid:         ["mid-level", "intermediate", "mid level"],
     senior:      ["senior", "sr."],
     lead:        ["lead", "principal", "staff engineer", "head of engineering"],
   }
@@ -48,7 +52,7 @@ export async function GET(request: NextRequest) {
     entry_level: "entry level",
     graduate:    "graduate",
     junior:      "junior",
-    mid_level:   "mid level",
+    mid:         "mid level",
     senior:      "senior",
     lead:        "lead",
   }
@@ -79,33 +83,26 @@ export async function GET(request: NextRequest) {
 
   if (sources.includes("reed")) {
     try {
-      const supabase = await createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("preferences")
+        .eq("id", user.id)
+        .single()
 
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("preferences")
-          .eq("id", user.id)
-          .single()
+      const prefs = (profile?.preferences ?? {}) as UserPreferences
+      const reedKey = prefs?.job_sources?.reed?.api_key
 
-        const prefs = (profile?.preferences ?? {}) as UserPreferences
-        const reedKey = prefs?.job_sources?.reed?.api_key
-
-        if (reedKey) {
-          fetchers.push(
-            searchReedJobs({
-              query,
-              location,
-              salaryMin: salaryMinNum,
-              page: pageNum,
-              resultsPerPage: perPageNum,
-              apiKey: reedKey,
-            })
-          )
-        }
+      if (reedKey) {
+        fetchers.push(
+          searchReedJobs({
+            query,
+            location,
+            salaryMin: salaryMinNum,
+            page: pageNum,
+            resultsPerPage: perPageNum,
+            apiKey: reedKey,
+          })
+        )
       }
     } catch (error) {
       console.error("Reed auth error:", error)

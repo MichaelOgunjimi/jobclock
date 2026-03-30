@@ -171,6 +171,7 @@ export type Database = {
 					auto_apply_success: boolean | null;
 					application_quality_score: number | null;
 					right_to_work_confirmed: boolean | null;
+					custom_description: string | null;
 				};
 				Insert: {
 					id?: string;
@@ -189,6 +190,7 @@ export type Database = {
 					auto_apply_success?: boolean | null;
 					application_quality_score?: number | null;
 					right_to_work_confirmed?: boolean | null;
+					custom_description?: string | null;
 				};
 				Update: {
 					id?: string;
@@ -207,6 +209,7 @@ export type Database = {
 					auto_apply_success?: boolean | null;
 					application_quality_score?: number | null;
 					right_to_work_confirmed?: boolean | null;
+					custom_description?: string | null;
 				};
 				Relationships: [];
 			};

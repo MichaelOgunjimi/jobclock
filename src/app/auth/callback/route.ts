@@ -11,7 +11,9 @@ export async function GET(request: NextRequest) {
   }
 
   const code = request.nextUrl.searchParams.get("code")
-  const next = request.nextUrl.searchParams.get("next") ?? "/dashboard"
+  const rawNext = request.nextUrl.searchParams.get("next") ?? "/dashboard"
+  // Reject absolute URLs and protocol-relative paths to prevent open redirect
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard"
 
   if (!code) {
     return NextResponse.redirect(new URL("/auth?status=error&message=Missing%20authentication%20code.", request.url))

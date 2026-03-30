@@ -164,19 +164,11 @@ export async function updateDescription(formData: FormData) {
   const description = formData.get("description") as string
   if (!applicationId) return
 
-  // Verify ownership via applications table
-  const { data: app } = await supabase
+  await supabase
     .from("applications")
-    .select("job_id")
+    .update({ custom_description: description })
     .eq("id", applicationId)
     .eq("user_id", user.id)
-    .single()
-  if (!app?.job_id) return
-
-  await supabase
-    .from("jobs_cache")
-    .update({ description })
-    .eq("id", app.job_id)
 
   revalidatePath(`/applications/${applicationId}`)
 }

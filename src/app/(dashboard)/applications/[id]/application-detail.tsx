@@ -739,7 +739,7 @@ export function ApplicationDetail({ application, cvs, coverLetters }: Props) {
           <div className="flex flex-col lg:absolute lg:inset-0">
             <DescriptionCard
               applicationId={application.id}
-              initialDescription={job?.description ?? null}
+              initialDescription={application.custom_description ?? job?.description ?? null}
             />
           </div>
         </div>

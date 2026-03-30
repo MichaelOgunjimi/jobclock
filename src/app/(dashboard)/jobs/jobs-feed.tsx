@@ -43,7 +43,7 @@ const EXPERIENCE_KEYWORDS: Record<string, string[]> = {
   entry_level: ["entry", "entry-level", "entry level", "junior", "associate", "graduate", "trainee", "apprentice"],
   graduate:    ["graduate", "grad ", "entry", "junior", "trainee", "intern"],
   junior:      ["junior", "jr ", "jr.", "entry", "associate", "graduate"],
-  mid_level:   ["mid", "mid-level", "intermediate", "software engineer", "developer", "engineer"],
+  mid:         ["mid", "mid-level", "intermediate", "software engineer", "developer", "engineer"],
   senior:      ["senior", "sr ", "sr.", "lead", "principal", "staff", "architect", "head of"],
   lead:        ["lead", "principal", "staff", "head", "architect", "director"],
 }

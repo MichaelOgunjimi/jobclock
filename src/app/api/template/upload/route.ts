@@ -13,8 +13,13 @@ export async function POST(req: NextRequest) {
   if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 })
   if (type !== "cv" && type !== "cover_letter") return NextResponse.json({ error: "Invalid type" }, { status: 400 })
 
-  const ext = file.name.split(".").pop()?.toLowerCase()
-  if (ext !== "docx" && ext !== "doc") {
+  const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+  if (file.size > MAX_FILE_SIZE) {
+    return NextResponse.json({ error: "File too large. Maximum size is 10MB." }, { status: 400 })
+  }
+
+  const ALLOWED_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  if (file.type !== ALLOWED_MIME) {
     return NextResponse.json({ error: "Please upload a DOCX file" }, { status: 400 })
   }
 
