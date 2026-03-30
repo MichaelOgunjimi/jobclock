@@ -1,15 +1,16 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
 import Link from "next/link"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { ArrowLeft, ExternalLink, Loader2, Send, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
-import { updateStatus, updateNotes, updateCv, updateCoverLetter } from "./actions"
+import { updateStatus, updateNotes, updateCv, updateCoverLetter, updateDescription, deleteApplication } from "./actions"
 import type { ApplicationStatus, Database } from "@/lib/supabase/database.types"
 
 type ApplicationRow = Database["public"]["Tables"]["applications"]["Row"]
@@ -187,24 +188,26 @@ function StatusUpdateForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-center">
+    <form onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
       <input type="hidden" name="applicationId" value={applicationId} />
-      <Label htmlFor="status-select" className="text-sm">
-        Move to
-      </Label>
-      <select
-        id="status-select"
-        name="status"
-        value={selectedStatus}
-        onChange={(e) => setSelectedStatus(e.target.value as ApplicationStatus)}
-        className="form-select min-w-0 bg-background sm:min-w-[12rem]"
-      >
-        {ALL_STATUSES.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <div className="space-y-1.5">
+        <Label htmlFor="status-select" className="text-sm">
+          Stage
+        </Label>
+        <select
+          id="status-select"
+          name="status"
+          value={selectedStatus}
+          onChange={(e) => setSelectedStatus(e.target.value as ApplicationStatus)}
+          className="form-select min-w-0 bg-background sm:min-w-[13rem]"
+        >
+          {ALL_STATUSES.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
       <Button type="submit" size="default" disabled={pending} className="w-full sm:w-auto">
         {pending ? "Saving…" : "Update"}
       </Button>
@@ -247,6 +250,216 @@ function NotesCard({
           />
           <Button type="submit" size="sm" variant="outline" disabled={pending}>
             {pending ? "Saving…" : "Save notes"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ── Description card ─────────────────────────────────────────────────────────
+
+function DescriptionCard({
+  applicationId,
+  initialDescription,
+}: {
+  applicationId: string
+  initialDescription: string | null
+}) {
+  const [editing, setEditing] = useState(false)
+  const [description, setDescription] = useState(initialDescription ?? "")
+  const [pending, startTransition] = useTransition()
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    startTransition(async () => {
+      await updateDescription(formData)
+      setEditing(false)
+    })
+  }
+
+  function handleCancel() {
+    setDescription(initialDescription ?? "")
+    setEditing(false)
+  }
+
+  return (
+    <Card className="flex h-full flex-col">
+      <CardHeader className="shrink-0 border-b">
+        <CardTitle>Job Description</CardTitle>
+        {!editing && (
+          <CardAction>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+              Edit
+            </Button>
+          </CardAction>
+        )}
+      </CardHeader>
+      <CardContent className="flex min-h-0 flex-1 flex-col pt-5">
+        {editing ? (
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-3">
+            <input type="hidden" name="applicationId" value={applicationId} />
+            <textarea
+              name="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              autoFocus
+              className="min-h-0 flex-1 w-full resize-none border border-input bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+              placeholder="Paste the full job description here…"
+            />
+            <div className="flex shrink-0 gap-2">
+              <Button type="submit" size="sm" variant="default" disabled={pending}>
+                {pending ? "Saving…" : "Save"}
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={handleCancel} disabled={pending}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        ) : description ? (
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+            <p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
+              {description}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm italic text-muted-foreground">
+            No description yet — click Edit to paste one.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ── Application chat ──────────────────────────────────────────────────────────
+
+type ChatMessage = { role: "user" | "assistant"; content: string }
+
+function ApplicationChat({ applicationId }: { applicationId: string }) {
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [input, setInput] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  async function sendMessage(e: React.FormEvent) {
+    e.preventDefault()
+    const text = input.trim()
+    if (!text || isLoading) return
+
+    const userMsg: ChatMessage = { role: "user", content: text }
+    const nextMessages = [...messages, userMsg]
+    setMessages([...nextMessages, { role: "assistant", content: "" }])
+    setInput("")
+    setIsLoading(true)
+
+    try {
+      const res = await fetch("/api/chat/application", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: nextMessages, applicationId }),
+      })
+
+      if (!res.ok || !res.body) {
+        const err = await res.json().catch(() => ({}))
+        setMessages((prev) => {
+          const updated = [...prev]
+          updated[updated.length - 1] = {
+            role: "assistant",
+            content: err.error ?? "Something went wrong. Please try again.",
+          }
+          return updated
+        })
+        return
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let accumulated = ""
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        accumulated += decoder.decode(value, { stream: true })
+        const streamed = accumulated
+        setMessages((prev) => {
+          const updated = [...prev]
+          updated[updated.length - 1] = { role: "assistant", content: streamed }
+          return updated
+        })
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+      }
+    } catch {
+      setMessages((prev) => {
+        const updated = [...prev]
+        updated[updated.length - 1] = {
+          role: "assistant",
+          content: "Network error. Please try again.",
+        }
+        return updated
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <div>
+          <CardTitle>Ask AI</CardTitle>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Ask about the company, tailor your CV, or get help with application questions.
+          </p>
+        </div>
+      </CardHeader>
+      <CardContent className="flex h-[480px] flex-col pt-0">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-4">
+          {messages.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              No messages yet. Ask anything about this role.
+            </p>
+          ) : (
+            messages.map((msg, i) => (
+              <div
+                key={i}
+                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
+              >
+                <div
+                  className={cn(
+                    "max-w-[85%] px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap",
+                    msg.role === "user"
+                      ? "bg-foreground text-background"
+                      : "border bg-secondary text-foreground"
+                  )}
+                >
+                  {msg.content ||
+                    (isLoading && i === messages.length - 1 ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin opacity-50" />
+                    ) : (
+                      ""
+                    ))}
+                </div>
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+        <form onSubmit={sendMessage} className="flex gap-2 border-t pt-4">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask about the company, role, or application…"
+            disabled={isLoading}
+            className="flex-1"
+          />
+          <Button type="submit" size="default" disabled={isLoading || !input.trim()}>
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </Button>
         </form>
       </CardContent>
@@ -370,6 +583,51 @@ function CoverLetterCard({
 
 // ── Main component ───────────────────────────────────────────────────────────
 
+function DeleteButton({ applicationId }: { applicationId: string }) {
+  const [confirming, setConfirming] = useState(false)
+  const [pending, startTransition] = useTransition()
+
+  if (confirming) {
+    return (
+      <div className="flex w-full gap-2 sm:w-auto">
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive"
+          className="flex-1 sm:flex-none"
+          disabled={pending}
+          onClick={() => startTransition(async () => { await deleteApplication(applicationId) })}
+        >
+          {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+          {pending ? "Deleting…" : "Yes, delete"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setConfirming(false)}
+          disabled={pending}
+        >
+          Cancel
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      className="w-full justify-center text-muted-foreground hover:text-destructive sm:w-auto"
+      onClick={() => setConfirming(true)}
+    >
+      <Trash2 className="h-3.5 w-3.5" />
+      Delete
+    </Button>
+  )
+}
+
 export function ApplicationDetail({ application, cvs, coverLetters }: Props) {
   const job = application.jobs_cache
 
@@ -457,6 +715,7 @@ export function ApplicationDetail({ application, cvs, coverLetters }: Props) {
               View posting
             </a>
           )}
+          <DeleteButton applicationId={application.id} />
         </div>
       </div>
 
@@ -474,26 +733,33 @@ export function ApplicationDetail({ application, cvs, coverLetters }: Props) {
       </Card>
 
       {/* Two-column content */}
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-8">
-        {/* Left column */}
+      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-stretch lg:gap-8">
+        {/* Left column — only borrow the right column height on desktop */}
+        <div className="lg:relative">
+          <div className="flex flex-col lg:absolute lg:inset-0">
+            <DescriptionCard
+              applicationId={application.id}
+              initialDescription={job?.description ?? null}
+            />
+          </div>
+        </div>
+
+        {/* Right column */}
         <div className="space-y-6">
-          {/* Job description */}
-          <Card>
-            <CardHeader className="border-b">
-              <CardTitle>Job Description</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-5">
-              {job?.description ? (
-                <p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
-                  {job.description}
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">
-                  No description available for this role.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <CvCard
+            applicationId={application.id}
+            cvs={cvs}
+            currentCvId={application.customized_cv_id}
+          />
+          <CoverLetterCard
+            applicationId={application.id}
+            coverLetters={coverLetters}
+            currentCoverLetterId={application.cover_letter_id}
+          />
+          <NotesCard
+            applicationId={application.id}
+            initialNotes={application.notes}
+          />
 
           {/* Details */}
           <Card>
@@ -542,25 +808,10 @@ export function ApplicationDetail({ application, cvs, coverLetters }: Props) {
             </CardContent>
           </Card>
         </div>
-
-        {/* Right column */}
-        <div className="space-y-6">
-          <CvCard
-            applicationId={application.id}
-            cvs={cvs}
-            currentCvId={application.customized_cv_id}
-          />
-          <CoverLetterCard
-            applicationId={application.id}
-            coverLetters={coverLetters}
-            currentCoverLetterId={application.cover_letter_id}
-          />
-          <NotesCard
-            applicationId={application.id}
-            initialNotes={application.notes}
-          />
-        </div>
       </div>
+
+      {/* AI chat — full width */}
+      <ApplicationChat applicationId={application.id} />
     </div>
   )
 }

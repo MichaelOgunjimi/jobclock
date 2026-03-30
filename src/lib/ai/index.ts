@@ -33,6 +33,7 @@ export interface JobSourceCustomUrl {
 export interface JobSources {
   adzuna?: { enabled: boolean }
   reed?: { enabled: boolean; api_key?: string }
+  careerjet?: { enabled: boolean }
   custom?: JobSourceCustomUrl[]
 }
 

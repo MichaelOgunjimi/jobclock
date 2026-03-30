@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
@@ -127,6 +128,55 @@ export async function updateCoverLetter(formData: FormData) {
     .update({ cover_letter_id: coverLetterId || null })
     .eq("id", applicationId)
     .eq("user_id", user.id)
+
+  revalidatePath(`/applications/${applicationId}`)
+}
+
+export async function deleteApplication(applicationId: string) {
+  if (!isSupabaseConfigured()) return
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return
+
+  await supabase
+    .from("applications")
+    .delete()
+    .eq("id", applicationId)
+    .eq("user_id", user.id)
+
+  revalidatePath("/applications")
+  redirect("/applications")
+}
+
+export async function updateDescription(formData: FormData) {
+  if (!isSupabaseConfigured()) return
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return
+
+  const applicationId = formData.get("applicationId") as string
+  const description = formData.get("description") as string
+  if (!applicationId) return
+
+  // Verify ownership via applications table
+  const { data: app } = await supabase
+    .from("applications")
+    .select("job_id")
+    .eq("id", applicationId)
+    .eq("user_id", user.id)
+    .single()
+  if (!app?.job_id) return
+
+  await supabase
+    .from("jobs_cache")
+    .update({ description })
+    .eq("id", app.job_id)
 
   revalidatePath(`/applications/${applicationId}`)
 }
