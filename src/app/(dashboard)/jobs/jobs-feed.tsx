@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -28,15 +28,35 @@ interface JobsFeedProps {
   initialSalary: string
   initialExperienceLevels: string[]
   enabledSources: string[]
-  initialSavedIds: string[]
+  initialSavedUrls: string[]
 }
 
 const SOURCE_LABELS: Record<string, string> = {
   adzuna: "Adzuna",
   reed: "Reed",
+  careerjet: "Careerjet",
 }
 
-const JOBS_PER_PAGE = 20
+const JOBS_PER_PAGE = 50
+
+const EXPERIENCE_KEYWORDS: Record<string, string[]> = {
+  entry_level: ["entry", "entry-level", "entry level", "junior", "associate", "graduate", "trainee", "apprentice"],
+  graduate:    ["graduate", "grad ", "entry", "junior", "trainee", "intern"],
+  junior:      ["junior", "jr ", "jr.", "entry", "associate", "graduate"],
+  mid_level:   ["mid", "mid-level", "intermediate", "software engineer", "developer", "engineer"],
+  senior:      ["senior", "sr ", "sr.", "lead", "principal", "staff", "architect", "head of"],
+  lead:        ["lead", "principal", "staff", "head", "architect", "director"],
+}
+
+function filterByExperience(jobs: Job[], levels: string[]): Job[] {
+  if (levels.length === 0) return jobs
+  return jobs.filter((job) => {
+    const haystack = `${job.title} ${job.description ?? ""}`.toLowerCase()
+    return levels.some((level) =>
+      (EXPERIENCE_KEYWORDS[level] ?? []).some((kw) => haystack.includes(kw))
+    )
+  })
+}
 
 export function JobsFeed({
   initialQuery,
@@ -44,23 +64,29 @@ export function JobsFeed({
   initialSalary,
   initialExperienceLevels,
   enabledSources,
-  initialSavedIds,
+  initialSavedUrls,
 }: JobsFeedProps) {
   const [query, setQuery] = useState(initialQuery)
   const [location, setLocation] = useState(initialLocation)
   const [salary, setSalary] = useState(initialSalary)
+  const [sortBy, setSortBy] = useState<"relevance" | "date" | "salary">("relevance")
   const [experienceLevels, setExperienceLevels] = useState<string[]>(initialExperienceLevels)
   const [selectedSources, setSelectedSources] = useState<string[]>(
     enabledSources.length > 0 ? enabledSources : ["adzuna"]
   )
-  const [jobs, setJobs] = useState<Job[]>([])
+  const [rawJobs, setRawJobs] = useState<Job[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [searching, setSearching] = useState(false)
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set(initialSavedIds))
+  const resultsScrollRef = useRef<HTMLDivElement>(null)
+  // Track URLs seen across all pages to avoid cross-page duplicates from parallel queries
+  const seenUrlsRef = useRef<Set<string>>(new Set())
+
+  const jobs = filterByExperience(rawJobs, experienceLevels)
+  const [savedUrls, setSavedUrls] = useState<Set<string>>(new Set(initialSavedUrls))
   const [hasSearched, setHasSearched] = useState(false)
 
-  async function fetchJobs(searchPage = 1) {
+  async function fetchJobs(searchPage = 1, overrideSort?: typeof sortBy, overrideLevels?: string[]) {
     setSearching(true)
 
     try {
@@ -68,6 +94,9 @@ export function JobsFeed({
       if (query) params.set("q", query)
       if (location) params.set("location", location)
       if (salary) params.set("salary_min", salary)
+      params.set("sort", overrideSort ?? sortBy)
+      const levels = overrideLevels !== undefined ? overrideLevels : experienceLevels
+      if (levels.length > 0) params.set("experience", levels.join(","))
       if (selectedSources.length > 0) params.set("sources", selectedSources.join(","))
       params.set("page", String(searchPage))
       params.set("per_page", String(JOBS_PER_PAGE))
@@ -80,10 +109,21 @@ export function JobsFeed({
         return
       }
 
-      setJobs(data.jobs)
-      setTotal(data.total)
+      // On new search (page 1) reset the cross-page dedup tracker
+      if (searchPage === 1) seenUrlsRef.current = new Set()
+
+      // Filter out any URLs already shown on previous pages
+      const newJobs = (data.jobs ?? []).filter((job: Job) => {
+        if (seenUrlsRef.current.has(job.url)) return false
+        seenUrlsRef.current.add(job.url)
+        return true
+      })
+
+      setRawJobs(newJobs)
+      setTotal(data.total ?? 0)
       setPage(searchPage)
       setHasSearched(true)
+      resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
     } catch {
       toast.error("Failed to fetch jobs")
     } finally {
@@ -107,13 +147,15 @@ export function JobsFeed({
   }
 
   function toggleExperienceLevel(level: string) {
-    setExperienceLevels((prev) =>
-      prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level]
-    )
+    const next = experienceLevels.includes(level)
+      ? experienceLevels.filter((l) => l !== level)
+      : [...experienceLevels, level]
+    setExperienceLevels(next)
+    if (hasSearched) fetchJobs(1, undefined, next)
   }
 
   async function handleSaveJob(job: Job) {
-    if (savedIds.has(job.id)) {
+    if (savedUrls.has(job.url)) {
       toast.info("Already in your pipeline")
       return
     }
@@ -123,10 +165,10 @@ export function JobsFeed({
       toast.error(result.error)
     } else if (result?.alreadySaved) {
       toast.info("Already in your pipeline")
-      setSavedIds((prev) => new Set([...prev, job.id]))
+      setSavedUrls((prev) => new Set([...prev, job.url]))
     } else {
       toast.success("Saved to pipeline")
-      setSavedIds((prev) => new Set([...prev, job.id]))
+      setSavedUrls((prev) => new Set([...prev, job.url]))
     }
   }
 
@@ -179,6 +221,24 @@ export function JobsFeed({
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="sort">Sort by</Label>
+            <select
+              id="sort"
+              value={sortBy}
+              onChange={(e) => {
+                const val = e.target.value as typeof sortBy
+                setSortBy(val)
+                if (hasSearched) fetchJobs(1, val)
+              }}
+              className="form-select"
+            >
+              <option value="relevance">Relevance</option>
+              <option value="date">Most recent</option>
+              <option value="salary">Salary</option>
+            </select>
+          </div>
+
           {/* Experience level chips */}
           <div className="space-y-2">
             <Label>Experience Level</Label>
@@ -204,32 +264,42 @@ export function JobsFeed({
             </div>
           </div>
 
-          {/* Source selector — only show if multiple sources available */}
-          {enabledSources.length > 1 && (
-            <div className="space-y-2">
-              <Label>Sources</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {enabledSources.map((source) => {
-                  const active = selectedSources.includes(source)
-                  return (
-                    <button
-                      key={source}
-                      type="button"
-                      onClick={() => toggleSource(source)}
-                      className={cn(
-                        "border px-2.5 py-1 text-xs font-medium transition-colors",
-                        active
-                          ? "border-foreground bg-foreground text-background"
-                          : "border-border bg-card text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {SOURCE_LABELS[source] ?? source}
-                    </button>
-                  )
-                })}
-              </div>
+          {/* Source selector */}
+          <div className="space-y-2">
+            <Label>Sources</Label>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setSelectedSources([...enabledSources])}
+                className={cn(
+                  "border px-2.5 py-1 text-xs font-medium transition-colors",
+                  selectedSources.length === enabledSources.length
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-card text-muted-foreground hover:text-foreground"
+                )}
+              >
+                All
+              </button>
+              {enabledSources.map((source) => {
+                const active = selectedSources.includes(source)
+                return (
+                  <button
+                    key={source}
+                    type="button"
+                    onClick={() => toggleSource(source)}
+                    className={cn(
+                      "border px-2.5 py-1 text-xs font-medium transition-colors",
+                      active
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border bg-card text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {SOURCE_LABELS[source] ?? source}
+                  </button>
+                )
+              })}
             </div>
-          )}
+          </div>
 
           <Button type="submit" className="w-full" disabled={searching}>
             {searching ? (
@@ -244,6 +314,15 @@ export function JobsFeed({
         {hasSearched && (
           <div className="text-[13px] text-muted-foreground">
             <p className="font-medium text-foreground">{total.toLocaleString()} roles found</p>
+            {experienceLevels.length > 0 && rawJobs.length > 0 && (
+              <p className="mt-1">
+                {jobs.length === 0
+                  ? "No results match the selected experience levels"
+                  : jobs.length < rawJobs.length
+                  ? `${jobs.length} match experience filter`
+                  : null}
+              </p>
+            )}
             {jobs.length > 0 && (
               <p className="mt-1">
                 Page {page} of {totalPages}
@@ -267,7 +346,7 @@ export function JobsFeed({
           </p>
         </div>
 
-        <ScrollArea className="h-auto lg:h-[calc(100vh-22rem)]">
+        <ScrollArea className="h-auto lg:h-[calc(100vh-22rem)]" viewportRef={resultsScrollRef}>
           <div className="space-y-3 p-4 md:p-6">
             {!hasSearched && !searching ? (
               <div className="border bg-secondary px-6 py-14 text-center text-muted-foreground">
@@ -282,15 +361,17 @@ export function JobsFeed({
                 <Briefcase className="mx-auto mb-4 h-10 w-10 opacity-30" />
                 <p className="font-medium text-foreground">No jobs found</p>
                 <p className="mt-2 text-sm">
-                  Try broadening the keywords, location, or lowering the salary floor.
+                  {rawJobs.length > 0 && experienceLevels.length > 0
+                    ? "The experience filter removed all results. Try deselecting some levels."
+                    : "Try broadening the keywords, location, or lowering the salary floor."}
                 </p>
               </div>
             ) : (
               jobs.map((job) => (
                 <JobCard
-                  key={job.id}
+                  key={job.url}
                   job={job}
-                  isSaved={savedIds.has(job.id)}
+                  isSaved={savedUrls.has(job.url)}
                   onSave={() => handleSaveJob(job)}
                 />
               ))
@@ -382,13 +463,13 @@ function JobCard({
 }: {
   job: Job
   isSaved: boolean
-  onSave: () => void
+  onSave: () => Promise<void>
 }) {
   const [isPending, startTransition] = useTransition()
 
   function handleSave() {
-    startTransition(() => {
-      onSave()
+    startTransition(async () => {
+      await onSave()
     })
   }
 
@@ -457,7 +538,7 @@ function JobCard({
           </Button>
           <Button
             size="sm"
-            variant={isSaved ? "secondary" : "outline"}
+            variant="default"
             className="w-full sm:w-auto"
             onClick={handleSave}
             disabled={isPending || isSaved}

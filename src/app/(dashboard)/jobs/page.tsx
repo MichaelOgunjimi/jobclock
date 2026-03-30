@@ -23,7 +23,7 @@ export default async function JobsPage() {
       .single(),
     supabase
       .from("applications")
-      .select("job_id")
+      .select("jobs_cache(url)")
       .eq("user_id", user.id)
       .not("status", "in", '("rejected","withdrawn")'),
   ])
@@ -41,17 +41,21 @@ export default async function JobsPage() {
   if (jobSources?.reed?.enabled && jobSources.reed.api_key) {
     enabledSources.push("reed")
   }
+  // Careerjet only if enabled and server key is configured
+  if (jobSources?.careerjet?.enabled && process.env.CAREERJET_API_KEY) {
+    enabledSources.push("careerjet")
+  }
   // Default to Adzuna if no sources configured
   if (enabledSources.length === 0) {
     enabledSources.push("adzuna")
   }
 
-  const savedJobIds = (applications ?? [])
-    .map((a) => a.job_id)
-    .filter((id): id is string => id !== null)
+  const savedJobUrls = (applications ?? [])
+    .map((a) => ((a as unknown as { jobs_cache: { url: string } | null }).jobs_cache)?.url)
+    .filter((url): url is string => !!url)
 
-  // Pre-fill from preferences
-  const initialQuery = profile?.desired_roles?.join(", ") ?? ""
+  // Pre-fill from preferences — use only the first role to keep the query focused
+  const initialQuery = profile?.desired_roles?.[0] ?? ""
   const initialLocation = profile?.locations_uk?.[0] ?? ""
   const initialSalary = profile?.target_salary_min ? String(profile.target_salary_min) : ""
   const initialExperienceLevels = profile?.experience_level ?? []
@@ -69,16 +73,6 @@ export default async function JobsPage() {
             </p>
           </div>
         </div>
-        <div className="w-full border bg-secondary px-5 py-4 md:w-auto md:min-w-52">
-          <p className="section-label">Sources</p>
-          <p className="mt-2 text-[13px] text-muted-foreground">
-            {enabledSources.map((s) => (s === "adzuna" ? "Adzuna" : "Reed")).join(" · ")}
-            {enabledSources.includes("adzuna") &&
-            !process.env.ADZUNA_APP_ID
-              ? " (mock)"
-              : ""}
-          </p>
-        </div>
       </div>
 
       <JobsFeed
@@ -87,7 +81,7 @@ export default async function JobsPage() {
         initialSalary={initialSalary}
         initialExperienceLevels={initialExperienceLevels}
         enabledSources={enabledSources}
-        initialSavedIds={savedJobIds}
+        initialSavedUrls={savedJobUrls}
       />
     </div>
   )

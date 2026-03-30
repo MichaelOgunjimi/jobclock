@@ -6,12 +6,12 @@ interface AdzunaSearchParams {
 	app_id: string;
 	app_key: string;
 	what?: string;
+	what_or?: string;
 	where?: string;
 	location_id?: number;
 	location?: string;
 	salary_min?: number;
 	salary_max?: number;
-	salary_include_unknown?: number;
 	distance?: number;
 	full_time?: number;
 	part_time?: number;
@@ -19,8 +19,9 @@ interface AdzunaSearchParams {
 	permanent?: number;
 	results_per_page?: number;
 	page?: number;
-	sort?: "relevance" | "date" | "salary";
+	sort_by?: "relevance" | "date" | "salary";
 	order?: "asc" | "desc";
+	what_exclude?: string;
 }
 
 interface AdzunaJob {
@@ -40,10 +41,10 @@ interface AdzunaJob {
 interface AdzunaResponse {
 	results: AdzunaJob[];
 	count: number;
-	total: number;
+	total?: number;
 	mean_salary?: number;
-	page: number;
-	items_per_page: number;
+	page?: number;
+	items_per_page?: number;
 }
 
 /**
@@ -52,6 +53,7 @@ interface AdzunaResponse {
  */
 export async function searchAdzunaJobs(params: {
 	query?: string;
+	whatOr?: string;
 	location?: string;
 	salaryMin?: number;
 	salaryMax?: number;
@@ -68,25 +70,23 @@ export async function searchAdzunaJobs(params: {
 		return getMockJobs(params);
 	}
 
+	const page = params.page ?? 1
+
 	const searchParams: AdzunaSearchParams = {
 		app_id: appId,
 		app_key: appKey,
 		results_per_page: params.resultsPerPage ?? 20,
-		page: params.page ?? 1,
-		salary_include_unknown: 1,
 	};
 
 	if (params.query) searchParams.what = params.query;
+	if (params.whatOr) searchParams.what_or = params.whatOr;
 	if (params.location) searchParams.where = params.location;
 	if (params.salaryMin) searchParams.salary_min = params.salaryMin;
 	if (params.salaryMax) searchParams.salary_max = params.salaryMax;
 	if (params.distance) searchParams.distance = params.distance;
-	if (params.sort) searchParams.sort = params.sort;
+	if (params.sort) searchParams.sort_by = params.sort;
 
-	// UK country id for Adzuna
-	searchParams.location_id = 1; // United Kingdom
-
-	const url = new URL(`${ADZUNA_BASE_URL}/jobs/gb/search/1`);
+	const url = new URL(`${ADZUNA_BASE_URL}/jobs/gb/search/${page}`);
 	Object.entries(searchParams).forEach(([key, value]) => {
 		if (value !== undefined) url.searchParams.append(key, String(value));
 	});
@@ -120,8 +120,8 @@ export async function searchAdzunaJobs(params: {
 
 	return {
 		jobs,
-		total: data.total,
-		page: data.page,
+		total: data.count ?? data.total ?? 0,
+		page,
 	};
 }
 

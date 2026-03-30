@@ -13,38 +13,43 @@ export async function saveJob(job: Job) {
   } = await supabase.auth.getUser()
   if (!user) return { error: "Unauthorized" }
 
-  const { error: upsertError } = await supabase.from("jobs_cache").upsert(
-    {
-      id: job.id,
-      url: job.url,
-      source: job.source,
-      title: job.title,
-      company: job.company,
-      location: job.location,
-      description: job.description,
-      salary_min: job.salaryMin,
-      salary_max: job.salaryMax,
-      salary_currency: job.salaryCurrency,
-      posted_at: job.postedAt,
-      is_easy_apply: job.isEasyApply ?? false,
-    },
-    { onConflict: "id" }
-  )
+  const { data: cachedJob, error: upsertError } = await supabase
+    .from("jobs_cache")
+    .upsert(
+      {
+        url: job.url,
+        source: job.source,
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        description: job.description,
+        salary_min: job.salaryMin,
+        salary_max: job.salaryMax,
+        salary_currency: job.salaryCurrency,
+        posted_at: job.postedAt,
+        is_easy_apply: job.isEasyApply ?? false,
+      },
+      { onConflict: "url" }
+    )
+    .select("id")
+    .single()
 
-  if (upsertError) return { error: "Failed to cache job" }
+  if (upsertError || !cachedJob) return { error: "Failed to cache job" }
+
+  const cachedJobId = cachedJob.id
 
   const { data: existing } = await supabase
     .from("applications")
     .select("id")
     .eq("user_id", user.id)
-    .eq("job_id", job.id)
+    .eq("job_id", cachedJobId)
     .maybeSingle()
 
   if (existing) return { alreadySaved: true }
 
   const { error: insertError } = await supabase.from("applications").insert({
     user_id: user.id,
-    job_id: job.id,
+    job_id: cachedJobId,
     status: "saved",
   })
 

@@ -34,6 +34,7 @@ export function JobSourcesForm({ initial }: { initial: JobSources }) {
   const [adzunaEnabled, setAdzunaEnabled] = useState(initial.adzuna?.enabled ?? true)
   const [reedEnabled, setReedEnabled] = useState(initial.reed?.enabled ?? false)
   const [reedKey, setReedKey] = useState(initial.reed?.api_key ?? "")
+  const [careerjetEnabled, setCareerjetEnabled] = useState(initial.careerjet?.enabled ?? false)
   const [customUrls, setCustomUrls] = useState<JobSourceCustomUrl[]>(initial.custom ?? [])
   const [newLabel, setNewLabel] = useState("")
   const [newUrl, setNewUrl] = useState("")
@@ -42,6 +43,7 @@ export function JobSourcesForm({ initial }: { initial: JobSources }) {
     adzunaEnabled: initial.adzuna?.enabled ?? true,
     reedEnabled: initial.reed?.enabled ?? false,
     reedKey: initial.reed?.api_key ?? "",
+    careerjetEnabled: initial.careerjet?.enabled ?? false,
     customUrls: initial.custom ?? [] as JobSourceCustomUrl[],
   })
 
@@ -49,6 +51,7 @@ export function JobSourcesForm({ initial }: { initial: JobSources }) {
     adzunaEnabled !== savedSources.adzunaEnabled ||
     reedEnabled !== savedSources.reedEnabled ||
     reedKey !== savedSources.reedKey ||
+    careerjetEnabled !== savedSources.careerjetEnabled ||
     JSON.stringify(customUrls) !== JSON.stringify(savedSources.customUrls)
 
   function addCustomUrl() {
@@ -76,13 +79,14 @@ export function JobSourcesForm({ initial }: { initial: JobSources }) {
       const result = await saveJobSources({
         adzuna: { enabled: adzunaEnabled },
         reed: { enabled: reedEnabled, api_key: reedKey || undefined },
+        careerjet: { enabled: careerjetEnabled },
         custom: customUrls,
       })
       if (result?.error) {
         toast.error(result.error)
       } else {
         toast.success("Job sources saved")
-        setSavedSources({ adzunaEnabled, reedEnabled, reedKey, customUrls })
+        setSavedSources({ adzunaEnabled, reedEnabled, reedKey, careerjetEnabled, customUrls })
       }
     })
   }
@@ -128,6 +132,21 @@ export function JobSourcesForm({ initial }: { initial: JobSources }) {
             />
           </div>
         )}
+      </div>
+
+      <div className="border-t border-border" />
+
+      {/* Careerjet */}
+      <div className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Careerjet</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Global job search engine — API key configured server-side
+            </p>
+          </div>
+          <SourceToggle enabled={careerjetEnabled} onToggle={() => setCareerjetEnabled((v) => !v)} />
+        </div>
       </div>
 
       <div className="border-t border-border" />
