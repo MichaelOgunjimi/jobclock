@@ -25,6 +25,10 @@ test-results/
 # misc
 .DS_Store
 *.pem
+skills-lock.json
+scripts/
+docs/
+.claude/
 
 # debug
 npm-debug.log*
