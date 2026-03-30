@@ -61,7 +61,7 @@ function ExperienceForm({
     <div className="border border-border bg-secondary p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Entry {index + 1}</span>
-        <button type="button" onClick={() => onRemove(index)} className="text-muted-foreground hover:text-destructive transition-colors">
+        <button type="button" aria-label="Remove experience entry" onClick={() => onRemove(index)} className="text-muted-foreground hover:text-destructive transition-colors">
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -94,7 +94,7 @@ function EducationForm({
     <div className="border border-border bg-secondary p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Entry {index + 1}</span>
-        <button type="button" onClick={() => onRemove(index)} className="text-muted-foreground hover:text-destructive transition-colors">
+        <button type="button" aria-label="Remove education entry" onClick={() => onRemove(index)} className="text-muted-foreground hover:text-destructive transition-colors">
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -148,7 +148,7 @@ function ProjectForm({
     <div className="border border-border bg-secondary p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Project {index + 1}</span>
-        <button type="button" onClick={() => onRemove(index)} className="text-muted-foreground hover:text-destructive transition-colors">
+        <button type="button" aria-label="Remove project" onClick={() => onRemove(index)} className="text-muted-foreground hover:text-destructive transition-colors">
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -177,7 +177,7 @@ function ProjectForm({
               className="flex-1"
             />
             {highlights.length > 1 && (
-              <button type="button" onClick={() => removeHighlight(i)} className="shrink-0 text-muted-foreground hover:text-destructive transition-colors">
+              <button type="button" aria-label="Remove highlight" onClick={() => removeHighlight(i)} className="shrink-0 text-muted-foreground hover:text-destructive transition-colors">
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             )}

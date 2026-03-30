@@ -272,11 +272,12 @@ export function ProfileTabs({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Right to Work UK</Label>
+                  <Label id="right-to-work-label">Right to Work UK</Label>
                   <button
                     type="button"
                     role="checkbox"
                     aria-checked={rightToWork}
+                    aria-labelledby="right-to-work-label"
                     onClick={() => setRightToWork((value) => !value)}
                     className={cn(
                       "flex min-h-14 w-full items-center gap-3 border px-4 py-3 text-left transition-colors",
