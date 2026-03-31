@@ -415,7 +415,7 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
         </div>
       </CardHeader>
       <CardContent className="flex h-[480px] flex-col pt-0">
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-4" aria-live="polite" aria-atomic="false">
           {messages.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
               No messages yet. Ask anything about this role.
@@ -451,6 +451,7 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about the company, role, or application…"
+            aria-label="Message"
             disabled={isLoading}
             className="flex-1"
           />

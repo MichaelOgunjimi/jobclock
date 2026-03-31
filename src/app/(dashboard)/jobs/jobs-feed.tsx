@@ -249,6 +249,7 @@ export function JobsFeed({
                   <button
                     key={level.value}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => toggleExperienceLevel(level.value)}
                     className={cn(
                       "border px-2.5 py-1 text-xs font-medium transition-colors",
