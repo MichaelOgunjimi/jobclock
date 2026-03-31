@@ -109,8 +109,9 @@ export function JobsFeed({
         return
       }
 
-      // On new search (page 1) reset the cross-page dedup tracker
-      if (searchPage === 1) seenUrlsRef.current = new Set()
+      // Reset dedup tracker on every fetch — each page independently deduplicates
+      // across sources (Adzuna + Careerjet may return the same job on the same page)
+      seenUrlsRef.current = new Set()
 
       // Filter out any URLs already shown on previous pages
       const newJobs = (data.jobs ?? []).filter((job: Job) => {
@@ -325,7 +326,10 @@ export function JobsFeed({
             )}
             {jobs.length > 0 && (
               <p className="mt-1">
-                Page {page} of {totalPages}
+                Page {page} of {experienceLevels.length > 0 ? `~${totalPages}` : totalPages}
+                {experienceLevels.length > 0 && (
+                  <span className="ml-1 text-xs">(approx — filter active)</span>
+                )}
               </p>
             )}
           </div>

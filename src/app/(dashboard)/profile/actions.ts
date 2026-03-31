@@ -13,9 +13,10 @@ export async function setPrimaryCV(formData: FormData) {
 
   const cvId = formData.get("cvId") as string
 
-  // Unset all primary, then set the chosen one
-  await supabase.from("user_cvs").update({ is_primary: false }).eq("user_id", user.id)
+  // Set new primary first so a failure on the second write leaves multiple primaries
+  // (recoverable) rather than zero primaries (broken state)
   await supabase.from("user_cvs").update({ is_primary: true }).eq("id", cvId).eq("user_id", user.id)
+  await supabase.from("user_cvs").update({ is_primary: false }).eq("user_id", user.id).neq("id", cvId)
 
   revalidatePath("/profile")
 }

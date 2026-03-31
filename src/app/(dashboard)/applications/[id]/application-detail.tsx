@@ -225,12 +225,17 @@ function NotesCard({
   initialNotes: string | null
 }) {
   const [notes, setNotes] = useState(initialNotes ?? "")
+  const [saved, setSaved] = useState(false)
   const [pending, startTransition] = useTransition()
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
-    startTransition(() => updateNotes(formData))
+    startTransition(async () => {
+      await updateNotes(formData)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    })
   }
 
   return (
@@ -244,13 +249,16 @@ function NotesCard({
           <textarea
             name="notes"
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(e) => { setNotes(e.target.value); setSaved(false) }}
             className="min-h-[120px] w-full border border-input bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
             placeholder="Add private notes about this application…"
           />
-          <Button type="submit" size="sm" variant="outline" disabled={pending}>
-            {pending ? "Saving…" : "Save notes"}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button type="submit" size="sm" variant="outline" disabled={pending}>
+              {pending ? "Saving…" : "Save notes"}
+            </Button>
+            {saved && <span className="text-xs text-muted-foreground">Saved</span>}
+          </div>
         </form>
       </CardContent>
     </Card>
@@ -268,6 +276,7 @@ function DescriptionCard({
 }) {
   const [editing, setEditing] = useState(false)
   const [description, setDescription] = useState(initialDescription ?? "")
+  const [savedDescription, setSavedDescription] = useState(initialDescription ?? "")
   const [pending, startTransition] = useTransition()
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -275,12 +284,13 @@ function DescriptionCard({
     const formData = new FormData(e.currentTarget)
     startTransition(async () => {
       await updateDescription(formData)
+      setSavedDescription(description)
       setEditing(false)
     })
   }
 
   function handleCancel() {
-    setDescription(initialDescription ?? "")
+    setDescription(savedDescription)
     setEditing(false)
   }
 
