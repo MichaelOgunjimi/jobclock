@@ -396,6 +396,8 @@ export interface CvData {
 	email?: string;
 	phone?: string;
 	location?: string;
+	linkedin?: string;
+	website?: string;
 	summary?: string;
 	experience?: CvExperience[];
 	education: CvEducation[];
@@ -403,6 +405,7 @@ export interface CvData {
 	skills: string[];
 	languages?: string[];
 	certifications?: string[];
+	activities?: CvExperience[];
 }
 
 export interface CvExperience {
@@ -412,6 +415,7 @@ export interface CvExperience {
 	end_date?: string;
 	description: string;
 	highlights?: string[];
+	location?: string;
 }
 
 export interface CvEducation {
@@ -421,6 +425,10 @@ export interface CvEducation {
 	start_date?: string;
 	end_date?: string;
 	grade?: string;
+	location?: string;
+	gpa?: string;
+	honors?: string;
+	relevant_modules?: string[];
 }
 
 export interface CvProject {
@@ -433,9 +441,32 @@ export interface CvProject {
 	end_date?: string;
 }
 
+// Cover letter render data (composed at render time from CV + job data)
+export interface CoverLetterRenderData {
+	content: string;
+	sender: {
+		name?: string;
+		email?: string;
+		phone?: string;
+		location?: string;
+		linkedin?: string;
+		website?: string;
+	};
+	recipient: {
+		name?: string;
+		company?: string;
+		jobTitle?: string;
+	};
+	date: string;
+}
+
 // Skills gap analysis result
 export interface SkillsGap {
 	matched: string[];
 	missing: string[];
 	suggestions: string[];
 }
+
+export type AppWithJob = Database["public"]["Tables"]["applications"]["Row"] & {
+	jobs_cache: Database["public"]["Tables"]["jobs_cache"]["Row"] | null;
+};
