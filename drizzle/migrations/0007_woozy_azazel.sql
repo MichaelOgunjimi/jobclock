@@ -1,0 +1,2 @@
+ALTER TABLE "applications" ADD CONSTRAINT "applications_cover_letter_id_cover_letters_id_fk" FOREIGN KEY ("cover_letter_id") REFERENCES "public"."cover_letters"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "applications" ADD CONSTRAINT "applications_customized_cv_id_customized_cvs_id_fk" FOREIGN KEY ("customized_cv_id") REFERENCES "public"."customized_cvs"("id") ON DELETE set null ON UPDATE no action;

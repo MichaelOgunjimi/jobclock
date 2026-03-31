@@ -9,6 +9,7 @@ import {
   jsonb,
   integer,
   date,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core"
 
 // ============================================================
@@ -95,8 +96,8 @@ export const applications = pgTable("applications", {
   jobId: uuid("job_id").references(() => jobsCache.id, { onDelete: "set null" }),
   status: applicationStatusEnum("status").default("saved"),
   appliedAt: timestamp("applied_at", { withTimezone: true }),
-  coverLetterId: uuid("cover_letter_id"),
-  customizedCvId: uuid("customized_cv_id"),
+  coverLetterId: uuid("cover_letter_id").references((): AnyPgColumn => coverLetters.id, { onDelete: "set null" }),
+  customizedCvId: uuid("customized_cv_id").references((): AnyPgColumn => customizedCvs.id, { onDelete: "set null" }),
   source: text("source"),
   notes: text("notes"),
   tags: text("tags").array(),
@@ -106,6 +107,7 @@ export const applications = pgTable("applications", {
   autoApplySuccess: boolean("auto_apply_success"),
   applicationQualityScore: integer("application_quality_score"),
   rightToWorkConfirmed: boolean("right_to_work_confirmed").default(false),
+  customDescription: text("custom_description"),
 })
 
 // ============================================================
@@ -115,7 +117,7 @@ export const applications = pgTable("applications", {
 export const coverLetters = pgTable("cover_letters", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull(),
-  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "set null" }),
+  applicationId: uuid("application_id").references((): AnyPgColumn => applications.id, { onDelete: "set null" }),
   content: text("content").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   reviewed: boolean("reviewed").default(false),
@@ -130,7 +132,7 @@ export const coverLetters = pgTable("cover_letters", {
 export const customizedCvs = pgTable("customized_cvs", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull(),
-  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "set null" }),
+  applicationId: uuid("application_id").references((): AnyPgColumn => applications.id, { onDelete: "set null" }),
   cvJson: jsonb("cv_json"),
   pdfPath: text("pdf_path"),
   atsScore: integer("ats_score"),
@@ -159,7 +161,7 @@ export const interviewPrep = pgTable("interview_prep", {
 export const offers = pgTable("offers", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull(),
-  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "set null" }),
+  applicationId: uuid("application_id").references((): AnyPgColumn => applications.id, { onDelete: "set null" }),
   company: text("company").notNull(),
   role: text("role").notNull(),
   baseSalary: numeric("base_salary"),
