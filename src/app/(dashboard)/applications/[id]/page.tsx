@@ -41,24 +41,22 @@ export default async function ApplicationDetailPage({
 
   const application = applicationData as ApplicationWithJob
 
-  // Fetch user CVs
-  const { data: cvsData } = await supabase
-    .from("user_cvs")
-    .select("id, name, is_primary, created_at")
-    .eq("user_id", user.id)
-    .order("is_primary", { ascending: false })
-    .order("created_at", { ascending: false })
+  const [{ data: cvsData }, { data: coverLettersData }] = await Promise.all([
+    supabase
+      .from("user_cvs")
+      .select("id, name, is_primary, created_at")
+      .eq("user_id", user.id)
+      .order("is_primary", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("cover_letters")
+      .select("id, label, tone")
+      .eq("user_id", user.id)
+      .is("application_id", null)
+      .order("created_at", { ascending: false }),
+  ])
 
   const cvs = cvsData ?? []
-
-  // Fetch base cover letter templates (no application_id — they are reusable templates)
-  const { data: coverLettersData } = await supabase
-    .from("cover_letters")
-    .select("id, label, tone")
-    .eq("user_id", user.id)
-    .is("application_id", null)
-    .order("created_at", { ascending: false })
-
   const coverLetters = coverLettersData ?? []
 
   return (

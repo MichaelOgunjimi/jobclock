@@ -29,45 +29,49 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/auth")
 
-  const { count: totalApplications } = await supabase
-    .from("applications")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-
-  const { count: pendingApplications } = await supabase
-    .from("applications")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("status", "applied")
-
-  const { count: interviewCount } = await supabase
-    .from("applications")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("status", "interview")
-
-  const { count: savedCount } = await supabase
-    .from("applications")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("status", "saved")
-
-  const { data: recentAppsData } = await supabase
-    .from("applications")
-    .select(`
-      id,
-      status,
-      created_at,
-      applied_at,
-      jobs_cache (
-        title,
-        company,
-        location
-      )
-    `)
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(5)
+  const [
+    { count: totalApplications },
+    { count: pendingApplications },
+    { count: interviewCount },
+    { count: savedCount },
+    { data: recentAppsData },
+  ] = await Promise.all([
+    supabase
+      .from("applications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id),
+    supabase
+      .from("applications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "applied"),
+    supabase
+      .from("applications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "interview"),
+    supabase
+      .from("applications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "saved"),
+    supabase
+      .from("applications")
+      .select(`
+        id,
+        status,
+        created_at,
+        applied_at,
+        jobs_cache (
+          title,
+          company,
+          location
+        )
+      `)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(5),
+  ])
 
   const recentApps = (recentAppsData ?? []) as RecentApplication[]
 
