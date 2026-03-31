@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { revalidatePath } from "next/cache"
@@ -19,6 +20,10 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button-styles"
 import type { ApplicationStatus, Database } from "@/lib/supabase/database.types"
+
+export const metadata: Metadata = {
+  title: "Applications",
+}
 
 type ApplicationWithJob = Database["public"]["Tables"]["applications"]["Row"] & {
   jobs_cache: Pick<

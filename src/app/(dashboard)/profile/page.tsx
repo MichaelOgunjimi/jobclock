@@ -1,9 +1,14 @@
+import type { Metadata } from "next"
 import { Suspense } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect } from "next/navigation"
 import type { CoverLetterTemplate } from "@/lib/supabase/database.types"
 import { ProfileTabs } from "./profile-tabs"
+
+export const metadata: Metadata = {
+  title: "Profile",
+}
 
 export default async function ProfilePage() {
   if (!isSupabaseConfigured()) {

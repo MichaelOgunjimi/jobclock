@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { cookies } from "next/headers"
-import { Geist_Mono, IBM_Plex_Sans } from "next/font/google"
+import { Geist_Mono, IBM_Plex_Sans, IBM_Plex_Serif } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -11,14 +11,23 @@ const uiSans = IBM_Plex_Sans({
   weight: ["400", "500", "600"],
 })
 
+const uiSerif = IBM_Plex_Serif({
+  variable: "--font-ui-serif",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+})
+
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 })
 
 export const metadata: Metadata = {
-  title: "Job Assistant",
-  description: "AI-powered job application assistant for UK graduate roles",
+  title: {
+    default: "Jobclock",
+    template: "%s | Jobclock",
+  },
+  description: "AI-powered job search assistant for UK roles",
 }
 
 export default async function RootLayout({
@@ -38,7 +47,7 @@ export default async function RootLayout({
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
-      <body className={`${uiSans.variable} ${geistMono.variable} font-sans antialiased`}>
+      <body className={`${uiSans.variable} ${uiSerif.variable} ${geistMono.variable} font-sans antialiased`}>
         <ThemeProvider initialTheme={initialTheme}>
           {children}
           <Toaster />
