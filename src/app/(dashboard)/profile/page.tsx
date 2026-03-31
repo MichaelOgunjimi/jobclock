@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect } from "next/navigation"
@@ -46,11 +47,13 @@ export default async function ProfilePage() {
         </div>
       </div>
 
-      <ProfileTabs
-        cvs={cvs ?? []}
-        coverLetters={(coverLetters ?? []) as CoverLetterTemplate[]}
-        profile={profile ?? null}
-      />
+      <Suspense>
+        <ProfileTabs
+          cvs={cvs ?? []}
+          coverLetters={(coverLetters ?? []) as CoverLetterTemplate[]}
+          profile={profile ?? null}
+        />
+      </Suspense>
     </div>
   )
 }
