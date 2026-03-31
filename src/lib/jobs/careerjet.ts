@@ -68,7 +68,7 @@ export async function searchCareerjetJobs(params: {
     return { jobs: [], total: 0, page }
   }
 
-  const jobs: Job[] = data.jobs.map((job, i) => ({
+  const jobs: Job[] = data.jobs.map((job) => ({
     id: `careerjet-${Buffer.from(job.url).toString("base64").slice(0, 12)}`,
     title: job.title,
     company: job.company ?? "Unknown",
