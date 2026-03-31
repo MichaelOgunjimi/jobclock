@@ -47,7 +47,10 @@ export default async function RootLayout({
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
-      <body className={`${uiSans.variable} ${uiSerif.variable} ${geistMono.variable} font-sans antialiased`}>
+      <body
+        className={`${uiSans.variable} ${uiSerif.variable} ${geistMono.variable} font-sans antialiased`}
+        suppressHydrationWarning
+      >
         <ThemeProvider initialTheme={initialTheme}>
           {children}
           <Toaster />
