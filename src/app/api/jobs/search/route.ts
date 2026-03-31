@@ -25,9 +25,9 @@ export async function GET(request: NextRequest) {
   const sourcesParam = searchParams.get("sources")
   const sources = sourcesParam ? sourcesParam.split(",").filter(Boolean) : ["adzuna"]
 
-  const pageNum = page ? parseInt(page) : 1
-  const perPageNum = perPage ? parseInt(perPage) : 20
-  const salaryMinNum = salaryMin ? parseInt(salaryMin) : undefined
+  const pageNum = Math.max(1, parseInt(page ?? "") || 1)
+  const perPageNum = Math.min(50, Math.max(1, parseInt(perPage ?? "") || 20))
+  const salaryMinNum = salaryMin ? (parseInt(salaryMin) || undefined) : undefined
 
   const userIp =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??

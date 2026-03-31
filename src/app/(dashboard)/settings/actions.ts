@@ -113,11 +113,11 @@ export async function deleteTemplate(type: "cv" | "cover_letter") {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Unauthorized" }
 
-  const storagePath = `${(await supabase.auth.getUser()).data.user?.id}/${type}-template.docx`
+  const storagePath = `${user.id}/${type}-template.docx`
   await supabase.storage.from("templates").remove([storagePath])
 
   const column = type === "cv" ? "cv_template_path" : "cover_letter_template_path"
-  const { error } = await supabase.from("profiles").update({ [column]: null }).eq("id", (await supabase.auth.getUser()).data.user!.id)
+  const { error } = await supabase.from("profiles").update({ [column]: null }).eq("id", user.id)
 
   if (error) return { error: error.message }
 

@@ -60,6 +60,7 @@ export function ProfileTabs({
   const [rightToWork, setRightToWork] = useState(profile?.right_to_work_uk ?? false)
   const [experienceLevels, setExperienceLevels] = useState<string[]>(profile?.experience_level ?? [] as string[])
   const [isPending, startTransition] = useTransition()
+  const [isTabPending, startTabTransition] = useTransition()
   const [savedPrefs, setSavedPrefs] = useState({
     roles: profile?.desired_roles ?? [],
     locations: profile?.locations_uk ?? [],
@@ -97,14 +98,16 @@ export function ProfileTabs({
   const activeTab = validTabs.includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "cvs"
 
   function handleTabChange(value: string) {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("tab", value)
-    router.replace(`/profile?${params.toString()}`, { scroll: false })
+    startTabTransition(() => {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set("tab", value)
+      router.replace(`/profile?${params.toString()}`, { scroll: false })
+    })
   }
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange}>
-      <TabsList className="mb-8">
+      <TabsList className={cn("mb-8 transition-opacity", isTabPending && "opacity-60")}>
         <TabsTrigger value="cvs">CVs</TabsTrigger>
         <TabsTrigger value="cover-letters">Cover Letters</TabsTrigger>
         <TabsTrigger value="preferences">Preferences</TabsTrigger>

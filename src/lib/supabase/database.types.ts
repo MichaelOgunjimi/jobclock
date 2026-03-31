@@ -78,7 +78,7 @@ export type Database = {
 					parsed_json: Json | null;
 					file_path: string | null;
 					created_at: string;
-					is_primary: boolean;
+					is_primary: boolean | null;
 				};
 				Insert: {
 					id?: string;
@@ -88,7 +88,7 @@ export type Database = {
 					parsed_json?: Json | null;
 					file_path?: string | null;
 					created_at?: string;
-					is_primary?: boolean;
+					is_primary?: boolean | null;
 				};
 				Update: {
 					id?: string;
@@ -98,7 +98,7 @@ export type Database = {
 					parsed_json?: Json | null;
 					file_path?: string | null;
 					created_at?: string;
-					is_primary?: boolean;
+					is_primary?: boolean | null;
 				};
 				Relationships: [];
 			};
