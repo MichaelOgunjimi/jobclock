@@ -65,9 +65,9 @@ export async function searchAdzunaJobs(params: {
 	const appId = process.env.ADZUNA_APP_ID;
 	const appKey = process.env.ADZUNA_APP_KEY;
 
-	// Fall back to mock data if credentials are not set
 	if (!appId || !appKey || appId === "your-adzuna-app-id") {
-		return getMockJobs(params);
+		console.warn("Adzuna credentials not configured — returning empty results")
+		return { jobs: [], total: 0, page: params.page ?? 1 };
 	}
 
 	const page = params.page ?? 1
