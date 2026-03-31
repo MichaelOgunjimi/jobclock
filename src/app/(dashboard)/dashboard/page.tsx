@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { Briefcase, Clock, FileText, Search, Send, TrendingUp } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
@@ -19,16 +20,14 @@ type RecentApplication = Pick<
 }
 
 export default async function DashboardPage() {
-  if (!isSupabaseConfigured()) {
-    return null
-  }
+  if (!isSupabaseConfigured()) redirect("/auth")
 
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) return null
+  if (!user) redirect("/auth")
 
   const { count: totalApplications } = await supabase
     .from("applications")
@@ -168,10 +167,36 @@ export default async function DashboardPage() {
 
       <div className="grid gap-8 xl:grid-cols-[1.55fr_0.95fr]">
         <Card className="border-border">
-          <CardHeader className="border-b pb-6">
-            <p className="section-label">Latest movement</p>
-            <CardTitle>Recent applications</CardTitle>
-            <CardDescription>Your latest submissions and status changes.</CardDescription>
+          <CardHeader className="border-b bg-secondary/20 pb-6">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div className="space-y-3">
+                <p className="section-label">Latest movement</p>
+                <div className="space-y-2">
+                  <CardTitle className="text-[1.75rem] tracking-[-0.04em]">
+                    Recent applications
+                  </CardTitle>
+                  <CardDescription className="max-w-xl">
+                    Your latest submissions and status changes.
+                  </CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 self-start sm:self-auto">
+                <div className="border border-border bg-background px-3 py-2 text-right">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    Showing
+                  </p>
+                  <p className="mt-1 font-heading text-[1.35rem] leading-none tracking-[-0.05em]">
+                    {recentApps.length}
+                  </p>
+                </div>
+                <Link
+                  href="/applications"
+                  className={cn(buttonVariants({ size: "sm", variant: "outline" }), "justify-center")}
+                >
+                  Open pipeline
+                </Link>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {recentApps.length === 0 ? (
@@ -216,12 +241,6 @@ export default async function DashboardPage() {
               </div>
             )}
 
-            <Link
-              href="/applications"
-              className={cn(buttonVariants({ size: "default" }), "mt-8 w-full justify-center")}
-            >
-              View all applications
-            </Link>
           </CardContent>
         </Card>
 

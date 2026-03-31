@@ -351,7 +351,7 @@ export function JobsFeed({
           </p>
         </div>
 
-        <ScrollArea className="h-auto lg:h-[calc(100vh-22rem)]" viewportRef={resultsScrollRef}>
+        <ScrollArea className="h-[calc(100vh-16rem)] lg:h-[calc(100vh-22rem)]" viewportRef={resultsScrollRef}>
           <div className="space-y-3 p-4 md:p-6">
             {!hasSearched && !searching ? (
               <div className="border bg-secondary px-6 py-14 text-center text-muted-foreground">
