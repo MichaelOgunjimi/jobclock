@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Briefcase, Clock, FileText, Search, Send, TrendingUp } from "lucide-react"
@@ -8,6 +9,10 @@ import { buttonVariants } from "@/components/ui/button-styles"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Database } from "@/lib/supabase/database.types"
 import { cn } from "@/lib/utils"
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+}
 
 type RecentApplication = Pick<
   Database["public"]["Tables"]["applications"]["Row"],
@@ -171,34 +176,18 @@ export default async function DashboardPage() {
 
       <div className="grid gap-8 xl:grid-cols-[1.55fr_0.95fr]">
         <Card className="border-border">
-          <CardHeader className="border-b bg-secondary/20 pb-6">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <CardHeader className="border-b border-foreground/10 bg-secondary/40 pb-6 shadow-[inset_0_0_0_1px_hsl(var(--border))]">
+            <div className="space-y-3">
               <div className="space-y-3">
                 <p className="section-label">Latest movement</p>
                 <div className="space-y-2">
-                  <CardTitle className="text-[1.75rem] tracking-[-0.04em]">
+                  <CardTitle className="text-[1.7rem] tracking-[-0.045em]">
                     Recent applications
                   </CardTitle>
-                  <CardDescription className="max-w-xl">
+                  <CardDescription className="max-w-lg text-[14px]">
                     Your latest submissions and status changes.
                   </CardDescription>
                 </div>
-              </div>
-              <div className="flex items-center gap-3 self-start sm:self-auto">
-                <div className="border border-border bg-background px-3 py-2 text-right">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                    Showing
-                  </p>
-                  <p className="mt-1 font-heading text-[1.35rem] leading-none tracking-[-0.05em]">
-                    {recentApps.length}
-                  </p>
-                </div>
-                <Link
-                  href="/applications"
-                  className={cn(buttonVariants({ size: "sm", variant: "outline" }), "justify-center")}
-                >
-                  Open pipeline
-                </Link>
               </div>
             </div>
           </CardHeader>
@@ -244,6 +233,13 @@ export default async function DashboardPage() {
                 })}
               </div>
             )}
+
+            <Link
+              href="/applications"
+              className={cn(buttonVariants({ size: "default" }), "mt-8 w-full justify-center")}
+            >
+              View all applications
+            </Link>
 
           </CardContent>
         </Card>

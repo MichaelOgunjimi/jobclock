@@ -1,8 +1,13 @@
+import type { Metadata } from "next"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect } from "next/navigation"
 import { JobsFeed } from "./jobs-feed"
 import type { UserPreferences } from "@/lib/ai"
+
+export const metadata: Metadata = {
+  title: "Browse Roles",
+}
 
 export default async function JobsPage() {
   if (!isSupabaseConfigured()) {

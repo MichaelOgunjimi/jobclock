@@ -1,9 +1,14 @@
+import type { Metadata } from "next"
 import { Suspense } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect } from "next/navigation"
 import { resolveAiSettings, type UserPreferences, type JobSources } from "@/lib/ai"
 import { SettingsTabs } from "./settings-tabs"
+
+export const metadata: Metadata = {
+  title: "Settings",
+}
 
 export default async function SettingsPage() {
   if (!isSupabaseConfigured()) redirect("/auth")
