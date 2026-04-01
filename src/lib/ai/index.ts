@@ -1,3 +1,5 @@
+import { decrypt } from "@/lib/crypto"
+
 export type AiProvider = "anthropic" | "openai"
 
 export const PROVIDER_MODELS: Record<AiProvider, { id: string; label: string }[]> = {
@@ -46,7 +48,7 @@ export interface UserPreferences {
 }
 
 export function resolveAiSettings(preferences: UserPreferences | null): AiSettings {
-  const provider = preferences?.ai_provider ?? "anthropic"
+  const provider = preferences?.ai_provider ?? "openai"
   const model = preferences?.ai_model ?? DEFAULT_MODELS[provider]
   return { provider, model }
 }
@@ -58,39 +60,49 @@ export function resolveApiKey(
   preferences: UserPreferences | null
 ): string {
   const storedKey =
-    provider === "anthropic"
-      ? preferences?.anthropic_api_key
-      : preferences?.openai_api_key
+		provider === "openai" ?
+			preferences?.openai_api_key
+		:	preferences?.anthropic_api_key;
 
   const envKey =
-    provider === "anthropic"
-      ? process.env.ANTHROPIC_API_KEY
-      : process.env.OPENAI_API_KEY
+		provider === "openai" ?
+			process.env.OPENAI_API_KEY
+		:	process.env.ANTHROPIC_API_KEY;
 
-  const key = storedKey || envKey
+  const key = (storedKey ? decrypt(storedKey) : null) || envKey
 
   if (!key) {
     throw new Error(
-      `No API key for ${provider}. Add one in Settings or set the ${
-        provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"
-      } environment variable.`
-    )
+			`No API key for ${provider}. Add one in Settings or set the ${
+				provider === "openai" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY"
+			} environment variable.`,
+		);
   }
   return key
+}
+
+export function resolveAiConfig(preferences: UserPreferences | null): {
+  settings: AiSettings
+  apiKey: string
+} {
+  const settings = resolveAiSettings(preferences)
+  const apiKey = resolveApiKey(settings.provider, preferences)
+  return { settings, apiKey }
 }
 
 export async function generateText(
   settings: AiSettings,
   apiKey: string,
   system: string,
-  user: string
+  user: string,
+  maxTokens?: number
 ): Promise<string> {
   if (settings.provider === "anthropic") {
     const { default: Anthropic } = await import("@anthropic-ai/sdk")
     const client = new Anthropic({ apiKey })
     const message = await client.messages.create({
       model: settings.model,
-      max_tokens: 4096,
+      max_tokens: maxTokens ?? 4096,
       system,
       messages: [{ role: "user", content: user }],
     })
@@ -106,6 +118,7 @@ export async function generateText(
         { role: "system", content: system },
         { role: "user", content: user },
       ],
+      ...(maxTokens != null ? { max_tokens: maxTokens } : {}),
     })
     return completion.choices[0]?.message?.content ?? ""
   }
