@@ -364,6 +364,57 @@
   }
 }
 
+@media print {
+  body.cv-workspace-active * {
+    visibility: hidden !important;
+  }
+
+  body.cv-workspace-active .cv-workspace [data-cv-paper="true"],
+  body.cv-workspace-active .cv-workspace [data-cv-paper="true"] * {
+    visibility: visible !important;
+  }
+
+  body.cv-workspace-active .cv-workspace [data-cv-paper="true"] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    box-shadow: none !important;
+  }
+
+  body.cv-workspace-active .cv-workspace .cv-preview-paper-scale {
+    transform: none !important;
+  }
+
+  body.cv-workspace-active .cv-workspace .cv-preview-paper-shell {
+    min-height: auto !important;
+  }
+
+  /* Cover letter print rules */
+  body.cl-workspace-active * {
+    visibility: hidden !important;
+  }
+
+  body.cl-workspace-active .cl-workspace [data-cover-letter-paper="true"],
+  body.cl-workspace-active .cl-workspace [data-cover-letter-paper="true"] * {
+    visibility: visible !important;
+  }
+
+  body.cl-workspace-active .cl-workspace [data-cover-letter-paper="true"] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    box-shadow: none !important;
+  }
+
+  body.cl-workspace-active .cl-workspace .cl-preview-paper-scale {
+    transform: none !important;
+  }
+
+  body.cl-workspace-active .cl-workspace .cl-preview-paper-shell {
+    min-height: auto !important;
+  }
+}
+
 @keyframes landingReveal {
   from {
     opacity: 0;
