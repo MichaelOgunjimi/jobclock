@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, ExternalLink, Loader2, Send, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -10,7 +11,15 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
-import { updateStatus, updateNotes, updateCv, updateCoverLetter, updateDescription, deleteApplication } from "./actions"
+import {
+  updateStatus,
+  updateNotes,
+  updateCv,
+  updateCoverLetter,
+  updateDescription,
+  deleteApplication,
+  generateCoverLetter,
+} from "./actions"
 import type { ApplicationStatus, Database } from "@/lib/supabase/database.types"
 
 type ApplicationRow = Database["public"]["Tables"]["applications"]["Row"]
@@ -23,6 +32,14 @@ type CoverLetterRow = Pick<
   Database["public"]["Tables"]["cover_letters"]["Row"],
   "id" | "label" | "tone"
 >
+type TailoredCvRow = Pick<
+  Database["public"]["Tables"]["customized_cvs"]["Row"],
+  "id" | "cv_json" | "skills_gap" | "ats_score" | "created_at"
+>
+type GeneratedCoverLetterRow = Pick<
+  Database["public"]["Tables"]["cover_letters"]["Row"],
+  "id" | "content" | "tone" | "label" | "created_at"
+>
 
 interface ApplicationWithJob extends ApplicationRow {
   jobs_cache: JobsCacheRow | null
@@ -32,6 +49,8 @@ interface Props {
   application: ApplicationWithJob
   cvs: UserCvRow[]
   coverLetters: CoverLetterRow[]
+  tailoredCvs: TailoredCvRow[]
+  generatedCoverLetter: GeneratedCoverLetterRow | null
 }
 
 // ── Status config ────────────────────────────────────────────────────────────
@@ -44,16 +63,6 @@ const STATUS_STEPS: { value: ApplicationStatus; label: string; num: string }[] =
     { value: "interview", label: "Interview", num: "04" },
     { value: "offer", label: "Offer", num: "05" },
   ]
-
-const ALL_STATUSES: { value: ApplicationStatus; label: string }[] = [
-  { value: "saved", label: "Saved" },
-  { value: "applied", label: "Applied" },
-  { value: "screening", label: "Screening" },
-  { value: "interview", label: "Interview" },
-  { value: "offer", label: "Offer" },
-  { value: "rejected", label: "Rejected" },
-  { value: "withdrawn", label: "Withdrawn" },
-]
 
 function getStatusBadgeClass(status: ApplicationStatus): string {
   switch (status) {
@@ -77,15 +86,67 @@ function getStatusBadgeClass(status: ApplicationStatus): string {
 }
 
 function getStatusLabel(status: ApplicationStatus): string {
-  return ALL_STATUSES.find((s) => s.value === status)?.label ?? status
+  switch (status) {
+    case "saved":
+      return "Saved"
+    case "applied":
+      return "Applied"
+    case "screening":
+      return "Screening"
+    case "interview":
+      return "Interview"
+    case "offer":
+      return "Offer"
+    case "rejected":
+      return "Rejected"
+    case "withdrawn":
+      return "Withdrawn"
+    default:
+      return status
+  }
 }
+
+function getAtsBadgeClass(score: number): string {
+  if (score >= 75)
+    return "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
+  if (score >= 50)
+    return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+  return "border-destructive/20 bg-destructive/10 text-destructive"
+}
+
+// ── Skills gap helper ────────────────────────────────────────────────────────
+
+function parseSkillsGap(raw: unknown): { gap: string[]; changes: string | null } {
+  if (!raw) return { gap: [], changes: null }
+  if (Array.isArray(raw)) return { gap: raw as string[], changes: null }
+  if (typeof raw === "object" && raw !== null) {
+    const obj = raw as { gap?: string[]; changes?: string }
+    return { gap: obj.gap ?? [], changes: obj.changes ?? null }
+  }
+  return { gap: [], changes: null }
+}
+
 
 // ── Pipeline stepper ────────────────────────────────────────────────────────
 
-function StatusStepper({ currentStatus }: { currentStatus: ApplicationStatus }) {
+function StatusStepper({
+  currentStatus,
+  applicationId,
+}: {
+  currentStatus: ApplicationStatus
+  applicationId: string
+}) {
+  const [pending, startTransition] = useTransition()
   const isTerminal =
     currentStatus === "rejected" || currentStatus === "withdrawn"
   const currentIndex = STATUS_STEPS.findIndex((s) => s.value === currentStatus)
+  function handleStatusClick(status: ApplicationStatus) {
+    if (status === currentStatus || pending) return
+    const formData = new FormData()
+    formData.set("applicationId", applicationId)
+    formData.set("status", status)
+    startTransition(() => updateStatus(formData))
+  }
 
   return (
     <div className="space-y-3">
@@ -98,8 +159,14 @@ function StatusStepper({ currentStatus }: { currentStatus: ApplicationStatus }) 
           return (
             <div
               key={step.value}
+              role="button"
+              tabIndex={0}
+              onClick={() => handleStatusClick(step.value)}
               className={cn(
                 "flex items-center justify-between border px-4 py-3 transition-colors",
+                pending
+                  ? "cursor-wait"
+                  : "cursor-pointer hover:ring-2 hover:ring-foreground/20",
                 isCurrent &&
                   "border-foreground bg-foreground text-background",
                 isPast &&
@@ -130,9 +197,15 @@ function StatusStepper({ currentStatus }: { currentStatus: ApplicationStatus }) 
           return (
             <div
               key={step.value}
+              role="button"
+              tabIndex={0}
+              onClick={() => handleStatusClick(step.value)}
               className={cn(
                 "flex flex-1 flex-col gap-1.5 border px-3 py-3 text-center transition-colors",
                 index !== 0 && "-ml-px",
+                pending
+                  ? "cursor-wait"
+                  : "cursor-pointer hover:ring-2 hover:ring-foreground/20",
                 isCurrent &&
                   "relative z-10 border-foreground bg-foreground text-background",
                 isPast &&
@@ -151,67 +224,68 @@ function StatusStepper({ currentStatus }: { currentStatus: ApplicationStatus }) 
         })}
       </div>
 
-      {isTerminal && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Badge className={getStatusBadgeClass(currentStatus)}>
-            {getStatusLabel(currentStatus)}
-          </Badge>
-          <span className="text-[13px] text-muted-foreground">
-            This application is no longer active.
-          </span>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Status update form ───────────────────────────────────────────────────────
-
-function StatusUpdateForm({
-  applicationId,
-  currentStatus,
-}: {
-  applicationId: string
-  currentStatus: ApplicationStatus
-}) {
-  const [pending, startTransition] = useTransition()
-  const [selectedStatus, setSelectedStatus] = useState(currentStatus)
-
-  useEffect(() => {
-    setSelectedStatus(currentStatus)
-  }, [currentStatus])
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    startTransition(() => updateStatus(formData))
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-      <input type="hidden" name="applicationId" value={applicationId} />
-      <div className="space-y-1.5">
-        <Label htmlFor="status-select" className="text-sm">
-          Stage
-        </Label>
-        <select
-          id="status-select"
-          name="status"
-          value={selectedStatus}
-          onChange={(e) => setSelectedStatus(e.target.value as ApplicationStatus)}
-          className="form-select min-w-0 bg-background sm:min-w-[13rem]"
+      <div className="flex gap-2 mt-2 sm:hidden">
+        <button
+          type="button"
+          onClick={() => handleStatusClick("rejected")}
+          disabled={pending}
+          className={cn(
+            "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
+            currentStatus === "rejected"
+              ? "border-destructive/40 bg-destructive/10 text-destructive"
+              : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
+            pending && "cursor-wait opacity-60"
+          )}
         >
-          {ALL_STATUSES.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          Rejected
+        </button>
+        <button
+          type="button"
+          onClick={() => handleStatusClick("withdrawn")}
+          disabled={pending}
+          className={cn(
+            "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
+            currentStatus === "withdrawn"
+              ? "border-border bg-secondary text-muted-foreground"
+              : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
+            pending && "cursor-wait opacity-60"
+          )}
+        >
+          Withdrawn
+        </button>
       </div>
-      <Button type="submit" size="default" disabled={pending} className="w-full sm:w-auto">
-        {pending ? "Saving…" : "Update"}
-      </Button>
-    </form>
+
+      <div className="hidden gap-2 mt-2 sm:flex">
+        <button
+          type="button"
+          onClick={() => handleStatusClick("rejected")}
+          disabled={pending}
+          className={cn(
+            "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
+            currentStatus === "rejected"
+              ? "border-destructive/40 bg-destructive/10 text-destructive"
+              : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
+            pending && "cursor-wait opacity-60"
+          )}
+        >
+          Rejected
+        </button>
+        <button
+          type="button"
+          onClick={() => handleStatusClick("withdrawn")}
+          disabled={pending}
+          className={cn(
+            "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
+            currentStatus === "withdrawn"
+              ? "border-border bg-secondary text-muted-foreground"
+              : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
+            pending && "cursor-wait opacity-60"
+          )}
+        >
+          Withdrawn
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -274,23 +348,32 @@ function DescriptionCard({
   applicationId: string
   initialDescription: string | null
 }) {
+  const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [description, setDescription] = useState(initialDescription ?? "")
   const [savedDescription, setSavedDescription] = useState(initialDescription ?? "")
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
+    setSaveError(null)
     startTransition(async () => {
-      await updateDescription(formData)
-      setSavedDescription(description)
-      setEditing(false)
+      const result = await updateDescription(formData)
+      if (result?.error) {
+        setSaveError(result.error)
+      } else {
+        setSavedDescription(description)
+        setEditing(false)
+        router.refresh()
+      }
     })
   }
 
   function handleCancel() {
     setDescription(savedDescription)
+    setSaveError(null)
     setEditing(false)
   }
 
@@ -318,13 +401,18 @@ function DescriptionCard({
               className="min-h-0 flex-1 w-full resize-none border border-input bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
               placeholder="Paste the full job description here…"
             />
-            <div className="flex shrink-0 gap-2">
-              <Button type="submit" size="sm" variant="default" disabled={pending}>
-                {pending ? "Saving…" : "Save"}
-              </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={handleCancel} disabled={pending}>
-                Cancel
-              </Button>
+            <div className="flex shrink-0 flex-col gap-2">
+              {saveError && (
+                <p className="text-[12px] text-destructive">{saveError}</p>
+              )}
+              <div className="flex gap-2">
+                <Button type="submit" size="sm" variant="default" disabled={pending}>
+                  {pending ? "Saving…" : "Save"}
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={handleCancel} disabled={pending}>
+                  Cancel
+                </Button>
+              </div>
             </div>
           </form>
         ) : description ? (
@@ -478,34 +566,182 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
   )
 }
 
+// ── Generation timeline ──────────────────────────────────────────────────────
+
+type StageStatus = "pending" | "running" | "done" | "error"
+type StageMap = Record<"B" | "C" | "D" | "E", StageStatus>
+
+const TIMELINE_STEPS: { label: string; stages: Array<"B" | "C" | "D" | "E"> }[] = [
+  { label: "Analysing JD", stages: ["B"] },
+  { label: "Matching with CV", stages: ["C"] },
+  { label: "Tailoring", stages: ["D", "E"] },
+  { label: "Done", stages: [] },
+]
+
+function stepStatus(step: typeof TIMELINE_STEPS[number], stages: StageMap, isDone: boolean): StageStatus {
+  if (step.stages.length === 0) return isDone ? "done" : "pending"
+  if (step.stages.some((s) => stages[s] === "error")) return "error"
+  if (step.stages.every((s) => stages[s] === "done")) return "done"
+  if (step.stages.some((s) => stages[s] === "running")) return "running"
+  return "pending"
+}
+
+function GenerationTimeline({ stages, isDone }: { stages: StageMap; isDone: boolean }) {
+  return (
+    <div className="space-y-2 py-1">
+      {TIMELINE_STEPS.map((step) => {
+        const status = stepStatus(step, stages, isDone)
+        return (
+          <div key={step.label} className="flex items-center gap-2.5">
+            <span
+              className={cn(
+                "flex h-4 w-4 shrink-0 items-center justify-center",
+                status === "running" && "text-foreground",
+                status === "done" && "text-foreground",
+                status === "error" && "text-destructive",
+                status === "pending" && "text-muted-foreground/40"
+              )}
+            >
+              {status === "running" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : status === "done" ? (
+                <span className="h-2 w-2 rounded-full bg-foreground" />
+              ) : status === "error" ? (
+                <span className="h-2 w-2 rounded-full bg-destructive" />
+              ) : (
+                <span className="h-2 w-2 rounded-full border border-muted-foreground/30" />
+              )}
+            </span>
+            <span
+              className={cn(
+                "text-[12px] font-medium tracking-wide uppercase",
+                status === "done" && "text-foreground",
+                status === "running" && "text-foreground",
+                status === "error" && "text-destructive",
+                status === "pending" && "text-muted-foreground/40"
+              )}
+            >
+              {step.label}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── CV card ──────────────────────────────────────────────────────────────────
+
+const INITIAL_STAGES: StageMap = { B: "pending", C: "pending", D: "pending", E: "pending" }
 
 function CvCard({
   applicationId,
   cvs,
   currentCvId,
+  tailoredCvs,
+  hasDescription,
 }: {
   applicationId: string
   cvs: UserCvRow[]
   currentCvId: string | null
+  tailoredCvs: TailoredCvRow[]
+  hasDescription: boolean
 }) {
+  const router = useRouter()
   const primaryCv = cvs.find((cv) => cv.is_primary)
   const defaultValue = currentCvId ?? primaryCv?.id ?? ""
-  const [pending, startTransition] = useTransition()
+  const [savePending, startSaveTransition] = useTransition()
+  const [generating, setGenerating] = useState(false)
+  const [stages, setStages] = useState<StageMap>(INITIAL_STAGES)
+  const [isDone, setIsDone] = useState(false)
+  const [genError, setGenError] = useState<string | null>(null)
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSaveSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
-    startTransition(() => updateCv(formData))
+    startSaveTransition(() => updateCv(formData))
   }
+
+  async function handleGenerate() {
+    setGenError(null)
+    setIsDone(false)
+    setStages(INITIAL_STAGES)
+    setGenerating(true)
+
+    let res: Response
+    try {
+      res = await fetch(`/api/applications/${applicationId}/cv/generate`, { method: "POST" })
+    } catch {
+      setGenError("Network error. Please try again.")
+      setGenerating(false)
+      return
+    }
+
+    if (!res.ok || !res.body) {
+      const body = await res.json().catch(() => ({}))
+      setGenError((body as { error?: string }).error ?? "Generation failed.")
+      setGenerating(false)
+      return
+    }
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+    let finished = false
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n")
+        buffer = lines.pop() ?? ""
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue
+          try {
+            const event = JSON.parse(line.slice(6)) as
+              | { stage: "B" | "C" | "D" | "E"; status: StageStatus; error?: string }
+              | { done: true }
+            if ("done" in event && event.done) {
+              setIsDone(true)
+              setGenerating(false)
+              finished = true
+              router.refresh()
+            } else if ("stage" in event) {
+              setStages((s) => ({ ...s, [event.stage]: event.status }))
+              if (event.status === "error") {
+                setGenError(event.error ?? "Generation failed.")
+                setGenerating(false)
+                finished = true
+              }
+            }
+          } catch {
+            // malformed SSE line — skip
+          }
+        }
+      }
+    } finally {
+      if (!finished) setGenerating(false)
+    }
+  }
+
+  const latest = tailoredCvs.length > 0 ? parseSkillsGap(tailoredCvs[0].skills_gap) : null
 
   return (
     <Card>
       <CardHeader className="border-b">
         <CardTitle>Base CV</CardTitle>
+        {tailoredCvs.length > 0 && tailoredCvs[0].ats_score != null && (
+          <CardAction>
+            <Badge className={getAtsBadgeClass(tailoredCvs[0].ats_score!)}>
+              ATS {tailoredCvs[0].ats_score}
+            </Badge>
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent className="pt-5 space-y-4">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        {/* Base CV selector */}
+        <form onSubmit={handleSaveSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <input type="hidden" name="applicationId" value={applicationId} />
           <div className="flex-1 space-y-1.5 min-w-0">
             <Label htmlFor="cv-select">Select CV</Label>
@@ -524,13 +760,101 @@ function CvCard({
               ))}
             </select>
           </div>
-          <Button type="submit" size="default" variant="outline" disabled={pending} className="w-full sm:w-auto">
-            {pending ? "Saving…" : "Save"}
+          <Button type="submit" size="default" variant="outline" disabled={savePending} className="w-full sm:w-auto">
+            {savePending ? "Saving…" : "Save"}
           </Button>
         </form>
-        <p className="text-[12px] text-muted-foreground">
-          Tailored CV generation — coming soon
-        </p>
+
+        {/* AI generation section */}
+        <div className="border-t pt-4 space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={generating || !hasDescription}
+              onClick={handleGenerate}
+              className="w-full sm:w-auto"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Generating…
+                </>
+              ) : tailoredCvs.length > 0 ? (
+                "Regenerate"
+              ) : (
+                "Generate tailored CV"
+              )}
+            </Button>
+            {tailoredCvs.length > 0 && !generating && (
+              <Link
+                href={`/applications/${applicationId}/cv`}
+                className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full justify-center sm:w-auto")}
+              >
+                Preview &amp; Download CV
+              </Link>
+            )}
+            {!hasDescription && (
+              <span className="text-[12px] text-muted-foreground">
+                Add a job description first
+              </span>
+            )}
+          </div>
+
+          {generating && (
+            <GenerationTimeline stages={stages} isDone={isDone} />
+          )}
+
+          {genError && (
+            <p className="text-[12px] text-destructive">{genError}</p>
+          )}
+
+          {!generating && latest && (
+            <div className="space-y-2">
+              {latest.changes && (
+                <p className="text-[12px] text-muted-foreground leading-relaxed">
+                  {latest.changes}
+                </p>
+              )}
+              {latest.gap.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {latest.gap.map((skill) => (
+                    <span
+                      key={skill}
+                      className="inline-flex items-center border px-2 py-0.5 text-[11px] font-medium border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              ) : latest.changes ? (
+                <p className="text-[12px] text-muted-foreground">No skills gap detected.</p>
+              ) : null}
+            </div>
+          )}
+
+          {/* History rows for older versions */}
+          {tailoredCvs.length > 1 && (
+            <div className="space-y-1 pt-1">
+              {tailoredCvs.slice(1).map((cv) => (
+                <div key={cv.id} className="flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground">
+                    {new Date(cv.created_at).toLocaleDateString("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                    })}
+                  </span>
+                  {cv.ats_score != null && (
+                    <span className="text-[11px] text-muted-foreground">
+                      ATS {cv.ats_score}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   )
@@ -542,18 +866,97 @@ function CoverLetterCard({
   applicationId,
   coverLetters,
   currentCoverLetterId,
+  generatedCoverLetter,
+  hasDescription,
 }: {
   applicationId: string
   coverLetters: CoverLetterRow[]
   currentCoverLetterId: string | null
+  generatedCoverLetter: GeneratedCoverLetterRow | null
+  hasDescription: boolean
 }) {
-  const [pending, startTransition] = useTransition()
+  const [savePending, startSaveTransition] = useTransition()
+  const [genPending, startGenTransition] = useTransition()
+  const [genError, setGenError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [downloading, setDownloading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  // Load html2pdf.js from CDN once on mount (shared with CvCard via data-html2pdf flag)
+  useEffect(() => {
+    if (document.querySelector('script[data-html2pdf]')) return
+    const script = document.createElement("script")
+    script.src =
+      "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+    script.dataset.html2pdf = "1"
+    script.async = true
+    document.body.appendChild(script)
+    return () => {
+      if (document.body.contains(script)) document.body.removeChild(script)
+    }
+  }, [])
+
+  function handleSaveSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
-    startTransition(() => updateCoverLetter(formData))
+    startSaveTransition(() => updateCoverLetter(formData))
   }
+
+  function handleGenerate() {
+    setGenError(null)
+    startGenTransition(async () => {
+      const result = await generateCoverLetter(applicationId)
+      if (result?.error) setGenError(result.error)
+    })
+  }
+
+  function handleCopy() {
+    if (!generatedCoverLetter?.content) return
+    navigator.clipboard.writeText(generatedCoverLetter.content).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  function handleDownloadPdf() {
+    if (!generatedCoverLetter?.content) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const html2pdf = (window as any).html2pdf
+    if (!html2pdf) return
+
+    setDownloading(true)
+
+    const el = document.createElement("div")
+    el.style.cssText =
+      "font-family: Georgia, serif; font-size: 13px; line-height: 1.7; color: #111; padding: 0; white-space: pre-wrap;"
+    el.textContent = generatedCoverLetter.content
+    document.body.appendChild(el)
+
+    html2pdf()
+      .from(el)
+      .set({
+        margin: [15, 15, 15, 15],
+        filename: "cover-letter.pdf",
+        jsPDF: { unit: "mm", format: "a4" },
+        html2canvas: { scale: 2 },
+      })
+      .save()
+      .then(() => {
+        document.body.removeChild(el)
+        setDownloading(false)
+      })
+      .catch(() => {
+        document.body.removeChild(el)
+        setDownloading(false)
+      })
+  }
+
+  const generatedDate = generatedCoverLetter
+    ? new Date(generatedCoverLetter.created_at).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : null
 
   return (
     <Card>
@@ -561,7 +964,8 @@ function CoverLetterCard({
         <CardTitle>Cover Letter</CardTitle>
       </CardHeader>
       <CardContent className="pt-5 space-y-4">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        {/* Template selector */}
+        <form onSubmit={handleSaveSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <input type="hidden" name="applicationId" value={applicationId} />
           <div className="flex-1 space-y-1.5 min-w-0">
             <Label htmlFor="cover-letter-select">Select template</Label>
@@ -580,13 +984,100 @@ function CoverLetterCard({
               ))}
             </select>
           </div>
-          <Button type="submit" size="default" variant="outline" disabled={pending} className="w-full sm:w-auto">
-            {pending ? "Saving…" : "Save"}
+          <Button type="submit" size="default" variant="outline" disabled={savePending} className="w-full sm:w-auto">
+            {savePending ? "Saving…" : "Save"}
           </Button>
         </form>
-        <p className="text-[12px] text-muted-foreground">
-          AI cover letter generation — coming soon
-        </p>
+
+        {/* AI generation section */}
+        <div className="border-t pt-4 space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={genPending || !hasDescription}
+              onClick={handleGenerate}
+              className="w-full sm:w-auto"
+            >
+              {genPending ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Generating…
+                </>
+              ) : generatedCoverLetter ? (
+                "Regenerate cover letter"
+              ) : (
+                "Generate cover letter"
+              )}
+            </Button>
+            {generatedCoverLetter && (
+              <Link
+                href={`/applications/${applicationId}/cover-letter`}
+                className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full justify-center sm:w-auto")}
+              >
+                Preview &amp; Download Cover Letter
+              </Link>
+            )}
+            {!hasDescription && (
+              <span className="text-[12px] text-muted-foreground">
+                Add a job description first
+              </span>
+            )}
+          </div>
+
+          {genError && (
+            <p className="text-[12px] text-destructive">{genError}</p>
+          )}
+
+          {generatedCoverLetter && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-muted-foreground">
+                  Generated {generatedDate}
+                  {generatedCoverLetter.tone ? ` · ${generatedCoverLetter.tone}` : ""}
+                </span>
+              </div>
+
+              {/* Scrollable preview */}
+              <div className="max-h-[200px] overflow-y-auto border bg-secondary/30 p-3">
+                <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground">
+                  {generatedCoverLetter.content}
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCopy}
+                  className="flex-1 sm:flex-none"
+                >
+                  {copied ? "Copied!" : "Copy"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleDownloadPdf}
+                  disabled={downloading}
+                  className="flex-1 sm:flex-none"
+                >
+                  {downloading ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Downloading…
+                    </>
+                  ) : (
+                    "Download PDF"
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   )
@@ -639,8 +1130,15 @@ function DeleteButton({ applicationId }: { applicationId: string }) {
   )
 }
 
-export function ApplicationDetail({ application, cvs, coverLetters }: Props) {
+export function ApplicationDetail({
+  application,
+  cvs,
+  coverLetters,
+  tailoredCvs,
+  generatedCoverLetter,
+}: Props) {
   const job = application.jobs_cache
+  const hasDescription = !!(application.custom_description || job?.description)
 
   const salaryText =
     job?.salary_min != null
@@ -732,14 +1230,11 @@ export function ApplicationDetail({ application, cvs, coverLetters }: Props) {
 
       {/* Status pipeline */}
       <Card>
-        <CardContent className="space-y-5 pt-5 pb-5 sm:pt-6">
-          <StatusStepper currentStatus={application.status} />
-          <div className="border-t pt-4">
-            <StatusUpdateForm
-              applicationId={application.id}
-              currentStatus={application.status}
-            />
-          </div>
+        <CardContent className="pt-5 pb-5 sm:pt-6">
+          <StatusStepper
+            currentStatus={application.status}
+            applicationId={application.id}
+          />
         </CardContent>
       </Card>
 
@@ -761,11 +1256,15 @@ export function ApplicationDetail({ application, cvs, coverLetters }: Props) {
             applicationId={application.id}
             cvs={cvs}
             currentCvId={application.customized_cv_id}
+            tailoredCvs={tailoredCvs}
+            hasDescription={hasDescription}
           />
           <CoverLetterCard
             applicationId={application.id}
             coverLetters={coverLetters}
             currentCoverLetterId={application.cover_letter_id}
+            generatedCoverLetter={generatedCoverLetter}
+            hasDescription={hasDescription}
           />
           <NotesCard
             applicationId={application.id}
