@@ -19,7 +19,7 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("preferences, cv_template_path, cover_letter_template_path")
+    .select("preferences")
     .eq("id", user.id)
     .single()
 
@@ -34,6 +34,10 @@ export default async function SettingsPage() {
     : process.env.OPENAI_API_KEY ? "env" : "none"
 
   const jobSources: JobSources = (preferences?.job_sources as JobSources) ?? {}
+
+  const prefs = (profile?.preferences ?? {}) as Record<string, unknown>
+  const preferredCvTemplate = (prefs.preferred_cv_template as string) ?? "modern"
+  const preferredCoverLetterTemplate = (prefs.preferred_cover_letter_template as string) ?? "classic"
 
   return (
     <div className="page-shell max-w-4xl gap-6 py-5 md:gap-8 md:py-8 lg:min-h-0 lg:flex-1">
@@ -53,8 +57,8 @@ export default async function SettingsPage() {
         <SettingsTabs
           aiSettings={aiSettings}
           keyStatus={{ anthropic: anthropicKeySource as "saved" | "env" | "none", openai: openaiKeySource as "saved" | "env" | "none" }}
-          hasCvTemplate={!!profile?.cv_template_path}
-          hasCoverLetterTemplate={!!profile?.cover_letter_template_path}
+          preferredCvTemplate={preferredCvTemplate}
+          preferredCoverLetterTemplate={preferredCoverLetterTemplate}
           jobSources={jobSources}
         />
       </Suspense>
