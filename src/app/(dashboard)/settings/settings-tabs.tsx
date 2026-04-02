@@ -4,23 +4,40 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AiSettingsForm } from "./ai-settings-form"
-import { TemplateUpload } from "./template-upload"
+import { TemplatePicker } from "./template-picker"
 import { JobSourcesForm } from "./job-sources-form"
 import type { AiSettings, JobSources } from "@/lib/ai"
 
 type KeyStatus = { anthropic: "saved" | "env" | "none"; openai: "saved" | "env" | "none" }
 
+const CV_TEMPLATES = [
+  { value: "classic", label: "Classic", description: "Harvard-style serif layout with ruled section headers." },
+  { value: "modern", label: "Modern", description: "Clean sans-serif layout with bottom-border section headings." },
+  { value: "minimal", label: "Minimal", description: "Light hairline dividers and uppercase labels — maximum whitespace." },
+  { value: "bold", label: "Bold", description: "Strong inline accent bars on section headings for visual impact." },
+  { value: "compact", label: "Compact", description: "Dense uppercase-label style that fits more content per page." },
+  { value: "sidebar", label: "Sidebar", description: "Two-column layout with a dark left rail for skills and contact." },
+  { value: "professional", label: "Professional", description: "Heavy black underline headers with a formal, structured feel." },
+]
+
+const COVER_LETTER_TEMPLATES = [
+  { value: "classic", label: "Classic", description: "Formal business letter format with left-aligned sender block." },
+  { value: "modern", label: "Modern", description: "Concise sans-serif layout with a bold header bar and direct tone." },
+  { value: "elegant", label: "Elegant", description: "Centered serif header with refined spacing for a polished feel." },
+  { value: "professional", label: "Professional", description: "Centered serif name with contact bar — traditional and authoritative." },
+]
+
 export function SettingsTabs({
   aiSettings,
   keyStatus,
-  hasCvTemplate,
-  hasCoverLetterTemplate,
+  preferredCvTemplate,
+  preferredCoverLetterTemplate,
   jobSources,
 }: {
   aiSettings: AiSettings
   keyStatus: KeyStatus
-  hasCvTemplate: boolean
-  hasCoverLetterTemplate: boolean
+  preferredCvTemplate: string
+  preferredCoverLetterTemplate: string
   jobSources: JobSources
 }) {
   const router = useRouter()
@@ -66,11 +83,15 @@ export function SettingsTabs({
               <p className="section-label">Documents</p>
               <CardTitle>CV Template</CardTitle>
               <CardDescription>
-                Upload your CV layout as a DOCX file. We convert it to HTML and use it to generate your tailored CV PDFs.
+                Choose the layout used when you preview and print your tailored CV. You can also change it directly on the CV preview page.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-              <TemplateUpload type="cv" hasExisting={hasCvTemplate} />
+              <TemplatePicker
+                type="cv"
+                current={preferredCvTemplate}
+                options={CV_TEMPLATES}
+              />
             </CardContent>
           </Card>
 
@@ -79,11 +100,15 @@ export function SettingsTabs({
               <p className="section-label">Documents</p>
               <CardTitle>Cover Letter Template</CardTitle>
               <CardDescription>
-                Upload your cover letter layout as a DOCX file. Used to generate formatted cover letter PDFs for each application.
+                Choose the tone and structure used when generating your cover letters.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-              <TemplateUpload type="cover_letter" hasExisting={hasCoverLetterTemplate} />
+              <TemplatePicker
+                type="cover_letter"
+                current={preferredCoverLetterTemplate}
+                options={COVER_LETTER_TEMPLATES}
+              />
             </CardContent>
           </Card>
         </div>

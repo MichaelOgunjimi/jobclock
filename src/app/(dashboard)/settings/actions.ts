@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { revalidatePath } from "next/cache"
 import { PROVIDER_MODELS, type AiProvider, type UserPreferences, type JobSources } from "@/lib/ai"
+import { encrypt, isEncryptionConfigured } from "@/lib/crypto"
 
 const VALID_PROVIDERS = new Set<AiProvider>(["anthropic", "openai"])
 
@@ -46,8 +47,12 @@ export async function saveAiSettings(formData: FormData) {
     ai_provider: provider,
     ai_model: model,
     // Only overwrite a key if user entered a new value; empty = keep existing
-    ...(anthropicKey ? { anthropic_api_key: anthropicKey } : {}),
-    ...(openaiKey ? { openai_api_key: openaiKey } : {}),
+    ...(anthropicKey
+      ? { anthropic_api_key: isEncryptionConfigured() ? encrypt(anthropicKey) : anthropicKey }
+      : {}),
+    ...(openaiKey
+      ? { openai_api_key: isEncryptionConfigured() ? encrypt(openaiKey) : openaiKey }
+      : {}),
   }
 
   const { error } = await supabase
@@ -121,6 +126,36 @@ export async function deleteTemplate(type: "cv" | "cover_letter") {
 
   if (error) return { error: error.message }
 
+  revalidatePath("/settings")
+  return { success: true }
+}
+
+export async function saveDocumentTemplate(
+  type: "cv" | "cover_letter",
+  template: string,
+) {
+  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Unauthorized" }
+
+  const key = type === "cv" ? "preferred_cv_template" : "preferred_cover_letter_template"
+
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("preferences")
+    .eq("id", user.id)
+    .single()
+
+  const prev = (existing?.preferences ?? {}) as UserPreferences
+  const updated: UserPreferences = { ...prev, [key]: template }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ preferences: updated as unknown as import("@/lib/supabase/database.types").Json })
+    .eq("id", user.id)
+
+  if (error) return { error: error.message }
   revalidatePath("/settings")
   return { success: true }
 }
