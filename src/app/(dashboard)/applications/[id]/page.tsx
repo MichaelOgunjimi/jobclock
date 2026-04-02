@@ -41,7 +41,12 @@ export default async function ApplicationDetailPage({
 
   const application = applicationData as ApplicationWithJob
 
-  const [{ data: cvsData }, { data: coverLettersData }] = await Promise.all([
+  const [
+    { data: cvsData },
+    { data: coverLettersData },
+    { data: tailoredCvsData },
+    { data: generatedCoverLetterData },
+  ] = await Promise.all([
     supabase
       .from("user_cvs")
       .select("id, name, is_primary, created_at")
@@ -54,6 +59,21 @@ export default async function ApplicationDetailPage({
       .eq("user_id", user.id)
       .is("application_id", null)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("customized_cvs")
+      .select("id, cv_json, skills_gap, ats_score, created_at")
+      .eq("application_id", id)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(3),
+    supabase
+      .from("cover_letters")
+      .select("id, content, tone, label, created_at")
+      .eq("application_id", id)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
   const cvs = cvsData ?? []
@@ -64,6 +84,8 @@ export default async function ApplicationDetailPage({
       application={application}
       cvs={cvs}
       coverLetters={coverLetters}
+      tailoredCvs={tailoredCvsData ?? []}
+      generatedCoverLetter={generatedCoverLetterData ?? null}
     />
   )
 }
