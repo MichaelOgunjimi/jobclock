@@ -20,7 +20,7 @@ export default function ProfileLoading() {
       </div>
       {/* CV cards */}
       <div className="grid auto-rows-fr gap-4 lg:grid-cols-2">
-        {Array.from({ length: 2 }).map((_, i) => (
+        {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="border border-border p-5 space-y-5">
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div className="space-y-1">
