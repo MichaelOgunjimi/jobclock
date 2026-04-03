@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { resolveAiSettings, resolveApiKey } from "@/lib/ai"
-import type { UserPreferences } from "@/lib/ai"
-import type { CvData, Database } from "@/lib/supabase/database.types"
-
-type AppWithJob = Database["public"]["Tables"]["applications"]["Row"] & {
-  jobs_cache: Database["public"]["Tables"]["jobs_cache"]["Row"] | null
-}
+import { resolveAiConfig } from "@/lib/ai"
+import type { AiSettings, UserPreferences } from "@/lib/ai"
+import type { AppWithJob, CvData } from "@/lib/supabase/database.types"
+import { buildChatAssistantSystemPrompt } from "@/lib/ai/prompts"
+import { chatRateLimit } from "@/lib/rate-limit"
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null
@@ -20,6 +18,15 @@ export async function POST(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // Rate limit: 20 requests per minute per user
+  const { success: withinLimit } = await chatRateLimit.limit(user.id)
+  if (!withinLimit) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment before sending another message." },
+      { status: 429 }
+    )
+  }
 
   const { messages: rawMessages, applicationId } = await request.json()
   if (!applicationId || !Array.isArray(rawMessages)) {
@@ -49,10 +56,12 @@ export async function POST(request: NextRequest) {
 
   const prefs = (profile?.preferences ?? {}) as UserPreferences
 
-  let settings, apiKey: string
+  let settings: AiSettings
+  let apiKey: string
   try {
-    settings = resolveAiSettings(prefs)
-    apiKey = resolveApiKey(settings.provider, prefs)
+    const resolved = resolveAiConfig(prefs)
+    settings = resolved.settings
+    apiKey = resolved.apiKey
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "No AI API key configured" },
@@ -70,59 +79,17 @@ export async function POST(request: NextRequest) {
       : null
 
   const cv = cvRow?.parsed_json as CvData | null
-  const cvLines: (string | null)[] = cv
-    ? [
-        "",
-        `User's CV (${cvRow?.name ?? "uploaded CV"}):`,
-        cv.name ? `Name: ${cv.name}` : null,
-        cv.summary ? `Summary: ${cv.summary}` : null,
-        cv.skills?.length ? `Skills: ${cv.skills.join(", ")}` : null,
-        cv.experience?.length
-          ? [
-              "Experience:",
-              ...cv.experience.map(
-                (e) =>
-                  `  - ${e.title} at ${e.company}${e.start_date ? ` (${e.start_date}–${e.end_date ?? "present"})` : ""}: ${e.description}`
-              ),
-            ].join("\n")
-          : null,
-        cv.education?.length
-          ? [
-              "Education:",
-              ...cv.education.map(
-                (e) => `  - ${e.degree}${e.field ? ` in ${e.field}` : ""} at ${e.institution}${e.end_date ? ` (${e.end_date})` : ""}${e.grade ? `, ${e.grade}` : ""}`
-              ),
-            ].join("\n")
-          : null,
-        cv.certifications?.length ? `Certifications: ${cv.certifications.join(", ")}` : null,
-      ]
-    : ["", "No CV selected for this application yet."]
 
-  const systemPrompt = [
-    "You are a job application assistant. The user is working on the following application:",
-    "",
-    `Role: ${job?.title ?? "Unknown"}`,
-    `Company: ${job?.company ?? "Unknown"}`,
-    job?.location ? `Location: ${job.location}` : null,
+  const systemPrompt = buildChatAssistantSystemPrompt({
+    title: job?.title ?? "Unknown",
+    company: job?.company ?? "Unknown",
+    location: job?.location ?? null,
     salaryLine,
-    `Application status: ${typedApp.status}`,
-    "",
-    "Job description:",
-    job?.description ?? "No description provided.",
-    ...cvLines,
-    "",
-    "Help the user with their application. You can:",
-    "- Search the web and explain what the company does, their culture, and recent news",
-    "- Suggest how to tailor a CV or cover letter for this specific role using their actual CV content",
-    "- Help draft answers to application questions",
-    "- Give tips for interviews and assessments at this company",
-    "- Identify gaps between the user's CV and the job description",
-    "",
-    "Search the web proactively when asked about the company or role — don't rely only on training data.",
-    "Be concise, specific, and practical.",
-  ]
-    .filter((l) => l !== null)
-    .join("\n")
+    status: typedApp.status,
+    description: job?.description ?? "No description provided.",
+    cv,
+    cvName: cvRow?.name ?? null,
+  })
 
   try {
     if (settings.provider === "anthropic") {
