@@ -17,11 +17,14 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth")
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("preferences")
-    .eq("id", user.id)
-    .single()
+  const [{ data: profile }, { data: profileData }] = await Promise.all([
+    supabase.from("profiles").select("preferences").eq("id", user.id).single(),
+    supabase
+      .from("profiles")
+      .select("desired_roles, locations_uk, target_salary_min, right_to_work_uk, experience_level")
+      .eq("id", user.id)
+      .single(),
+  ])
 
   const preferences = profile?.preferences as UserPreferences | null
   const aiSettings = resolveAiSettings(preferences)
@@ -47,7 +50,7 @@ export default async function SettingsPage() {
           <div className="space-y-2">
             <h1 className="page-title">Configure your assistant.</h1>
             <p className="page-lede max-w-2xl">
-              Set up your AI provider, document templates, and job sources.
+              Set up your AI provider, appearance, job search preferences, and job sources.
             </p>
           </div>
         </div>
@@ -60,6 +63,13 @@ export default async function SettingsPage() {
           preferredCvTemplate={preferredCvTemplate}
           preferredCoverLetterTemplate={preferredCoverLetterTemplate}
           jobSources={jobSources}
+          profilePrefs={{
+            desired_roles: profileData?.desired_roles ?? null,
+            locations_uk: profileData?.locations_uk ?? null,
+            target_salary_min: profileData?.target_salary_min ? Number(profileData.target_salary_min) : null,
+            right_to_work_uk: profileData?.right_to_work_uk ?? null,
+            experience_level: profileData?.experience_level ?? null,
+          }}
         />
       </Suspense>
     </div>

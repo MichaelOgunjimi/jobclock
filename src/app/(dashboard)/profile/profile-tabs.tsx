@@ -1,24 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { TagInput } from "@/components/ui/tag-input";
-import { ArrowUpRight, Check, FileText, ShieldCheck, Star } from "lucide-react";
+import { ArrowUpRight, FileText, Star } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { CvCardActions } from "./cv-card-actions";
 import { CvUploadDialog } from "./cv-upload-dialog";
-import { CoverLettersTab } from "./cover-letters-tab";
-import { savePreferences } from "./actions";
+import { WritingStylesTab } from "./writing-styles-tab";
 import type {
-	CoverLetterTemplate,
+	WritingStyle,
 	CvData,
 } from "@/lib/supabase/database.types";
 
@@ -33,86 +27,26 @@ type CvRow = {
 export const EXPERIENCE_LEVELS = [
 	{ value: "graduate", label: "Graduate / Entry Level" },
 	{ value: "junior", label: "Junior (1–3 yrs)" },
-	{ value: "mid", label: "Mid (3-5 yrs" },
-	{ value: "senior", label: "Senior (5+ yrs" },
+	{ value: "mid", label: "Mid (3–5 yrs)" },
+	{ value: "senior", label: "Senior (5+ yrs)" },
 ] as const;
 
-type ProfileData = {
-	desired_roles: string[] | null;
-	locations_uk: string[] | null;
-	target_salary_min: number | null;
-	right_to_work_uk: boolean | null;
-	experience_level: string[] | null;
-} | null;
 
 export function ProfileTabs({
 	cvs,
-	coverLetters,
-	profile,
+	builtInStyles,
+	userStyles,
 }: {
 	cvs: CvRow[];
-	coverLetters: CoverLetterTemplate[];
-	profile: ProfileData;
+	builtInStyles: WritingStyle[];
+	userStyles: WritingStyle[];
 }) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 
-	const [roles, setRoles] = useState<string[]>(profile?.desired_roles ?? []);
-	const [locations, setLocations] = useState<string[]>(
-		profile?.locations_uk ?? [],
-	);
-	const [salary, setSalary] = useState(
-		profile?.target_salary_min?.toString() ?? "",
-	);
-	const [rightToWork, setRightToWork] = useState(
-		profile?.right_to_work_uk ?? false,
-	);
-	const [experienceLevels, setExperienceLevels] = useState<string[]>(
-		profile?.experience_level ?? ([] as string[]),
-	);
-	const [isPending, startTransition] = useTransition();
 	const [isTabPending, startTabTransition] = useTransition();
-	const [savedPrefs, setSavedPrefs] = useState({
-		roles: profile?.desired_roles ?? [],
-		locations: profile?.locations_uk ?? [],
-		salary: profile?.target_salary_min?.toString() ?? "",
-		rightToWork: profile?.right_to_work_uk ?? false,
-		experienceLevels: profile?.experience_level ?? ([] as string[]),
-	});
 
-	const isPreferencesDirty =
-		JSON.stringify(roles) !== JSON.stringify(savedPrefs.roles) ||
-		JSON.stringify(locations) !== JSON.stringify(savedPrefs.locations) ||
-		salary !== savedPrefs.salary ||
-		rightToWork !== savedPrefs.rightToWork ||
-		JSON.stringify(experienceLevels) !==
-			JSON.stringify(savedPrefs.experienceLevels);
-
-	function handleSavePreferences() {
-		if (!isPreferencesDirty) return;
-		startTransition(async () => {
-			const result = await savePreferences({
-				desiredRoles: roles,
-				locationsUk: locations,
-				targetSalaryMin: salary ? Number(salary) : null,
-				rightToWorkUk: rightToWork,
-				experienceLevel: experienceLevels,
-			});
-			if (result?.error) {
-				toast.error(result.error);
-			} else {
-				toast.success("Preferences saved");
-				setSavedPrefs({
-					roles,
-					locations,
-					salary,
-					rightToWork,
-					experienceLevels,
-				});
-			}
-		});
-	}
-	const validTabs = ["cvs", "cover-letters", "preferences"];
+	const validTabs = ["cvs", "writing-styles"];
 	const activeTab =
 		validTabs.includes(searchParams.get("tab") ?? "") ?
 			searchParams.get("tab")!
@@ -132,8 +66,7 @@ export function ProfileTabs({
 				className={cn("mb-8 transition-opacity", isTabPending && "opacity-60")}
 			>
 				<TabsTrigger value="cvs">CVs</TabsTrigger>
-				<TabsTrigger value="cover-letters">Cover Letters</TabsTrigger>
-				<TabsTrigger value="preferences">Preferences</TabsTrigger>
+				<TabsTrigger value="writing-styles">Writing Styles</TabsTrigger>
 			</TabsList>
 
 			{/* CVs Tab */}
@@ -247,128 +180,9 @@ export function ProfileTabs({
 				}
 			</TabsContent>
 
-			{/* Cover Letters Tab */}
-			<TabsContent value="cover-letters">
-				<CoverLettersTab initialLetters={coverLetters} />
-			</TabsContent>
-
-			{/* Preferences Tab */}
-			<TabsContent value="preferences">
-				<Card>
-					<CardContent className="pt-6">
-						<div className="space-y-5">
-							<div className="grid gap-5 md:grid-cols-2">
-								<div className="space-y-2">
-									<Label>Target Roles</Label>
-									<TagInput
-										value={roles}
-										onChange={setRoles}
-										placeholder="Type a role and press Enter…"
-									/>
-									<p className="text-xs text-muted-foreground">
-										Press Enter or comma to add each role
-									</p>
-								</div>
-								<div className="space-y-2">
-									<Label>Preferred Locations</Label>
-									<TagInput
-										value={locations}
-										onChange={setLocations}
-										placeholder="Type a city and press Enter…"
-									/>
-									<p className="text-xs text-muted-foreground">
-										e.g. London, Manchester, Remote — press Enter to add each
-									</p>
-								</div>
-								<div className="space-y-2 md:col-span-2">
-									<Label>Experience Level</Label>
-									<div className="flex flex-wrap gap-2">
-										{EXPERIENCE_LEVELS.map((level) => {
-											const active = experienceLevels.includes(level.value);
-											return (
-												<button
-													key={level.value}
-													type="button"
-													onClick={() =>
-														setExperienceLevels((prev) =>
-															active ?
-																prev.filter((v) => v !== level.value)
-															:	[...prev, level.value],
-														)
-													}
-													className={cn(
-														"border px-4 py-2 text-sm font-medium transition-colors",
-														active ?
-															"border-foreground bg-foreground text-background"
-														:	"border-border bg-secondary text-muted-foreground hover:text-foreground",
-													)}
-												>
-													{level.label}
-												</button>
-											);
-										})}
-									</div>
-									<p className="text-xs text-muted-foreground">
-										Used to filter Adzuna and Reed results
-									</p>
-								</div>
-
-								<div className="space-y-2">
-									<Label>Minimum Salary (£)</Label>
-									<Input
-										type="number"
-										value={salary}
-										onChange={(e) => setSalary(e.target.value)}
-										placeholder="30000"
-									/>
-								</div>
-								<div className="space-y-2">
-									<Label id="right-to-work-label">Right to Work UK</Label>
-									<button
-										type="button"
-										role="checkbox"
-										aria-checked={rightToWork}
-										aria-labelledby="right-to-work-label"
-										onClick={() => setRightToWork((value) => !value)}
-										className={cn(
-											"flex min-h-14 w-full items-center gap-3 border px-4 py-3 text-left transition-colors",
-											rightToWork ?
-												"border-foreground/15 bg-secondary text-foreground"
-											:	"border-border bg-background text-muted-foreground hover:text-foreground",
-										)}
-									>
-										<span
-											className={cn(
-												"flex size-9 shrink-0 items-center justify-center border transition-colors",
-												rightToWork ?
-													"border-foreground bg-foreground text-background"
-												:	"border-border bg-secondary text-transparent",
-											)}
-										>
-											<Check className="h-4 w-4" />
-										</span>
-										<span className="min-w-0 space-y-1">
-											<span className="flex items-center gap-2 text-sm font-medium text-foreground">
-												<ShieldCheck className="h-4 w-4 text-muted-foreground" />
-												Right to work confirmed
-											</span>
-											<span className="block text-xs text-muted-foreground">
-												I have the right to work in the UK
-											</span>
-										</span>
-									</button>
-								</div>
-							</div>
-							<Button
-								onClick={handleSavePreferences}
-								disabled={!isPreferencesDirty || isPending}
-								className="min-w-44"
-							>
-								{isPending ? "Saving…" : "Save Preferences"}
-							</Button>
-						</div>
-					</CardContent>
-				</Card>
+			{/* Writing Styles Tab */}
+			<TabsContent value="writing-styles">
+				<WritingStylesTab builtIns={builtInStyles} userStyles={userStyles} />
 			</TabsContent>
 		</Tabs>
 	);

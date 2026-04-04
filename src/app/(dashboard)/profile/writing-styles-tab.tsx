@@ -17,16 +17,12 @@ import {
 	Upload,
 	Loader2,
 	AlertTriangle,
+	Lock,
 } from "lucide-react";
-import type {
-	CoverLetterTemplate,
-	CoverLetterTone,
-} from "@/lib/supabase/database.types";
-import { saveLetterTemplate, deleteLetterTemplate } from "./actions";
+import type { WritingStyle, WritingStyleTone } from "@/lib/supabase/database.types";
+import { saveWritingStyle, deleteWritingStyle } from "./actions";
 
-type Tone = Exclude<CoverLetterTone, null>;
-
-const TONES: { value: Tone; label: string; description: string }[] = [
+export const TONES: { value: WritingStyleTone; label: string; description: string }[] = [
 	{
 		value: "professional",
 		label: "Professional",
@@ -70,7 +66,7 @@ function FileUploadZone({ onContent }: { onContent: (text: string) => void }) {
 					return;
 				}
 				onContent(data.content);
-				toast.success("Cover letter extracted from file");
+				toast.success("Content extracted from file");
 			} catch {
 				toast.error("Failed to parse file");
 			} finally {
@@ -121,12 +117,12 @@ function FileUploadZone({ onContent }: { onContent: (text: string) => void }) {
 }
 
 function DeleteDialog({
-	letter,
+	style,
 	onConfirm,
 	onCancel,
 	isPending,
 }: {
-	letter: CoverLetterTemplate;
+	style: WritingStyle;
 	onConfirm: () => void;
 	onCancel: () => void;
 	isPending: boolean;
@@ -153,9 +149,9 @@ function DeleteDialog({
 							<AlertTriangle className="h-4 w-4" />
 						</div>
 						<div>
-							<h2 className="text-sm font-medium">Delete cover letter?</h2>
+							<h2 className="text-sm font-medium">Delete writing style?</h2>
 							<p className="text-xs text-muted-foreground">
-								{letter.label ?? "Untitled"}
+								{style.label}
 							</p>
 						</div>
 					</div>
@@ -169,7 +165,7 @@ function DeleteDialog({
 				</div>
 				<div className="px-5 py-4">
 					<p className="text-sm text-muted-foreground">
-						This can&apos;t be undone. The template will be permanently removed.
+						This can&apos;t be undone. The writing style will be permanently removed.
 					</p>
 				</div>
 				<div className="flex justify-end gap-2 border-t border-border px-5 py-4">
@@ -190,13 +186,13 @@ function DeleteDialog({
 	);
 }
 
-function LetterForm({
+function StyleForm({
 	initial,
 	onSave,
 	onCancel,
 }: {
-	initial?: CoverLetterTemplate;
-	onSave: (letter: CoverLetterTemplate) => void;
+	initial?: WritingStyle;
+	onSave: (style: WritingStyle) => void;
 	onCancel: () => void;
 }) {
 	const [content, setContent] = useState(initial?.content ?? "");
@@ -207,12 +203,12 @@ function LetterForm({
 		const fd = new FormData(e.currentTarget);
 		fd.set("content", content);
 		startTransition(async () => {
-			const result = await saveLetterTemplate(fd);
+			const result = await saveWritingStyle(fd);
 			if (result?.error) {
 				toast.error(result.error);
-			} else if (result?.letter) {
-				toast.success(initial ? "Cover letter updated" : "Cover letter saved");
-				onSave(result.letter as CoverLetterTemplate);
+			} else if (result?.style) {
+				toast.success(initial ? "Writing style updated" : "Writing style saved");
+				onSave(result.style as WritingStyle);
 			}
 		});
 	}
@@ -227,15 +223,15 @@ function LetterForm({
 					<Input
 						name="label"
 						defaultValue={initial?.label ?? ""}
-						placeholder="e.g. Software Engineering"
+						placeholder="e.g. My Software Style"
 						required
 					/>
 				</div>
 				<div className="space-y-1.5">
-					<Label>Tone</Label>
+					<Label>Default Tone</Label>
 					<select
-						name="tone"
-						defaultValue={initial?.tone ?? "professional"}
+						name="default_tone"
+						defaultValue={initial?.default_tone ?? "professional"}
 						className="form-select"
 					>
 						{TONES.map((t) => (
@@ -248,13 +244,13 @@ function LetterForm({
 			</div>
 
 			<div className="space-y-1.5">
-				<Label>Content</Label>
+				<Label>Structure</Label>
 				<FileUploadZone onContent={setContent} />
 				<textarea
 					name="content"
 					value={content}
 					onChange={(e) => setContent(e.target.value)}
-					placeholder="Write or import your base cover letter. The AI will tailor it per job application."
+					placeholder="Write or import your writing structure. The AI will use this as a guide for how to organise your cover letter."
 					rows={10}
 					required
 					className="flex min-h-60 w-full border border-input bg-muted px-4 py-3 text-[13px] tracking-[0.02em] outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/15 resize-none"
@@ -270,33 +266,35 @@ function LetterForm({
 						"Saving…"
 					: initial ?
 						"Save Changes"
-					:	"Add Cover Letter"}
+					:	"Add Writing Style"}
 				</Button>
 			</div>
 		</form>
 	);
 }
 
-export function CoverLettersTab({
-	initialLetters,
+export function WritingStylesTab({
+	builtIns,
+	userStyles: initialUserStyles,
 }: {
-	initialLetters: CoverLetterTemplate[];
+	builtIns: WritingStyle[];
+	userStyles: WritingStyle[];
 }) {
-	const [letters, setLetters] = useState(initialLetters);
+	const [userStyles, setUserStyles] = useState(initialUserStyles);
 	const [creating, setCreating] = useState(false);
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [deletingId, setDeletingId] = useState<string | null>(null);
 	const [isPending, startTransition] = useTransition();
 
-	const toneLabel = (tone: Tone | null) =>
+	const toneLabel = (tone: WritingStyleTone) =>
 		TONES.find((t) => t.value === tone)?.label ?? "Professional";
 
-	function handleSave(letter: CoverLetterTemplate) {
-		setLetters((prev) => {
-			const exists = prev.find((l) => l.id === letter.id);
+	function handleSave(style: WritingStyle) {
+		setUserStyles((prev) => {
+			const exists = prev.find((s) => s.id === style.id);
 			return exists ?
-					prev.map((l) => (l.id === letter.id ? letter : l))
-				:	[letter, ...prev];
+					prev.map((s) => (s.id === style.id ? style : s))
+				:	[style, ...prev];
 		});
 		setCreating(false);
 		setEditingId(null);
@@ -306,113 +304,147 @@ export function CoverLettersTab({
 		const fd = new FormData();
 		fd.append("id", id);
 		startTransition(async () => {
-			await deleteLetterTemplate(fd);
-			setLetters((prev) => prev.filter((l) => l.id !== id));
+			await deleteWritingStyle(fd);
+			setUserStyles((prev) => prev.filter((s) => s.id !== id));
 			setDeletingId(null);
-			toast.success("Cover letter deleted");
+			toast.success("Writing style deleted");
 		});
 	}
 
-	const deletingLetter = letters.find((l) => l.id === deletingId);
+	const deletingStyle = userStyles.find((s) => s.id === deletingId);
 
 	return (
 		<>
-			{deletingLetter && (
+			{deletingStyle && (
 				<DeleteDialog
-					letter={deletingLetter}
+					style={deletingStyle}
 					onConfirm={() => confirmDelete(deletingId!)}
 					onCancel={() => setDeletingId(null)}
 					isPending={isPending}
 				/>
 			)}
 
-			<div className="space-y-4">
-				{letters.length === 0 && !creating && (
-					<Card>
-						<CardContent className="py-14 text-center text-muted-foreground">
-							<FileText className="mx-auto mb-4 h-10 w-10 opacity-30" />
-							<p className="text-sm">No cover letters yet.</p>
-							<p className="text-xs mt-1 opacity-60">
-								Add a base cover letter per role type — write it or import from
-								a PDF/DOCX.
-							</p>
-						</CardContent>
-					</Card>
-				)}
-
-				{letters.map((letter) => (
-					<Card key={letter.id}>
-						<CardContent className="pt-4 pb-4">
-							{editingId === letter.id ?
-								<LetterForm
-									initial={letter}
-									onSave={handleSave}
-									onCancel={() => setEditingId(null)}
-								/>
-							:	<div className="space-y-3">
+			<div className="space-y-6">
+				{/* Built-in styles */}
+				<div className="space-y-3">
+					<p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+						Built-in
+					</p>
+					<div className="space-y-2">
+						{builtIns.map((style) => (
+							<Card key={style.id}>
+								<CardContent className="pt-4 pb-4">
 									<div className="flex items-start justify-between gap-2">
 										<div>
-											<p className="text-sm font-medium">
-												{letter.label ?? "Untitled"}
-											</p>
+											<p className="text-sm font-medium">{style.label}</p>
 											<p className="text-xs text-muted-foreground mt-0.5">
-												{toneLabel(letter.tone)}
+												Default tone: {toneLabel(style.default_tone)}
 											</p>
 										</div>
-										<div className="flex gap-1">
-											<button
-												type="button"
-												onClick={() => setEditingId(letter.id)}
-												className="text-muted-foreground hover:text-foreground transition-colors p-1"
-											>
-												<Pencil className="h-3.5 w-3.5" />
-											</button>
-											<button
-												type="button"
-												onClick={() => setDeletingId(letter.id)}
-												className="text-muted-foreground hover:text-destructive transition-colors p-1"
-											>
-												<Trash2 className="h-3.5 w-3.5" />
-											</button>
-										</div>
+										<span className="flex items-center gap-1 text-[11px] text-muted-foreground/60 border border-border px-2 py-1 shrink-0">
+											<Lock className="h-3 w-3" />
+											Built-in
+										</span>
 									</div>
-									<p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-line">
-										{letter.content}
+									<p className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-line mt-2">
+										{style.content}
 									</p>
-								</div>
-							}
-						</CardContent>
-					</Card>
-				))}
+								</CardContent>
+							</Card>
+						))}
+					</div>
+				</div>
 
-				{creating ?
-					<Card>
-						<CardContent className="pt-4">
-							<div className="flex items-center justify-between mb-4">
-								<p className="text-sm font-medium">New Cover Letter</p>
-								<button
-									type="button"
-									onClick={() => setCreating(false)}
-									className="text-muted-foreground hover:text-foreground transition-colors"
-								>
-									<X className="h-4 w-4" />
-								</button>
-							</div>
-							<LetterForm
-								onSave={handleSave}
-								onCancel={() => setCreating(false)}
-							/>
-						</CardContent>
-					</Card>
-				:	<Button
-						variant="outline"
-						className="w-full"
-						onClick={() => setCreating(true)}
-					>
-						<Plus className="h-4 w-4" />
-						Add Cover Letter
-					</Button>
-				}
+				{/* User styles */}
+				<div className="space-y-3">
+					<p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+						Your Styles
+					</p>
+
+					{userStyles.length === 0 && !creating && (
+						<Card>
+							<CardContent className="py-10 text-center text-muted-foreground">
+								<FileText className="mx-auto mb-4 h-8 w-8 opacity-30" />
+								<p className="text-sm">No custom writing styles yet.</p>
+								<p className="text-xs mt-1 opacity-60">
+									Add your own structure or import from a PDF/DOCX.
+								</p>
+							</CardContent>
+						</Card>
+					)}
+
+					{userStyles.map((style) => (
+						<Card key={style.id}>
+							<CardContent className="pt-4 pb-4">
+								{editingId === style.id ?
+									<StyleForm
+										initial={style}
+										onSave={handleSave}
+										onCancel={() => setEditingId(null)}
+									/>
+								:	<div className="space-y-3">
+										<div className="flex items-start justify-between gap-2">
+											<div>
+												<p className="text-sm font-medium">{style.label}</p>
+												<p className="text-xs text-muted-foreground mt-0.5">
+													Default tone: {toneLabel(style.default_tone)}
+												</p>
+											</div>
+											<div className="flex gap-1">
+												<button
+													type="button"
+													onClick={() => setEditingId(style.id)}
+													className="text-muted-foreground hover:text-foreground transition-colors p-1"
+												>
+													<Pencil className="h-3.5 w-3.5" />
+												</button>
+												<button
+													type="button"
+													onClick={() => setDeletingId(style.id)}
+													className="text-muted-foreground hover:text-destructive transition-colors p-1"
+												>
+													<Trash2 className="h-3.5 w-3.5" />
+												</button>
+											</div>
+										</div>
+										<p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-line">
+											{style.content}
+										</p>
+									</div>
+								}
+							</CardContent>
+						</Card>
+					))}
+
+					{creating ?
+						<Card>
+							<CardContent className="pt-4">
+								<div className="flex items-center justify-between mb-4">
+									<p className="text-sm font-medium">New Writing Style</p>
+									<button
+										type="button"
+										onClick={() => setCreating(false)}
+										className="text-muted-foreground hover:text-foreground transition-colors"
+									>
+										<X className="h-4 w-4" />
+									</button>
+								</div>
+								<StyleForm
+									onSave={handleSave}
+									onCancel={() => setCreating(false)}
+								/>
+							</CardContent>
+						</Card>
+					:	<Button
+							variant="outline"
+							className="w-full"
+							onClick={() => setCreating(true)}
+						>
+							<Plus className="h-4 w-4" />
+							Add Writing Style
+						</Button>
+					}
+				</div>
 			</div>
 		</>
 	);
