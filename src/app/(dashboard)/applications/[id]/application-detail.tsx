@@ -16,11 +16,12 @@ import {
   updateNotes,
   updateCv,
   updateCoverLetter,
+  updateWritingStyle,
   updateDescription,
   deleteApplication,
   generateCoverLetter,
 } from "./actions"
-import type { ApplicationStatus, Database } from "@/lib/supabase/database.types"
+import type { ApplicationStatus, Database, WritingStyle } from "@/lib/supabase/database.types"
 
 type ApplicationRow = Database["public"]["Tables"]["applications"]["Row"]
 type JobsCacheRow = Database["public"]["Tables"]["jobs_cache"]["Row"]
@@ -28,10 +29,7 @@ type UserCvRow = Pick<
   Database["public"]["Tables"]["user_cvs"]["Row"],
   "id" | "name" | "is_primary" | "created_at"
 >
-type CoverLetterRow = Pick<
-  Database["public"]["Tables"]["cover_letters"]["Row"],
-  "id" | "label" | "tone"
->
+type WritingStyleRow = Pick<WritingStyle, "id" | "label" | "default_tone" | "is_built_in">
 type TailoredCvRow = Pick<
   Database["public"]["Tables"]["customized_cvs"]["Row"],
   "id" | "cv_json" | "skills_gap" | "ats_score" | "created_at"
@@ -48,7 +46,7 @@ interface ApplicationWithJob extends ApplicationRow {
 interface Props {
   application: ApplicationWithJob
   cvs: UserCvRow[]
-  coverLetters: CoverLetterRow[]
+  writingStyles: WritingStyleRow[]
   tailoredCvs: TailoredCvRow[]
   generatedCoverLetter: GeneratedCoverLetterRow | null
 }
@@ -862,19 +860,33 @@ function CvCard({
 
 // ── Cover letter card ────────────────────────────────────────────────────────
 
+const TONES = [
+  { value: "professional", label: "Professional" },
+  { value: "enthusiastic", label: "Enthusiastic" },
+  { value: "conservative", label: "Conservative" },
+  { value: "story", label: "Story" },
+] as const
+
 function CoverLetterCard({
   applicationId,
-  coverLetters,
-  currentCoverLetterId,
+  writingStyles,
+  currentStructureId,
+  currentTone,
   generatedCoverLetter,
   hasDescription,
 }: {
   applicationId: string
-  coverLetters: CoverLetterRow[]
-  currentCoverLetterId: string | null
+  writingStyles: WritingStyleRow[]
+  currentStructureId: string | null
+  currentTone: string | null
   generatedCoverLetter: GeneratedCoverLetterRow | null
   hasDescription: boolean
 }) {
+  const defaultStructureId = currentStructureId ?? writingStyles.find((s) => s.is_built_in)?.id ?? ""
+  const defaultToneForStructure = writingStyles.find((s) => s.id === defaultStructureId)?.default_tone ?? "professional"
+  const [selectedStructureId, setSelectedStructureId] = useState(defaultStructureId)
+  const [selectedTone, setSelectedTone] = useState(currentTone ?? defaultToneForStructure)
+  const [showToneOverride, setShowToneOverride] = useState(false)
   const [savePending, startSaveTransition] = useTransition()
   const [genPending, startGenTransition] = useTransition()
   const [genError, setGenError] = useState<string | null>(null)
@@ -895,10 +907,25 @@ function CoverLetterCard({
     }
   }, [])
 
-  function handleSaveSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    startSaveTransition(() => updateCoverLetter(formData))
+  function handleStructureChange(structureId: string) {
+    setSelectedStructureId(structureId)
+    const style = writingStyles.find((s) => s.id === structureId)
+    if (style) setSelectedTone(style.default_tone)
+    setShowToneOverride(false)
+    const fd = new FormData()
+    fd.set("applicationId", applicationId)
+    fd.set("structureId", structureId)
+    fd.set("tone", style?.default_tone ?? "professional")
+    startSaveTransition(() => updateWritingStyle(fd))
+  }
+
+  function handleToneChange(tone: string) {
+    setSelectedTone(tone)
+    const fd = new FormData()
+    fd.set("applicationId", applicationId)
+    fd.set("structureId", selectedStructureId)
+    fd.set("tone", tone)
+    startSaveTransition(() => updateWritingStyle(fd))
   }
 
   function handleGenerate() {
@@ -964,30 +991,54 @@ function CoverLetterCard({
         <CardTitle>Cover Letter</CardTitle>
       </CardHeader>
       <CardContent className="pt-5 space-y-4">
-        {/* Template selector */}
-        <form onSubmit={handleSaveSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <input type="hidden" name="applicationId" value={applicationId} />
-          <div className="flex-1 space-y-1.5 min-w-0">
-            <Label htmlFor="cover-letter-select">Select template</Label>
-            <select
-              id="cover-letter-select"
-              name="coverLetterId"
-              defaultValue={currentCoverLetterId ?? ""}
-              className="form-select bg-background"
-            >
-              <option value="">— None —</option>
-              {coverLetters.map((cl) => (
-                <option key={cl.id} value={cl.id}>
-                  {cl.label ?? "Untitled"}
-                  {cl.tone ? ` · ${cl.tone}` : ""}
-                </option>
-              ))}
-            </select>
+        {/* Writing Style selector */}
+        <div className="space-y-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="writing-style-select">Writing Style</Label>
+            <div className="flex items-center gap-2">
+              <select
+                id="writing-style-select"
+                value={selectedStructureId}
+                onChange={(e) => handleStructureChange(e.target.value)}
+                disabled={savePending}
+                className="form-select bg-background flex-1"
+              >
+                {writingStyles.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                    {s.is_built_in ? "" : " (custom)"}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowToneOverride((v) => !v)}
+                className="shrink-0 text-[11px] text-muted-foreground hover:text-foreground transition-colors border border-border px-2 py-1.5"
+              >
+                {TONES.find((t) => t.value === selectedTone)?.label ?? "Tone"}
+              </button>
+            </div>
           </div>
-          <Button type="submit" size="default" variant="outline" disabled={savePending} className="w-full sm:w-auto">
-            {savePending ? "Saving…" : "Save"}
-          </Button>
-        </form>
+          {showToneOverride && (
+            <div className="flex flex-wrap gap-1.5">
+              {TONES.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => { handleToneChange(t.value); setShowToneOverride(false) }}
+                  className={cn(
+                    "border px-3 py-1 text-xs transition-colors",
+                    selectedTone === t.value
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* AI generation section */}
         <div className="border-t pt-4 space-y-3">
@@ -1133,7 +1184,7 @@ function DeleteButton({ applicationId }: { applicationId: string }) {
 export function ApplicationDetail({
   application,
   cvs,
-  coverLetters,
+  writingStyles,
   tailoredCvs,
   generatedCoverLetter,
 }: Props) {
@@ -1261,8 +1312,9 @@ export function ApplicationDetail({
           />
           <CoverLetterCard
             applicationId={application.id}
-            coverLetters={coverLetters}
-            currentCoverLetterId={application.cover_letter_id}
+            writingStyles={writingStyles}
+            currentStructureId={application.structure_id ?? null}
+            currentTone={application.cover_letter_tone ?? null}
             generatedCoverLetter={generatedCoverLetter}
             hasDescription={hasDescription}
           />

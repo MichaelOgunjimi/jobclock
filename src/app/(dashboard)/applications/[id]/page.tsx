@@ -43,7 +43,7 @@ export default async function ApplicationDetailPage({
 
   const [
     { data: cvsData },
-    { data: coverLettersData },
+    { data: writingStylesData },
     { data: tailoredCvsData },
     { data: generatedCoverLetterData },
   ] = await Promise.all([
@@ -54,11 +54,11 @@ export default async function ApplicationDetailPage({
       .order("is_primary", { ascending: false })
       .order("created_at", { ascending: false }),
     supabase
-      .from("cover_letters")
-      .select("id, label, tone")
-      .eq("user_id", user.id)
-      .is("application_id", null)
-      .order("created_at", { ascending: false }),
+      .from("cover_letter_structures")
+      .select("id, label, default_tone, is_built_in")
+      .or(`is_built_in.eq.true,user_id.eq.${user.id}`)
+      .order("is_built_in", { ascending: false })
+      .order("created_at", { ascending: true }),
     supabase
       .from("customized_cvs")
       .select("id, cv_json, skills_gap, ats_score, created_at")
@@ -76,14 +76,11 @@ export default async function ApplicationDetailPage({
       .maybeSingle(),
   ])
 
-  const cvs = cvsData ?? []
-  const coverLetters = coverLettersData ?? []
-
   return (
     <ApplicationDetail
       application={application}
-      cvs={cvs}
-      coverLetters={coverLetters}
+      cvs={cvsData ?? []}
+      writingStyles={writingStylesData ?? []}
       tailoredCvs={tailoredCvsData ?? []}
       generatedCoverLetter={generatedCoverLetterData ?? null}
     />

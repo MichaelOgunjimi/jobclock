@@ -153,6 +153,39 @@ export type Database = {
 				};
 				Relationships: [];
 			};
+			cover_letter_structures: {
+				Row: {
+					id: string;
+					user_id: string | null;
+					slug: string | null;
+					label: string;
+					content: string;
+					default_tone: "professional" | "enthusiastic" | "conservative" | "story";
+					is_built_in: boolean;
+					created_at: string;
+				};
+				Insert: {
+					id?: string;
+					user_id?: string | null;
+					slug?: string | null;
+					label: string;
+					content: string;
+					default_tone?: "professional" | "enthusiastic" | "conservative" | "story";
+					is_built_in?: boolean;
+					created_at?: string;
+				};
+				Update: {
+					id?: string;
+					user_id?: string | null;
+					slug?: string | null;
+					label?: string;
+					content?: string;
+					default_tone?: "professional" | "enthusiastic" | "conservative" | "story";
+					is_built_in?: boolean;
+					created_at?: string;
+				};
+				Relationships: [];
+			};
 			applications: {
 				Row: {
 					id: string;
@@ -162,6 +195,8 @@ export type Database = {
 					applied_at: string | null;
 					cover_letter_id: string | null;
 					customized_cv_id: string | null;
+					structure_id: string | null;
+					cover_letter_tone: "professional" | "enthusiastic" | "conservative" | "story" | null;
 					source: string | null;
 					notes: string | null;
 					tags: string[] | null;
@@ -181,6 +216,8 @@ export type Database = {
 					applied_at?: string | null;
 					cover_letter_id?: string | null;
 					customized_cv_id?: string | null;
+					structure_id?: string | null;
+					cover_letter_tone?: "professional" | "enthusiastic" | "conservative" | "story" | null;
 					source?: string | null;
 					notes?: string | null;
 					tags?: string[] | null;
@@ -200,6 +237,8 @@ export type Database = {
 					applied_at?: string | null;
 					cover_letter_id?: string | null;
 					customized_cv_id?: string | null;
+					structure_id?: string | null;
+					cover_letter_tone?: "professional" | "enthusiastic" | "conservative" | "story" | null;
 					source?: string | null;
 					notes?: string | null;
 					tags?: string[] | null;
@@ -389,6 +428,10 @@ export type CoverLetterTemplate = Pick<
 	Database["public"]["Tables"]["cover_letters"]["Row"],
 	"id" | "label" | "content" | "tone"
 >;
+
+export type WritingStyleTone = Database["public"]["Tables"]["cover_letter_structures"]["Row"]["default_tone"];
+
+export type WritingStyle = Database["public"]["Tables"]["cover_letter_structures"]["Row"];
 
 // Parsed CV data structure
 export interface CvData {

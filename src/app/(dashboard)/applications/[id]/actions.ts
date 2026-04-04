@@ -138,6 +138,33 @@ export async function updateCoverLetter(formData: FormData) {
   revalidatePath(`/applications/${applicationId}`)
 }
 
+export async function updateWritingStyle(formData: FormData) {
+  if (!isSupabaseConfigured()) return
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return
+
+  const applicationId = formData.get("applicationId") as string
+  const structureId = formData.get("structureId") as string | null
+  const tone = formData.get("tone") as string | null
+
+  if (!applicationId) return
+
+  await supabase
+    .from("applications")
+    .update({
+      structure_id: structureId || null,
+      cover_letter_tone: (tone || null) as "professional" | "enthusiastic" | "conservative" | "story" | null,
+    })
+    .eq("id", applicationId)
+    .eq("user_id", user.id)
+
+  revalidatePath(`/applications/${applicationId}`)
+}
+
 export async function deleteApplication(applicationId: string) {
   if (!isSupabaseConfigured()) return
 
@@ -293,7 +320,7 @@ export async function generateCoverLetter(
 
   const job = app.jobs_cache
 
-  // Resolve base CV and template in parallel
+  // Resolve base CV and writing style in parallel
   let baseCvId: string | null = app.customized_cv_id ?? null
   if (!baseCvId) {
     const { data: primaryCv } = await supabase
@@ -305,7 +332,22 @@ export async function generateCoverLetter(
     baseCvId = primaryCv?.id ?? null
   }
 
-  const [cvResult, templateResult] = await Promise.all([
+  // Resolve writing style: use the one linked to the application, or fall back to the Professional built-in
+  const structureId = app.structure_id ?? null
+  const structureQuery = structureId
+    ? supabase
+        .from("cover_letter_structures")
+        .select("content, default_tone")
+        .eq("id", structureId)
+        .maybeSingle()
+    : supabase
+        .from("cover_letter_structures")
+        .select("content, default_tone")
+        .eq("is_built_in", true)
+        .eq("slug", "professional")
+        .maybeSingle()
+
+  const [cvResult, structureResult] = await Promise.all([
     baseCvId
       ? supabase
           .from("user_cvs")
@@ -313,18 +355,18 @@ export async function generateCoverLetter(
           .eq("id", baseCvId)
           .single()
       : Promise.resolve({ data: null }),
-    app.cover_letter_id
-      ? supabase
-          .from("cover_letters")
-          .select("content, tone")
-          .eq("id", app.cover_letter_id)
-          .is("application_id", null)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
+    structureQuery,
   ])
 
   const cvParsed = cvResult.data?.parsed_json as CvData | null
-  const template = templateResult.data as { content?: string; tone?: string | null } | null
+  const structure = structureResult.data as { content?: string; default_tone?: string | null } | null
+
+  // Tone: use the override stored on the application, then structure default, then "professional"
+  const resolvedTone = (app.cover_letter_tone ?? structure?.default_tone ?? "professional") as
+    | "professional"
+    | "enthusiastic"
+    | "conservative"
+    | "story"
 
   // Resolve AI settings and API key
   const preferences = (profileData?.preferences ?? {}) as UserPreferences
@@ -338,16 +380,11 @@ export async function generateCoverLetter(
     return { error: err instanceof Error ? err.message : "No API key configured." }
   }
 
-  const toneInstruction = template?.tone
-    ? `Match the tone of the template: ${template.tone}.`
-    : "Use a professional tone."
-
+  const toneInstruction = `Write in a ${resolvedTone} tone.`
   const systemPrompt = buildCoverLetterSystemPrompt(toneInstruction)
 
   const cvContext = buildCvContext(cvParsed)
-  const templateSnippet = template?.content
-    ? `\n\nCover letter template (use as style/structure inspiration):\n${template.content}`
-    : ""
+  const templateSnippet = structure?.content ?? ""
 
   const userPrompt = buildCoverLetterUserPrompt({
     title: job?.title ?? "the role",
@@ -377,7 +414,7 @@ export async function generateCoverLetter(
     application_id: applicationId,
     label: `AI — ${job?.title ?? "Application"} at ${job?.company ?? "Company"}`,
     content: content.trim(),
-    tone: (template?.tone as "professional" | "enthusiastic" | "conservative" | "story" | null | undefined) ?? "professional",
+    tone: resolvedTone,
   })
 
   if (insertError) return { error: insertError.message }

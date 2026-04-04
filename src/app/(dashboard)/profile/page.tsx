@@ -3,7 +3,6 @@ import { Suspense } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect } from "next/navigation"
-import type { CoverLetterTemplate } from "@/lib/supabase/database.types"
 import { ProfileTabs } from "./profile-tabs"
 
 export const metadata: Metadata = {
@@ -19,24 +18,22 @@ export default async function ProfilePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth")
 
-  const [{ data: cvs }, { data: coverLetters }, { data: profile }] = await Promise.all([
+  const [{ data: cvs }, { data: structures }] = await Promise.all([
     supabase
       .from("user_cvs")
       .select("id, name, is_primary, created_at, parsed_json")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
     supabase
-      .from("cover_letters")
-      .select("id, label, content, tone")
-      .eq("user_id", user.id)
-      .is("application_id", null)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("profiles")
-      .select("desired_roles, locations_uk, target_salary_min, right_to_work_uk, experience_level")
-      .eq("id", user.id)
-      .single(),
+      .from("cover_letter_structures")
+      .select("*")
+      .or(`is_built_in.eq.true,user_id.eq.${user.id}`)
+      .order("is_built_in", { ascending: false })
+      .order("created_at", { ascending: true }),
   ])
+
+  const builtInStyles = (structures ?? []).filter((s) => s.is_built_in)
+  const userStyles = (structures ?? []).filter((s) => !s.is_built_in)
 
   return (
     <div className="page-shell max-w-5xl">
@@ -46,7 +43,7 @@ export default async function ProfilePage() {
           <div className="space-y-2">
             <h1 className="page-title">Your profile.</h1>
             <p className="page-lede">
-              Manage your CVs, cover letters, and job search preferences.
+              Manage your CVs and writing styles.
             </p>
           </div>
         </div>
@@ -55,8 +52,8 @@ export default async function ProfilePage() {
       <Suspense>
         <ProfileTabs
           cvs={cvs ?? []}
-          coverLetters={(coverLetters ?? []) as CoverLetterTemplate[]}
-          profile={profile ?? null}
+          builtInStyles={builtInStyles}
+          userStyles={userStyles}
         />
       </Suspense>
     </div>
