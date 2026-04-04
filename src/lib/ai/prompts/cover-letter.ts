@@ -15,7 +15,7 @@ Follow these rules strictly:
 - Base every paragraph on the candidate's real background.
 - Do not invent experience, achievements, dates, metrics, responsibilities, employers, qualifications, certifications, or technologies.
 - Prioritise the strongest evidence that matches the job description.
-- Use the template only as a style and structure guide, never as text to copy.
+- Use the writing style guide only as a structural reference, never as text to copy or fill in.
 - Mirror important language from the job description naturally, but do not keyword-stuff.
 - Show fit through evidence, not empty claims.
 - Avoid generic filler phrases such as:
@@ -82,11 +82,11 @@ ${params.cvContext}
 
 ${
 	params.templateSnippet?.trim() ?
-		`### TEMPLATE GUIDE
-The following template may be either a built-in template or a user-provided base letter.
-Use it only for structure, emphasis, and tone guidance.
-Do not copy its wording.
-Do not let it override stronger evidence from the candidate background or the job description.
+		`### WRITING STYLE GUIDE
+The following is a structural writing guide — it defines paragraph order, emphasis, and flow.
+It is NOT a script to follow. Do NOT copy its wording, fill in its placeholders, or reproduce its structure verbatim.
+Placeholder text like [Job Title], [Company Name], [relevant area] must never appear in your output.
+Use this guide only to understand the intended structure and emphasis, then write the letter entirely from the candidate background and job description.
 ${params.templateSnippet}
 
 `
