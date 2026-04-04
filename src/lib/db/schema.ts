@@ -87,6 +87,21 @@ export const jobsCache = pgTable("jobs_cache", {
 })
 
 // ============================================================
+// COVER LETTER STRUCTURES (writing style guides)
+// ============================================================
+
+export const coverLetterStructures = pgTable("cover_letter_structures", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id"),
+  slug: text("slug"),
+  label: text("label").notNull(),
+  content: text("content").notNull(),
+  defaultTone: text("default_tone").notNull().default("professional"),
+  isBuiltIn: boolean("is_built_in").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+})
+
+// ============================================================
 // APPLICATIONS
 // ============================================================
 
@@ -98,6 +113,8 @@ export const applications = pgTable("applications", {
   appliedAt: timestamp("applied_at", { withTimezone: true }),
   coverLetterId: uuid("cover_letter_id").references((): AnyPgColumn => coverLetters.id, { onDelete: "set null" }),
   customizedCvId: uuid("customized_cv_id").references((): AnyPgColumn => customizedCvs.id, { onDelete: "set null" }),
+  structureId: uuid("structure_id").references((): AnyPgColumn => coverLetterStructures.id, { onDelete: "set null" }),
+  coverLetterTone: text("cover_letter_tone"),
   source: text("source"),
   notes: text("notes"),
   tags: text("tags").array(),

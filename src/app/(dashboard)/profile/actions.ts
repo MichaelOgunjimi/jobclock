@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { revalidatePath } from "next/cache"
-import type { CoverLetterTone, CvData, Json } from "@/lib/supabase/database.types"
+import type { CvData, Json, WritingStyleTone } from "@/lib/supabase/database.types"
 
 export async function setPrimaryCV(formData: FormData) {
   if (!isSupabaseConfigured()) return
@@ -103,7 +103,7 @@ export async function renameCv(formData: FormData) {
   revalidatePath("/profile")
 }
 
-export async function saveLetterTemplate(formData: FormData) {
+export async function saveWritingStyle(formData: FormData) {
   if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -112,43 +112,47 @@ export async function saveLetterTemplate(formData: FormData) {
   const id = formData.get("id") as string | null
   const label = (formData.get("label") as string).trim()
   const content = (formData.get("content") as string).trim()
-  const tone = (formData.get("tone") as string | null) || null
+  const defaultTone = ((formData.get("default_tone") as string | null) || "professional") as WritingStyleTone
 
   if (!label || !content) return { error: "Label and content are required" }
 
-  const toneCast = tone as CoverLetterTone
-
   if (id) {
     const { data, error } = await supabase
-      .from("cover_letters")
-      .update({ label, content, tone: toneCast })
+      .from("cover_letter_structures")
+      .update({ label, content, default_tone: defaultTone })
       .eq("id", id)
       .eq("user_id", user.id)
-      .select("id, label, content, tone")
+      .eq("is_built_in", false)
+      .select("id, label, content, default_tone, is_built_in, slug, user_id, created_at")
       .single()
     if (error) return { error: error.message }
     revalidatePath("/profile")
-    return { success: true, letter: data }
+    return { success: true, style: data }
   } else {
     const { data, error } = await supabase
-      .from("cover_letters")
-      .insert({ user_id: user.id, label, content, tone: toneCast, application_id: null })
-      .select("id, label, content, tone")
+      .from("cover_letter_structures")
+      .insert({ user_id: user.id, label, content, default_tone: defaultTone, is_built_in: false })
+      .select("id, label, content, default_tone, is_built_in, slug, user_id, created_at")
       .single()
     if (error) return { error: error.message }
     revalidatePath("/profile")
-    return { success: true, letter: data }
+    return { success: true, style: data }
   }
 }
 
-export async function deleteLetterTemplate(formData: FormData) {
+export async function deleteWritingStyle(formData: FormData) {
   if (!isSupabaseConfigured()) return
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
   const id = formData.get("id") as string
-  await supabase.from("cover_letters").delete().eq("id", id).eq("user_id", user.id).is("application_id", null)
+  await supabase
+    .from("cover_letter_structures")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .eq("is_built_in", false)
 
   revalidatePath("/profile")
 }
