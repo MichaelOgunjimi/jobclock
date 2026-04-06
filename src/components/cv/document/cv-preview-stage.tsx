@@ -7,6 +7,7 @@ import { CvPaper } from "@/components/cv/document/cv-paper"
 import type { CvTemplateName } from "@/components/cv/templates/cv-template-renderer"
 
 const A4_WIDTH_PX = (210 / 25.4) * 96
+const A4_HEIGHT_PX = (297 / 25.4) * 96
 
 export function CvPreviewStage({
   cv,
@@ -63,6 +64,7 @@ export function CvPreviewStage({
             transform: `scale(${scale})`,
             transformOrigin: "top left",
             width: A4_WIDTH_PX,
+            position: "relative",
           }}
         >
           <CvPaper
@@ -71,6 +73,36 @@ export function CvPreviewStage({
             className="shrink-0"
             includeShadow
           />
+          {contentHeight > A4_HEIGHT_PX && (
+            <div
+              style={{
+                position: "absolute",
+                top: A4_HEIGHT_PX,
+                left: 0,
+                right: 0,
+                pointerEvents: "none",
+              }}
+            >
+              <div style={{ borderTop: "2px dashed #ef4444", width: "100%" }} />
+              <span
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  top: 4,
+                  fontSize: 10,
+                  fontFamily: "sans-serif",
+                  color: "#ef4444",
+                  background: "white",
+                  padding: "1px 4px",
+                  fontWeight: 600,
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                }}
+              >
+                A4 limit
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>
