@@ -25,6 +25,6 @@ describe("EXPERIENCE_LEVELS 'mid' entry label text", () => {
   it("mid level label starts with 'Mid (3-5 yrs'", () => {
     const mid = EXPERIENCE_LEVELS.find((l) => l.value === "mid")
     expect(mid).toBeDefined()
-    expect(mid!.label).toMatch(/^Mid \(3-5 yrs/)
+    expect(mid!.label).toMatch(/^Mid \(3–5 yrs/)
   })
 })

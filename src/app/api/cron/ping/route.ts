@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
+import { Redis } from "@upstash/redis"
 import { sql } from "drizzle-orm"
 
 export async function GET(request: NextRequest) {
@@ -9,6 +10,9 @@ export async function GET(request: NextRequest) {
   }
 
   await db.execute(sql`SELECT 1`)
+
+  const redis = Redis.fromEnv()
+  await redis.ping()
 
   return Response.json({ ok: true, ts: new Date().toISOString() })
 }
