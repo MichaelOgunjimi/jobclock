@@ -40,6 +40,11 @@ export function AppSidebar({
   const isPreviewPage = pathname.endsWith("/cv") || pathname.endsWith("/cover-letter")
   const [isCollapsed, setIsCollapsed] = useState(isPreviewPage)
 
+  // Collapse sidebar when navigating to preview pages
+  if (isPreviewPage && !isCollapsed) {
+    setIsCollapsed(true)
+  }
+
   async function handleSignOut() {
     if (!supabase) {
       toast.error(SUPABASE_SETUP_MESSAGE)

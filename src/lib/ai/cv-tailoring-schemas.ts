@@ -1,8 +1,8 @@
 import { z } from "zod/v4"
 
-/** Coerce any value to string (handles numbers, booleans AI might return) */
-const coerceStr = z.coerce.string()
-const optCoerceStr = z.coerce.string().optional()
+/** Coerce any value to string, but treat null/undefined as undefined */
+const coerceStr = z.any().transform((v) => (v == null ? "" : String(v))).default("")
+const optCoerceStr = z.any().transform((v) => (v == null || v === "null" || v === "" ? undefined : String(v))).optional()
 
 /** Coerce any value to number (handles "85" strings AI might return) */
 const coerceNum = z.coerce.number()
@@ -100,7 +100,7 @@ export const jobAnalysisSchema = z
   .object({
     title: coerceStr.default("Unknown"),
     company: optCoerceStr,
-    location: z.coerce.string().nullable().optional(),
+    location: z.any().transform((v) => (v == null || v === "null" || v === "" ? null : String(v))).optional(),
     seniority: coerceStr.default("unknown"),
     job_family: coerceStr.default("general"),
     must_have_keywords: strArray,
