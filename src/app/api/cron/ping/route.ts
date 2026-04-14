@@ -1,7 +1,5 @@
 import { NextRequest } from "next/server"
-import { db } from "@/lib/db"
 import { Redis } from "@upstash/redis"
-import { sql } from "drizzle-orm"
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization")
@@ -9,10 +7,12 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  await db.execute(sql`SELECT 1`)
-
-  const redis = Redis.fromEnv()
-  await redis.ping()
-
-  return Response.json({ ok: true, ts: new Date().toISOString() })
+  try {
+    const redis = Redis.fromEnv()
+    await redis.ping()
+    return Response.json({ ok: true, ts: new Date().toISOString() })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return Response.json({ error: message }, { status: 500 })
+  }
 }
