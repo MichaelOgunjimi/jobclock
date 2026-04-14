@@ -136,14 +136,12 @@ export async function POST(
             STAGE_B_SYSTEM_PROMPT,
             buildStageBUserPrompt({ title, company, location, description })
           )
-          const parsed = jobAnalysisSchema.safeParse(extractJson(raw))
+          const extracted = extractJson(raw)
+          const parsed = jobAnalysisSchema.safeParse(extracted)
           if (!parsed.success) {
-            console.error("[CV Generate] Stage B validation failed:", JSON.stringify(parsed.error.issues, null, 2))
-            emit({
-              stage: "B",
-              status: "error",
-              error: "AI returned invalid response structure. Please try again.",
-            })
+            const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")
+            console.error("[CV Generate] Stage B validation failed:", issues, "\nExtracted:", JSON.stringify(extracted).slice(0, 500))
+            emit({ stage: "B", status: "error", error: `Stage B validation failed: ${issues}` })
             controller.close()
             return
           }
@@ -165,14 +163,12 @@ export async function POST(
             STAGE_C_SYSTEM_PROMPT,
             buildStageCUserPrompt({ jobAnalysis, cvJson })
           )
-          const parsed = cvMatchAnalysisSchema.safeParse(extractJson(raw))
+          const extractedC = extractJson(raw)
+          const parsed = cvMatchAnalysisSchema.safeParse(extractedC)
           if (!parsed.success) {
-            console.error("[CV Generate] Stage C validation failed:", JSON.stringify(parsed.error.issues, null, 2))
-            emit({
-              stage: "C",
-              status: "error",
-              error: "AI returned invalid response structure. Please try again.",
-            })
+            const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")
+            console.error("[CV Generate] Stage C validation failed:", issues, "\nExtracted:", JSON.stringify(extractedC).slice(0, 500))
+            emit({ stage: "C", status: "error", error: `Stage C validation failed: ${issues}` })
             controller.close()
             return
           }
@@ -194,14 +190,12 @@ export async function POST(
             STAGE_D_SYSTEM_PROMPT,
             buildStageDUserPrompt({ jobAnalysis, matchAnalysis, cvJson })
           )
-          const parsed = cvTailoringPlanSchema.safeParse(extractJson(raw))
+          const extractedD = extractJson(raw)
+          const parsed = cvTailoringPlanSchema.safeParse(extractedD)
           if (!parsed.success) {
-            console.error("[CV Generate] Stage D validation failed:", JSON.stringify(parsed.error.issues, null, 2))
-            emit({
-              stage: "D",
-              status: "error",
-              error: "AI returned invalid response structure. Please try again.",
-            })
+            const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")
+            console.error("[CV Generate] Stage D validation failed:", issues, "\nExtracted:", JSON.stringify(extractedD).slice(0, 500))
+            emit({ stage: "D", status: "error", error: `Stage D validation failed: ${issues}` })
             controller.close()
             return
           }
@@ -222,16 +216,14 @@ export async function POST(
             apiKey,
             STAGE_E_SYSTEM_PROMPT,
             buildStageEUserPrompt({ jobAnalysis, cvJson, tailoringPlan, title, company, location }),
-            8192
+            16384
           )
-          const parsed = tailoredCvResultSchema.safeParse(extractJson(raw))
+          const extractedE = extractJson(raw)
+          const parsed = tailoredCvResultSchema.safeParse(extractedE)
           if (!parsed.success) {
-            console.error("[CV Generate] Stage E validation failed:", JSON.stringify(parsed.error.issues, null, 2))
-            emit({
-              stage: "E",
-              status: "error",
-              error: "AI returned invalid response structure. Please try again.",
-            })
+            const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")
+            console.error("[CV Generate] Stage E validation failed:", issues, "\nRaw length:", raw.length, "\nExtracted keys:", typeof extractedE === "object" && extractedE ? Object.keys(extractedE) : typeof extractedE)
+            emit({ stage: "E", status: "error", error: `Stage E validation failed: ${issues}` })
             controller.close()
             return
           }

@@ -1,107 +1,124 @@
 import { z } from "zod/v4"
 
+/** Coerce any value to string (handles numbers, booleans AI might return) */
+const coerceStr = z.coerce.string()
+const optCoerceStr = z.coerce.string().optional()
+
+/** Coerce any value to number (handles "85" strings AI might return) */
+const coerceNum = z.coerce.number()
+
+/** Coerce a value to string array — handles single string or mixed arrays */
+const strArray = z
+  .any()
+  .transform((v) => {
+    if (Array.isArray(v)) return v.map(String)
+    if (v == null) return []
+    return [String(v)]
+  })
+  .default([])
+
 const rankedEvidenceSchema = z
   .object({
-    id: z.string().default(""),
-    type: z.string().default("experience"),
-    title: z.string().default(""),
-    relevance_score: z.number().default(0),
-    matched_requirements: z.array(z.string()).default([]),
-    reasoning: z.string().default(""),
+    id: coerceStr.default(""),
+    type: coerceStr.default("experience"),
+    title: coerceStr.default(""),
+    relevance_score: coerceNum.default(0),
+    matched_requirements: strArray,
+    reasoning: coerceStr.default(""),
   })
   .passthrough()
 
 const tailoringInstructionSchema = z
   .object({
-    id: z.string().default(""),
-    action: z.string().default("keep"),
-    reasons: z.array(z.string()).default([]),
-    target_keywords: z.array(z.string()).default([]),
-    target_themes: z.array(z.string()).default([]),
+    id: coerceStr.default(""),
+    action: coerceStr.default("keep"),
+    reasons: strArray,
+    target_keywords: strArray,
+    target_themes: strArray,
   })
   .passthrough()
 
 const cvExperienceSchema = z
   .object({
-    company: z.string().default(""),
-    title: z.string().default(""),
-    start_date: z.string().optional(),
-    end_date: z.string().optional(),
-    description: z.string().default(""),
-    highlights: z.array(z.string()).default([]),
-    location: z.string().optional(),
+    company: coerceStr.default(""),
+    title: coerceStr.default(""),
+    start_date: optCoerceStr,
+    end_date: optCoerceStr,
+    description: coerceStr.default(""),
+    highlights: strArray,
+    location: optCoerceStr,
   })
   .passthrough()
 
 const cvEducationSchema = z
   .object({
-    institution: z.string().default(""),
-    degree: z.string().default(""),
-    field: z.string().optional(),
-    start_date: z.string().optional(),
-    end_date: z.string().optional(),
-    grade: z.string().optional(),
-    location: z.string().optional(),
-    gpa: z.union([z.string(), z.number()]).optional().transform((v) => v != null ? String(v) : undefined),
-    honors: z.string().optional(),
-    relevant_modules: z.array(z.string()).default([]),
+    institution: coerceStr.default(""),
+    degree: coerceStr.default(""),
+    field: optCoerceStr,
+    start_date: optCoerceStr,
+    end_date: optCoerceStr,
+    grade: optCoerceStr,
+    location: optCoerceStr,
+    gpa: z.any().optional().transform((v) => v != null ? String(v) : undefined),
+    honors: optCoerceStr,
+    relevant_modules: strArray,
   })
   .passthrough()
 
 const cvProjectSchema = z
   .object({
-    name: z.string().default(""),
-    description: z.string().default(""),
-    highlights: z.array(z.string()).default([]),
-    technologies: z.array(z.string()).default([]),
-    url: z.string().optional(),
-    start_date: z.string().optional(),
-    end_date: z.string().optional(),
+    name: coerceStr.default(""),
+    description: coerceStr.default(""),
+    highlights: strArray,
+    technologies: strArray,
+    url: optCoerceStr,
+    start_date: optCoerceStr,
+    end_date: optCoerceStr,
   })
   .passthrough()
 
 const cvDataSchema = z
   .object({
-    name: z.string().optional(),
-    email: z.string().optional(),
-    phone: z.string().optional(),
-    location: z.string().optional(),
-    linkedin: z.string().optional(),
-    website: z.string().optional(),
-    summary: z.string().optional(),
+    name: optCoerceStr,
+    email: optCoerceStr,
+    phone: optCoerceStr,
+    location: optCoerceStr,
+    linkedin: optCoerceStr,
+    website: optCoerceStr,
+    summary: optCoerceStr,
     experience: z.array(cvExperienceSchema).default([]),
     education: z.array(cvEducationSchema).default([]),
     projects: z.array(cvProjectSchema).default([]),
-    skills: z.array(z.string()).default([]),
-    languages: z.array(z.string()).default([]),
-    certifications: z.array(z.string()).default([]),
+    skills: strArray,
+    languages: strArray,
+    certifications: strArray,
     activities: z.array(cvExperienceSchema).default([]),
   })
   .passthrough()
 
 export const jobAnalysisSchema = z
   .object({
-    title: z.string().default("Unknown"),
-    company: z.string().optional(),
-    location: z.string().nullable().optional(),
-    seniority: z.string().default("unknown"),
-    job_family: z.string().default("general"),
-    must_have_keywords: z.array(z.string()).default([]),
-    nice_to_have_keywords: z.array(z.string()).default([]),
-    responsibilities: z.array(z.string()).default([]),
-    qualifications: z.array(z.string()).default([]),
-    tools_and_technologies: z.array(z.string()).default([]),
-    soft_skills: z.array(z.string()).default([]),
-    domain_terms: z.array(z.string()).default([]),
-    summary: z.string().default(""),
+    title: coerceStr.default("Unknown"),
+    company: optCoerceStr,
+    location: z.coerce.string().nullable().optional(),
+    seniority: coerceStr.default("unknown"),
+    job_family: coerceStr.default("general"),
+    must_have_keywords: strArray,
+    nice_to_have_keywords: strArray,
+    responsibilities: strArray,
+    qualifications: strArray,
+    tools_and_technologies: strArray,
+    soft_skills: strArray,
+    domain_terms: strArray,
+    summary: coerceStr.default(""),
   })
   .passthrough()
 
 export const cvMatchAnalysisSchema = z
   .object({
-    matched_keywords: z.array(z.string()).default([]),
-    missing_keywords: z.array(z.string()).default([]),
-    weak_keywords: z.array(z.string()).default([]),
+    matched_keywords: strArray,
+    missing_keywords: strArray,
+    weak_keywords: strArray,
     evidence_ranking: z
       .object({
         experience: z.array(rankedEvidenceSchema).default([]),
@@ -110,15 +127,15 @@ export const cvMatchAnalysisSchema = z
         activities: z.array(rankedEvidenceSchema).default([]),
       })
       .default({ experience: [], projects: [], education: [], activities: [] }),
-    top_strengths: z.array(z.string()).default([]),
+    top_strengths: strArray,
     tailoring_strategy: z
       .object({
-        summary_focus: z.array(z.string()).default([]),
-        prioritize_experience_ids: z.array(z.string()).default([]),
-        prioritize_project_ids: z.array(z.string()).default([]),
-        prioritize_education_ids: z.array(z.string()).default([]),
-        emphasize_skills: z.array(z.string()).default([]),
-        deprioritize_items: z.array(z.string()).default([]),
+        summary_focus: strArray,
+        prioritize_experience_ids: strArray,
+        prioritize_project_ids: strArray,
+        prioritize_education_ids: strArray,
+        emphasize_skills: strArray,
+        deprioritize_items: strArray,
       })
       .default({
         summary_focus: [],
@@ -133,15 +150,15 @@ export const cvMatchAnalysisSchema = z
 
 export const cvTailoringPlanSchema = z
   .object({
-    target_title: z.string().default(""),
-    target_company: z.string().optional(),
-    target_seniority: z.string().optional(),
-    target_job_family: z.string().default("general"),
+    target_title: coerceStr.default(""),
+    target_company: optCoerceStr,
+    target_seniority: optCoerceStr,
+    target_job_family: coerceStr.default("general"),
     summary_strategy: z
       .object({
         should_rewrite: z.boolean().default(false),
-        focus_keywords: z.array(z.string()).default([]),
-        focus_themes: z.array(z.string()).default([]),
+        focus_keywords: strArray,
+        focus_themes: strArray,
       })
       .default({
         should_rewrite: false,
@@ -153,10 +170,10 @@ export const cvTailoringPlanSchema = z
     education_plan: z.array(tailoringInstructionSchema).default([]),
     skills_plan: z
       .object({
-        prioritize: z.array(z.string()).default([]),
-        add_if_present_in_cv: z.array(z.string()).default([]),
-        remove_or_deprioritize: z.array(z.string()).default([]),
-        ordering_strategy: z.string().default(""),
+        prioritize: strArray,
+        add_if_present_in_cv: strArray,
+        remove_or_deprioritize: strArray,
+        ordering_strategy: coerceStr.default(""),
       })
       .default({
         prioritize: [],
@@ -164,21 +181,27 @@ export const cvTailoringPlanSchema = z
         remove_or_deprioritize: [],
         ordering_strategy: "",
       }),
-    formatting_notes: z.array(z.string()).default([]),
+    formatting_notes: strArray,
   })
   .passthrough()
 
 export const tailoredCvResultSchema = z
   .object({
-    cv: cvDataSchema,
-    matched_keywords: z.array(z.string()).default([]),
-    missing_keywords: z.array(z.string()).default([]),
-    match_summary: z.string().default(""),
+    cv: cvDataSchema.optional(),
+    tailored_cv: cvDataSchema.optional(),
+    matched_keywords: strArray,
+    missing_keywords: strArray,
+    match_summary: coerceStr.default(""),
     ats_match_estimate: z
       .object({
-        score: z.number().default(0),
-        basis: z.string().default(""),
+        score: coerceNum.default(0),
+        basis: coerceStr.default(""),
       })
       .optional(),
   })
   .passthrough()
+  .transform((data) => ({
+    ...data,
+    // AI sometimes uses "tailored_cv" instead of "cv"
+    cv: data.cv ?? data.tailored_cv,
+  }))

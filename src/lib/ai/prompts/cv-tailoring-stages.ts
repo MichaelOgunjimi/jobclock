@@ -214,7 +214,7 @@ Return EXACTLY this structure:
   "matched_keywords": [],
   "missing_keywords": [],
   "match_summary": "...",
-  "ats_match_estimate": { "score": 82, "basis": "..." }
+  "ats_match_estimate": { "score": your_evaluated_score, "basis": "..." }
 }`
 
 export function buildStageEUserPrompt(params: {

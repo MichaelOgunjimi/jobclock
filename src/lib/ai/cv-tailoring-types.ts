@@ -92,7 +92,8 @@ export interface AtsMatchEstimate {
 }
 
 export interface TailoredCvResult {
-  cv: CvData
+  cv?: CvData
+  tailored_cv?: CvData
   matched_keywords: string[]
   missing_keywords: string[]
   match_summary: string
