@@ -785,25 +785,18 @@ function CvCard({
         {/* AI generation section */}
         <div className="border-t pt-4 space-y-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={generating || !hasDescription}
-              onClick={handleGenerate}
-              className="w-full sm:w-auto"
-            >
-              {generating ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Generating…
-                </>
-              ) : tailoredCvs.length > 0 ? (
-                "Regenerate"
-              ) : (
-                "Generate tailored CV"
-              )}
-            </Button>
+            {!generating && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!hasDescription}
+                onClick={handleGenerate}
+                className="w-full sm:w-auto"
+              >
+                {tailoredCvs.length > 0 ? "Regenerate" : "Generate tailored CV"}
+              </Button>
+            )}
             {tailoredCvs.length > 0 && !generating && (
               <Link
                 href={`/applications/${applicationId}/cv`}
@@ -812,7 +805,7 @@ function CvCard({
                 Preview &amp; Download CV
               </Link>
             )}
-            {!hasDescription && (
+            {!hasDescription && !generating && (
               <span className="text-[12px] text-muted-foreground">
                 Add a job description first
               </span>
