@@ -96,7 +96,7 @@ const cvProjectSchema = z
   })
   .passthrough()
 
-const cvDataSchema = z
+export const cvDataSchema = z
   .object({
     name: optCoerceStr,
     email: optCoerceStr,
