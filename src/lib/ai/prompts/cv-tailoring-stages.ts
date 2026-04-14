@@ -168,6 +168,10 @@ REWRITING RULES — follow every one without exception:
 ACCURACY (non-negotiable):
 1. NEVER fabricate experience, companies, dates, degrees, qualifications, metrics, or technologies. Every claim must be traceable to the original CV.
 2. Keep all dates, company names, institution names, and role titles exactly as in the original.
+3. Copy these fields VERBATIM from the original CV — do not rewrite, embellish, or expand them:
+   - company, title, institution, degree, field, start_date, end_date, location, grade, gpa, honors, name (for projects), url, technologies
+   - Only "highlights", "description", "summary", and "skills" may be rewritten (and only when the plan says to).
+   - If the original field is empty or missing, leave it empty or omit it — do NOT fill in guessed or inferred values.
 
 ENTRY-LEVEL ACTIONS:
 3. For each entry in the plan:
