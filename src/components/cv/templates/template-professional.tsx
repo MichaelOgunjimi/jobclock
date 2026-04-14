@@ -23,14 +23,13 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   )
 }
 
-function dateRange(start?: string, end?: string, hasStart?: boolean): string {
+function dateRange(start?: string, end?: string): string {
   if (!start && !end) return ""
-  if (start && !end && hasStart) return `${start} – Present`
   return [start, end].filter(Boolean).join(" – ")
 }
 
 function ExperienceEntry({ entry }: { entry: CvExperience }) {
-  const dates = dateRange(entry.start_date, entry.end_date, Boolean(entry.start_date))
+  const dates = dateRange(entry.start_date, entry.end_date)
 
   return (
     <div style={{ marginBottom: 12 }}>
@@ -78,7 +77,7 @@ function ExperienceEntry({ entry }: { entry: CvExperience }) {
 }
 
 function EducationEntry({ entry }: { entry: CvEducation }) {
-  const dates = dateRange(entry.start_date, entry.end_date, Boolean(entry.start_date))
+  const dates = dateRange(entry.start_date, entry.end_date)
   const degreeLabel = entry.field ? `${entry.degree}, ${entry.field}` : entry.degree
 
   return (
@@ -116,7 +115,7 @@ function EducationEntry({ entry }: { entry: CvEducation }) {
 }
 
 function ProjectEntry({ entry }: { entry: CvProject }) {
-  const dates = dateRange(entry.start_date, entry.end_date, Boolean(entry.start_date))
+  const dates = dateRange(entry.start_date, entry.end_date)
 
   return (
     <div style={{ marginBottom: 12 }}>
