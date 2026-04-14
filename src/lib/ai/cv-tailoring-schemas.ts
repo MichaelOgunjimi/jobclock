@@ -3,7 +3,7 @@ import { z } from "zod/v4"
 const rankedEvidenceSchema = z
   .object({
     id: z.string().default(""),
-    type: z.enum(["experience", "project", "education", "activity"]).default("experience"),
+    type: z.string().default("experience"),
     title: z.string().default(""),
     relevance_score: z.number().default(0),
     matched_requirements: z.array(z.string()).default([]),
@@ -14,7 +14,7 @@ const rankedEvidenceSchema = z
 const tailoringInstructionSchema = z
   .object({
     id: z.string().default(""),
-    action: z.enum(["prioritize", "rewrite", "keep", "deprioritize"]).default("keep"),
+    action: z.string().default("keep"),
     reasons: z.array(z.string()).default([]),
     target_keywords: z.array(z.string()).default([]),
     target_themes: z.array(z.string()).default([]),
@@ -42,7 +42,7 @@ const cvEducationSchema = z
     end_date: z.string().optional(),
     grade: z.string().optional(),
     location: z.string().optional(),
-    gpa: z.string().optional(),
+    gpa: z.union([z.string(), z.number()]).optional().transform((v) => v != null ? String(v) : undefined),
     honors: z.string().optional(),
     relevant_modules: z.array(z.string()).default([]),
   })
@@ -84,23 +84,8 @@ export const jobAnalysisSchema = z
     title: z.string().default("Unknown"),
     company: z.string().optional(),
     location: z.string().nullable().optional(),
-    seniority: z.enum(["entry", "junior", "mid", "senior", "lead", "unknown"]).optional(),
-    job_family: z
-      .enum([
-        "software_engineering",
-        "data",
-        "product",
-        "project_management",
-        "marketing",
-        "sales",
-        "operations",
-        "customer_service",
-        "healthcare",
-        "education",
-        "retail",
-        "general",
-      ])
-      .default("general"),
+    seniority: z.string().default("unknown"),
+    job_family: z.string().default("general"),
     must_have_keywords: z.array(z.string()).default([]),
     nice_to_have_keywords: z.array(z.string()).default([]),
     responsibilities: z.array(z.string()).default([]),

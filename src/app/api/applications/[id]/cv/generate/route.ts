@@ -138,6 +138,7 @@ export async function POST(
           )
           const parsed = jobAnalysisSchema.safeParse(extractJson(raw))
           if (!parsed.success) {
+            console.error("[CV Generate] Stage B validation failed:", JSON.stringify(parsed.error.issues, null, 2))
             emit({
               stage: "B",
               status: "error",
@@ -166,6 +167,7 @@ export async function POST(
           )
           const parsed = cvMatchAnalysisSchema.safeParse(extractJson(raw))
           if (!parsed.success) {
+            console.error("[CV Generate] Stage C validation failed:", JSON.stringify(parsed.error.issues, null, 2))
             emit({
               stage: "C",
               status: "error",
@@ -194,6 +196,7 @@ export async function POST(
           )
           const parsed = cvTailoringPlanSchema.safeParse(extractJson(raw))
           if (!parsed.success) {
+            console.error("[CV Generate] Stage D validation failed:", JSON.stringify(parsed.error.issues, null, 2))
             emit({
               stage: "D",
               status: "error",
@@ -223,6 +226,7 @@ export async function POST(
           )
           const parsed = tailoredCvResultSchema.safeParse(extractJson(raw))
           if (!parsed.success) {
+            console.error("[CV Generate] Stage E validation failed:", JSON.stringify(parsed.error.issues, null, 2))
             emit({
               stage: "E",
               status: "error",
