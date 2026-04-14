@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      return NextResponse.redirect(messageUrl(request, error.message, "error"))
+      return NextResponse.redirect(messageUrl(request, "Invalid email or password.", "error"))
     }
 
     return withCookies(makeRedirect(request, "/dashboard"))
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (error) {
-      return NextResponse.redirect(messageUrl(request, error.message, "error"))
+      return NextResponse.redirect(messageUrl(request, "Could not create account. Please try again.", "error"))
     }
 
     if (data.session) {

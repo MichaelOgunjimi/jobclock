@@ -407,26 +407,16 @@ export async function generateCoverLetter(
     return { error: err instanceof Error ? err.message : "AI generation failed." }
   }
 
-  // Insert new generated cover letter first to avoid data loss if insert fails
-  const { error: insertError } = await supabase.from("cover_letters").insert({
+  // Insert new generated cover letter, returning ID directly to avoid race conditions
+  const { data: newLetter, error: insertError } = await supabase.from("cover_letters").insert({
     user_id: user.id,
     application_id: applicationId,
     label: `AI — ${job?.title ?? "Application"} at ${job?.company ?? "Company"}`,
     content: content.trim(),
     tone: resolvedTone,
-  })
+  }).select("id").single()
 
   if (insertError) return { error: insertError.message }
-
-  const { data: newLetter, error: lookupError } = await supabase
-    .from("cover_letters")
-    .select("id")
-    .eq("application_id", applicationId)
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (lookupError) return { error: lookupError.message }
 
   // Delete old generated cover letters only after successful insert
   if (newLetter?.id) {

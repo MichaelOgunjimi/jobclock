@@ -65,7 +65,7 @@ describe("POST /api/cv/upload", () => {
       data: { preferences: { ai_provider: "openai" } },
     })
     supabaseMock.setQueryResult("user_cvs.select", { data: null, count: 1 } as never)
-    supabaseMock.setQueryResult("user_cvs.select.single", {
+    supabaseMock.setQueryResult("user_cvs.insert.single", {
       data: { id: "cv-123" },
       error: null,
     })
@@ -173,7 +173,7 @@ describe("POST /api/cv/upload", () => {
   })
 
   it("returns 500 when DB insert fails and cleans up uploaded file", async () => {
-    supabaseMock.setQueryResult("user_cvs.select.single", {
+    supabaseMock.setQueryResult("user_cvs.insert.single", {
       data: null,
       error: { message: "insert failed" },
     })
@@ -196,7 +196,7 @@ describe("POST /api/cv/upload", () => {
 
   it("returns success with cvId and parsed data", async () => {
     supabaseMock.setQueryResult("user_cvs.select", { data: null, count: 2 } as never)
-    supabaseMock.setQueryResult("user_cvs.select.single", {
+    supabaseMock.setQueryResult("user_cvs.insert.single", {
       data: { id: "cv-success-id" },
       error: null,
     })

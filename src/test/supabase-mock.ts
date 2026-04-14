@@ -146,8 +146,12 @@ export function createMockSupabaseClient(initialResults: Record<string, MockResu
 
     const builder = {
       select: (columns?: string) => {
-        state.operation = "select"
-        state.payload = columns ?? null
+        if (!state.operation) {
+          state.operation = "select"
+          state.payload = columns ?? null
+        }
+        // When chained after insert/update/upsert (e.g. .insert({}).select("id")),
+        // preserve the original operation and payload
         return builder
       },
       insert: (payload: unknown) => {

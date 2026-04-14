@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { revalidatePath } from "next/cache"
 import { PROVIDER_MODELS, type AiProvider, type UserPreferences, type JobSources } from "@/lib/ai"
-import { encrypt, isEncryptionConfigured } from "@/lib/crypto"
+import { encrypt, decrypt, isEncryptionConfigured } from "@/lib/crypto"
 
 const VALID_PROVIDERS = new Set<AiProvider>(["anthropic", "openai"])
 
@@ -87,7 +87,17 @@ export async function saveJobSources(sources: JobSources) {
     .single()
 
   const prev = (existing?.preferences ?? {}) as UserPreferences
-  const updated: UserPreferences = { ...prev, job_sources: sources }
+
+  // Encrypt Reed API key if present, matching how AI keys are stored
+  const encryptedSources = { ...sources }
+  if (encryptedSources.reed?.api_key) {
+    encryptedSources.reed = {
+      ...encryptedSources.reed,
+      api_key: encrypt(encryptedSources.reed.api_key),
+    }
+  }
+
+  const updated: UserPreferences = { ...prev, job_sources: encryptedSources }
 
   const { error } = await supabase
     .from("profiles")

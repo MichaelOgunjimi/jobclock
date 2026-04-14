@@ -269,7 +269,7 @@ describe("application actions", () => {
     expect(await generateCoverLetter("app-1")).toEqual({ error: "AI failed" })
 
     vi.mocked(generateText).mockResolvedValue("ok")
-    supabaseMock.setQueryResult("cover_letters.insert", {
+    supabaseMock.setQueryResult("cover_letters.insert.single", {
       error: { message: "insert failed" },
     })
     expect(await generateCoverLetter("app-1")).toEqual({ error: "insert failed" })

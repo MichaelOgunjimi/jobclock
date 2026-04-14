@@ -45,13 +45,13 @@ describe("saveJob", () => {
   })
 
   it("handles cache failure and duplicate application", async () => {
-    supabaseMock.setQueryResult("jobs_cache.select.single", {
+    supabaseMock.setQueryResult("jobs_cache.upsert.single", {
       error: { message: "upsert failed" },
       data: null,
     })
     expect(await saveJob(sampleJob as never)).toEqual({ error: "Failed to cache job" })
 
-    supabaseMock.setQueryResult("jobs_cache.select.single", { data: { id: "cached-1" } })
+    supabaseMock.setQueryResult("jobs_cache.upsert.single", { data: { id: "cached-1" } })
     supabaseMock.setQueryResult("applications.select.maybeSingle", {
       data: { id: "app-1" },
     })
@@ -59,7 +59,7 @@ describe("saveJob", () => {
   })
 
   it("handles insert errors and success", async () => {
-    supabaseMock.setQueryResult("jobs_cache.select.single", { data: { id: "cached-1" } })
+    supabaseMock.setQueryResult("jobs_cache.upsert.single", { data: { id: "cached-1" } })
     supabaseMock.setQueryResult("applications.select.maybeSingle", { data: null })
     supabaseMock.setQueryResult("applications.insert", { error: { message: "insert failed" } })
     expect(await saveJob(sampleJob as never)).toEqual({ error: "Failed to save job" })
