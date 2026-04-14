@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Copy, Download, Save } from "lucide-react"
+import { ArrowLeft, Copy, Download, PenLine, Save } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
@@ -102,6 +102,7 @@ export function CoverLetterPreviewClient({
   )
   const [isSaving, setIsSaving] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(initialContent)
   const { handleDownloadPdf, isDownloading } = useDownloadPdf({
     type: "cover-letter",
@@ -195,9 +196,14 @@ export function CoverLetterPreviewClient({
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 px-4 py-4 sm:px-6 lg:min-h-0 lg:grid lg:grid-cols-[minmax(24rem,0.82fr)_minmax(48rem,1.18fr)] lg:gap-4 lg:px-5 lg:py-5 xl:grid-cols-[minmax(24rem,0.78fr)_minmax(52rem,1.22fr)]">
+      <div className={cn(
+        "flex flex-1 flex-col gap-4 px-4 py-4 sm:px-6 lg:min-h-0 lg:gap-4 lg:px-5 lg:py-5",
+        isEditorOpen
+          ? "lg:grid lg:grid-cols-[minmax(24rem,0.82fr)_minmax(48rem,1.18fr)] xl:grid-cols-[minmax(24rem,0.78fr)_minmax(52rem,1.22fr)]"
+          : "lg:grid lg:grid-cols-1"
+      )}>
         {/* Preview panel */}
-        <div className="order-1 -mx-4 flex min-h-0 flex-col sm:-mx-6 lg:order-2 lg:mx-0 lg:w-full lg:max-w-none">
+        <div className={cn("order-1 -mx-4 flex min-h-0 flex-col sm:-mx-6 lg:mx-0 lg:w-full lg:max-w-none", isEditorOpen && "lg:order-2")}>
           <div className="mb-3 border-y bg-background sm:border">
             <div className="flex flex-col gap-4 px-4 py-3 sm:px-5 lg:px-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -220,7 +226,17 @@ export function CoverLetterPreviewClient({
                 </div>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-[auto_auto_auto_1fr] sm:items-center">
+              <div className="grid gap-2 sm:grid-cols-[auto_auto_auto_auto_1fr] sm:items-center">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={isEditorOpen ? "default" : "outline"}
+                  onClick={() => setIsEditorOpen((v) => !v)}
+                  className="w-full sm:w-auto"
+                >
+                  <PenLine className="h-3.5 w-3.5" />
+                  {isEditorOpen ? "Close Editor" : "Edit"}
+                </Button>
                 <Button
                   type="button"
                   size="sm"
@@ -269,56 +285,58 @@ export function CoverLetterPreviewClient({
         </div>
 
         {/* Editor panel */}
-        <div className="order-2 min-h-0 lg:order-1 lg:min-w-0">
-          <ScrollArea className="lg:h-full">
-            <div className="space-y-4 pr-0 lg:pr-3">
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="cl-content"
-                  className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
-                >
-                  Cover Letter Body
-                </label>
-                <textarea
-                  id="cl-content"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  rows={20}
-                  className="w-full resize-y border bg-background px-3 py-2 text-[13px] leading-relaxed text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="Write your cover letter body here..."
-                />
+        {isEditorOpen && (
+          <div className="order-2 min-h-0 lg:order-1 lg:min-w-0">
+            <ScrollArea className="lg:h-full">
+              <div className="space-y-4 pr-0 lg:pr-3">
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="cl-content"
+                    className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
+                  >
+                    Cover Letter Body
+                  </label>
+                  <textarea
+                    id="cl-content"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    rows={20}
+                    className="w-full resize-y border bg-background px-3 py-2 text-[13px] leading-relaxed text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="Write your cover letter body here..."
+                  />
+                </div>
+
+                {/* Read-only sender context */}
+                {senderCv?.name && (
+                  <div className="space-y-2 border bg-secondary/30 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      Header info (from your CV)
+                    </p>
+                    <div className="space-y-0.5 text-[12px] text-muted-foreground">
+                      {senderCv.name && <p>{senderCv.name}</p>}
+                      {senderCv.email && <p>{senderCv.email}</p>}
+                      {senderCv.phone && <p>{senderCv.phone}</p>}
+                      {senderCv.location && <p>{senderCv.location}</p>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Read-only recipient context */}
+                {(jobTitle || jobCompany) && (
+                  <div className="space-y-2 border bg-secondary/30 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      Recipient info (from job)
+                    </p>
+                    <div className="space-y-0.5 text-[12px] text-muted-foreground">
+                      {jobCompany && <p>{jobCompany}</p>}
+                      {jobTitle && <p>Re: {jobTitle}</p>}
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {/* Read-only sender context */}
-              {senderCv?.name && (
-                <div className="space-y-2 border bg-secondary/30 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                    Header info (from your CV)
-                  </p>
-                  <div className="space-y-0.5 text-[12px] text-muted-foreground">
-                    {senderCv.name && <p>{senderCv.name}</p>}
-                    {senderCv.email && <p>{senderCv.email}</p>}
-                    {senderCv.phone && <p>{senderCv.phone}</p>}
-                    {senderCv.location && <p>{senderCv.location}</p>}
-                  </div>
-                </div>
-              )}
-
-              {/* Read-only recipient context */}
-              {(jobTitle || jobCompany) && (
-                <div className="space-y-2 border bg-secondary/30 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                    Recipient info (from job)
-                  </p>
-                  <div className="space-y-0.5 text-[12px] text-muted-foreground">
-                    {jobCompany && <p>{jobCompany}</p>}
-                    {jobTitle && <p>Re: {jobTitle}</p>}
-                  </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </div>
+            </ScrollArea>
+          </div>
+        )}
       </div>
     </div>
   )

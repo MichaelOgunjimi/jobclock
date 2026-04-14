@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, ChevronDown, Download, Info, Save } from "lucide-react"
+import { ArrowLeft, ChevronDown, Download, Info, PenLine, Save } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
@@ -184,6 +184,7 @@ export function CvPreviewClient({
   const [template, setTemplate] = useState<CvTemplateName>(initialTemplate)
   const [isSaving, setIsSaving] = useState(false)
   const [isStatsOpen, setIsStatsOpen] = useState(false)
+  const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() =>
     JSON.stringify(normalizeCvData(cvData)),
   )
@@ -256,8 +257,13 @@ export function CvPreviewClient({
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 px-4 py-4 sm:px-6 lg:min-h-0 lg:grid lg:grid-cols-[minmax(24rem,0.82fr)_minmax(48rem,1.18fr)] lg:gap-4 lg:px-5 lg:py-5 xl:grid-cols-[minmax(24rem,0.78fr)_minmax(52rem,1.22fr)]">
-        <div className="order-1 -mx-4 flex min-h-0 flex-col sm:-mx-6 lg:order-2 lg:mx-0 lg:w-full lg:max-w-none">
+      <div className={cn(
+        "flex flex-1 flex-col gap-4 px-4 py-4 sm:px-6 lg:min-h-0 lg:gap-4 lg:px-5 lg:py-5",
+        isEditorOpen
+          ? "lg:grid lg:grid-cols-[minmax(24rem,0.82fr)_minmax(48rem,1.18fr)] xl:grid-cols-[minmax(24rem,0.78fr)_minmax(52rem,1.22fr)]"
+          : "lg:grid lg:grid-cols-1"
+      )}>
+        <div className={cn("order-1 -mx-4 flex min-h-0 flex-col sm:-mx-6 lg:mx-0 lg:w-full lg:max-w-none", isEditorOpen && "lg:order-2")}>
           <div className="mb-3 border-y bg-background sm:border">
             <div className="flex flex-col gap-4 px-4 py-3 sm:px-5 lg:px-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -304,7 +310,17 @@ export function CvPreviewClient({
                 </div>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-[auto_auto_1fr] sm:items-center">
+              <div className="grid gap-2 sm:grid-cols-[auto_auto_auto_1fr] sm:items-center">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={isEditorOpen ? "default" : "outline"}
+                  onClick={() => setIsEditorOpen((v) => !v)}
+                  className="w-full sm:w-auto"
+                >
+                  <PenLine className="h-3.5 w-3.5" />
+                  {isEditorOpen ? "Close Editor" : "Edit"}
+                </Button>
                 <Button
                   type="button"
                   size="sm"
@@ -352,13 +368,15 @@ export function CvPreviewClient({
           </ScrollArea>
         </div>
 
-        <div className="order-2 min-h-0 lg:order-1 lg:min-w-0">
-          <ScrollArea className="lg:h-full">
-            <div className="pr-0 lg:pr-3">
-              <CvEditorForm value={data} onChange={setData} />
-            </div>
-          </ScrollArea>
-        </div>
+        {isEditorOpen && (
+          <div className="order-2 min-h-0 lg:order-1 lg:min-w-0">
+            <ScrollArea className="lg:h-full">
+              <div className="pr-0 lg:pr-3">
+                <CvEditorForm value={data} onChange={setData} />
+              </div>
+            </ScrollArea>
+          </div>
+        )}
       </div>
     </div>
   )
