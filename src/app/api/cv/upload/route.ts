@@ -150,6 +150,7 @@ export async function POST(request: NextRequest) {
 
     if (dbError) {
       console.error("Database insert error:", dbError)
+      await supabase.storage.from("cvs").remove([fileName])
       return NextResponse.json(
         { error: "Failed to save CV record." },
         { status: 500 }

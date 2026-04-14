@@ -3,7 +3,14 @@
 import { useEffect, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, ExternalLink, Loader2, Send, Trash2 } from "lucide-react"
+import {
+  ArrowLeft,
+  ExternalLink,
+  Loader2,
+  Send,
+  Trash2,
+} from "lucide-react"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
@@ -38,7 +45,6 @@ type GeneratedCoverLetterRow = Pick<
   Database["public"]["Tables"]["cover_letters"]["Row"],
   "id" | "content" | "tone" | "label" | "created_at"
 >
-
 interface ApplicationWithJob extends ApplicationRow {
   jobs_cache: JobsCacheRow | null
 }
@@ -438,6 +444,13 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort()
+    }
+  }, [])
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault()
@@ -451,10 +464,15 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
     setIsLoading(true)
 
     try {
+      abortControllerRef.current?.abort()
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
       const res = await fetch("/api/chat/application", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: nextMessages, applicationId }),
+        signal: controller.signal,
       })
 
       if (!res.ok || !res.body) {
@@ -486,7 +504,8 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
         })
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return
       setMessages((prev) => {
         const updated = [...prev]
         updated[updated.length - 1] = {
@@ -899,8 +918,14 @@ function CoverLetterCard({
     const script = document.createElement("script")
     script.src =
       "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+    script.integrity =
+      "sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg=="
+    script.crossOrigin = "anonymous"
     script.dataset.html2pdf = "1"
     script.async = true
+    script.onerror = () => {
+      console.error("Failed to load html2pdf.js from CDN")
+    }
     document.body.appendChild(script)
     return () => {
       if (document.body.contains(script)) document.body.removeChild(script)

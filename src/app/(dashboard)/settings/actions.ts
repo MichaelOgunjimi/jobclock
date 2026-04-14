@@ -34,6 +34,13 @@ export async function saveAiSettings(formData: FormData) {
     return { error: "Invalid model for provider" }
   }
 
+  if ((anthropicKey || openaiKey) && !isEncryptionConfigured()) {
+    return { error: "ENCRYPTION_SECRET must be configured to store API keys securely." }
+  }
+
+  // Note: read-then-write on JSONB preferences has a theoretical race condition
+  // if two settings tabs save simultaneously. In practice this is rare for
+  // single-user settings. A PostgreSQL RPC with jsonb || would be fully atomic.
   const { data: existing } = await supabase
     .from("profiles")
     .select("preferences")
@@ -47,12 +54,8 @@ export async function saveAiSettings(formData: FormData) {
     ai_provider: provider,
     ai_model: model,
     // Only overwrite a key if user entered a new value; empty = keep existing
-    ...(anthropicKey
-      ? { anthropic_api_key: isEncryptionConfigured() ? encrypt(anthropicKey) : anthropicKey }
-      : {}),
-    ...(openaiKey
-      ? { openai_api_key: isEncryptionConfigured() ? encrypt(openaiKey) : openaiKey }
-      : {}),
+    ...(anthropicKey ? { anthropic_api_key: encrypt(anthropicKey) } : {}),
+    ...(openaiKey ? { openai_api_key: encrypt(openaiKey) } : {}),
   }
 
   const { error } = await supabase
@@ -74,6 +77,9 @@ export async function saveJobSources(sources: JobSources) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Unauthorized" }
 
+  // Note: read-then-write on JSONB preferences has a theoretical race condition
+  // if two settings tabs save simultaneously. In practice this is rare for
+  // single-user settings. A PostgreSQL RPC with jsonb || would be fully atomic.
   const { data: existing } = await supabase
     .from("profiles")
     .select("preferences")
@@ -141,6 +147,9 @@ export async function saveDocumentTemplate(
 
   const key = type === "cv" ? "preferred_cv_template" : "preferred_cover_letter_template"
 
+  // Note: read-then-write on JSONB preferences has a theoretical race condition
+  // if two settings tabs save simultaneously. In practice this is rare for
+  // single-user settings. A PostgreSQL RPC with jsonb || would be fully atomic.
   const { data: existing } = await supabase
     .from("profiles")
     .select("preferences")

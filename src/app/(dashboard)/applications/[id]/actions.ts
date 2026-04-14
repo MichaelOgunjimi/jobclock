@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { resolveAiConfig, generateText } from "@/lib/ai"
+import { aiGenerateRateLimit } from "@/lib/rate-limit"
 import type { ApplicationStatus, AppWithJob, CvData } from "@/lib/supabase/database.types"
 import type { AiSettings, UserPreferences } from "@/lib/ai"
 import {
@@ -318,6 +319,11 @@ export async function generateCoverLetter(
   if ("error" in context) return { error: context.error }
   const { supabase, user, app, profileData, description } = context
 
+  const { success: withinLimit } = await aiGenerateRateLimit.limit(user.id)
+  if (!withinLimit) {
+    return { error: "Rate limit reached. Please wait a moment before trying again." }
+  }
+
   const job = app.jobs_cache
 
   // Resolve base CV and writing style in parallel
@@ -401,14 +407,7 @@ export async function generateCoverLetter(
     return { error: err instanceof Error ? err.message : "AI generation failed." }
   }
 
-  // Delete any existing AI-generated cover letters for this application
-  await supabase
-    .from("cover_letters")
-    .delete()
-    .eq("application_id", applicationId)
-    .eq("user_id", user.id)
-
-  // Insert new generated cover letter
+  // Insert new generated cover letter first to avoid data loss if insert fails
   const { error: insertError } = await supabase.from("cover_letters").insert({
     user_id: user.id,
     application_id: applicationId,
@@ -418,6 +417,26 @@ export async function generateCoverLetter(
   })
 
   if (insertError) return { error: insertError.message }
+
+  const { data: newLetter, error: lookupError } = await supabase
+    .from("cover_letters")
+    .select("id")
+    .eq("application_id", applicationId)
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (lookupError) return { error: lookupError.message }
+
+  // Delete old generated cover letters only after successful insert
+  if (newLetter?.id) {
+    await supabase
+      .from("cover_letters")
+      .delete()
+      .eq("application_id", applicationId)
+      .eq("user_id", user.id)
+      .neq("id", newLetter.id)
+  }
 
   revalidatePath(`/applications/${applicationId}`)
   return { success: true }

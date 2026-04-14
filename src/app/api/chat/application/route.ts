@@ -34,6 +34,22 @@ export async function POST(request: NextRequest) {
   }
   // Cap history to last 20 messages to prevent unbounded context growth
   const messages = rawMessages.slice(-20)
+  const VALID_ROLES = new Set(["user", "assistant"])
+  const MAX_MESSAGE_LENGTH = 10_000
+  const validatedMessages = messages
+    .filter((m: unknown): m is { role: "user" | "assistant"; content: string } => {
+      if (typeof m !== "object" || m === null) return false
+      const candidate = m as Record<string, unknown>
+      return (
+        typeof candidate.role === "string" &&
+        VALID_ROLES.has(candidate.role) &&
+        typeof candidate.content === "string"
+      )
+    })
+    .map((m) => ({
+      role: m.role,
+      content: m.content.slice(0, MAX_MESSAGE_LENGTH),
+    }))
 
   // Fetch application + job context (ownership enforced via user_id)
   const { data: app } = await supabase
@@ -101,8 +117,8 @@ export async function POST(request: NextRequest) {
         max_tokens: 1024,
         system: systemPrompt,
         tools: [{ type: "web_search_20250305", name: "web_search" }],
-        messages: messages.map((m: { role: string; content: string }) => ({
-          role: m.role as "user" | "assistant",
+        messages: validatedMessages.map((m) => ({
+          role: m.role,
           content: m.content,
         })),
       } as Parameters<typeof client.messages.stream>[0])
@@ -140,7 +156,7 @@ export async function POST(request: NextRequest) {
         model: settings.model,
         instructions: systemPrompt,
         tools: [{ type: "web_search" }],
-        input: messages.map((m: { role: string; content: string }) => ({
+        input: validatedMessages.map((m) => ({
           role: m.role,
           content: m.content,
         })),

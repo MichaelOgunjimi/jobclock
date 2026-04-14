@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { resolveAiConfig, generateText } from "@/lib/ai"
 import { extractJson } from "@/lib/ai/extract-json"
+import { cvGenerateRateLimit } from "@/lib/rate-limit"
 import type { UserPreferences } from "@/lib/ai"
 import type { AppWithJob, CvData, Json } from "@/lib/supabase/database.types"
 import {
@@ -14,6 +15,12 @@ import {
   STAGE_E_SYSTEM_PROMPT,
   buildStageEUserPrompt,
 } from "@/lib/ai/prompts"
+import {
+  jobAnalysisSchema,
+  cvMatchAnalysisSchema,
+  cvTailoringPlanSchema,
+  tailoredCvResultSchema,
+} from "@/lib/ai/cv-tailoring-schemas"
 import type {
   JobAnalysis,
   CvMatchAnalysis,
@@ -38,6 +45,14 @@ export async function POST(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { success: withinLimit } = await cvGenerateRateLimit.limit(user.id)
+  if (!withinLimit) {
+    return NextResponse.json(
+      { error: "Rate limit reached. Please wait a moment before generating another CV." },
+      { status: 429 }
+    )
+  }
 
   // Fetch application + profile in parallel
   const [{ data: appData }, { data: profileData }] = await Promise.all([
@@ -121,7 +136,17 @@ export async function POST(
             STAGE_B_SYSTEM_PROMPT,
             buildStageBUserPrompt({ title, company, location, description })
           )
-          jobAnalysis = extractJson(raw) as JobAnalysis
+          const parsed = jobAnalysisSchema.safeParse(extractJson(raw))
+          if (!parsed.success) {
+            emit({
+              stage: "B",
+              status: "error",
+              error: "AI returned invalid response structure. Please try again.",
+            })
+            controller.close()
+            return
+          }
+          jobAnalysis = parsed.data
         } catch (err) {
           emit({ stage: "B", status: "error", error: err instanceof Error ? err.message : "Stage B failed" })
           controller.close()
@@ -139,7 +164,17 @@ export async function POST(
             STAGE_C_SYSTEM_PROMPT,
             buildStageCUserPrompt({ jobAnalysis, cvJson })
           )
-          matchAnalysis = extractJson(raw) as CvMatchAnalysis
+          const parsed = cvMatchAnalysisSchema.safeParse(extractJson(raw))
+          if (!parsed.success) {
+            emit({
+              stage: "C",
+              status: "error",
+              error: "AI returned invalid response structure. Please try again.",
+            })
+            controller.close()
+            return
+          }
+          matchAnalysis = parsed.data
         } catch (err) {
           emit({ stage: "C", status: "error", error: err instanceof Error ? err.message : "Stage C failed" })
           controller.close()
@@ -157,7 +192,17 @@ export async function POST(
             STAGE_D_SYSTEM_PROMPT,
             buildStageDUserPrompt({ jobAnalysis, matchAnalysis, cvJson })
           )
-          tailoringPlan = extractJson(raw) as CvTailoringPlan
+          const parsed = cvTailoringPlanSchema.safeParse(extractJson(raw))
+          if (!parsed.success) {
+            emit({
+              stage: "D",
+              status: "error",
+              error: "AI returned invalid response structure. Please try again.",
+            })
+            controller.close()
+            return
+          }
+          tailoringPlan = parsed.data
         } catch (err) {
           emit({ stage: "D", status: "error", error: err instanceof Error ? err.message : "Stage D failed" })
           controller.close()
@@ -176,7 +221,17 @@ export async function POST(
             buildStageEUserPrompt({ jobAnalysis, cvJson, tailoringPlan, title, company, location }),
             8192
           )
-          result = extractJson(raw) as TailoredCvResult
+          const parsed = tailoredCvResultSchema.safeParse(extractJson(raw))
+          if (!parsed.success) {
+            emit({
+              stage: "E",
+              status: "error",
+              error: "AI returned invalid response structure. Please try again.",
+            })
+            controller.close()
+            return
+          }
+          result = parsed.data
         } catch (err) {
           emit({ stage: "E", status: "error", error: err instanceof Error ? err.message : "Stage E failed" })
           controller.close()
