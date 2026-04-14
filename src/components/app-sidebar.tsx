@@ -37,7 +37,8 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const supabase = isSupabaseConfigured() ? createClient() : null
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const isPreviewPage = pathname.endsWith("/cv") || pathname.endsWith("/cover-letter")
+  const [isCollapsed, setIsCollapsed] = useState(isPreviewPage)
 
   async function handleSignOut() {
     if (!supabase) {
