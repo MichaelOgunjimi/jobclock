@@ -27,7 +27,6 @@ test-results/
 *.pem
 skills-lock.json
 scripts/
-docs/
 .claude/
 
 # debug
