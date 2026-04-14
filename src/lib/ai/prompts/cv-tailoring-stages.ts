@@ -172,6 +172,8 @@ ACCURACY (non-negotiable):
    - company, title, institution, degree, field, start_date, end_date, location, grade, gpa, honors, name (for projects), url, technologies
    - Only "highlights", "description", "summary", and "skills" may be rewritten (and only when the plan says to).
    - If the original field is empty or missing, leave it empty or omit it — do NOT fill in guessed or inferred values.
+4. The "company" field must contain ONLY the company/organisation name (e.g. "Manchester Metropolitan University"). NEVER put descriptions, bullets, or sentences into the company field.
+5. The "certifications" and "languages" arrays must contain ONLY plain strings, not objects. Example: ["AWS Cloud Practitioner", "Python Certificate"]
 
 ENTRY-LEVEL ACTIONS:
 3. For each entry in the plan:

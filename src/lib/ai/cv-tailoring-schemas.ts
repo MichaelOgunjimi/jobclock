@@ -7,12 +7,25 @@ const optCoerceStr = z.any().transform((v) => (v == null || v === "null" || v ==
 /** Coerce any value to number (handles "85" strings AI might return) */
 const coerceNum = z.coerce.number()
 
-/** Coerce a value to string array — handles single string or mixed arrays */
+/** Coerce a value to string array — handles single string, mixed arrays, or objects */
 const strArray = z
   .any()
   .transform((v) => {
-    if (Array.isArray(v)) return v.map(String)
+    if (Array.isArray(v)) return v.map((item) => {
+      if (item == null) return ""
+      if (typeof item === "object") {
+        // Handle objects like {name: "AWS", date: "2025"} → extract meaningful text
+        const name = item.name ?? item.title ?? item.label ?? item.value ?? ""
+        const rest = Object.values(item).filter((val) => typeof val === "string" && val !== name).join(", ")
+        return name ? (rest ? `${name} (${rest})` : String(name)) : JSON.stringify(item)
+      }
+      return String(item)
+    }).filter(Boolean)
     if (v == null) return []
+    if (typeof v === "object" && !Array.isArray(v)) {
+      const name = v.name ?? v.title ?? v.label ?? ""
+      return name ? [String(name)] : []
+    }
     return [String(v)]
   })
   .default([])
@@ -40,7 +53,13 @@ const tailoringInstructionSchema = z
 
 const cvExperienceSchema = z
   .object({
-    company: coerceStr.default(""),
+    company: z.any().transform((v) => {
+      if (v == null) return ""
+      const s = String(v)
+      // AI sometimes dumps description into company — truncate to first line or 100 chars
+      const firstLine = s.split(/[.(]/)[0].trim()
+      return firstLine.length > 100 ? firstLine.slice(0, 100) : firstLine || s.slice(0, 100)
+    }).default(""),
     title: coerceStr.default(""),
     start_date: optCoerceStr,
     end_date: optCoerceStr,
