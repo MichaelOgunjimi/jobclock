@@ -38,27 +38,31 @@ export async function saveCoverLetterContent({
 
 export async function saveCoverLetterTemplatePreference(
   template: string,
-): Promise<void> {
-  if (!isSupabaseConfigured()) return
+): Promise<{ error?: string; success?: boolean }> {
+  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
 
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return
+  if (!user) return { error: "Unauthorized" }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("preferences")
     .eq("id", user.id)
     .single()
+  if (profileError) return { error: profileError.message }
 
   const current = (profile?.preferences ?? {}) as Record<string, unknown>
 
-  await supabase
+  const { error } = await supabase
     .from("profiles")
     .update({
       preferences: { ...current, preferred_cover_letter_template: template },
     })
     .eq("id", user.id)
+  if (error) return { error: error.message }
+
+  return { success: true }
 }

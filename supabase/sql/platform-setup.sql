@@ -91,6 +91,7 @@ ALTER TABLE public.cover_letters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customized_cvs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.interview_prep ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.offers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cover_letter_structures ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
@@ -181,6 +182,32 @@ CREATE POLICY "Users can update own offers" ON public.offers FOR UPDATE USING (a
 
 DROP POLICY IF EXISTS "Users can delete own offers" ON public.offers;
 CREATE POLICY "Users can delete own offers" ON public.offers FOR DELETE USING (auth.uid() = user_id);
+
+-- cover_letter_structures: built-in visible to all, user-created scoped to owner
+DROP POLICY IF EXISTS "Anyone can view built-in structures" ON public.cover_letter_structures;
+CREATE POLICY "Anyone can view built-in structures" ON public.cover_letter_structures FOR SELECT
+  USING (is_built_in = true);
+
+DROP POLICY IF EXISTS "Users can view own structures" ON public.cover_letter_structures;
+CREATE POLICY "Users can view own structures" ON public.cover_letter_structures FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own structures" ON public.cover_letter_structures;
+CREATE POLICY "Users can insert own structures" ON public.cover_letter_structures FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own structures" ON public.cover_letter_structures;
+CREATE POLICY "Users can update own structures" ON public.cover_letter_structures FOR UPDATE
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own structures" ON public.cover_letter_structures;
+CREATE POLICY "Users can delete own structures" ON public.cover_letter_structures FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- interview_prep: add missing DELETE policy
+DROP POLICY IF EXISTS "Users can delete own interview prep" ON public.interview_prep;
+CREATE POLICY "Users can delete own interview prep" ON public.interview_prep FOR DELETE
+  USING (auth.uid() = (SELECT user_id FROM public.applications WHERE id = application_id));
 
 -- ============================================================
 -- SIGNUP PROFILE TRIGGER

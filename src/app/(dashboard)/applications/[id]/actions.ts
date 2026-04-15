@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { resolveAiConfig, generateText } from "@/lib/ai"
+import { aiGenerateRateLimit } from "@/lib/rate-limit"
 import type { ApplicationStatus, AppWithJob, CvData } from "@/lib/supabase/database.types"
 import type { AiSettings, UserPreferences } from "@/lib/ai"
 import {
@@ -318,6 +319,11 @@ export async function generateCoverLetter(
   if ("error" in context) return { error: context.error }
   const { supabase, user, app, profileData, description } = context
 
+  const { success: withinLimit } = await aiGenerateRateLimit.limit(user.id)
+  if (!withinLimit) {
+    return { error: "Rate limit reached. Please wait a moment before trying again." }
+  }
+
   const job = app.jobs_cache
 
   // Resolve base CV and writing style in parallel
@@ -401,23 +407,26 @@ export async function generateCoverLetter(
     return { error: err instanceof Error ? err.message : "AI generation failed." }
   }
 
-  // Delete any existing AI-generated cover letters for this application
-  await supabase
-    .from("cover_letters")
-    .delete()
-    .eq("application_id", applicationId)
-    .eq("user_id", user.id)
-
-  // Insert new generated cover letter
-  const { error: insertError } = await supabase.from("cover_letters").insert({
+  // Insert new generated cover letter, returning ID directly to avoid race conditions
+  const { data: newLetter, error: insertError } = await supabase.from("cover_letters").insert({
     user_id: user.id,
     application_id: applicationId,
     label: `AI — ${job?.title ?? "Application"} at ${job?.company ?? "Company"}`,
     content: content.trim(),
     tone: resolvedTone,
-  })
+  }).select("id").single()
 
   if (insertError) return { error: insertError.message }
+
+  // Delete old generated cover letters only after successful insert
+  if (newLetter?.id) {
+    await supabase
+      .from("cover_letters")
+      .delete()
+      .eq("application_id", applicationId)
+      .eq("user_id", user.id)
+      .neq("id", newLetter.id)
+  }
 
   revalidatePath(`/applications/${applicationId}`)
   return { success: true }

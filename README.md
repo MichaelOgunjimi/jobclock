@@ -72,14 +72,34 @@ src/
     └── cv-parser.ts        # CV text parser
 ```
 
-## Phase 1 Status
+## Development Status
 
+### Phase A-D ✅ Complete
 - [x] Project scaffold (Next.js 15, TypeScript, Tailwind v4, shadcn/ui)
 - [x] Database schema (Drizzle-managed tables plus Supabase platform setup)
 - [x] CV upload flow (PDF/DOCX parsing, Supabase Storage)
-- [x] Profile page (view/edit parsed CV data)
-- [x] Job search UI with Adzuna integration (mock data ready)
-- [ ] Phase 2: AI CV customization + cover letter generation
+- [x] Profile management (view/edit parsed CV data, cover letter templates)
+- [x] Job search UI with multi-source integration (Adzuna, Reed, CareerJet)
+- [x] Application tracking and status management
+
+### Phase E 🔄 In Progress
+- [x] Application detail pages with status tracking
+- [x] AI chat assistant with job and CV context
+- [x] CV tailoring with AI (generate button → HTML preview → PDF download)
+- [ ] Cover letter generation with AI
+- [ ] Skills gap analysis visualization
+- [ ] Interview preparation features
+
+### Future Phases
+- **Phase F**: Auto-apply automation with Playwright
+- **Phase G**: Browser extension for one-click job saving
+- **Phase H**: Commercial SaaS infrastructure and billing
+
+## Documentation
+
+- **[API Reference](docs/API.md)** — Complete HTTP endpoint documentation
+- **[Architecture Guide](docs/ARCHITECTURE.md)** — System design, data flow, and technical decisions
+- **[Database Workflow](docs/database-workflow.md)** — Drizzle ORM setup, migration guide, and schema management
 
 ## Database Workflow
 
@@ -87,4 +107,4 @@ src/
 - Supabase SQL is reserved for platform-specific setup: RLS, auth triggers, storage buckets, storage policies, and auth-related foreign keys
 - The legacy files in `supabase/migrations/` are historical reference from the earlier Supabase-first setup and should not be used to initialize a fresh Drizzle-managed database
 
-See `docs/database-workflow.md` for the full migration strategy.
+See [docs/database-workflow.md](docs/database-workflow.md) for the full migration strategy.

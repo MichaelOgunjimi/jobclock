@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -37,7 +37,13 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const supabase = isSupabaseConfigured() ? createClient() : null
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const isPreviewPage = pathname.endsWith("/cv") || pathname.endsWith("/cover-letter")
+  const [isCollapsed, setIsCollapsed] = useState(isPreviewPage)
+
+  // Auto-collapse when navigating to preview pages (client-side navigation)
+  useEffect(() => {
+    if (isPreviewPage) setIsCollapsed(true)
+  }, [isPreviewPage])
 
   async function handleSignOut() {
     if (!supabase) {

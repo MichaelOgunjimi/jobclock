@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { searchAdzunaJobs } from "@/lib/jobs/adzuna"
 import { searchReedJobs } from "@/lib/jobs/reed"
 import { searchCareerjetJobs } from "@/lib/jobs/careerjet"
+import { decrypt } from "@/lib/crypto"
 import type { Job } from "@/lib/jobs/types"
 import type { UserPreferences } from "@/lib/ai"
 
@@ -90,7 +91,8 @@ export async function GET(request: NextRequest) {
         .single()
 
       const prefs = (profile?.preferences ?? {}) as UserPreferences
-      const reedKey = prefs?.job_sources?.reed?.api_key
+      const reedKeyRaw = prefs?.job_sources?.reed?.api_key
+      const reedKey = reedKeyRaw ? decrypt(reedKeyRaw) : undefined
 
       if (reedKey) {
         fetchers.push(

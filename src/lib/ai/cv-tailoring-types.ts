@@ -6,20 +6,8 @@ export interface JobAnalysis {
   title: string
   company?: string
   location?: string | null
-  seniority?: "entry" | "junior" | "mid" | "senior" | "lead" | "unknown"
-  job_family:
-    | "software_engineering"
-    | "data"
-    | "product"
-    | "project_management"
-    | "marketing"
-    | "sales"
-    | "operations"
-    | "customer_service"
-    | "healthcare"
-    | "education"
-    | "retail"
-    | "general"
+  seniority?: string
+  job_family: string
   must_have_keywords: string[]
   nice_to_have_keywords: string[]
   responsibilities: string[]
@@ -35,7 +23,7 @@ export interface JobAnalysis {
 export interface RankedEvidence {
   /** Composite key: "Title at Company" / "ProjectName" / "Degree at Institution" */
   id: string
-  type: "experience" | "project" | "education" | "activity"
+  type: string
   title: string
   relevance_score: number
   matched_requirements: string[]
@@ -68,7 +56,7 @@ export interface CvMatchAnalysis {
 export interface TailoringInstruction {
   /** Same composite key format as RankedEvidence.id */
   id: string
-  action: "prioritize" | "rewrite" | "keep" | "deprioritize"
+  action: string
   reasons: string[]
   target_keywords: string[]
   target_themes: string[]
@@ -104,7 +92,8 @@ export interface AtsMatchEstimate {
 }
 
 export interface TailoredCvResult {
-  cv: CvData
+  cv?: CvData
+  tailored_cv?: CvData
   matched_keywords: string[]
   missing_keywords: string[]
   match_summary: string

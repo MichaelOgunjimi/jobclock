@@ -1,6 +1,7 @@
 import { extractJson } from "./extract-json"
 import { generateText, resolveAiConfig, type UserPreferences } from "./index"
 import { CV_PARSER_SYSTEM_PROMPT, buildCvParserUserPrompt } from "./prompts/cv-parser"
+import { cvDataSchema } from "./cv-tailoring-schemas"
 import type { CvData } from "@/lib/supabase/database.types"
 
 
@@ -23,27 +24,19 @@ export async function parseCvWithAi(
     .replace(/\s*```$/, "")
     .trim()
 
-  let parsed: Partial<CvData>
+  let extracted: unknown
   try {
-    parsed = extractJson(cleaned) as Partial<CvData>
+    extracted = extractJson(cleaned)
   } catch {
     throw new Error("CV parsing failed: AI returned unparseable JSON. Please try again.")
   }
 
-  return {
-    name: parsed.name ?? undefined,
-    email: parsed.email ?? undefined,
-    phone: parsed.phone ?? undefined,
-    location: parsed.location ?? undefined,
-    linkedin: parsed.linkedin ?? undefined,
-    website: parsed.website ?? undefined,
-    summary: parsed.summary ?? undefined,
-    experience: parsed.experience ?? [],
-    education: parsed.education ?? [],
-    projects: parsed.projects ?? [],
-    skills: parsed.skills ?? [],
-    languages: parsed.languages ?? [],
-    certifications: parsed.certifications ?? [],
-    activities: parsed.activities ?? [],
+  // Validate and coerce through Zod to clean up AI output
+  const result = cvDataSchema.safeParse(extracted)
+  if (!result.success) {
+    console.error("[CV Parser] Zod validation failed:", result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "))
+    throw new Error("CV parsing failed: AI returned invalid structure. Please try again.")
   }
+
+  return result.data as CvData
 }
