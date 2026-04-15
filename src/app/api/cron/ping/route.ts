@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     )
     return Response.json({ ok: true, ts })
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    return Response.json({ error: message }, { status: 500 })
+    console.error("[cron/ping] Redis error:", err)
+    return Response.json({ error: "Internal error" }, { status: 500 })
   }
 }

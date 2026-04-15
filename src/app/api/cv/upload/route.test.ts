@@ -44,8 +44,8 @@ describe("POST /api/cv/upload", () => {
     vi.clearAllMocks()
     supabaseMock = createMockSupabaseClient()
 
-    const storageFromMock = vi.mocked(supabaseMock.client.storage.from)
-    const originalStorageFrom = storageFromMock.getMockImplementation()
+    const storageFromMock = supabaseMock.client.storage.from as ReturnType<typeof vi.fn>
+    const originalStorageFrom = storageFromMock.getMockImplementation() as ((bucket: string) => object) | undefined
     storageFromMock.mockImplementation((bucket: string) => {
       const base = originalStorageFrom ? originalStorageFrom(bucket) : {}
       return {
@@ -219,8 +219,8 @@ describe("POST /api/cv/upload", () => {
   it("sets first CV as primary", async () => {
     supabaseMock.setQueryResult("user_cvs.select", { data: null, count: 0 } as never)
     const insertedPayloads: Array<Record<string, unknown>> = []
-    const fromMock = vi.mocked(supabaseMock.client.from)
-    const originalFrom = fromMock.getMockImplementation()
+    const fromMock = supabaseMock.client.from as ReturnType<typeof vi.fn>
+    const originalFrom = fromMock.getMockImplementation() as ((table: string) => Record<string, unknown>) | undefined
     fromMock.mockImplementation((table: string) => {
       const builder = originalFrom ? (originalFrom(table) as Record<string, unknown>) : {}
       if (table === "user_cvs" && typeof builder.insert === "function") {

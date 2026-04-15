@@ -17,7 +17,8 @@ const strArray = z
         // Handle objects like {name: "AWS", date: "2025"} → extract meaningful text
         const name = item.name ?? item.title ?? item.label ?? item.value ?? ""
         const rest = Object.values(item).filter((val) => typeof val === "string" && val !== name).join(", ")
-        return name ? (rest ? `${name} (${rest})` : String(name)) : JSON.stringify(item)
+        if (name) return rest ? `${name} (${rest})` : String(name)
+        try { return JSON.stringify(item).slice(0, 200) } catch { return "" }
       }
       return String(item)
     }).filter(Boolean)
@@ -119,7 +120,7 @@ export const jobAnalysisSchema = z
   .object({
     title: coerceStr.default("Unknown"),
     company: optCoerceStr,
-    location: z.any().transform((v) => (v == null || v === "null" || v === "" ? null : String(v))).optional(),
+    location: optCoerceStr,
     seniority: coerceStr.default("unknown"),
     job_family: coerceStr.default("general"),
     must_have_keywords: strArray,

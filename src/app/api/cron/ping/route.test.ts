@@ -80,6 +80,19 @@ describe("GET /api/cron/ping", () => {
     const body = await response.json()
 
     expect(response.status).toBe(500)
-    expect(body).toEqual({ error: "redis failed" })
+    expect(body).toEqual({ error: "Internal error" })
+  })
+
+  it("returns 401 when CRON_SECRET is not set", async () => {
+    vi.unstubAllEnvs()
+    const request = new NextRequest("http://localhost/api/cron/ping", {
+      headers: { authorization: "Bearer anything" },
+    })
+
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(401)
+    expect(body).toEqual({ error: "Unauthorized" })
   })
 })
