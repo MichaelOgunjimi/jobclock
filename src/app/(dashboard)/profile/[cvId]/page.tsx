@@ -7,7 +7,7 @@ import { Star } from "lucide-react"
 import type { CvData } from "@/lib/supabase/database.types"
 import { normalizeCvData } from "@/lib/cv-data"
 import { CvEditor } from "./cv-editor"
-import { setPrimaryCV } from "../actions"
+import { setPrimaryCV as setPrimaryCVAction } from "../actions"
 
 export default async function CvDetailPage({
   params,
@@ -17,6 +17,11 @@ export default async function CvDetailPage({
   if (!isSupabaseConfigured()) redirect("/auth")
 
   const { cvId } = await params
+
+  async function setPrimaryCV(formData: FormData) {
+    "use server"
+    await setPrimaryCVAction(formData)
+  }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

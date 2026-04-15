@@ -107,7 +107,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload original file to Supabase Storage
-    const fileName = `${user.id}/${Date.now()}-${file.name}`
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
+    const fileName = `${user.id}/${Date.now()}-${safeName}`
     const { error: uploadError } = await supabase.storage
       .from("cvs")
       .upload(fileName, buffer, {
@@ -150,6 +151,7 @@ export async function POST(request: NextRequest) {
 
     if (dbError) {
       console.error("Database insert error:", dbError)
+      await supabase.storage.from("cvs").remove([fileName])
       return NextResponse.json(
         { error: "Failed to save CV record." },
         { status: 500 }

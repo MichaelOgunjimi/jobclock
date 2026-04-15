@@ -62,7 +62,7 @@ export function createPdfRoute({
 
       await page.goto(printUrl.toString(), { waitUntil: "load" })
       await page.emulateMedia({ media: "print" })
-      await page.waitForSelector(`[${dataAttribute}='true']`)
+      await page.waitForSelector(`[${dataAttribute}='true']`, { timeout: 15_000 })
 
       const pdfBuffer = await page.pdf({
         format: "A4",

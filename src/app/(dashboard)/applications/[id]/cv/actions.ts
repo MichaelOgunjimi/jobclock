@@ -5,28 +5,34 @@ import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import type { CvData, Json } from "@/lib/supabase/database.types"
 
-export async function saveTemplatePreference(template: string): Promise<void> {
-  if (!isSupabaseConfigured()) return
+export async function saveTemplatePreference(
+  template: string,
+): Promise<{ error?: string; success?: boolean }> {
+  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
 
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return
+  if (!user) return { error: "Unauthorized" }
 
   // Fetch current preferences to merge — avoid overwriting unrelated keys
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("preferences")
     .eq("id", user.id)
     .single()
+  if (profileError) return { error: profileError.message }
 
   const current = (profile?.preferences ?? {}) as Record<string, unknown>
 
-  await supabase
+  const { error } = await supabase
     .from("profiles")
     .update({ preferences: { ...current, preferred_cv_template: template } })
     .eq("id", user.id)
+  if (error) return { error: error.message }
+
+  return { success: true }
 }
 
 export async function saveCustomizedCvData({

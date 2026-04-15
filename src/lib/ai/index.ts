@@ -73,10 +73,8 @@ export function resolveApiKey(
 
   if (!key) {
     throw new Error(
-			`No API key for ${provider}. Add one in Settings or set the ${
-				provider === "openai" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY"
-			} environment variable.`,
-		);
+      `No API key configured for ${provider}. Add one in Settings → AI Configuration.`
+    )
   }
   return key
 }

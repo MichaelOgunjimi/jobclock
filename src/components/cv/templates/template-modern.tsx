@@ -23,14 +23,13 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   )
 }
 
-function dateRange(start?: string, end?: string, hasStart?: boolean): string {
+function dateRange(start?: string, end?: string): string {
   if (!start && !end) return ""
-  if (start && !end && hasStart) return `${start} – Present`
   return [start, end].filter(Boolean).join(" – ")
 }
 
 function ExperienceEntry({ entry }: { entry: CvExperience }) {
-  const dates = dateRange(entry.start_date, entry.end_date, Boolean(entry.start_date))
+  const dates = dateRange(entry.start_date, entry.end_date)
   const titleAndCompany = entry.company
     ? `${entry.title} — ${entry.company}`
     : entry.title

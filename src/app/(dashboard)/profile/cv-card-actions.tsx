@@ -4,9 +4,11 @@ import { useRef, useState } from "react"
 import { AlertTriangle, X } from "lucide-react"
 import { useDismissibleLayer } from "@/hooks/use-dismissible-layer"
 import { Button } from "@/components/ui/button"
-import { deleteCv, setPrimaryCV } from "./actions"
+import { deleteCv as deleteCvAction, setPrimaryCV as setPrimaryCVAction } from "./actions"
 
 export function CvCardActions({ cvId, isPrimary }: { cvId: string; isPrimary: boolean }) {
+  const setPrimaryCV = async (formData: FormData) => { await setPrimaryCVAction(formData) }
+  const deleteCv = async (formData: FormData) => { await deleteCvAction(formData) }
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
 
