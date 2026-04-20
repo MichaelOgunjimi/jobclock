@@ -83,15 +83,11 @@ export function AuthPageClient() {
             <CardHeader className="border-b pb-6">
               <div className="flex items-center justify-between gap-3">
                 <div className="space-y-3">
-                  <p className="page-kicker">{mode === "signin" ? "Welcome back" : "Create access"}</p>
-                  <CardTitle>
-                    {mode === "signin" ? "Sign in to continue." : "Open your workspace."}
-                  </CardTitle>
+                  <p className="page-kicker">Your account</p>
+                  <CardTitle>Sign in or create an account.</CardTitle>
                   <CardDescription>
                     {isConfigured
-                      ? mode === "signin"
-                        ? "Use your email and password or request a magic link."
-                        : "Create an account and start organizing your applications."
+                      ? "Use your email and password or request a magic link."
                       : "Add your Supabase URL and anon key to enable authentication."}
                   </CardDescription>
                 </div>
@@ -111,8 +107,8 @@ export function AuthPageClient() {
                 <div
                   className={
                     feedback.status === "success"
-                      ? "border border-foreground/15 bg-secondary px-4 py-3 text-[13px] text-foreground"
-                      : "border border-destructive/20 bg-destructive/10 px-4 py-3 text-[13px] text-destructive"
+                      ? "rounded border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-[13px] text-emerald-700 dark:text-emerald-400"
+                      : "rounded border border-red-500/30 bg-red-500/10 px-4 py-3 text-[13px] text-red-700 dark:text-red-400"
                   }
                 >
                   {feedback.message}
@@ -140,8 +136,8 @@ export function AuthPageClient() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
+                    required={mode === "signup"}
+                    minLength={mode === "signup" ? 6 : undefined}
                   />
                 </div>
                 <Button
@@ -180,13 +176,13 @@ export function AuthPageClient() {
               </form>
 
               <div className="flex items-center justify-between gap-4 border-t pt-5 text-[13px] text-muted-foreground">
-                <span>{mode === "signin" ? "Need an account?" : "Already registered?"}</span>
+                <span>{mode === "signin" ? "No account yet?" : "Already have an account?"}</span>
                 <button
                   type="button"
                   className="font-medium text-foreground transition-opacity hover:opacity-70"
                   onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
                 >
-                  {mode === "signin" ? "Create one" : "Sign in"}
+                  {mode === "signin" ? "Create account" : "Sign in"}
                 </button>
               </div>
             </CardContent>

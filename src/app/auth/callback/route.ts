@@ -16,10 +16,10 @@ export async function GET(request: NextRequest) {
   const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard"
 
   if (!code) {
-    return NextResponse.redirect(new URL("/auth?status=error&message=Missing%20authentication%20code.", request.url))
+    return NextResponse.redirect(new URL("/auth?status=error&message=Missing%20authentication%20code.", request.url), { status: 303 })
   }
 
-  let response = NextResponse.redirect(new URL(next, request.url))
+  let response = NextResponse.redirect(new URL(next, request.url), { status: 303 })
 
   const supabase = createServerClient<Database>(config.url, config.anonKey, {
     cookies: {
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
         return request.cookies.getAll()
       },
       setAll(cookiesToSet: Parameters<SetAllCookies>[0]) {
-        response = NextResponse.redirect(new URL(next, request.url))
+        response = NextResponse.redirect(new URL(next, request.url), { status: 303 })
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options)
         })
@@ -38,8 +38,10 @@ export async function GET(request: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error) {
+    console.error("[auth/callback] exchangeCodeForSession error:", error.message)
     return NextResponse.redirect(
-      new URL(`/auth?status=error&message=${encodeURIComponent(error.message)}`, request.url)
+      new URL(`/auth?status=error&message=${encodeURIComponent(error.message)}`, request.url),
+      { status: 303 }
     )
   }
 
