@@ -8,13 +8,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { ArrowRight, Briefcase, Sparkles } from "lucide-react"
+import { ArrowRight, Briefcase, Loader2, Sparkles } from "lucide-react"
 
 export function AuthPageClient() {
   const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [mode, setMode] = useState<"signin" | "signup">("signin")
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot_password">("signin")
+  const [pendingIntent, setPendingIntent] = useState<string | null>(null)
   const isConfigured = isSupabaseConfigured()
   const urlMessage = searchParams.get("message")
   const urlStatus = searchParams.get("status")
@@ -24,6 +25,10 @@ export function AuthPageClient() {
         message: urlMessage,
       }
     : null
+
+  function handleSubmit(intent: string) {
+    setPendingIntent(intent)
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -83,13 +88,37 @@ export function AuthPageClient() {
             <CardHeader className="border-b pb-6">
               <div className="flex items-center justify-between gap-3">
                 <div className="space-y-3">
-                  <p className="page-kicker">Your account</p>
-                  <CardTitle>Sign in or create an account.</CardTitle>
-                  <CardDescription>
-                    {isConfigured
-                      ? "Use your email and password or request a magic link."
-                      : "Add your Supabase URL and anon key to enable authentication."}
-                  </CardDescription>
+                  {mode === "signin" && (
+                    <>
+                      <p className="page-kicker">Welcome back</p>
+                      <CardTitle>Sign in to continue.</CardTitle>
+                      <CardDescription>
+                        {isConfigured
+                          ? "Use your email and password or request a magic link."
+                          : "Add your Supabase URL and anon key to enable authentication."}
+                      </CardDescription>
+                    </>
+                  )}
+                  {mode === "signup" && (
+                    <>
+                      <p className="page-kicker">Get started</p>
+                      <CardTitle>Create your account.</CardTitle>
+                      <CardDescription>
+                        {isConfigured
+                          ? "Set up your workspace and start organizing your job search."
+                          : "Add your Supabase URL and anon key to enable authentication."}
+                      </CardDescription>
+                    </>
+                  )}
+                  {mode === "forgot_password" && (
+                    <>
+                      <p className="page-kicker">Reset access</p>
+                      <CardTitle>Forgot your password?</CardTitle>
+                      <CardDescription>
+                        Enter your email and we&apos;ll send you a link to reset your password.
+                      </CardDescription>
+                    </>
+                  )}
                 </div>
                 <div className="hidden size-12 items-center justify-center border bg-secondary md:flex">
                   <Briefcase className="h-5 w-5" />
@@ -115,75 +144,151 @@ export function AuthPageClient() {
                 </div>
               )}
 
-              <form action="/auth/submit" method="post" className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required={mode === "signup"}
-                    minLength={mode === "signup" ? 6 : undefined}
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  name="intent"
-                  value={mode === "signin" ? "signin" : "signup"}
-                  className="w-full"
-                  disabled={!isConfigured}
+              {mode === "forgot_password" ? (
+                <form
+                  action="/auth/submit"
+                  method="post"
+                  className="space-y-5"
+                  onSubmit={() => handleSubmit("forgot_password")}
                 >
-                  {mode === "signin" ? "Sign In" : "Create Account"}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
                   </div>
-                  <div className="relative flex justify-center">
-                    <span className="bg-card px-3 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                      Or use email link
-                    </span>
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  name="intent"
-                  value="magic_link"
-                  formNoValidate
-                  variant="outline"
-                  className="w-full"
-                  disabled={!isConfigured}
+                  <Button
+                    type="submit"
+                    name="intent"
+                    value="forgot_password"
+                    className="w-full"
+                    disabled={!isConfigured || pendingIntent === "forgot_password"}
+                  >
+                    {pendingIntent === "forgot_password" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>Send Reset Link <ArrowRight className="h-4 w-4" /></>
+                    )}
+                  </Button>
+                </form>
+              ) : (
+                <form
+                  action="/auth/submit"
+                  method="post"
+                  className="space-y-5"
+                  onSubmit={(e) => {
+                    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null
+                    handleSubmit(submitter?.value ?? "signin")
+                  }}
                 >
-                  Send Magic Link
-                </Button>
-              </form>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Password</Label>
+                      {mode === "signin" && (
+                        <button
+                          type="button"
+                          className="text-[12px] text-muted-foreground transition-opacity hover:opacity-70"
+                          onClick={() => setMode("forgot_password")}
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required={mode === "signup"}
+                      minLength={mode === "signup" ? 6 : undefined}
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    name="intent"
+                    value={mode === "signin" ? "signin" : "signup"}
+                    className="w-full"
+                    disabled={!isConfigured || !!pendingIntent}
+                  >
+                    {pendingIntent === "signin" || pendingIntent === "signup" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>{mode === "signin" ? "Sign In" : "Create Account"} <ArrowRight className="h-4 w-4" /></>
+                    )}
+                  </Button>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center">
+                      <span className="bg-card px-3 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                        Or use email link
+                      </span>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    name="intent"
+                    value="magic_link"
+                    formNoValidate
+                    variant="outline"
+                    className="w-full"
+                    disabled={!isConfigured || !!pendingIntent}
+                  >
+                    {pendingIntent === "magic_link" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Send Magic Link"
+                    )}
+                  </Button>
+                </form>
+              )}
 
               <div className="flex items-center justify-between gap-4 border-t pt-5 text-[13px] text-muted-foreground">
-                <span>{mode === "signin" ? "No account yet?" : "Already have an account?"}</span>
-                <button
-                  type="button"
-                  className="font-medium text-foreground transition-opacity hover:opacity-70"
-                  onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-                >
-                  {mode === "signin" ? "Create account" : "Sign in"}
-                </button>
+                {mode === "forgot_password" ? (
+                  <>
+                    <span>Remember your password?</span>
+                    <button
+                      type="button"
+                      className="font-medium text-foreground transition-opacity hover:opacity-70"
+                      onClick={() => setMode("signin")}
+                    >
+                      Sign in
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span>{mode === "signin" ? "No account yet?" : "Already have an account?"}</span>
+                    <button
+                      type="button"
+                      className="font-medium text-foreground transition-opacity hover:opacity-70"
+                      onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setPendingIntent(null) }}
+                    >
+                      {mode === "signin" ? "Create account" : "Sign in"}
+                    </button>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
