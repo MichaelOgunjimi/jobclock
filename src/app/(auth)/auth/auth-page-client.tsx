@@ -28,7 +28,7 @@ export function AuthPageClient() {
   return (
     <div className="min-h-screen bg-background">
       <div className="grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="flex flex-col justify-between bg-sidebar px-8 py-8 text-white md:px-12 md:py-10">
+        <section className="hidden lg:flex flex-col justify-between bg-sidebar px-8 py-8 text-white md:px-12 md:py-10">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="flex size-11 items-center justify-center rounded-[8px] border border-white/10 bg-sidebar-primary">
