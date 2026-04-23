@@ -3,9 +3,11 @@ import { createMockSupabaseClient } from "@/test/supabase-mock"
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }))
 vi.mock("@/lib/supabase/config", () => ({ isSupabaseConfigured: vi.fn() }))
+vi.mock("@/lib/jobs/persist-job", () => ({ persistJobForUser: vi.fn() }))
 
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
+import { persistJobForUser } from "@/lib/jobs/persist-job"
 import { saveJob } from "./actions"
 
 const sampleJob = {
@@ -44,41 +46,37 @@ describe("saveJob", () => {
     expect(await saveJob(sampleJob as never)).toEqual({ error: "Unauthorized" })
   })
 
-  it("handles cache failure and duplicate application", async () => {
-    supabaseMock.setQueryResult("jobs_cache.upsert.single", {
-      error: { message: "upsert failed" },
-      data: null,
-    })
-    expect(await saveJob(sampleJob as never)).toEqual({ error: "Failed to cache job" })
+  it("handles helper failure and duplicate application", async () => {
+    vi.mocked(persistJobForUser).mockRejectedValueOnce(new Error("insert failed"))
+    expect(await saveJob(sampleJob as never)).toEqual({ error: "Failed to save job" })
 
-    supabaseMock.setQueryResult("jobs_cache.upsert.single", { data: { id: "cached-1" } })
-    supabaseMock.setQueryResult("applications.select.maybeSingle", {
-      data: { id: "app-1" },
+    vi.mocked(persistJobForUser).mockResolvedValueOnce({
+      applicationId: "app-1",
+      alreadySaved: true,
     })
     expect(await saveJob(sampleJob as never)).toEqual({ alreadySaved: true })
   })
 
-  it("handles insert errors and success", async () => {
-    supabaseMock.setQueryResult("jobs_cache.upsert.single", { data: { id: "cached-1" } })
-    supabaseMock.setQueryResult("applications.select.maybeSingle", { data: null })
-    supabaseMock.setQueryResult("applications.insert", { error: { message: "insert failed" } })
-    expect(await saveJob(sampleJob as never)).toEqual({ error: "Failed to save job" })
-
-    supabaseMock.setQueryResult("applications.insert", { error: null })
+  it("delegates to the shared persistence helper", async () => {
+    vi.mocked(persistJobForUser).mockResolvedValueOnce({
+      applicationId: "app-2",
+      alreadySaved: false,
+    })
     expect(await saveJob(sampleJob as never)).toEqual({ success: true })
 
-    const upsertCall = supabaseMock
-      .getQueryCalls()
-      .find((call) => call.table === "jobs_cache")
-    expect(upsertCall?.options).toEqual({ onConflict: "url" })
-
-    const insertCall = supabaseMock
-      .getQueryCalls()
-      .find((call) => call.table === "applications" && call.operation === "insert")
-    expect(insertCall?.payload).toEqual({
-      user_id: "test-user-id",
-      job_id: "cached-1",
-      status: "saved",
+    expect(persistJobForUser).toHaveBeenCalledWith("test-user-id", {
+      url: sampleJob.url,
+      source: sampleJob.source,
+      title: sampleJob.title,
+      company: sampleJob.company,
+      location: sampleJob.location,
+      description: sampleJob.description,
+      salaryMin: sampleJob.salaryMin,
+      salaryMax: sampleJob.salaryMax,
+      salaryCurrency: sampleJob.salaryCurrency,
+      postedAt: sampleJob.postedAt,
+      isEasyApply: sampleJob.isEasyApply,
+      applyDeadline: undefined,
     })
   })
 })

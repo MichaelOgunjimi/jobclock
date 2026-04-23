@@ -9,12 +9,19 @@ vi.mock("@/lib/crypto", () => ({
   encrypt: vi.fn((value: string) => `enc:${value}`),
   isEncryptionConfigured: vi.fn(() => true),
 }))
+vi.mock("@/lib/personal-api-tokens", () => ({
+  generatePersonalApiToken: vi.fn(),
+  revokePersonalApiTokens: vi.fn(),
+}))
 
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { encrypt, isEncryptionConfigured } from "@/lib/crypto"
+import { generatePersonalApiToken, revokePersonalApiTokens } from "@/lib/personal-api-tokens"
 import {
+  generateExtensionToken,
   deleteTemplate,
+  revokeExtensionToken,
   saveAiSettings,
   saveDocumentTemplate,
   saveJobSources,
@@ -173,5 +180,43 @@ describe("settings actions", () => {
         preferred_cover_letter_template: "modern",
       },
     })
+  })
+
+  it("generateExtensionToken returns raw token and metadata once", async () => {
+    vi.mocked(generatePersonalApiToken).mockResolvedValue({
+      token: "ja_ext_test-token",
+      metadata: {
+        id: "token-1",
+        tokenPrefix: "ja_ext_test",
+        createdAt: "2026-04-23T10:00:00.000Z",
+        lastUsedAt: null,
+      },
+    })
+
+    const result = await generateExtensionToken()
+
+    expect(result).toEqual({
+      success: true,
+      token: "ja_ext_test-token",
+      metadata: {
+        id: "token-1",
+        tokenPrefix: "ja_ext_test",
+        createdAt: "2026-04-23T10:00:00.000Z",
+        lastUsedAt: null,
+      },
+    })
+    expect(generatePersonalApiToken).toHaveBeenCalledWith(mockUser.id)
+    expect(revalidatePath).toHaveBeenCalledWith("/settings")
+  })
+
+  it("revokeExtensionToken revokes active tokens", async () => {
+    const result = await revokeExtensionToken()
+
+    expect(result).toEqual({
+      success: true,
+      metadata: null,
+    })
+    expect(revokePersonalApiTokens).toHaveBeenCalledWith(mockUser.id)
+    expect(revalidatePath).toHaveBeenCalledWith("/settings")
   })
 })
