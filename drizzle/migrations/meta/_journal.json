@@ -64,6 +64,13 @@
       "when": 1775284747023,
       "tag": "0008_loud_captain_britain",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1776900513726,
+      "tag": "0009_clear_rafael_vega",
+      "breakpoints": true
     }
   ]
 }

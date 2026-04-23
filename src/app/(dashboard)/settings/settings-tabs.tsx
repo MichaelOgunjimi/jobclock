@@ -12,10 +12,12 @@ import { Check, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { AiSettingsForm } from "./ai-settings-form"
+import { ExtensionSettingsCard } from "./extension-settings-card"
 import { TemplatePicker } from "./template-picker"
 import { JobSourcesForm } from "./job-sources-form"
 import { savePreferences } from "../profile/actions"
 import type { AiSettings, JobSources } from "@/lib/ai"
+import type { PersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
 
 type KeyStatus = { anthropic: "saved" | "env" | "none"; openai: "saved" | "env" | "none" }
 
@@ -57,6 +59,7 @@ export function SettingsTabs({
   preferredCvTemplate,
   preferredCoverLetterTemplate,
   jobSources,
+  extensionToken,
   profilePrefs,
 }: {
   aiSettings: AiSettings
@@ -64,11 +67,12 @@ export function SettingsTabs({
   preferredCvTemplate: string
   preferredCoverLetterTemplate: string
   jobSources: JobSources
+  extensionToken: PersonalApiTokenMetadata | null
   profilePrefs: ProfilePrefs
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const validTabs = ["ai", "appearance", "job-search", "job-sources"]
+  const validTabs = ["ai", "appearance", "extension", "job-search", "job-sources"]
   const activeTab = validTabs.includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "ai"
 
   const [roles, setRoles] = useState<string[]>(profilePrefs.desired_roles ?? [])
@@ -116,6 +120,7 @@ export function SettingsTabs({
       <TabsList className="mb-6 shrink-0 gap-1 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mb-8">
         <TabsTrigger value="ai" className="shrink-0 px-2.5 sm:px-4">AI</TabsTrigger>
         <TabsTrigger value="appearance" className="shrink-0 px-2.5 sm:px-4">Appearance</TabsTrigger>
+        <TabsTrigger value="extension" className="shrink-0 px-2.5 sm:px-4">Extension</TabsTrigger>
         <TabsTrigger value="job-search" className="shrink-0 px-2.5 sm:px-4">Job Search</TabsTrigger>
         <TabsTrigger value="job-sources" className="shrink-0 px-2.5 sm:px-4">Job Sources</TabsTrigger>
       </TabsList>
@@ -173,6 +178,10 @@ export function SettingsTabs({
             </CardContent>
           </Card>
         </div>
+      </TabsContent>
+
+      <TabsContent value="extension">
+        <ExtensionSettingsCard initialToken={extensionToken} />
       </TabsContent>
 
       {/* Job Search Tab */}
