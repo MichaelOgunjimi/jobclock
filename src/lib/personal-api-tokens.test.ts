@@ -48,7 +48,14 @@ describe("personal api tokens", () => {
       tokenPrefix: expect.any(String),
     }))
 
-    const inserted = values.mock.calls[0][0]
+    const insertCall = (values.mock.calls as unknown as Array<
+      [{ tokenHash: string; tokenPrefix: string; userId: string }]
+    >).at(0)
+    expect(insertCall).toBeDefined()
+    const inserted = insertCall?.[0]
+    expect(inserted).toBeDefined()
+    if (!inserted) throw new Error("Expected token insert values")
+
     expect(inserted.tokenHash).not.toContain(result.token)
     expect(result.token.startsWith(inserted.tokenPrefix)).toBe(true)
   })
