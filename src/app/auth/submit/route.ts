@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     return errorRedirect(request, "Enter your email address.")
   }
 
-  if (intent !== "magic_link" && !password) {
+  if (intent !== "magic_link" && intent !== "forgot_password" && !password) {
     return errorRedirect(request, "Enter your password.")
   }
 
@@ -106,6 +106,21 @@ export async function POST(request: NextRequest) {
     // Carry the PKCE verifier cookie so the callback can exchange the code.
     return withCookies(
       NextResponse.redirect(messageUrl(request, "Magic link sent. Check your inbox.", "success"), { status: 303 })
+    )
+  }
+
+  if (intent === "forgot_password") {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${origin}/auth/callback?next=/auth/update-password`,
+    })
+
+    if (error) {
+      console.error("[auth/forgot_password] resetPasswordForEmail error:", error.status, error.message)
+      return errorRedirect(request, "Could not send reset email. Please try again.")
+    }
+
+    return withCookies(
+      NextResponse.redirect(messageUrl(request, "Password reset email sent. Check your inbox.", "success"), { status: 303 })
     )
   }
 
