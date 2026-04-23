@@ -4,9 +4,27 @@ import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { revalidatePath } from "next/cache"
 import { PROVIDER_MODELS, type AiProvider, type UserPreferences, type JobSources } from "@/lib/ai"
-import { encrypt, decrypt, isEncryptionConfigured } from "@/lib/crypto"
+import { encrypt, isEncryptionConfigured } from "@/lib/crypto"
+import {
+  generatePersonalApiToken,
+  revokePersonalApiTokens,
+  type PersonalApiTokenMetadata,
+} from "@/lib/personal-api-tokens"
 
 const VALID_PROVIDERS = new Set<AiProvider>(["anthropic", "openai"])
+
+async function getAuthenticatedUserId() {
+  if (!isSupabaseConfigured()) return { error: "Supabase not configured" as const }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { error: "Unauthorized" as const }
+
+  return { userId: user.id, supabase }
+}
 
 export async function saveAiSettings(formData: FormData) {
   if (!isSupabaseConfigured()) {
@@ -72,10 +90,9 @@ export async function saveAiSettings(formData: FormData) {
 }
 
 export async function saveJobSources(sources: JobSources) {
-  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Unauthorized" }
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return { error: auth.error }
+  const { supabase, userId } = auth
 
   // Note: read-then-write on JSONB preferences has a theoretical race condition
   // if two settings tabs save simultaneously. In practice this is rare for
@@ -83,7 +100,7 @@ export async function saveJobSources(sources: JobSources) {
   const { data: existing } = await supabase
     .from("profiles")
     .select("preferences")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single()
 
   const prev = (existing?.preferences ?? {}) as UserPreferences
@@ -102,7 +119,7 @@ export async function saveJobSources(sources: JobSources) {
   const { error } = await supabase
     .from("profiles")
     .update({ preferences: updated as unknown as import("@/lib/supabase/database.types").Json })
-    .eq("id", user.id)
+    .eq("id", userId)
 
   if (error) return { error: error.message }
   revalidatePath("/settings")
@@ -110,17 +127,16 @@ export async function saveJobSources(sources: JobSources) {
 }
 
 export async function saveTemplate(type: "cv" | "cover_letter", path: string) {
-  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Unauthorized" }
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return { error: auth.error }
+  const { supabase, userId } = auth
 
   const column = type === "cv" ? "cv_template_path" : "cover_letter_template_path"
 
   const { error } = await supabase
     .from("profiles")
     .update({ [column]: path })
-    .eq("id", user.id)
+    .eq("id", userId)
 
   if (error) return { error: error.message }
 
@@ -129,16 +145,15 @@ export async function saveTemplate(type: "cv" | "cover_letter", path: string) {
 }
 
 export async function deleteTemplate(type: "cv" | "cover_letter") {
-  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Unauthorized" }
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return { error: auth.error }
+  const { supabase, userId } = auth
 
-  const storagePath = `${user.id}/${type}-template.docx`
+  const storagePath = `${userId}/${type}-template.docx`
   await supabase.storage.from("templates").remove([storagePath])
 
   const column = type === "cv" ? "cv_template_path" : "cover_letter_template_path"
-  const { error } = await supabase.from("profiles").update({ [column]: null }).eq("id", user.id)
+  const { error } = await supabase.from("profiles").update({ [column]: null }).eq("id", userId)
 
   if (error) return { error: error.message }
 
@@ -150,10 +165,9 @@ export async function saveDocumentTemplate(
   type: "cv" | "cover_letter",
   template: string,
 ) {
-  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Unauthorized" }
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return { error: auth.error }
+  const { supabase, userId } = auth
 
   const key = type === "cv" ? "preferred_cv_template" : "preferred_cover_letter_template"
 
@@ -163,7 +177,7 @@ export async function saveDocumentTemplate(
   const { data: existing } = await supabase
     .from("profiles")
     .select("preferences")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single()
 
   const prev = (existing?.preferences ?? {}) as UserPreferences
@@ -172,9 +186,42 @@ export async function saveDocumentTemplate(
   const { error } = await supabase
     .from("profiles")
     .update({ preferences: updated as unknown as import("@/lib/supabase/database.types").Json })
-    .eq("id", user.id)
+    .eq("id", userId)
 
   if (error) return { error: error.message }
   revalidatePath("/settings")
   return { success: true }
+}
+
+export async function generateExtensionToken() {
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return { error: auth.error }
+
+  try {
+    const result = await generatePersonalApiToken(auth.userId)
+    revalidatePath("/settings")
+    return {
+      success: true,
+      token: result.token,
+      metadata: result.metadata,
+    }
+  } catch {
+    return { error: "Failed to generate extension token" }
+  }
+}
+
+export async function revokeExtensionToken() {
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return { error: auth.error }
+
+  try {
+    await revokePersonalApiTokens(auth.userId)
+    revalidatePath("/settings")
+    return {
+      success: true,
+      metadata: null as PersonalApiTokenMetadata | null,
+    }
+  } catch {
+    return { error: "Failed to revoke extension token" }
+  }
 }
