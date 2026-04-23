@@ -87,6 +87,20 @@ export const jobsCache = pgTable("jobs_cache", {
 })
 
 // ============================================================
+// PERSONAL API TOKENS
+// ============================================================
+
+export const personalApiTokens = pgTable("personal_api_tokens", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  tokenPrefix: text("token_prefix").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+})
+
+// ============================================================
 // COVER LETTER STRUCTURES (writing style guides)
 // ============================================================
 

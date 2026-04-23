@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect } from "next/navigation"
 import { resolveAiSettings, type UserPreferences, type JobSources } from "@/lib/ai"
+import { getActivePersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
 import { SettingsTabs } from "./settings-tabs"
 
 export const metadata: Metadata = {
@@ -17,13 +18,14 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth")
 
-  const [{ data: profile }, { data: profileData }] = await Promise.all([
+  const [{ data: profile }, { data: profileData }, extensionToken] = await Promise.all([
     supabase.from("profiles").select("preferences").eq("id", user.id).single(),
     supabase
       .from("profiles")
       .select("desired_roles, locations_uk, target_salary_min, right_to_work_uk, experience_level")
       .eq("id", user.id)
       .single(),
+    getActivePersonalApiTokenMetadata(user.id),
   ])
 
   const preferences = profile?.preferences as UserPreferences | null
@@ -50,7 +52,7 @@ export default async function SettingsPage() {
           <div className="space-y-2">
             <h1 className="page-title">Configure your assistant.</h1>
             <p className="page-lede max-w-2xl">
-              Set up your AI provider, appearance, job search preferences, and job sources.
+              Set up your AI provider, appearance, extension access, job search preferences, and job sources.
             </p>
           </div>
         </div>
@@ -63,6 +65,7 @@ export default async function SettingsPage() {
           preferredCvTemplate={preferredCvTemplate}
           preferredCoverLetterTemplate={preferredCoverLetterTemplate}
           jobSources={jobSources}
+          extensionToken={extensionToken}
           profilePrefs={{
             desired_roles: profileData?.desired_roles ?? null,
             locations_uk: profileData?.locations_uk ?? null,
