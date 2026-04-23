@@ -145,12 +145,8 @@ export function AuthPageClient() {
               )}
 
               {mode === "forgot_password" ? (
-                <form
-                  action="/auth/submit"
-                  method="post"
-                  className="space-y-5"
-                  onSubmit={() => handleSubmit("forgot_password")}
-                >
+                <form action="/auth/submit" method="post" className="space-y-5" onSubmit={() => handleSubmit("forgot_password")}>
+                  <input type="hidden" name="intent" value="forgot_password" />
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
@@ -163,13 +159,7 @@ export function AuthPageClient() {
                       required
                     />
                   </div>
-                  <Button
-                    type="submit"
-                    name="intent"
-                    value="forgot_password"
-                    className="w-full"
-                    disabled={!isConfigured || pendingIntent === "forgot_password"}
-                  >
+                  <Button type="submit" className="w-full" disabled={!isConfigured || pendingIntent === "forgot_password"}>
                     {pendingIntent === "forgot_password" ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
@@ -178,15 +168,8 @@ export function AuthPageClient() {
                   </Button>
                 </form>
               ) : (
-                <form
-                  action="/auth/submit"
-                  method="post"
-                  className="space-y-5"
-                  onSubmit={(e) => {
-                    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null
-                    handleSubmit(submitter?.value ?? "signin")
-                  }}
-                >
+                <form action="/auth/submit" method="post" className="space-y-5">
+                  <input type="hidden" name="intent" value={mode === "signin" ? "signin" : "signup"} />
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
@@ -224,10 +207,9 @@ export function AuthPageClient() {
                   </div>
                   <Button
                     type="submit"
-                    name="intent"
-                    value={mode === "signin" ? "signin" : "signup"}
                     className="w-full"
                     disabled={!isConfigured || !!pendingIntent}
+                    onClick={() => handleSubmit(mode === "signin" ? "signin" : "signup")}
                   >
                     {pendingIntent === "signin" || pendingIntent === "signup" ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -236,25 +218,29 @@ export function AuthPageClient() {
                     )}
                   </Button>
 
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t" />
-                    </div>
-                    <div className="relative flex justify-center">
-                      <span className="bg-card px-3 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                        Or use email link
-                      </span>
-                    </div>
-                  </div>
+                </form>
 
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className="bg-card px-3 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                      Or use email link
+                    </span>
+                  </div>
+                </div>
+
+                <form action="/auth/submit" method="post">
+                  <input type="hidden" name="intent" value="magic_link" />
+                  <input type="hidden" name="email" value={email} />
                   <Button
                     type="submit"
-                    name="intent"
-                    value="magic_link"
                     formNoValidate
                     variant="outline"
                     className="w-full"
                     disabled={!isConfigured || !!pendingIntent}
+                    onClick={() => handleSubmit("magic_link")}
                   >
                     {pendingIntent === "magic_link" ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
