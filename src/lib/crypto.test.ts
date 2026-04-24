@@ -41,7 +41,10 @@ describe("crypto helpers", () => {
 
   it("throws for tampered payloads", () => {
     const encrypted = encrypt("hello")
-    const tampered = `${encrypted.slice(0, -1)}0`
+    // Pick a replacement char guaranteed to differ from the current last char
+    const lastChar = encrypted[encrypted.length - 1]
+    const replacement = lastChar === "0" ? "1" : "0"
+    const tampered = `${encrypted.slice(0, -1)}${replacement}`
     expect(() => decrypt(tampered)).toThrow(
       "Failed to decrypt value. Check ENCRYPTION_SECRET configuration."
     )
