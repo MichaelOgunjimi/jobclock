@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { Code2, Globe, Link2, Mail, Phone } from "lucide-react"
+import { Code2, ExternalLink, Globe, Link2, Mail, Phone } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,11 +22,11 @@ export default async function AccountPage() {
     .single()
 
   const summaryItems = [
-    { label: "Email", value: user.email ?? "Not set", icon: Mail },
-    { label: "Phone", value: profile?.phone ?? "Add a phone number", icon: Phone },
-    { label: "LinkedIn", value: profile?.linkedin_url ?? "Add your LinkedIn URL", icon: Link2 },
-    { label: "GitHub", value: profile?.github_url ?? "Add your GitHub URL", icon: Code2 },
-    { label: "Portfolio", value: profile?.portfolio_url ?? "Add your portfolio", icon: Globe },
+    { label: "Email", value: user.email ?? null, placeholder: "Not set", icon: Mail, href: user.email ? `mailto:${user.email}` : null },
+    { label: "Phone", value: profile?.phone ?? null, placeholder: "Add a phone number", icon: Phone, href: profile?.phone ? `tel:${profile.phone}` : null },
+    { label: "LinkedIn", value: profile?.linkedin_url ?? null, placeholder: "Add your LinkedIn URL", icon: Link2, href: profile?.linkedin_url ?? null, external: true },
+    { label: "GitHub", value: profile?.github_url ?? null, placeholder: "Add your GitHub URL", icon: Code2, href: profile?.github_url ?? null, external: true },
+    { label: "Portfolio", value: profile?.portfolio_url ?? null, placeholder: "Add your portfolio", icon: Globe, href: profile?.portfolio_url ?? null, external: true },
   ]
 
   return (
@@ -50,14 +50,25 @@ export default async function AccountPage() {
             <CardTitle>What the app knows about you.</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {summaryItems.map(({ label, value, icon: Icon }) => (
+            {summaryItems.map(({ label, value, placeholder, icon: Icon, href, external }) => (
               <div key={label} className="flex items-start gap-3 border border-border bg-background px-4 py-3">
                 <div className="flex size-9 shrink-0 items-center justify-center border bg-secondary">
                   <Icon className="h-4 w-4" />
                 </div>
-                <div className="space-y-1">
+                <div className="min-w-0 flex-1 space-y-1">
                   <p className="section-label">{label}</p>
-                  <p className="break-all text-sm text-foreground">{value}</p>
+                  {href ? (
+                    <a
+                      href={href}
+                      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                      className="flex items-center gap-1.5 break-all text-sm text-foreground underline-offset-2 hover:underline"
+                    >
+                      <span className="break-all">{value}</span>
+                      {external && <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                    </a>
+                  ) : (
+                    <p className="break-all text-sm text-muted-foreground">{value ?? placeholder}</p>
+                  )}
                 </div>
               </div>
             ))}

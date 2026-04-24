@@ -1,10 +1,14 @@
 "use client"
 
+import { useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ChevronRight, PanelLeftOpen } from "lucide-react"
+import { ChevronRight, LogOut, PanelLeftOpen, Settings, UserCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useDismissibleLayer } from "@/hooks/use-dismissible-layer"
+import { createClient } from "@/lib/supabase/client"
+import { isSupabaseConfigured } from "@/lib/supabase/config"
 
 const LABELS: Record<string, string> = {
   dashboard: "Dashboard",
@@ -35,6 +39,106 @@ interface UserProfile {
   avatarUrl: string | null
 }
 
+function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useDismissibleLayer({
+    enabled: open,
+    onDismiss: () => setOpen(false),
+    refs: [triggerRef, panelRef],
+  })
+
+  const initials = getInitials(userProfile.fullName, userProfile.email)
+
+  async function handleSignOut() {
+    if (!isSupabaseConfigured()) return
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = "/auth"
+  }
+
+  const avatarEl = userProfile.avatarUrl ? (
+    <img src={userProfile.avatarUrl} alt="" className="h-full w-full object-cover" />
+  ) : (
+    <span>{initials}</span>
+  )
+
+  return (
+    <div className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label="Open account menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden border bg-secondary text-[11px] font-semibold uppercase tracking-wide text-foreground transition-colors hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30"
+      >
+        {avatarEl}
+      </button>
+
+      {open && (
+        <div
+          ref={panelRef}
+          className="absolute right-0 top-full z-50 mt-2 w-60 border bg-card shadow-lg"
+        >
+          {/* User identity */}
+          <div className="border-b px-4 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden border bg-secondary text-[13px] font-semibold uppercase tracking-wide text-foreground">
+                {avatarEl}
+              </div>
+              <div className="min-w-0">
+                {userProfile.fullName && (
+                  <p className="truncate text-[13px] font-medium leading-tight text-foreground">
+                    {userProfile.fullName}
+                  </p>
+                )}
+                <p className="section-label truncate leading-tight text-muted-foreground">
+                  {userProfile.email}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Nav */}
+          <div className="py-1">
+            <Link
+              href="/account"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+            >
+              <UserCircle className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              Account
+            </Link>
+            <Link
+              href="/settings"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+            >
+              <Settings className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              Settings
+            </Link>
+          </div>
+
+          {/* Sign out */}
+          <div className="border-t py-1">
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+            >
+              <LogOut className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function DashboardTopbar({
   onOpenMobileSidebar,
   userProfile,
@@ -53,7 +157,6 @@ export function DashboardTopbar({
       ? pageCrumbs
       : [{ href: "/dashboard", label: "Dashboard" }, ...pageCrumbs]
 
-  const initials = getInitials(userProfile.fullName, userProfile.email)
   const mobileCrumb = crumbs[crumbs.length - 1] ?? { href: pathname, label: "Dashboard" }
 
   return (
@@ -98,22 +201,7 @@ export function DashboardTopbar({
 
         <div className="flex items-center gap-2 sm:gap-3">
           <ThemeToggle />
-          <Link
-            href="/account"
-            aria-label="Account"
-            title={userProfile.fullName ?? userProfile.email}
-            className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden border bg-secondary text-[11px] font-semibold uppercase tracking-wide text-foreground transition-colors hover:border-foreground/40"
-          >
-            {userProfile.avatarUrl ? (
-              <img
-                src={userProfile.avatarUrl}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              initials
-            )}
-          </Link>
+          <AvatarDropdown userProfile={userProfile} />
         </div>
       </div>
     </div>
