@@ -44,18 +44,6 @@ describe("POST /api/cv/upload", () => {
     vi.clearAllMocks()
     supabaseMock = createMockSupabaseClient()
 
-    const storageFromMock = supabaseMock.client.storage.from as ReturnType<typeof vi.fn>
-    const originalStorageFrom = storageFromMock.getMockImplementation() as ((bucket: string) => object) | undefined
-    storageFromMock.mockImplementation((bucket: string) => {
-      const base = originalStorageFrom ? originalStorageFrom(bucket) : {}
-      return {
-        ...(base as object),
-        getPublicUrl: (path: string) => ({
-          data: { publicUrl: `https://example.com/storage/${path}` },
-        }),
-      } as never
-    })
-
     vi.mocked(createClient).mockResolvedValue(supabaseMock.client as never)
     vi.mocked(isSupabaseConfigured).mockReturnValue(true)
     vi.mocked(pdfParse).mockResolvedValue({ text: LONG_TEXT } as never)
@@ -213,7 +201,7 @@ describe("POST /api/cv/upload", () => {
     expect(body.success).toBe(true)
     expect(body.cvId).toBe("cv-success-id")
     expect(body.parsed).toEqual(PARSED_CV)
-    expect(body.fileUrl).toContain("https://example.com/storage/test-user-id/")
+    expect(body.fileUrl).toBe("/api/cv/cv-success-id/original")
   })
 
   it("sets first CV as primary", async () => {
@@ -239,6 +227,7 @@ describe("POST /api/cv/upload", () => {
     expect(insertedPayloads[0]).toMatchObject({
       user_id: "test-user-id",
       is_primary: true,
+      file_path: null,
     })
   })
 })

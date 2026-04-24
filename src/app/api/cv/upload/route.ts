@@ -124,10 +124,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: { publicUrl } } = supabase.storage
-      .from("cvs")
-      .getPublicUrl(fileName)
-
     // First CV for this user becomes primary automatically
     const { count } = await supabase
       .from("user_cvs")
@@ -143,7 +139,7 @@ export async function POST(request: NextRequest) {
         name: cvName ?? parsedCv.name ?? file.name.replace(/\.[^.]+$/, ""),
         original_file_path: fileName,
         parsed_json: parsedCv as unknown as Json,
-        file_path: publicUrl,
+        file_path: null,
         is_primary: isPrimary,
       })
       .select()
@@ -158,11 +154,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const fileUrl = `/api/cv/${cvRecord.id}/original`
+    const { error: updateError } = await supabase
+      .from("user_cvs")
+      .update({ file_path: fileUrl })
+      .eq("id", cvRecord.id)
+      .eq("user_id", user.id)
+
+    if (updateError) {
+      console.error("CV file URL update error:", updateError)
+    }
+
     return NextResponse.json({
       success: true,
       cvId: cvRecord.id,
       parsed: parsedCv,
-      fileUrl: publicUrl,
+      fileUrl,
     })
   } catch (error) {
     console.error("CV upload error:", error)
