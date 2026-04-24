@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { saveJob } from "./actions"
+import { saveJob, ignoreJob } from "./actions"
 import { EXPERIENCE_LEVELS } from "@/app/(dashboard)/profile/profile-tabs"
 import type { Job } from "@/lib/jobs/types"
 import {
@@ -19,8 +19,10 @@ import {
   Bookmark,
   BookmarkCheck,
   Loader2,
+  EyeOff,
+  Wifi,
 } from "lucide-react"
-import { formatDistanceToNow } from "date-fns"
+import { formatDistanceToNow, differenceInDays } from "date-fns"
 
 interface JobsFeedProps {
   initialQuery: string
@@ -29,6 +31,7 @@ interface JobsFeedProps {
   initialExperienceLevels: string[]
   enabledSources: string[]
   initialSavedUrls: string[]
+  initialIgnoredUrls?: string[]
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -65,6 +68,7 @@ export function JobsFeed({
   initialExperienceLevels,
   enabledSources,
   initialSavedUrls,
+  initialIgnoredUrls = [],
 }: JobsFeedProps) {
   const [query, setQuery] = useState(initialQuery)
   const [location, setLocation] = useState(initialLocation)
@@ -82,9 +86,15 @@ export function JobsFeed({
   // Track URLs seen across all pages to avoid cross-page duplicates from parallel queries
   const seenUrlsRef = useRef<Set<string>>(new Set())
 
-  const jobs = filterByExperience(rawJobs, experienceLevels)
   const [savedUrls, setSavedUrls] = useState<Set<string>>(new Set(initialSavedUrls))
+  const [ignoredUrls, setIgnoredUrls] = useState<Set<string>>(new Set(initialIgnoredUrls))
+  const [showHidden, setShowHidden] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+
+  const filteredByExperience = filterByExperience(rawJobs, experienceLevels)
+  const jobs = showHidden
+    ? filteredByExperience
+    : filteredByExperience.filter((j) => !ignoredUrls.has(j.url))
 
   async function fetchJobs(searchPage = 1, overrideSort?: typeof sortBy, overrideLevels?: string[]) {
     setSearching(true)
@@ -171,6 +181,11 @@ export function JobsFeed({
       toast.success("Saved to pipeline")
       setSavedUrls((prev) => new Set([...prev, job.url]))
     }
+  }
+
+  async function handleIgnoreJob(job: Job) {
+    setIgnoredUrls((prev) => new Set([...prev, job.url]))
+    await ignoreJob(job.url)
   }
 
   const totalPages = Math.max(1, Math.ceil(total / JOBS_PER_PAGE))
@@ -316,11 +331,11 @@ export function JobsFeed({
         {hasSearched && (
           <div className="text-[13px] text-muted-foreground">
             <p className="font-medium text-foreground">{total.toLocaleString()} roles found</p>
-            {experienceLevels.length > 0 && rawJobs.length > 0 && (
+            {experienceLevels.length > 0 && filteredByExperience.length > 0 && (
               <p className="mt-1">
                 {jobs.length === 0
                   ? "No results match the selected experience levels"
-                  : jobs.length < rawJobs.length
+                  : jobs.length < filteredByExperience.length
                   ? `${jobs.length} match experience filter`
                   : null}
               </p>
@@ -332,6 +347,15 @@ export function JobsFeed({
                   <span className="ml-1 text-xs">(approx — filter active)</span>
                 )}
               </p>
+            )}
+            {ignoredUrls.size > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowHidden((v) => !v)}
+                className="mt-1 text-xs underline underline-offset-2 hover:text-foreground"
+              >
+                {showHidden ? "Hide hidden jobs" : `Show ${ignoredUrls.size} hidden job${ignoredUrls.size === 1 ? "" : "s"}`}
+              </button>
             )}
           </div>
         )}
@@ -366,7 +390,7 @@ export function JobsFeed({
                 <Briefcase className="mx-auto mb-4 h-10 w-10 opacity-30" />
                 <p className="font-medium text-foreground">No jobs found</p>
                 <p className="mt-2 text-sm">
-                  {rawJobs.length > 0 && experienceLevels.length > 0
+                  {filteredByExperience.length > 0 && experienceLevels.length > 0
                     ? "The experience filter removed all results. Try deselecting some levels."
                     : "Try broadening the keywords, location, or lowering the salary floor."}
                 </p>
@@ -377,7 +401,9 @@ export function JobsFeed({
                   key={job.url}
                   job={job}
                   isSaved={savedUrls.has(job.url)}
+                  isHidden={ignoredUrls.has(job.url)}
                   onSave={() => handleSaveJob(job)}
+                  onHide={() => handleIgnoreJob(job)}
                 />
               ))
             )}
@@ -461,16 +487,29 @@ function getVisiblePages(currentPage: number, totalPages: number): Array<number 
   return [1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages]
 }
 
+function freshnessInfo(lastSeenAt: string | null | undefined): { label: string; className: string } | null {
+  if (!lastSeenAt) return null
+  const days = differenceInDays(new Date(), new Date(lastSeenAt))
+  if (days < 3) return { label: "Fresh", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" }
+  if (days < 7) return { label: "Recent", className: "border-border bg-secondary text-muted-foreground" }
+  return { label: "Stale", className: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400" }
+}
+
 function JobCard({
   job,
   isSaved,
+  isHidden,
   onSave,
+  onHide,
 }: {
   job: Job
   isSaved: boolean
+  isHidden: boolean
   onSave: () => Promise<void>
+  onHide: () => void
 }) {
   const [isPending, startTransition] = useTransition()
+  const freshness = freshnessInfo(job.lastSeenAt)
 
   function handleSave() {
     startTransition(async () => {
@@ -479,7 +518,7 @@ function JobCard({
   }
 
   return (
-    <div className="border bg-card transition-colors hover:border-foreground/30">
+    <div className={cn("border bg-card transition-colors hover:border-foreground/30", isHidden && "opacity-50")}>
       <div className="border-b px-5 py-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
@@ -489,8 +528,18 @@ function JobCard({
               {job.company}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {/* Source badge */}
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {freshness && (
+              <span className={cn("border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide", freshness.className)}>
+                {freshness.label}
+              </span>
+            )}
+            {job.remoteType && (
+              <span className="flex items-center gap-1 border border-border bg-secondary px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                <Wifi className="h-2.5 w-2.5" />
+                {job.remoteType}
+              </span>
+            )}
             <span className="border border-border bg-secondary px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               {SOURCE_LABELS[job.source] ?? job.source}
             </span>
@@ -526,6 +575,11 @@ function JobCard({
           {job.postedAt && (
             <span>{formatDistanceToNow(new Date(job.postedAt), { addSuffix: true })}</span>
           )}
+          {job.lastSeenAt && freshness?.label === "Stale" && (
+            <span className="text-amber-600 dark:text-amber-400">
+              Last verified {formatDistanceToNow(new Date(job.lastSeenAt), { addSuffix: true })}
+            </span>
+          )}
         </div>
 
         {job.description && (
@@ -555,6 +609,17 @@ function JobCard({
             )}
             {isSaved ? "Saved" : "Save to pipeline"}
           </Button>
+          {!isSaved && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="w-full text-muted-foreground hover:text-foreground sm:w-auto"
+              onClick={onHide}
+            >
+              <EyeOff className="h-3.5 w-3.5" />
+              Hide
+            </Button>
+          )}
         </div>
       </div>
     </div>
