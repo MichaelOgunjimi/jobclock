@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { saveJob, ignoreJob } from "./actions"
 import { EXPERIENCE_LEVELS } from "@/app/(dashboard)/profile/profile-tabs"
 import type { Job } from "@/lib/jobs/types"
+import { deduplicateJobs } from "@/lib/jobs/dedup"
 import {
   Search,
   MapPin,
@@ -90,11 +91,20 @@ export function JobsFeed({
   const [ignoredUrls, setIgnoredUrls] = useState<Set<string>>(new Set(initialIgnoredUrls))
   const [showHidden, setShowHidden] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+  const [titleIncludes, setTitleIncludes] = useState("")
+  const [titleExcludes, setTitleExcludes] = useState("")
 
-  const filteredByExperience = filterByExperience(rawJobs, experienceLevels)
+  const deduplicated = deduplicateJobs(rawJobs)
+  const filteredByExperience = filterByExperience(deduplicated, experienceLevels)
+  const filteredByTitle = filteredByExperience.filter((j) => {
+    const title = j.title.toLowerCase()
+    if (titleIncludes && !title.includes(titleIncludes.toLowerCase())) return false
+    if (titleExcludes && title.includes(titleExcludes.toLowerCase())) return false
+    return true
+  })
   const jobs = showHidden
-    ? filteredByExperience
-    : filteredByExperience.filter((j) => !ignoredUrls.has(j.url))
+    ? filteredByTitle
+    : filteredByTitle.filter((j) => !ignoredUrls.has(j.url))
 
   async function fetchJobs(searchPage = 1, overrideSort?: typeof sortBy, overrideLevels?: string[]) {
     setSearching(true)
@@ -223,6 +233,26 @@ export function JobsFeed({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="title-includes">Title includes</Label>
+            <Input
+              id="title-includes"
+              placeholder="e.g. Engineer"
+              value={titleIncludes}
+              onChange={(e) => setTitleIncludes(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="title-excludes">Title excludes</Label>
+            <Input
+              id="title-excludes"
+              placeholder="e.g. Manager"
+              value={titleExcludes}
+              onChange={(e) => setTitleExcludes(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="salary">Minimum Salary</Label>
             <div className="relative">
               <PoundSterling className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -331,19 +361,20 @@ export function JobsFeed({
         {hasSearched && (
           <div className="text-[13px] text-muted-foreground">
             <p className="font-medium text-foreground">{total.toLocaleString()} roles found</p>
-            {experienceLevels.length > 0 && filteredByExperience.length > 0 && (
-              <p className="mt-1">
-                {jobs.length === 0
-                  ? "No results match the selected experience levels"
-                  : jobs.length < filteredByExperience.length
-                  ? `${jobs.length} match experience filter`
-                  : null}
+            {deduplicated.length < rawJobs.length && (
+              <p className="mt-1 text-xs">
+                {rawJobs.length - deduplicated.length} duplicate{rawJobs.length - deduplicated.length === 1 ? "" : "s"} hidden
+              </p>
+            )}
+            {(titleIncludes || titleExcludes) && (
+              <p className="mt-1 text-xs">
+                {filteredByTitle.length} match title filter
               </p>
             )}
             {jobs.length > 0 && (
               <p className="mt-1">
-                Page {page} of {experienceLevels.length > 0 ? `~${totalPages}` : totalPages}
-                {experienceLevels.length > 0 && (
+                Page {page} of {experienceLevels.length > 0 || titleIncludes || titleExcludes ? `~${totalPages}` : totalPages}
+                {(experienceLevels.length > 0 || titleIncludes || titleExcludes) && (
                   <span className="ml-1 text-xs">(approx — filter active)</span>
                 )}
               </p>
@@ -390,7 +421,9 @@ export function JobsFeed({
                 <Briefcase className="mx-auto mb-4 h-10 w-10 opacity-30" />
                 <p className="font-medium text-foreground">No jobs found</p>
                 <p className="mt-2 text-sm">
-                  {filteredByExperience.length > 0 && experienceLevels.length > 0
+                  {filteredByTitle.length === 0 && (titleIncludes || titleExcludes)
+                    ? "The title filter removed all results. Try clearing the include/exclude fields."
+                    : filteredByExperience.length > 0 && experienceLevels.length > 0
                     ? "The experience filter removed all results. Try deselecting some levels."
                     : "Try broadening the keywords, location, or lowering the salary floor."}
                 </p>
