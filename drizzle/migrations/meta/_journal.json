@@ -78,6 +78,13 @@
       "when": 1777012329573,
       "tag": "0010_first_chameleon",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1777014707839,
+      "tag": "0011_mean_magus",
+      "breakpoints": true
     }
   ]
 }
