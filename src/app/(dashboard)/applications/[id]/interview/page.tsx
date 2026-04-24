@@ -166,7 +166,7 @@ export default function InterviewPrepPage() {
               {researchContent ? "Re-research" : "Research Company"}
             </Button>
             <p className="text-sm text-muted-foreground">
-              Uses Perplexity to search the web for current company intelligence across 6 dimensions.
+              6-axis company intelligence — uses Perplexity (live web) if configured, otherwise your AI model.
             </p>
           </div>
 

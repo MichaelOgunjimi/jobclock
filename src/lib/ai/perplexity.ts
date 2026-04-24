@@ -1,5 +1,6 @@
 // Perplexity API client using the OpenAI-compatible endpoint.
 // Model: sonar (fast, with citations) or sonar-pro (deeper research).
+// Resolve the API key at the call site; pass it explicitly via options.
 
 const PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
 
@@ -9,6 +10,7 @@ export interface PerplexityMessage {
 }
 
 export interface PerplexityOptions {
+  apiKey: string
   model?: "sonar" | "sonar-pro" | "sonar-reasoning"
   maxTokens?: number
   temperature?: number
@@ -16,12 +18,9 @@ export interface PerplexityOptions {
 
 export async function callPerplexity(
   messages: PerplexityMessage[],
-  options: PerplexityOptions = {}
+  options: PerplexityOptions,
 ): Promise<string> {
-  const apiKey = process.env.PERPLEXITY_API_KEY
-  if (!apiKey) throw new Error("PERPLEXITY_API_KEY is not configured")
-
-  const { model = "sonar", maxTokens = 2048, temperature = 0.2 } = options
+  const { apiKey, model = "sonar", maxTokens = 3500, temperature = 0.2 } = options
 
   const res = await fetch(PERPLEXITY_API_URL, {
     method: "POST",

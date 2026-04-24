@@ -21,7 +21,7 @@ import type { AiSettings, JobSources } from "@/lib/ai"
 import type { PersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
 import type { TrackedCompany } from "./actions"
 
-type KeyStatus = { anthropic: "saved" | "env" | "none"; openai: "saved" | "env" | "none" }
+type KeyStatus = { anthropic: "saved" | "env" | "none"; openai: "saved" | "env" | "none"; perplexity: "saved" | "env" | "none" }
 
 const EXPERIENCE_LEVELS = [
   { value: "graduate", label: "Graduate / Entry Level" },

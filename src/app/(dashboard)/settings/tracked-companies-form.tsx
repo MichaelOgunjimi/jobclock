@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { Building2, Plus, RefreshCw, Trash2, ToggleLeft, ToggleRight } from "lucide-react"
+import { Building2, ChevronDown, ChevronRight, Plus, RefreshCw, Trash2, ToggleLeft, ToggleRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
 import {
@@ -14,6 +14,7 @@ import {
   toggleTrackedCompany,
   type TrackedCompany,
 } from "./actions"
+import { PRESET_COMPANIES, PRESET_CATEGORIES, type PresetCompany } from "@/lib/jobs/preset-companies"
 
 const ATS_LABELS: Record<string, string> = {
   greenhouse: "Greenhouse",
@@ -52,12 +53,119 @@ function SyncStatusText({ lastSyncedAt }: { lastSyncedAt: string | null }) {
   )
 }
 
+function PresetBrowser({
+  trackedUrls,
+  onAdd,
+}: {
+  trackedUrls: Set<string>
+  onAdd: (company: PresetCompany) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [activeCategory, setActiveCategory] = useState<string>(PRESET_CATEGORIES[0])
+  const [adding, setAdding] = useState<string | null>(null)
+
+  const companiesInCategory = PRESET_COMPANIES.filter((c) => c.category === activeCategory)
+
+  return (
+    <div className="border border-dashed border-border">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left"
+      >
+        <span className="text-xs uppercase tracking-wider text-muted-foreground">Browse popular companies</span>
+        {open ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+      </button>
+
+      {open && (
+        <div className="border-t border-border">
+          {/* Category tabs */}
+          <div className="flex flex-wrap gap-1 p-3 pb-0">
+            {PRESET_CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setActiveCategory(cat)}
+                className={cn(
+                  "border px-2.5 py-1 text-xs font-medium transition-colors",
+                  activeCategory === cat
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Company list */}
+          <div className="divide-y divide-border p-3 pt-2">
+            {companiesInCategory.map((preset) => {
+              const alreadyTracked = trackedUrls.has(preset.careersUrl)
+              return (
+                <div key={preset.careersUrl} className="flex items-start justify-between gap-3 py-2.5 first:pt-0">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{preset.name}</p>
+                    <p className="text-xs text-muted-foreground">{preset.notes}</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={alreadyTracked || adding === preset.careersUrl}
+                    onClick={async () => {
+                      setAdding(preset.careersUrl)
+                      await onAdd(preset)
+                      setAdding(null)
+                    }}
+                    className={cn(
+                      "shrink-0 border px-2.5 py-1 text-xs font-medium transition-colors",
+                      alreadyTracked
+                        ? "border-border bg-secondary text-muted-foreground cursor-default"
+                        : "border-foreground/30 hover:border-foreground hover:bg-foreground hover:text-background"
+                    )}
+                  >
+                    {alreadyTracked ? "Added" : adding === preset.careersUrl ? "Adding…" : "Add"}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function TrackedCompaniesForm({ initial }: { initial: TrackedCompany[] }) {
   const [companies, setCompanies] = useState<TrackedCompany[]>(initial)
   const [newName, setNewName] = useState("")
   const [newUrl, setNewUrl] = useState("")
   const [isSyncing, startSyncTransition] = useTransition()
   const [isAdding, startAddTransition] = useTransition()
+
+  const trackedUrls = new Set(companies.map((c) => c.careersUrl))
+
+  async function handleAddPreset(preset: PresetCompany) {
+    if (trackedUrls.has(preset.careersUrl)) return
+    const result = await addTrackedCompany(preset.name, preset.careersUrl)
+    if ("error" in result) {
+      toast.error(result.error)
+      return
+    }
+    setCompanies((prev) => [
+      ...prev,
+      {
+        id: result.id,
+        name: preset.name,
+        careersUrl: preset.careersUrl,
+        atsType: null,
+        atsBoardIdentifier: null,
+        enabled: true,
+        lastSyncedAt: null,
+        createdAt: new Date().toISOString(),
+      },
+    ])
+    toast.success(`${preset.name} added`)
+  }
 
   function handleAdd() {
     const name = newName.trim()
@@ -230,6 +338,8 @@ export function TrackedCompaniesForm({ initial }: { initial: TrackedCompany[] })
           {isAdding ? "Adding…" : "Add Company"}
         </Button>
       </div>
+
+      <PresetBrowser trackedUrls={trackedUrls} onAdd={handleAddPreset} />
 
       {companies.length > 0 && (
         <Button
