@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -38,12 +38,8 @@ export function AppSidebar({
   const pathname = usePathname()
   const supabase = isSupabaseConfigured() ? createClient() : null
   const isPreviewPage = pathname.endsWith("/cv") || pathname.endsWith("/cover-letter")
-  const [isCollapsed, setIsCollapsed] = useState(isPreviewPage)
-
-  // Auto-collapse when navigating to preview pages (client-side navigation)
-  useEffect(() => {
-    if (isPreviewPage) setIsCollapsed(true)
-  }, [isPreviewPage])
+  const [userCollapsed, setUserCollapsed] = useState(false)
+  const isCollapsed = isPreviewPage || userCollapsed
 
   async function handleSignOut() {
     if (!supabase) {
@@ -74,7 +70,7 @@ export function AppSidebar({
             variant="ghost"
             size="icon-sm"
             className="hidden border-0 text-sidebar-foreground hover:bg-white/5 hover:text-white lg:inline-flex"
-            onClick={() => setIsCollapsed((value) => !value)}
+            onClick={() => setUserCollapsed((value) => !value)}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}

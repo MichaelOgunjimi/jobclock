@@ -21,7 +21,7 @@ export default function ApplicationError({
       <AlertTriangle className="h-10 w-10 text-destructive" />
       <h2 className="text-lg font-semibold">Something went wrong</h2>
       <p className="max-w-md text-sm text-muted-foreground">
-        We couldn't load this application. This might be a temporary issue.
+        We could not load this application. This might be a temporary issue.
       </p>
       <div className="flex gap-3">
         <Button onClick={reset} variant="outline">
