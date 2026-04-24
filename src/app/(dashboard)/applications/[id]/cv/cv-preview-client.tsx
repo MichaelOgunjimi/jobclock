@@ -30,14 +30,14 @@ interface Props {
   skillsGap: unknown
 }
 
-function parseSkillsGap(raw: unknown): { gap: string[]; changes: string | null } {
-  if (!raw) return { gap: [], changes: null }
-  if (Array.isArray(raw)) return { gap: raw as string[], changes: null }
+function parseSkillsGap(raw: unknown): { gap: string[]; changes: string | null; matched: string[] } {
+  if (!raw) return { gap: [], changes: null, matched: [] }
+  if (Array.isArray(raw)) return { gap: raw as string[], changes: null, matched: [] }
   if (typeof raw === "object" && raw !== null) {
-    const obj = raw as { gap?: string[]; changes?: string }
-    return { gap: obj.gap ?? [], changes: obj.changes ?? null }
+    const obj = raw as { gap?: string[]; changes?: string; matched_keywords?: string[] }
+    return { gap: obj.gap ?? [], changes: obj.changes ?? null, matched: obj.matched_keywords ?? [] }
   }
-  return { gap: [], changes: null }
+  return { gap: [], changes: null, matched: [] }
 }
 
 function getAtsColor(score: number): string {
@@ -53,7 +53,7 @@ function StatsCardContent({
 }: {
   atsScore: number | null
   generatedAt: string
-  skillsGap: { gap: string[]; changes: string | null }
+  skillsGap: { gap: string[]; changes: string | null; matched: string[] }
 }) {
   const date = new Date(generatedAt).toLocaleDateString("en-GB", {
     day: "numeric",
@@ -101,21 +101,38 @@ function StatsCardContent({
         </div>
       )}
 
-      {skillsGap.gap.length > 0 && (
+      {(skillsGap.matched.length > 0 || skillsGap.gap.length > 0) && (
         <div>
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            Skills Gap
+            Keyword Coverage
           </p>
-          <div className="flex flex-wrap gap-1.5">
-            {skillsGap.gap.map((skill) => (
-              <span
-                key={skill}
-                className="inline-flex items-center border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
-              >
-                {skill}
-              </span>
-            ))}
-          </div>
+          {skillsGap.matched.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {skillsGap.matched.map((kw) => (
+                <span
+                  key={kw}
+                  className="inline-flex items-center border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                >
+                  {kw}
+                </span>
+              ))}
+            </div>
+          )}
+          {skillsGap.gap.length > 0 && (
+            <>
+              <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Missing</p>
+              <div className="flex flex-wrap gap-1.5">
+                {skillsGap.gap.map((skill) => (
+                  <span
+                    key={skill}
+                    className="inline-flex items-center border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                  >
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
