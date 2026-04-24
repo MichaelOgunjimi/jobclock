@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, ChevronDown, Download, Info, PenLine, Save } from "lucide-react"
+import { ArrowLeft, ChevronDown, Download, Info, PenLine, Printer, Save } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
@@ -310,7 +310,7 @@ export function CvPreviewClient({
                 </div>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-[auto_auto_auto_1fr] sm:items-center">
+              <div className="grid gap-2 sm:grid-cols-[auto_auto_auto_auto_1fr] sm:items-center">
                 <Button
                   type="button"
                   size="sm"
@@ -332,16 +332,25 @@ export function CvPreviewClient({
                   <Save className="h-3.5 w-3.5" />
                   {isSaving ? "Saving…" : "Save"}
                 </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={isDownloading || isSaving}
-                    onClick={() => void handleDownloadPdf()}
-                    className="w-full sm:w-auto"
-                  >
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isDownloading || isSaving}
+                  onClick={() => void handleDownloadPdf()}
+                  className="w-full sm:w-auto"
+                >
                   <Download className="h-3.5 w-3.5" />
                   {isDownloading ? "Generating…" : "Download PDF"}
                 </Button>
+                <Link
+                  href={`/applications/${applicationId}/cv/print`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full sm:w-auto")}
+                >
+                  <Printer className="h-3.5 w-3.5" />
+                  Print
+                </Link>
                 <div className="hidden justify-end sm:flex">
                   <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
                     Tailored CV workspace
