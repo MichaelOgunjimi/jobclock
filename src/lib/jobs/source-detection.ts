@@ -32,7 +32,7 @@ export function detectSourceFromUrl(url: string): string {
 }
 
 export interface AtsDetectionResult {
-  atsType: "greenhouse" | "lever" | "ashby" | "unknown" | null
+  atsType: "greenhouse" | "lever" | "ashby" | "workday" | "unknown" | null
   boardIdentifier: string | null
 }
 
@@ -78,6 +78,12 @@ export function detectAtsFromUrl(rawUrl: string): AtsDetectionResult {
   if (host.endsWith(".ashbyhq.com")) {
     const slug = host.split(".")[0]
     return { atsType: "ashby", boardIdentifier: slug || null }
+  }
+
+  // Workday: {subdomain}.myworkdayjobs.com/{companyId}/...
+  // For Workday, boardIdentifier stores the full URL (the CXS endpoint needs it)
+  if (host.endsWith(".myworkdayjobs.com")) {
+    return { atsType: "workday", boardIdentifier: rawUrl }
   }
 
   return { atsType: "unknown", boardIdentifier: null }
