@@ -396,10 +396,12 @@ async function initialize() {
     }
 
     const tab = await getActiveTab()
-    await loadRecentApplications()
     const restored = await restoreRuntimeState(tab)
     if (restored) return
 
+    loadRecentApplications().catch((error) => {
+      console.warn("Recent applications failed to load:", error)
+    })
     await previewCurrentTab()
   } catch (error) {
     const message = error instanceof Error ? error.message : "The extension could not start."
@@ -484,8 +486,13 @@ nodes.recentTab.addEventListener("click", async () => {
     return
   }
 
-  await loadRecentApplications()
-  show(nodes.recentState)
+  try {
+    await loadRecentApplications()
+    show(nodes.recentState)
+  } catch (error) {
+    showError(error instanceof Error ? error.message : "Recent applications failed to load.")
+    setActiveTab("recent")
+  }
 })
 
 for (const button of [

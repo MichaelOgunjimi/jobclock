@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { chooseDescription, isSubstantialDescription } from "./import-job"
+import {
+  buildFallbackPreview,
+  chooseDescription,
+  deriveTitleAndCompanyFromPageTitle,
+  isSubstantialDescription,
+} from "./import-job"
 
 describe("isSubstantialDescription", () => {
   it("treats long-form page descriptions as substantial", () => {
@@ -30,5 +35,43 @@ describe("chooseDescription", () => {
         "Short company blurb."
       )
     ).toBe("Full parsed description with responsibilities, requirements, and process.")
+  })
+})
+
+describe("deriveTitleAndCompanyFromPageTitle", () => {
+  it("extracts title and company from common board titles", () => {
+    expect(
+      deriveTitleAndCompanyFromPageTitle("Python Developer (Pricing) - Bright Purple Resourcing - Totaljobs")
+    ).toEqual({
+      title: "Python Developer (Pricing)",
+      company: "Bright Purple Resourcing",
+    })
+  })
+})
+
+describe("buildFallbackPreview", () => {
+  it("builds a usable preview from page hints when AI output is unusable", () => {
+    expect(
+      buildFallbackPreview({
+        url: "https://www.totaljobs.com/job/python-developer",
+        fallbackSource: "totaljobs.com",
+        pageTitle: "Python Developer (Pricing) - Bright Purple Resourcing - Totaljobs",
+        hints: {
+          title: "Python Developer (Pricing)",
+          company: "Bright Purple Resourcing",
+          location: "Edinburgh",
+          description:
+            "A long-form description of the role, responsibilities, and requirements that came from the page itself.",
+        },
+        pageText: "Easy apply Python Developer (Pricing) Bright Purple Resourcing Edinburgh",
+      })
+    ).toEqual(
+      expect.objectContaining({
+        title: "Python Developer (Pricing)",
+        company: "Bright Purple Resourcing",
+        source: "totaljobs.com",
+        isEasyApply: true,
+      })
+    )
   })
 })
