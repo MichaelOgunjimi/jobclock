@@ -22,7 +22,7 @@ interface MockQueryCall {
 
 interface MockStorageCall {
   bucket: string
-  operation: "remove" | "upload"
+  operation: "createSignedUrl" | "remove" | "upload"
   args: unknown[]
 }
 
@@ -96,7 +96,7 @@ export function createMockSupabaseClient(initialResults: Record<string, MockResu
     return { data: null, error: null }
   }
 
-  async function resolveStorageResult(bucket: string, operation: "remove" | "upload") {
+  async function resolveStorageResult(bucket: string, operation: MockStorageCall["operation"]) {
     const key = `${bucket}.${operation}`
     const value = storageResults.get(key) ?? storageResults.get(`${bucket}.*`) ?? storageResults.get(`*.${operation}`) ?? storageResults.get("*.*")
     if (!value) return { data: null, error: null }
@@ -223,6 +223,10 @@ export function createMockSupabaseClient(initialResults: Record<string, MockResu
         upload: vi.fn(async (...args: unknown[]) => {
           storageCalls.push({ bucket, operation: "upload", args })
           return resolveStorageResult(bucket, "upload")
+        }),
+        createSignedUrl: vi.fn(async (...args: unknown[]) => {
+          storageCalls.push({ bucket, operation: "createSignedUrl", args })
+          return resolveStorageResult(bucket, "createSignedUrl")
         }),
       })),
     },
