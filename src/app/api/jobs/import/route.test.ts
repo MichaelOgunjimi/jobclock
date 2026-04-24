@@ -235,10 +235,15 @@ describe("POST /api/jobs/import", () => {
 
 describe("OPTIONS /api/jobs/import", () => {
   it("returns CORS headers for preflight", async () => {
-    const response = await OPTIONS()
+    const response = await OPTIONS(new NextRequest("https://app.example.com/api/jobs/import", {
+      method: "OPTIONS",
+      headers: {
+        origin: "chrome-extension://extension-id",
+      },
+    }))
 
     expect(response.status).toBe(204)
-    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*")
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("chrome-extension://extension-id")
     expect(response.headers.get("Access-Control-Allow-Headers")).toContain("Authorization")
   })
 })
