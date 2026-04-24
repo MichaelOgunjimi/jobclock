@@ -137,6 +137,19 @@ describe("settings actions", () => {
     })
   })
 
+  it("saveJobSources requires encryption before storing Reed API keys", async () => {
+    vi.mocked(isEncryptionConfigured).mockReturnValueOnce(false)
+
+    const result = await saveJobSources({
+      reed: { enabled: true, api_key: "reed-key" },
+    })
+
+    expect(result).toEqual({
+      error: "ENCRYPTION_SECRET must be configured to store API keys securely.",
+    })
+    expect(encrypt).not.toHaveBeenCalled()
+  })
+
   it("saveTemplate writes the template path", async () => {
     const result = await saveTemplate("cv", "user/template.docx")
     expect(result).toEqual({ success: true })

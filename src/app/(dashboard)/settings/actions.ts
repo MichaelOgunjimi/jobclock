@@ -108,6 +108,10 @@ export async function saveJobSources(sources: JobSources) {
   // Encrypt Reed API key if present, matching how AI keys are stored
   const encryptedSources = { ...sources }
   if (encryptedSources.reed?.api_key) {
+    if (!isEncryptionConfigured()) {
+      return { error: "ENCRYPTION_SECRET must be configured to store API keys securely." }
+    }
+
     encryptedSources.reed = {
       ...encryptedSources.reed,
       api_key: encrypt(encryptedSources.reed.api_key),
