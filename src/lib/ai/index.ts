@@ -44,6 +44,7 @@ export interface UserPreferences {
   ai_model?: string
   anthropic_api_key?: string
   openai_api_key?: string
+  perplexity_api_key?: string
   job_sources?: JobSources
 }
 

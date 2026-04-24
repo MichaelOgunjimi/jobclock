@@ -46,6 +46,7 @@ export async function saveAiSettings(formData: FormData) {
   const model = formData.get("model") as string
   const anthropicKey = (formData.get("anthropic_api_key") as string).trim()
   const openaiKey = (formData.get("openai_api_key") as string).trim()
+  const perplexityKey = (formData.get("perplexity_api_key") as string).trim()
 
   if (!VALID_PROVIDERS.has(provider)) {
     return { error: "Invalid provider" }
@@ -56,7 +57,7 @@ export async function saveAiSettings(formData: FormData) {
     return { error: "Invalid model for provider" }
   }
 
-  if ((anthropicKey || openaiKey) && !isEncryptionConfigured()) {
+  if ((anthropicKey || openaiKey || perplexityKey) && !isEncryptionConfigured()) {
     return { error: "ENCRYPTION_SECRET must be configured to store API keys securely." }
   }
 
@@ -78,6 +79,7 @@ export async function saveAiSettings(formData: FormData) {
     // Only overwrite a key if user entered a new value; empty = keep existing
     ...(anthropicKey ? { anthropic_api_key: encrypt(anthropicKey) } : {}),
     ...(openaiKey ? { openai_api_key: encrypt(openaiKey) } : {}),
+    ...(perplexityKey ? { perplexity_api_key: encrypt(perplexityKey) } : {}),
   }
 
   const { error } = await supabase
