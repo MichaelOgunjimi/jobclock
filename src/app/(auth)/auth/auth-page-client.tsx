@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { isSupabaseConfigured, SUPABASE_SETUP_MESSAGE } from "@/lib/supabase/config"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,22 +12,35 @@ import { ArrowRight, Briefcase, Loader2, Sparkles } from "lucide-react"
 
 export function AuthPageClient() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [mode, setMode] = useState<"signin" | "signup" | "forgot_password">("signin")
   const [pendingIntent, setPendingIntent] = useState<string | null>(null)
   const isConfigured = isSupabaseConfigured()
-  const urlMessage = searchParams.get("message")
-  const urlStatus = searchParams.get("status")
-  const feedback = urlMessage
-    ? {
-        status: urlStatus === "success" ? "success" : "error",
-        message: urlMessage,
-      }
-    : null
+
+  const [feedback, setFeedback] = useState<{ status: string; message: string } | null>(() => {
+    const msg = searchParams.get("message")
+    const st = searchParams.get("status")
+    return msg ? { status: st === "success" ? "success" : "error", message: msg } : null
+  })
+
+  useEffect(() => {
+    if (searchParams.get("message")) {
+      router.replace("/auth", { scroll: false })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function handleSubmit(intent: string) {
     setPendingIntent(intent)
+    setFeedback(null)
+  }
+
+  function changeMode(newMode: "signin" | "signup" | "forgot_password") {
+    setMode(newMode)
+    setFeedback(null)
+    setPendingIntent(null)
   }
 
   return (
@@ -189,7 +202,7 @@ export function AuthPageClient() {
                         <button
                           type="button"
                           className="text-[12px] text-muted-foreground transition-opacity hover:opacity-70"
-                          onClick={() => setMode("forgot_password")}
+                          onClick={() => changeMode("forgot_password")}
                         >
                           Forgot password?
                         </button>
@@ -258,7 +271,7 @@ export function AuthPageClient() {
                     <button
                       type="button"
                       className="font-medium text-foreground transition-opacity hover:opacity-70"
-                      onClick={() => setMode("signin")}
+                      onClick={() => changeMode("signin")}
                     >
                       Sign in
                     </button>
@@ -269,7 +282,7 @@ export function AuthPageClient() {
                     <button
                       type="button"
                       className="font-medium text-foreground transition-opacity hover:opacity-70"
-                      onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setPendingIntent(null) }}
+                      onClick={() => changeMode(mode === "signin" ? "signup" : "signin")}
                     >
                       {mode === "signin" ? "Create account" : "Sign in"}
                     </button>
