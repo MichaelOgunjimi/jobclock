@@ -19,6 +19,7 @@ export function AuthPageClient() {
   const [pendingIntent, setPendingIntent] = useState<string | null>(null)
   const isConfigured = isSupabaseConfigured()
 
+  // Callback errors (e.g. expired magic link) arrive via URL params — read once then clean URL.
   const [feedback, setFeedback] = useState<{ status: string; message: string } | null>(() => {
     const msg = searchParams.get("message")
     const st = searchParams.get("status")
@@ -32,9 +33,31 @@ export function AuthPageClient() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function handleSubmit(intent: string) {
+  async function submitForm(intent: string) {
+    if (!isConfigured) return
     setPendingIntent(intent)
     setFeedback(null)
+
+    const body = new FormData()
+    body.set("intent", intent)
+    body.set("email", email)
+    if (password) body.set("password", password)
+
+    try {
+      const res = await fetch("/auth/submit", { method: "POST", body })
+      const data = await res.json() as { ok: boolean; redirect?: string; message?: string }
+
+      if (data.redirect) {
+        router.push(data.redirect)
+        return
+      }
+
+      setFeedback({ status: data.ok ? "success" : "error", message: data.message ?? "Something went wrong." })
+      setPendingIntent(null)
+    } catch {
+      setFeedback({ status: "error", message: "Something went wrong. Please try again." })
+      setPendingIntent(null)
+    }
   }
 
   function changeMode(newMode: "signin" | "signup" | "forgot_password") {
@@ -158,13 +181,14 @@ export function AuthPageClient() {
               )}
 
               {mode === "forgot_password" ? (
-                <form action="/auth/submit" method="post" className="space-y-5" onSubmit={() => handleSubmit("forgot_password")}>
-                  <input type="hidden" name="intent" value="forgot_password" />
+                <form
+                  className="space-y-5"
+                  onSubmit={(e) => { e.preventDefault(); submitForm("forgot_password") }}
+                >
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
-                      name="email"
                       type="email"
                       placeholder="you@example.com"
                       value={email}
@@ -182,79 +206,73 @@ export function AuthPageClient() {
                 </form>
               ) : (
                 <>
-                <form action="/auth/submit" method="post" className="space-y-5">
-                  <input type="hidden" name="intent" value={mode === "signin" ? "signin" : "signup"} />
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="password">Password</Label>
-                      {mode === "signin" && (
-                        <button
-                          type="button"
-                          className="text-[12px] text-muted-foreground transition-opacity hover:opacity-70"
-                          onClick={() => changeMode("forgot_password")}
-                        >
-                          Forgot password?
-                        </button>
-                      )}
-                    </div>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required={mode === "signup"}
-                      minLength={mode === "signup" ? 6 : undefined}
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={!isConfigured || !!pendingIntent}
-                    onClick={() => handleSubmit(mode === "signin" ? "signin" : "signup")}
+                  <form
+                    className="space-y-5"
+                    onSubmit={(e) => { e.preventDefault(); submitForm(mode === "signin" ? "signin" : "signup") }}
                   >
-                    {pendingIntent === "signin" || pendingIntent === "signup" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>{mode === "signin" ? "Sign In" : "Create Account"} <ArrowRight className="h-4 w-4" /></>
-                    )}
-                  </Button>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password">Password</Label>
+                        {mode === "signin" && (
+                          <button
+                            type="button"
+                            className="text-[12px] text-muted-foreground transition-opacity hover:opacity-70"
+                            onClick={() => changeMode("forgot_password")}
+                          >
+                            Forgot password?
+                          </button>
+                        )}
+                      </div>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required={mode === "signup"}
+                        minLength={mode === "signup" ? 6 : undefined}
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={!isConfigured || !!pendingIntent}
+                    >
+                      {pendingIntent === "signin" || pendingIntent === "signup" ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>{mode === "signin" ? "Sign In" : "Create Account"} <ArrowRight className="h-4 w-4" /></>
+                      )}
+                    </Button>
+                  </form>
 
-                </form>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center">
+                      <span className="bg-card px-3 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                        Or use email link
+                      </span>
+                    </div>
                   </div>
-                  <div className="relative flex justify-center">
-                    <span className="bg-card px-3 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                      Or use email link
-                    </span>
-                  </div>
-                </div>
 
-                <form action="/auth/submit" method="post">
-                  <input type="hidden" name="intent" value="magic_link" />
-                  <input type="hidden" name="email" value={email} />
                   <Button
-                    type="submit"
-                    formNoValidate
+                    type="button"
                     variant="outline"
                     className="w-full"
                     disabled={!isConfigured || !!pendingIntent}
-                    onClick={() => handleSubmit("magic_link")}
+                    onClick={() => submitForm("magic_link")}
                   >
                     {pendingIntent === "magic_link" ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -262,7 +280,6 @@ export function AuthPageClient() {
                       "Send Magic Link"
                     )}
                   </Button>
-                </form>
                 </>
               )}
 
