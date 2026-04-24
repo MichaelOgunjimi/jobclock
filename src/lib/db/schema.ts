@@ -9,6 +9,7 @@ import {
   jsonb,
   integer,
   date,
+  uniqueIndex,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core"
 
@@ -96,6 +97,7 @@ export const personalApiTokens = pgTable("personal_api_tokens", {
   tokenHash: text("token_hash").notNull().unique(),
   tokenPrefix: text("token_prefix").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
 })
@@ -119,27 +121,33 @@ export const coverLetterStructures = pgTable("cover_letter_structures", {
 // APPLICATIONS
 // ============================================================
 
-export const applications = pgTable("applications", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
-  jobId: uuid("job_id").references(() => jobsCache.id, { onDelete: "set null" }),
-  status: applicationStatusEnum("status").default("saved"),
-  appliedAt: timestamp("applied_at", { withTimezone: true }),
-  coverLetterId: uuid("cover_letter_id").references((): AnyPgColumn => coverLetters.id, { onDelete: "set null" }),
-  customizedCvId: uuid("customized_cv_id").references((): AnyPgColumn => customizedCvs.id, { onDelete: "set null" }),
-  structureId: uuid("structure_id").references((): AnyPgColumn => coverLetterStructures.id, { onDelete: "set null" }),
-  coverLetterTone: text("cover_letter_tone"),
-  source: text("source"),
-  notes: text("notes"),
-  tags: text("tags").array(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  lastStatusUpdate: timestamp("last_status_update", { withTimezone: true }).defaultNow(),
-  autoApplyAttempted: boolean("auto_apply_attempted").default(false),
-  autoApplySuccess: boolean("auto_apply_success"),
-  applicationQualityScore: integer("application_quality_score"),
-  rightToWorkConfirmed: boolean("right_to_work_confirmed").default(false),
-  customDescription: text("custom_description"),
-})
+export const applications = pgTable(
+  "applications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    jobId: uuid("job_id").references(() => jobsCache.id, { onDelete: "set null" }),
+    status: applicationStatusEnum("status").default("saved"),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    coverLetterId: uuid("cover_letter_id").references((): AnyPgColumn => coverLetters.id, { onDelete: "set null" }),
+    customizedCvId: uuid("customized_cv_id").references((): AnyPgColumn => customizedCvs.id, { onDelete: "set null" }),
+    structureId: uuid("structure_id").references((): AnyPgColumn => coverLetterStructures.id, { onDelete: "set null" }),
+    coverLetterTone: text("cover_letter_tone"),
+    source: text("source"),
+    notes: text("notes"),
+    tags: text("tags").array(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    lastStatusUpdate: timestamp("last_status_update", { withTimezone: true }).defaultNow(),
+    autoApplyAttempted: boolean("auto_apply_attempted").default(false),
+    autoApplySuccess: boolean("auto_apply_success"),
+    applicationQualityScore: integer("application_quality_score"),
+    rightToWorkConfirmed: boolean("right_to_work_confirmed").default(false),
+    customDescription: text("custom_description"),
+  },
+  (table) => [
+    uniqueIndex("applications_user_id_job_id_unique").on(table.userId, table.jobId),
+  ]
+)
 
 // ============================================================
 // COVER LETTERS

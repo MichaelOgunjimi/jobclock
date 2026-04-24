@@ -1,12 +1,15 @@
 import { createHash, randomBytes } from "crypto"
-import { and, desc, eq, isNull } from "drizzle-orm"
+import { and, desc, eq, gt, isNull } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { personalApiTokens } from "@/lib/db/schema"
+
+const TOKEN_TTL_DAYS = 90
 
 export interface PersonalApiTokenMetadata {
   id: string
   tokenPrefix: string
   createdAt: string
+  expiresAt: string
   lastUsedAt: string | null
 }
 
@@ -19,8 +22,15 @@ function toMetadata(record: typeof personalApiTokens.$inferSelect): PersonalApiT
     id: record.id,
     tokenPrefix: record.tokenPrefix,
     createdAt: record.createdAt.toISOString(),
+    expiresAt: record.expiresAt.toISOString(),
     lastUsedAt: record.lastUsedAt?.toISOString() ?? null,
   }
+}
+
+function createExpiryDate(now = new Date()): Date {
+  const expiresAt = new Date(now)
+  expiresAt.setDate(expiresAt.getDate() + TOKEN_TTL_DAYS)
+  return expiresAt
 }
 
 export async function getActivePersonalApiTokenMetadata(userId: string): Promise<PersonalApiTokenMetadata | null> {
@@ -50,6 +60,7 @@ export async function generatePersonalApiToken(userId: string): Promise<{ token:
       userId,
       tokenHash,
       tokenPrefix,
+      expiresAt: createExpiryDate(),
     })
     .returning()
 
@@ -68,13 +79,18 @@ export async function revokePersonalApiTokens(userId: string): Promise<void> {
 
 export async function authenticatePersonalApiToken(rawToken: string): Promise<{ tokenId: string; userId: string } | null> {
   const tokenHash = hashToken(rawToken.trim())
+  const now = new Date()
   const [record] = await db
     .select({
       id: personalApiTokens.id,
       userId: personalApiTokens.userId,
     })
     .from(personalApiTokens)
-    .where(and(eq(personalApiTokens.tokenHash, tokenHash), isNull(personalApiTokens.revokedAt)))
+    .where(and(
+      eq(personalApiTokens.tokenHash, tokenHash),
+      isNull(personalApiTokens.revokedAt),
+      gt(personalApiTokens.expiresAt, now)
+    ))
     .limit(1)
 
   if (!record) return null

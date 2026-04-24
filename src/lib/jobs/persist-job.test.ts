@@ -4,6 +4,7 @@ const { db } = vi.hoisted(() => ({
   db: {
     insert: vi.fn(),
     select: vi.fn(),
+    transaction: vi.fn(),
   },
 }))
 
@@ -14,6 +15,7 @@ import { persistJobForUser } from "./persist-job"
 describe("persistJobForUser", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    db.transaction.mockImplementation((callback) => callback(db))
   })
 
   it("returns the existing application when the same user already saved the job", async () => {
@@ -21,7 +23,13 @@ describe("persistJobForUser", () => {
     const onConflictDoUpdate = vi.fn(() => ({ returning: returningCachedJob }))
     const values = vi.fn(() => ({ onConflictDoUpdate }))
 
-    db.insert.mockImplementationOnce(() => ({ values }))
+    const returningApplicationInsert = vi.fn().mockResolvedValue([])
+    const onConflictDoNothing = vi.fn(() => ({ returning: returningApplicationInsert }))
+    const valuesForApplication = vi.fn(() => ({ onConflictDoNothing }))
+
+    db.insert
+      .mockImplementationOnce(() => ({ values }))
+      .mockImplementationOnce(() => ({ values: valuesForApplication }))
     db.select.mockImplementationOnce(() => ({
       from: () => ({
         where: () => ({
@@ -43,7 +51,8 @@ describe("persistJobForUser", () => {
     })
     expect(values).toHaveBeenCalled()
     expect(onConflictDoUpdate).toHaveBeenCalled()
-    expect(db.insert).toHaveBeenCalledTimes(1)
+    expect(onConflictDoNothing).toHaveBeenCalled()
+    expect(db.insert).toHaveBeenCalledTimes(2)
   })
 
   it("creates a saved application when the job is new for the user", async () => {
@@ -52,18 +61,12 @@ describe("persistJobForUser", () => {
     const valuesForJob = vi.fn(() => ({ onConflictDoUpdate }))
 
     const returningApplication = vi.fn().mockResolvedValue([{ id: "app-2" }])
-    const valuesForApplication = vi.fn(() => ({ returning: returningApplication }))
+    const onConflictDoNothing = vi.fn(() => ({ returning: returningApplication }))
+    const valuesForApplication = vi.fn(() => ({ onConflictDoNothing }))
 
     db.insert
       .mockImplementationOnce(() => ({ values: valuesForJob }))
       .mockImplementationOnce(() => ({ values: valuesForApplication }))
-    db.select.mockImplementationOnce(() => ({
-      from: () => ({
-        where: () => ({
-          limit: vi.fn().mockResolvedValue([]),
-        }),
-      }),
-    }))
 
     const result = await persistJobForUser("user-1", {
       url: "https://example.com/job-2",
@@ -82,5 +85,6 @@ describe("persistJobForUser", () => {
       jobId: "job-2",
       status: "saved",
     }))
+    expect(onConflictDoNothing).toHaveBeenCalled()
   })
 })

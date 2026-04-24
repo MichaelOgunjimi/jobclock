@@ -163,25 +163,11 @@ export async function persistJobForUser(
   userId: string,
   job: PersistedJobInput
 ): Promise<{ applicationId: string; alreadySaved: boolean }> {
-  const [cachedJob] = await db
-    .insert(jobsCache)
-    .values({
-      url: job.url,
-      source: job.source,
-      title: job.title,
-      company: job.company,
-      location: job.location ?? null,
-      description: job.description ?? null,
-      salaryMin: toNumeric(job.salaryMin),
-      salaryMax: toNumeric(job.salaryMax),
-      salaryCurrency: job.salaryCurrency ?? "GBP",
-      postedAt: toTimestamp(job.postedAt),
-      isEasyApply: job.isEasyApply ?? false,
-      applyDeadline: job.applyDeadline ?? null,
-    })
-    .onConflictDoUpdate({
-      target: jobsCache.url,
-      set: {
+  return db.transaction(async (tx) => {
+    const [cachedJob] = await tx
+      .insert(jobsCache)
+      .values({
+        url: job.url,
         source: job.source,
         title: job.title,
         company: job.company,
@@ -193,35 +179,58 @@ export async function persistJobForUser(
         postedAt: toTimestamp(job.postedAt),
         isEasyApply: job.isEasyApply ?? false,
         applyDeadline: job.applyDeadline ?? null,
-        scrapedAt: new Date(),
-      },
-    })
-    .returning({ id: jobsCache.id })
+      })
+      .onConflictDoUpdate({
+        target: jobsCache.url,
+        set: {
+          source: job.source,
+          title: job.title,
+          company: job.company,
+          location: job.location ?? null,
+          description: job.description ?? null,
+          salaryMin: toNumeric(job.salaryMin),
+          salaryMax: toNumeric(job.salaryMax),
+          salaryCurrency: job.salaryCurrency ?? "GBP",
+          postedAt: toTimestamp(job.postedAt),
+          isEasyApply: job.isEasyApply ?? false,
+          applyDeadline: job.applyDeadline ?? null,
+          scrapedAt: new Date(),
+        },
+      })
+      .returning({ id: jobsCache.id })
 
-  const [existingApplication] = await db
-    .select({ id: applications.id })
-    .from(applications)
-    .where(and(eq(applications.userId, userId), eq(applications.jobId, cachedJob.id)))
-    .limit(1)
+    const [insertedApplication] = await tx
+      .insert(applications)
+      .values({
+        userId,
+        jobId: cachedJob.id,
+        status: "saved",
+      })
+      .onConflictDoNothing({
+        target: [applications.userId, applications.jobId],
+      })
+      .returning({ id: applications.id })
 
-  if (existingApplication) {
+    if (insertedApplication) {
+      return {
+        applicationId: insertedApplication.id,
+        alreadySaved: false,
+      }
+    }
+
+    const [existingApplication] = await tx
+      .select({ id: applications.id })
+      .from(applications)
+      .where(and(eq(applications.userId, userId), eq(applications.jobId, cachedJob.id)))
+      .limit(1)
+
+    if (!existingApplication) {
+      throw new Error("Failed to create or find application")
+    }
+
     return {
       applicationId: existingApplication.id,
       alreadySaved: true,
     }
-  }
-
-  const [application] = await db
-    .insert(applications)
-    .values({
-      userId,
-      jobId: cachedJob.id,
-      status: "saved",
-    })
-    .returning({ id: applications.id })
-
-  return {
-    applicationId: application.id,
-    alreadySaved: false,
-  }
+  })
 }
