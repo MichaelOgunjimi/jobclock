@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useCallback } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ChevronRight, LogOut, PanelLeftOpen, Settings, UserCircle } from "lucide-react"
@@ -43,12 +43,21 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useDismissibleLayer({
     enabled: open,
     onDismiss: () => setOpen(false),
     refs: [triggerRef, panelRef],
   })
+
+  const scheduleClose = useCallback(() => {
+    closeTimeout.current = setTimeout(() => setOpen(false), 150)
+  }, [])
+
+  const cancelClose = useCallback(() => {
+    if (closeTimeout.current) clearTimeout(closeTimeout.current)
+  }, [])
 
   const initials = getInitials(userProfile.fullName, userProfile.email)
 
@@ -66,7 +75,11 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
   )
 
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onMouseEnter={() => { cancelClose(); setOpen(true) }}
+      onMouseLeave={scheduleClose}
+    >
       <button
         ref={triggerRef}
         type="button"
@@ -107,7 +120,7 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
             <Link
               href="/account"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-2.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+              className="flex items-center gap-3 px-4 py-2.5 text-[13px] text-foreground transition-colors hover:bg-muted"
             >
               <UserCircle className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               Account
@@ -115,7 +128,7 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
             <Link
               href="/settings"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-2.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+              className="flex items-center gap-3 px-4 py-2.5 text-[13px] text-foreground transition-colors hover:bg-muted"
             >
               <Settings className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               Settings
@@ -127,7 +140,7 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
             <button
               type="button"
               onClick={handleSignOut}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-[13px] text-foreground transition-colors hover:bg-accent"
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-[13px] text-foreground transition-colors hover:bg-muted"
             >
               <LogOut className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               Sign out
