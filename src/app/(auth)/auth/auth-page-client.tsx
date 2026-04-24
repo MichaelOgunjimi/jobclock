@@ -181,6 +181,7 @@ export function AuthPageClient() {
                   </Button>
                 </form>
               ) : (
+                <>
                 <form action="/auth/submit" method="post" className="space-y-5">
                   <input type="hidden" name="intent" value={mode === "signin" ? "signin" : "signup"} />
                   <div className="space-y-2">
@@ -262,6 +263,7 @@ export function AuthPageClient() {
                     )}
                   </Button>
                 </form>
+                </>
               )}
 
               <div className="flex items-center justify-between gap-4 border-t pt-5 text-[13px] text-muted-foreground">
