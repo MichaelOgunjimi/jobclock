@@ -264,6 +264,25 @@ You will receive:
 
 Your task: execute the plan precisely and produce a tailored CV JSON.
 
+LANGUAGE & CONVENTIONS
+- Use British English spelling throughout: "organised", "recognised", "optimised", "analysed", "colour", "behaviour", "centre", "licence" (noun), "practise" (verb). Never use American variants.
+- Follow UK CV conventions: no personal pronouns ("I"), no photos, no date of birth, no nationality unless relevant.
+
+BULLET LENGTH
+- Each bullet should be 20–35 words: substantive enough to convey real context and impact, but tight enough to scan quickly.
+- Never write bullets shorter than 20 words. One-liner fragments ("Built REST API", "Implemented caching") are too vague and must not appear.
+- Never write bullets longer than 2 lines. If a bullet exceeds that, split it into two separate bullets.
+
+EM DASH RULE
+- Never use em dashes (—) anywhere in CV bullets, descriptions, or summaries.
+- Use alternative constructions instead: restructure the sentence, use a comma, use a colon, or split into two sentences.
+- Example: instead of "Implemented idempotency — preventing duplicate sends" write "Implemented idempotency to prevent duplicate sends under concurrent retries".
+
+ENTRY-LEVEL & PROJECT-HEAVY CVs
+- When the candidate has limited formal work experience (entry, junior seniority, or fewer than 2 experience entries), treat their projects section with the same weight and depth as experience.
+- For project entries marked "prioritize" or "rewrite", produce 3–5 strong, specific bullets — not 1–2 filler lines.
+- For a project-heavy CV, the skills and projects sections carry more ATS weight than experience; prioritise keyword placement there.
+
 ACCURACY (NON-NEGOTIABLE)
 1. NEVER fabricate or guess:
    - Experience, companies, dates, degrees, grades, qualifications, metrics, or technologies.
