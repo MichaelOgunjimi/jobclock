@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AccountForm } from "./account-form"
+import { toExternalProfileHref } from "./account-link-utils"
 
 export default async function AccountPage() {
   if (!isSupabaseConfigured()) redirect("/auth")
@@ -24,9 +25,9 @@ export default async function AccountPage() {
   const summaryItems = [
     { label: "Email", value: user.email ?? null, placeholder: "Not set", icon: Mail, href: user.email ? `mailto:${user.email}` : null },
     { label: "Phone", value: profile?.phone ?? null, placeholder: "Add a phone number", icon: Phone, href: profile?.phone ? `tel:${profile.phone}` : null },
-    { label: "LinkedIn", value: profile?.linkedin_url ?? null, placeholder: "Add your LinkedIn URL", icon: Link2, href: profile?.linkedin_url ?? null, external: true },
-    { label: "GitHub", value: profile?.github_url ?? null, placeholder: "Add your GitHub URL", icon: Code2, href: profile?.github_url ?? null, external: true },
-    { label: "Portfolio", value: profile?.portfolio_url ?? null, placeholder: "Add your portfolio", icon: Globe, href: profile?.portfolio_url ?? null, external: true },
+    { label: "LinkedIn", value: profile?.linkedin_url ?? null, placeholder: "Add your LinkedIn URL", icon: Link2, href: toExternalProfileHref(profile?.linkedin_url), external: true },
+    { label: "GitHub", value: profile?.github_url ?? null, placeholder: "Add your GitHub URL", icon: Code2, href: toExternalProfileHref(profile?.github_url), external: true },
+    { label: "Portfolio", value: profile?.portfolio_url ?? null, placeholder: "Add your portfolio", icon: Globe, href: toExternalProfileHref(profile?.portfolio_url), external: true },
   ]
 
   return (
