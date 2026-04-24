@@ -79,6 +79,48 @@ function sanitizePageText(pageText: string): string {
     .slice(0, 70_000)
 }
 
+function cleanCandidateText(value: string | null | undefined): string | null {
+  if (!value) return null
+  const cleaned = value.trim()
+  return cleaned ? cleaned : null
+}
+
+export function deriveTitleAndCompanyFromPageTitle(pageTitle: string): {
+  title: string | null
+  company: string | null
+} {
+  const normalized = pageTitle.replace(/\s+/g, " ").trim()
+  if (!normalized) {
+    return { title: null, company: null }
+  }
+
+  const stripKnownSites = (value: string) =>
+    value.replace(
+      /\b(totaljobs|linkedin|indeed|glassdoor|reed|adzuna|careerjet|jobsite)\b/gi,
+      ""
+    ).replace(/\s+/g, " ").trim()
+
+  for (const separator of [" - ", " | ", " — ", " – "]) {
+    const parts = normalized.split(separator).map((part) => stripKnownSites(part)).filter(Boolean)
+    if (parts.length >= 2) {
+      return {
+        title: cleanCandidateText(parts[0]),
+        company: cleanCandidateText(parts[1]),
+      }
+    }
+  }
+
+  const atMatch = normalized.match(/^(.+?)\s+at\s+(.+)$/i)
+  if (atMatch) {
+    return {
+      title: cleanCandidateText(stripKnownSites(atMatch[1])),
+      company: cleanCandidateText(stripKnownSites(atMatch[2])),
+    }
+  }
+
+  return { title: cleanCandidateText(stripKnownSites(normalized)), company: null }
+}
+
 export function isSubstantialDescription(value: string | null | undefined): value is string {
   if (!value) return false
   const trimmed = value.trim()
@@ -98,6 +140,38 @@ export function chooseDescription(parsedDescription: string | null, hintedDescri
   }
 
   return hintedDescription
+}
+
+export function buildFallbackPreview(input: {
+  url: string
+  fallbackSource: string
+  pageTitle: string
+  hints?: JobImportHints
+  pageText: string
+}): JobImportPreview | null {
+  const derived = deriveTitleAndCompanyFromPageTitle(input.pageTitle)
+  const title = cleanCandidateText(input.hints?.title) ?? derived.title
+  const company = cleanCandidateText(input.hints?.company) ?? derived.company
+
+  if (!title || !company) return null
+
+  const easyApplyHint = /easy apply|quick apply/i.test(
+    `${input.pageTitle}\n${input.hints?.location ?? ""}\n${input.hints?.description ?? ""}\n${input.pageText.slice(0, 4000)}`
+  )
+
+  return {
+    url: input.url,
+    source: input.fallbackSource,
+    title,
+    company,
+    location: cleanCandidateText(input.hints?.location),
+    description: chooseDescription(null, cleanCandidateText(input.hints?.description)),
+    salaryMin: null,
+    salaryMax: null,
+    salaryCurrency: "GBP",
+    postedAt: null,
+    isEasyApply: easyApplyHint ? true : null,
+  }
 }
 
 function normalizePreview(
@@ -192,6 +266,16 @@ export async function parseImportedJobPreview(input: {
   try {
     extracted = extractJson(response)
   } catch {
+    const fallbackPreview = buildFallbackPreview({
+      url: input.url,
+      fallbackSource: suggestedSource,
+      pageTitle,
+      hints: input.pageHints,
+      pageText: sanitizePageText(input.pageText),
+    })
+    if (fallbackPreview) {
+      return fallbackPreview
+    }
     throw new JobImportError("AI returned unparseable job data. Please try again.")
   }
 

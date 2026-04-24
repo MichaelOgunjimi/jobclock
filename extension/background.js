@@ -5,6 +5,11 @@ function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "")
 }
 
+function formatNetworkError(config, action) {
+  const baseUrl = normalizeBaseUrl(config.appBaseUrl)
+  return `Could not reach ${baseUrl} while trying to ${action}. Check that the app URL is correct and the app is running.`
+}
+
 async function getRuntimeState() {
   const stored = await chrome.storage.local.get([STATE_KEY])
   return stored[STATE_KEY] || null
@@ -120,14 +125,24 @@ async function extractCurrentPage(tabId) {
 }
 
 async function callImportApi(config, payload) {
-  const response = await fetch(`${normalizeBaseUrl(config.appBaseUrl)}/api/jobs/import`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.token}`,
-    },
-    body: JSON.stringify(payload),
-  })
+  let response
+  try {
+    response = await fetch(`${normalizeBaseUrl(config.appBaseUrl)}/api/jobs/import`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  } catch {
+    throw new Error(
+      formatNetworkError(
+        config,
+        payload.mode === "save" ? "save the job" : "extract a preview"
+      )
+    )
+  }
 
   const body = await response.json().catch(() => ({}))
   if (!response.ok) {
@@ -138,15 +153,20 @@ async function callImportApi(config, payload) {
 }
 
 async function fetchRecentApplications(config, limit = 5) {
-  const response = await fetch(
-    `${normalizeBaseUrl(config.appBaseUrl)}/api/jobs/import?limit=${limit}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${config.token}`,
-      },
-    }
-  )
+  let response
+  try {
+    response = await fetch(
+      `${normalizeBaseUrl(config.appBaseUrl)}/api/jobs/import?limit=${limit}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${config.token}`,
+        },
+      }
+    )
+  } catch {
+    throw new Error(formatNetworkError(config, "load recent applications"))
+  }
 
   const body = await response.json().catch(() => ({}))
   if (!response.ok) {
@@ -161,14 +181,19 @@ async function updateRecentStatus(config, applicationId, status) {
     throw new Error("Invalid stage value.")
   }
 
-  const response = await fetch(`${normalizeBaseUrl(config.appBaseUrl)}/api/jobs/import`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.token}`,
-    },
-    body: JSON.stringify({ applicationId, status }),
-  })
+  let response
+  try {
+    response = await fetch(`${normalizeBaseUrl(config.appBaseUrl)}/api/jobs/import`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.token}`,
+      },
+      body: JSON.stringify({ applicationId, status }),
+    })
+  } catch {
+    throw new Error(formatNetworkError(config, "update the application stage"))
+  }
 
   const body = await response.json().catch(() => ({}))
   if (!response.ok) {
