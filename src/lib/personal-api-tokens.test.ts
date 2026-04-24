@@ -31,6 +31,7 @@ describe("personal api tokens", () => {
       tokenHash: "hash",
       tokenPrefix: "ja_ext_abcd",
       createdAt: new Date("2026-04-23T10:00:00.000Z"),
+      expiresAt: new Date("2026-07-22T10:00:00.000Z"),
       lastUsedAt: null,
       revokedAt: null,
     }])
@@ -46,10 +47,11 @@ describe("personal api tokens", () => {
       userId: "user-1",
       tokenHash: expect.any(String),
       tokenPrefix: expect.any(String),
+      expiresAt: expect.any(Date),
     }))
 
     const insertCall = (values.mock.calls as unknown as Array<
-      [{ tokenHash: string; tokenPrefix: string; userId: string }]
+      [{ tokenHash: string; tokenPrefix: string; userId: string; expiresAt: Date }]
     >).at(0)
     expect(insertCall).toBeDefined()
     const inserted = insertCall?.[0]
@@ -58,6 +60,7 @@ describe("personal api tokens", () => {
 
     expect(inserted.tokenHash).not.toContain(result.token)
     expect(result.token.startsWith(inserted.tokenPrefix)).toBe(true)
+    expect(inserted.expiresAt.getTime()).toBeGreaterThan(Date.now())
   })
 
   it("authenticatePersonalApiToken returns the token owner", async () => {
@@ -86,6 +89,7 @@ describe("personal api tokens", () => {
               tokenHash: "hash",
               tokenPrefix: "ja_ext_abcd",
               createdAt: new Date("2026-04-23T10:00:00.000Z"),
+              expiresAt: new Date("2026-07-22T10:00:00.000Z"),
               lastUsedAt: new Date("2026-04-23T12:00:00.000Z"),
               revokedAt: null,
             }]),
@@ -98,6 +102,7 @@ describe("personal api tokens", () => {
       id: "token-1",
       tokenPrefix: "ja_ext_abcd",
       createdAt: "2026-04-23T10:00:00.000Z",
+      expiresAt: "2026-07-22T10:00:00.000Z",
       lastUsedAt: "2026-04-23T12:00:00.000Z",
     })
   })

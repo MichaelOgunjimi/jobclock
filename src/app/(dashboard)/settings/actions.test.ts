@@ -189,6 +189,7 @@ describe("settings actions", () => {
         id: "token-1",
         tokenPrefix: "ja_ext_test",
         createdAt: "2026-04-23T10:00:00.000Z",
+        expiresAt: "2026-07-22T10:00:00.000Z",
         lastUsedAt: null,
       },
     })
@@ -202,6 +203,7 @@ describe("settings actions", () => {
         id: "token-1",
         tokenPrefix: "ja_ext_test",
         createdAt: "2026-04-23T10:00:00.000Z",
+        expiresAt: "2026-07-22T10:00:00.000Z",
         lastUsedAt: null,
       },
     })

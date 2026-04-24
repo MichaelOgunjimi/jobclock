@@ -30,17 +30,80 @@ const saveRequestSchema = z.object({
 
 const requestSchema = z.discriminatedUnion("mode", [previewRequestSchema, saveRequestSchema])
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+const IMPORT_RATE_LIMIT_WINDOW_MS = 60_000
+const IMPORT_RATE_LIMIT_MAX_REQUESTS = 30
+
+const importRequestCounts = new Map<string, { count: number; resetAt: number }>()
+
+function getConfiguredOrigins(): Set<string> {
+  return new Set(
+    [
+      process.env.NEXT_PUBLIC_APP_URL,
+      process.env.APP_URL,
+      process.env.EXTENSION_ALLOWED_ORIGINS,
+    ]
+      .filter(Boolean)
+      .flatMap((value) => value!.split(","))
+      .map((value) => value.trim().replace(/\/$/, ""))
+      .filter(Boolean)
+  )
+}
+
+function isAllowedOrigin(origin: string | null, requestOrigin: string): boolean {
+  if (!origin) return true
+
+  const normalizedOrigin = origin.replace(/\/$/, "")
+  if (normalizedOrigin === requestOrigin) return true
+  if (normalizedOrigin.startsWith("chrome-extension://")) return true
+
+  return getConfiguredOrigins().has(normalizedOrigin)
+}
+
+function corsHeadersFor(request: NextRequest) {
+  const origin = request.headers.get("origin")
+  const requestOrigin = request.nextUrl.origin
+  const allowOrigin = origin && isAllowedOrigin(origin, requestOrigin) ? origin : requestOrigin
+
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Vary": "Origin",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+  }
+}
+
+function rateLimitToken(tokenId: string): boolean {
+  const now = Date.now()
+  const current = importRequestCounts.get(tokenId)
+
+  if (!current || current.resetAt <= now) {
+    importRequestCounts.set(tokenId, {
+      count: 1,
+      resetAt: now + IMPORT_RATE_LIMIT_WINDOW_MS,
+    })
+    return true
+  }
+
+  if (current.count >= IMPORT_RATE_LIMIT_MAX_REQUESTS) {
+    return false
+  }
+
+  current.count += 1
+  return true
+}
+
+const fallbackCorsHeaders = {
+  "Access-Control-Allow-Origin": "null",
+  "Vary": "Origin",
   "Access-Control-Allow-Headers": "Authorization, Content-Type",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
 }
 
-function json(data: unknown, init?: ResponseInit) {
+function json(request: NextRequest, data: unknown, init?: ResponseInit) {
   return NextResponse.json(data, {
     ...init,
     headers: {
-      ...corsHeaders,
+      ...corsHeadersFor(request),
       ...(init?.headers ?? {}),
     },
   })
@@ -53,16 +116,24 @@ async function authenticateRequest(request: NextRequest) {
   return authenticatePersonalApiToken(token)
 }
 
-export async function OPTIONS() {
+export async function OPTIONS(request: NextRequest) {
+  if (!isAllowedOrigin(request.headers.get("origin"), request.nextUrl.origin)) {
+    return new NextResponse(null, {
+      status: 403,
+      headers: fallbackCorsHeaders,
+    })
+  }
+
   return new NextResponse(null, {
     status: 204,
-    headers: corsHeaders,
+    headers: corsHeadersFor(request),
   })
 }
 
 export async function GET(request: NextRequest) {
   const auth = await authenticateRequest(request)
-  if (!auth) return json({ error: "Unauthorized" }, { status: 401 })
+  if (!auth) return json(request, { error: "Unauthorized" }, { status: 401 })
+  if (!rateLimitToken(auth.tokenId)) return json(request, { error: "Too many requests" }, { status: 429 })
 
   const limit = Math.min(
     10,
@@ -77,10 +148,10 @@ export async function GET(request: NextRequest) {
     )
     await touchPersonalApiToken(auth.tokenId)
 
-    return json({ recentApplications })
+    return json(request, { recentApplications })
   } catch (error) {
     console.error("Recent applications error:", error)
-    return json({ error: "Unexpected server error" }, { status: 500 })
+    return json(request, { error: "Unexpected server error" }, { status: 500 })
   }
 }
 
@@ -91,18 +162,19 @@ const updateStatusSchema = z.object({
 
 export async function PATCH(request: NextRequest) {
   const auth = await authenticateRequest(request)
-  if (!auth) return json({ error: "Unauthorized" }, { status: 401 })
+  if (!auth) return json(request, { error: "Unauthorized" }, { status: 401 })
+  if (!rateLimitToken(auth.tokenId)) return json(request, { error: "Too many requests" }, { status: 429 })
 
   let body: unknown
   try {
     body = await request.json()
   } catch {
-    return json({ error: "Invalid request" }, { status: 400 })
+    return json(request, { error: "Invalid request" }, { status: 400 })
   }
 
   const parsedBody = updateStatusSchema.safeParse(body)
   if (!parsedBody.success) {
-    return json({ error: "Invalid request" }, { status: 400 })
+    return json(request, { error: "Invalid request" }, { status: 400 })
   }
 
   try {
@@ -113,7 +185,7 @@ export async function PATCH(request: NextRequest) {
     )
 
     if (!updated) {
-      return json({ error: "Not found" }, { status: 404 })
+      return json(request, { error: "Not found" }, { status: 404 })
     }
 
     const recentApplications = await listRecentApplicationsForUser(
@@ -123,27 +195,28 @@ export async function PATCH(request: NextRequest) {
     )
     await touchPersonalApiToken(auth.tokenId)
 
-    return json({ success: true, recentApplications })
+    return json(request, { success: true, recentApplications })
   } catch (error) {
     console.error("Status update error:", error)
-    return json({ error: "Unexpected server error" }, { status: 500 })
+    return json(request, { error: "Unexpected server error" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   const auth = await authenticateRequest(request)
-  if (!auth) return json({ error: "Unauthorized" }, { status: 401 })
+  if (!auth) return json(request, { error: "Unauthorized" }, { status: 401 })
+  if (!rateLimitToken(auth.tokenId)) return json(request, { error: "Too many requests" }, { status: 429 })
 
   let body: unknown
   try {
     body = await request.json()
   } catch {
-    return json({ error: "Invalid request" }, { status: 400 })
+    return json(request, { error: "Invalid request" }, { status: 400 })
   }
 
   const parsedBody = requestSchema.safeParse(body)
   if (!parsedBody.success) {
-    return json({ error: "Invalid request" }, { status: 400 })
+    return json(request, { error: "Invalid request" }, { status: 400 })
   }
 
   try {
@@ -162,7 +235,7 @@ export async function POST(request: NextRequest) {
       )
       await touchPersonalApiToken(auth.tokenId)
 
-      return json({
+      return json(request, {
         preview,
         alreadySaved: !!existingApplication,
         existingApplicationId: existingApplication?.applicationId ?? undefined,
@@ -173,7 +246,7 @@ export async function POST(request: NextRequest) {
     const result = await persistJobForUser(auth.userId, parsedBody.data.preview)
     await touchPersonalApiToken(auth.tokenId)
 
-    return json({
+    return json(request, {
       success: true,
       alreadySaved: result.alreadySaved,
       applicationId: result.applicationId,
@@ -181,10 +254,10 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     if (error instanceof JobImportError) {
-      return json({ error: error.message }, { status: error.status })
+      return json(request, { error: error.message }, { status: error.status })
     }
 
     console.error("Job import error:", error)
-    return json({ error: "Unexpected server error" }, { status: 500 })
+    return json(request, { error: "Unexpected server error" }, { status: 500 })
   }
 }

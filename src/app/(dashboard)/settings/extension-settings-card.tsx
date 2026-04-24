@@ -100,7 +100,7 @@ export function ExtensionSettingsCard({
 
         <Separator />
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <div className="space-y-1">
             <p className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">Token Prefix</p>
             <p className="text-sm text-foreground">
@@ -117,6 +117,12 @@ export function ExtensionSettingsCard({
             <p className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">Last Used</p>
             <p className="text-sm text-foreground">
               {tokenMetadata ? formatDate(tokenMetadata.lastUsedAt) : "Never"}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">Expires</p>
+            <p className="text-sm text-foreground">
+              {tokenMetadata ? formatDate(tokenMetadata.expiresAt) : "Not generated"}
             </p>
           </div>
         </div>
