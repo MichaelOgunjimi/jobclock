@@ -88,6 +88,8 @@ export const jobsCache = pgTable("jobs_cache", {
   applyDeadline: date("apply_deadline"),
   isRemote: boolean("is_remote"),
   remoteType: text("remote_type"), // "remote" | "hybrid" | "on-site"
+  industryKey: text("industry_key"),
+  industryLabel: text("industry_label"),
 })
 
 // ============================================================

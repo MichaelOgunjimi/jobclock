@@ -3,9 +3,11 @@ import { db } from "@/lib/db"
 import { jobsCache, trackedCompanies } from "@/lib/db/schema"
 import { checkAtsRateLimit } from "@/lib/jobs/ats-rate-limit"
 import type { PersistedJobInput } from "@/lib/jobs/persist-job"
+import { classifyJobIndustry } from "@/lib/jobs/industry-classification"
 import { fetchGreenhouseJobs } from "./greenhouse"
 import { fetchLeverJobs } from "./lever"
 import { fetchAshbyJobs } from "./ashby"
+import { fetchWorkdayJobs } from "./workday"
 
 export interface SyncResult {
   companyId: string
@@ -15,6 +17,7 @@ export interface SyncResult {
 }
 
 async function upsertJobIntoCache(job: PersistedJobInput): Promise<void> {
+  const industry = classifyJobIndustry(job.title)
   await db
     .insert(jobsCache)
     .values({
@@ -32,6 +35,8 @@ async function upsertJobIntoCache(job: PersistedJobInput): Promise<void> {
       applyDeadline: job.applyDeadline ?? null,
       isRemote: job.isRemote ?? null,
       remoteType: job.remoteType ?? null,
+      industryKey: industry?.industryKey ?? null,
+      industryLabel: industry?.industryLabel ?? null,
       lastSeenAt: new Date(),
     })
     .onConflictDoUpdate({
@@ -43,6 +48,8 @@ async function upsertJobIntoCache(job: PersistedJobInput): Promise<void> {
         description: job.description ?? null,
         isRemote: job.isRemote ?? null,
         remoteType: job.remoteType ?? null,
+        industryKey: industry?.industryKey ?? null,
+        industryLabel: industry?.industryLabel ?? null,
         scrapedAt: new Date(),
         lastSeenAt: new Date(),
       },
@@ -64,6 +71,9 @@ async function fetchJobsForCompany(company: {
       return fetchLeverJobs(atsBoardIdentifier, name)
     case "ashby":
       return fetchAshbyJobs(atsBoardIdentifier, name)
+    case "workday":
+      // atsBoardIdentifier stores the full careers URL for Workday
+      return fetchWorkdayJobs(atsBoardIdentifier, name)
     default:
       throw new Error(`Unsupported ATS type: ${atsType}`)
   }
