@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { resolveAiConfig, generateText } from "@/lib/ai"
 import { aiGenerateRateLimit } from "@/lib/rate-limit"
+import { and, eq } from "drizzle-orm"
+import { db } from "@/lib/db"
+import { applications } from "@/lib/db/schema"
 import type { ApplicationStatus, AppWithJob, CvData } from "@/lib/supabase/database.types"
 import type { AiSettings, UserPreferences } from "@/lib/ai"
 import {
@@ -430,4 +433,26 @@ export async function generateCoverLetter(
 
   revalidatePath(`/applications/${applicationId}`)
   return { success: true }
+}
+
+export async function updateFollowUp(applicationId: string, data: {
+  followUpDueAt: string | null
+  followUpNotes: string | null
+}): Promise<{ error?: string }> {
+  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Unauthorized" }
+
+  await db
+    .update(applications)
+    .set({
+      followUpDueAt: data.followUpDueAt ? new Date(data.followUpDueAt) : null,
+      followUpNotes: data.followUpNotes ?? null,
+    })
+    .where(and(eq(applications.id, applicationId), eq(applications.userId, user.id)))
+
+  revalidatePath(`/applications/${applicationId}`)
+  return {}
 }
