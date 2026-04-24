@@ -18,6 +18,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   X,
+  BookOpen,
+  BarChart2,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -25,6 +27,8 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/jobs", label: "Job Search", icon: Search },
   { href: "/applications", label: "Applications", icon: Send },
+  { href: "/interview", label: "Interview Prep", icon: BookOpen },
+  { href: "/analytics", label: "Analytics", icon: BarChart2 },
   { href: "/profile", label: "My CV", icon: FileText },
 ]
 
