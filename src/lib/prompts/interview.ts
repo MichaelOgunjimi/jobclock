@@ -29,10 +29,11 @@ Generate a plan with exactly these sections:
 - Approximate timeline if inferable
 
 ## 2. Likely Questions (10–12 questions)
-For each question use this exact two-line format — question on line 1, blockquote on line 2:
+For each question use this exact three-line format:
 
 **Q1.** [question text]
 > *Round: [round name] | Best story: [story title — one sentence on why it fits, or "No matching story yet"]*
+> *Angle: [What the interviewer is really assessing — 10 words max. How to structure your answer — 10 words max.]*
 
 Leave a blank line between each question.
 

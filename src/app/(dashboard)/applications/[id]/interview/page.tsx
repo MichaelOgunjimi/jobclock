@@ -3,13 +3,149 @@
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, BookOpen, Building2, Loader2, RefreshCw, AlertTriangle } from "lucide-react"
+import { ArrowLeft, BookOpen, Building2, ChevronLeft, ChevronRight, Loader2, RefreshCw, AlertTriangle, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { cn } from "@/lib/utils"
 
-type Tab = "prep" | "research"
+type Tab = "prep" | "research" | "grill"
+
+function GrillMe({
+  applicationId,
+  questions,
+}: {
+  applicationId: string
+  questions: string[]
+}) {
+  const [currentIdx, setCurrentIdx] = useState(0)
+  const [answer, setAnswer] = useState("")
+  const [feedback, setFeedback] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const question = questions[currentIdx] ?? null
+
+  function handleNext() {
+    setCurrentIdx((i) => Math.min(i + 1, questions.length - 1))
+    setAnswer("")
+    setFeedback(null)
+    setError(null)
+  }
+
+  function handlePrev() {
+    setCurrentIdx((i) => Math.max(i - 1, 0))
+    setAnswer("")
+    setFeedback(null)
+    setError(null)
+  }
+
+  async function handleEvaluate() {
+    if (!answer.trim() || !question) return
+    setLoading(true)
+    setFeedback(null)
+    setError(null)
+    try {
+      const res = await fetch(`/api/applications/${applicationId}/interview/evaluate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, answer }),
+      })
+      const data = await res.json() as { feedback?: string; error?: string }
+      if (!res.ok) throw new Error(data.error ?? "Evaluation failed")
+      setFeedback(data.feedback ?? null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="border bg-secondary px-6 py-14 text-center text-muted-foreground">
+        <Zap className="mx-auto mb-4 h-10 w-10 opacity-30" />
+        <p className="font-medium text-foreground">No questions yet</p>
+        <p className="mt-2 text-sm">Generate your interview prep first — then come back to practice.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Question navigator */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handlePrev}
+          disabled={currentIdx === 0}
+          className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-sm text-muted-foreground">
+          Question {currentIdx + 1} of {questions.length}
+        </span>
+        <button
+          type="button"
+          onClick={handleNext}
+          disabled={currentIdx === questions.length - 1}
+          className="flex h-8 w-8 items-center justify-center border border-border text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Question card */}
+      <div className="border border-border bg-secondary px-5 py-4">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Question</p>
+        <p className="font-medium leading-relaxed">{question?.replace(/^\*\*Q\d+\.\*\*\s*/, "")}</p>
+      </div>
+
+      {/* Answer area */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Your answer</label>
+        <textarea
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
+          placeholder="Speak or type your answer here. Aim for 2–3 minutes worth of content (roughly 300–400 words). Use the STAR structure: Situation → Task → Action → Result."
+          rows={8}
+          className="w-full resize-y border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        <p className="text-xs text-muted-foreground">{answer.trim().split(/\s+/).filter(Boolean).length} words</p>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Button onClick={handleEvaluate} disabled={loading || !answer.trim()}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+          {loading ? "Evaluating…" : "Evaluate my answer"}
+        </Button>
+        {feedback && (
+          <Button variant="outline" onClick={() => { setAnswer(""); setFeedback(null) }}>
+            Try again
+          </Button>
+        )}
+      </div>
+
+      {error && (
+        <div className="border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
+      {feedback && (
+        <div className="border border-border bg-card p-6">
+          <MarkdownContent content={feedback} />
+          <div className="mt-6 pt-4 border-t border-border">
+            <Button variant="outline" onClick={handleNext} disabled={currentIdx === questions.length - 1}>
+              Next question <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function InterviewPrepPage() {
   const params = useParams()
@@ -18,6 +154,7 @@ export default function InterviewPrepPage() {
   const [tab, setTab] = useState<Tab>("prep")
   const [prepContent, setPrepContent] = useState<string | null>(null)
   const [researchContent, setResearchContent] = useState<string | null>(null)
+  const [questions, setQuestions] = useState<string[]>([])
   const [loadingPrep, setLoadingPrep] = useState(false)
   const [loadingResearch, setLoadingResearch] = useState(false)
   const [prepError, setPrepError] = useState<string | null>(null)
@@ -32,9 +169,10 @@ export default function InterviewPrepPage() {
           fetch(`/api/applications/${applicationId}/interview`),
           fetch(`/api/applications/${applicationId}/company-research`),
         ])
-        const prepData = await prepRes.json() as { content: string | null; storyCount?: number }
+        const prepData = await prepRes.json() as { content: string | null; questions?: string[]; storyCount?: number }
         const researchData = await researchRes.json() as { content: string | null }
         if (prepData.content) setPrepContent(prepData.content)
+        if (prepData.questions) setQuestions(prepData.questions)
         if (prepData.storyCount !== undefined) setStoryCount(prepData.storyCount)
         if (researchData.content) setResearchContent(researchData.content)
       } finally {
@@ -49,9 +187,10 @@ export default function InterviewPrepPage() {
     setPrepError(null)
     try {
       const res = await fetch(`/api/applications/${applicationId}/interview`, { method: "POST" })
-      const data = await res.json() as { content?: string; error?: string; storyCount?: number }
+      const data = await res.json() as { content?: string; error?: string; storyCount?: number; questions?: string[] }
       if (!res.ok) throw new Error(data.error ?? "Failed to generate interview prep")
       setPrepContent(data.content ?? null)
+      if (data.questions) setQuestions(data.questions)
       if (data.storyCount !== undefined) setStoryCount(data.storyCount)
     } catch (err) {
       setPrepError(err instanceof Error ? err.message : "Something went wrong")
@@ -89,32 +228,24 @@ export default function InterviewPrepPage() {
       </div>
 
       <div className="flex gap-1 border-b">
-        <button
-          type="button"
-          onClick={() => setTab("prep")}
-          className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-            tab === "prep"
-              ? "border-foreground text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <BookOpen className="inline h-3.5 w-3.5 mr-1.5" />
-          Interview Prep
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("research")}
-          className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-            tab === "research"
-              ? "border-foreground text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Building2 className="inline h-3.5 w-3.5 mr-1.5" />
-          Company Research
-        </button>
+        {(["prep", "research", "grill"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            className={cn(
+              "flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+              tab === t
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t === "prep" && <BookOpen className="h-3.5 w-3.5" />}
+            {t === "research" && <Building2 className="h-3.5 w-3.5" />}
+            {t === "grill" && <Zap className="h-3.5 w-3.5" />}
+            {t === "prep" ? "Interview Prep" : t === "research" ? "Company Research" : "Grill Me"}
+          </button>
+        ))}
       </div>
 
       {tab === "prep" && (
@@ -198,6 +329,10 @@ export default function InterviewPrepPage() {
             </div>
           )}
         </div>
+      )}
+
+      {tab === "grill" && (
+        <GrillMe applicationId={applicationId} questions={questions} />
       )}
     </div>
   )
