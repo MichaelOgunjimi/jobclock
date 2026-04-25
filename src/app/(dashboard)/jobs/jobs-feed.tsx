@@ -130,11 +130,14 @@ export function JobsFeed({
         return
       }
 
-      // Reset dedup tracker on every fetch — each page independently deduplicates
-      // across sources (Adzuna + Careerjet may return the same job on the same page)
-      seenUrlsRef.current = new Set()
+      // On a new search (page 1) reset the seen-URL tracker so the session starts
+      // fresh. On page navigation keep the existing set so jobs from earlier pages
+      // are filtered out — Adzuna/CareerJet cycle results on deep pages and without
+      // this a job from page 2 can reappear unchanged on page 8.
+      if (searchPage === 1) {
+        seenUrlsRef.current = new Set()
+      }
 
-      // Filter out any URLs already shown on previous pages
       const newJobs = (data.jobs ?? []).filter((job: Job) => {
         if (seenUrlsRef.current.has(job.url)) return false
         seenUrlsRef.current.add(job.url)
@@ -426,6 +429,8 @@ export function JobsFeed({
                     ? "The title filter removed all results. Try clearing the include/exclude fields."
                     : filteredByExperience.length > 0 && experienceLevels.length > 0
                     ? "The experience filter removed all results. Try deselecting some levels."
+                    : page > 1 && rawJobs.length === 0
+                    ? "All results on this page were already shown on an earlier page — you've reached the end of unique results."
                     : "Try broadening the keywords, location, or lowering the salary floor."}
                 </p>
               </div>
