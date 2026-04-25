@@ -6,13 +6,13 @@ import { searchCareerjetJobs } from "@/lib/jobs/careerjet"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { jobsCache } from "@/lib/db/schema"
-import { and, or, ilike, inArray, desc, isNotNull } from "drizzle-orm"
+import { and, or, ilike, inArray, eq, desc } from "drizzle-orm"
 import type { Job } from "@/lib/jobs/types"
 import type { UserPreferences } from "@/lib/ai"
 
 const ATS_SOURCES = ["greenhouse", "lever", "ashby", "workday"]
 
-async function searchTrackedJobs(query: string | undefined, location: string | undefined, perPage: number): Promise<{ jobs: Job[]; total: number; page: number }> {
+async function searchTrackedJobs(query: string | undefined, location: string | undefined, perPage: number, page: number): Promise<{ jobs: Job[]; total: number; page: number }> {
   const conditions = [inArray(jobsCache.source, ATS_SOURCES)]
 
   if (query) {
@@ -28,10 +28,12 @@ async function searchTrackedJobs(query: string | undefined, location: string | u
     conditions.push(
       or(
         ilike(jobsCache.location, `%${location}%`),
-        isNotNull(jobsCache.isRemote)
+        eq(jobsCache.isRemote, true)
       )!
     )
   }
+
+  const offset = (page - 1) * perPage
 
   const rows = await db
     .select()
@@ -39,6 +41,7 @@ async function searchTrackedJobs(query: string | undefined, location: string | u
     .where(and(...conditions))
     .orderBy(desc(jobsCache.lastSeenAt))
     .limit(perPage)
+    .offset(offset)
 
   const jobs: Job[] = rows.map((r) => ({
     id: r.id,
@@ -166,7 +169,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (sources.includes("tracked")) {
-    fetchers.push(searchTrackedJobs(query, location, perPageNum))
+    fetchers.push(searchTrackedJobs(query, location, perPageNum, pageNum))
   }
 
   if (sources.includes("careerjet")) {

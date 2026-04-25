@@ -51,8 +51,9 @@ const BATCH_SIZE = 5
 function sortJobsBy(jobs: Job[], by: "relevance" | "date" | "salary"): Job[] {
   if (by === "date") {
     return [...jobs].sort((a, b) => {
-      const ta = a.postedAt ? new Date(a.postedAt).getTime() : 0
-      const tb = b.postedAt ? new Date(b.postedAt).getTime() : 0
+      // Fall back to lastSeenAt for ATS jobs that have no postedAt (keeps freshly-synced jobs visible)
+      const ta = a.postedAt ? new Date(a.postedAt).getTime() : (a.lastSeenAt ? new Date(a.lastSeenAt).getTime() : 0)
+      const tb = b.postedAt ? new Date(b.postedAt).getTime() : (b.lastSeenAt ? new Date(b.lastSeenAt).getTime() : 0)
       return tb - ta
     })
   }
