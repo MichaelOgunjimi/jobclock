@@ -6,7 +6,6 @@ import { db } from "@/lib/db"
 import { applications } from "@/lib/db/schema"
 import type { Database } from "@/lib/supabase/database.types"
 import { ApplicationDetail } from "./application-detail"
-import { FollowUpCard } from "./follow-up-card"
 
 type ApplicationRow = Database["public"]["Tables"]["applications"]["Row"]
 type JobsCacheRow = Database["public"]["Tables"]["jobs_cache"]["Row"]
@@ -95,14 +94,9 @@ export default async function ApplicationDetailPage({
         writingStyles={writingStylesData ?? []}
         tailoredCvs={tailoredCvsData ?? []}
         generatedCoverLetter={generatedCoverLetterData ?? null}
+        followUpDueAt={followUpData?.followUpDueAt?.toISOString() ?? null}
+        followUpNotes={followUpData?.followUpNotes ?? null}
       />
-      <div className="max-w-sm">
-        <FollowUpCard
-          applicationId={id}
-          initialFollowUpDueAt={followUpData?.followUpDueAt?.toISOString() ?? null}
-          initialFollowUpNotes={followUpData?.followUpNotes ?? null}
-        />
-      </div>
     </div>
   )
 }

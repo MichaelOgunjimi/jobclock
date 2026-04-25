@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   ArrowLeft,
+  BookOpen,
   ExternalLink,
   Loader2,
   Send,
@@ -28,6 +29,7 @@ import {
   deleteApplication,
   generateCoverLetter,
 } from "./actions"
+import { FollowUpCard } from "./follow-up-card"
 import type { ApplicationStatus, Database, WritingStyle } from "@/lib/supabase/database.types"
 
 type ApplicationRow = Database["public"]["Tables"]["applications"]["Row"]
@@ -55,6 +57,8 @@ interface Props {
   writingStyles: WritingStyleRow[]
   tailoredCvs: TailoredCvRow[]
   generatedCoverLetter: GeneratedCoverLetterRow | null
+  followUpDueAt: string | null
+  followUpNotes: string | null
 }
 
 // ── Status config ────────────────────────────────────────────────────────────
@@ -1205,6 +1209,8 @@ export function ApplicationDetail({
   writingStyles,
   tailoredCvs,
   generatedCoverLetter,
+  followUpDueAt,
+  followUpNotes,
 }: Props) {
   const job = application.jobs_cache
   const hasDescription = !!(application.custom_description || job?.description)
@@ -1282,6 +1288,13 @@ export function ApplicationDetail({
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to pipeline
           </Link>
+          <Link
+            href={`/applications/${application.id}/interview`}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center sm:w-auto")}
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            Interview Prep
+          </Link>
           {job?.url && (
             <a
               href={job.url}
@@ -1339,6 +1352,11 @@ export function ApplicationDetail({
           <NotesCard
             applicationId={application.id}
             initialNotes={application.notes}
+          />
+          <FollowUpCard
+            applicationId={application.id}
+            initialFollowUpDueAt={followUpDueAt}
+            initialFollowUpNotes={followUpNotes}
           />
 
           {/* Details */}
