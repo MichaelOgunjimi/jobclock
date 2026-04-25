@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, BookOpen, Building2, Loader2, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
+import { MarkdownContent } from "@/components/ui/markdown-content"
 import { cn } from "@/lib/utils"
 
 type Tab = "prep" | "research"
@@ -22,27 +23,35 @@ export default function InterviewPrepPage() {
   const [prepError, setPrepError] = useState<string | null>(null)
   const [researchError, setResearchError] = useState<string | null>(null)
 
+  useEffect(() => {
+    async function loadSaved() {
+      setLoadingPrep(true)
+      try {
+        const [prepRes, researchRes] = await Promise.all([
+          fetch(`/api/applications/${applicationId}/interview`),
+          fetch(`/api/applications/${applicationId}/company-research`),
+        ])
+        const prepData = await prepRes.json() as { content: string | null }
+        const researchData = await researchRes.json() as { content: string | null }
+        if (prepData.content) setPrepContent(prepData.content)
+        if (researchData.content) setResearchContent(researchData.content)
+      } finally {
+        setLoadingPrep(false)
+      }
+    }
+    void loadSaved()
+  }, [applicationId])
+
   async function generatePrep() {
     setLoadingPrep(true)
     setPrepError(null)
     try {
       const res = await fetch(`/api/applications/${applicationId}/interview`, { method: "POST" })
-      const data = await res.json()
+      const data = await res.json() as { content?: string; error?: string }
       if (!res.ok) throw new Error(data.error ?? "Failed to generate interview prep")
-      setPrepContent(data.content)
+      setPrepContent(data.content ?? null)
     } catch (err) {
       setPrepError(err instanceof Error ? err.message : "Something went wrong")
-    } finally {
-      setLoadingPrep(false)
-    }
-  }
-
-  async function loadExistingPrep() {
-    setLoadingPrep(true)
-    try {
-      const res = await fetch(`/api/applications/${applicationId}/interview`)
-      const data = await res.json()
-      if (data.content) setPrepContent(data.content)
     } finally {
       setLoadingPrep(false)
     }
@@ -53,18 +62,15 @@ export default function InterviewPrepPage() {
     setResearchError(null)
     try {
       const res = await fetch(`/api/applications/${applicationId}/company-research`, { method: "POST" })
-      const data = await res.json()
+      const data = await res.json() as { content?: string; error?: string }
       if (!res.ok) throw new Error(data.error ?? "Failed to run company research")
-      setResearchContent(data.content)
+      setResearchContent(data.content ?? null)
     } catch (err) {
       setResearchError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
       setLoadingResearch(false)
     }
   }
-
-  // Load existing prep on first render
-  useState(() => { void loadExistingPrep() })
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
@@ -111,19 +117,12 @@ export default function InterviewPrepPage() {
       {tab === "prep" && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <Button
-              onClick={() => void generatePrep()}
-              disabled={loadingPrep}
-            >
-              {loadingPrep ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
+            <Button onClick={() => void generatePrep()} disabled={loadingPrep}>
+              {loadingPrep ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               {prepContent ? "Regenerate" : "Generate Interview Prep"}
             </Button>
             <p className="text-sm text-muted-foreground">
-              Uses the job description + your story bank to build a tailored prep plan.
+              Uses the job description + your story bank. Saved automatically.
             </p>
           </div>
 
@@ -135,9 +134,7 @@ export default function InterviewPrepPage() {
 
           {prepContent && (
             <div className="border bg-card p-6">
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">
-                {prepContent}
-              </pre>
+              <MarkdownContent content={prepContent} />
             </div>
           )}
 
@@ -154,19 +151,12 @@ export default function InterviewPrepPage() {
       {tab === "research" && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <Button
-              onClick={() => void generateResearch()}
-              disabled={loadingResearch}
-            >
-              {loadingResearch ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
+            <Button onClick={() => void generateResearch()} disabled={loadingResearch}>
+              {loadingResearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               {researchContent ? "Re-research" : "Research Company"}
             </Button>
             <p className="text-sm text-muted-foreground">
-              6-axis company intelligence — uses Perplexity (live web) if configured, otherwise your AI model.
+              6-axis company intelligence — uses Perplexity (live web) if configured, otherwise your AI model. Saved automatically.
             </p>
           </div>
 
@@ -178,9 +168,7 @@ export default function InterviewPrepPage() {
 
           {researchContent && (
             <div className="border bg-card p-6">
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">
-                {researchContent}
-              </pre>
+              <MarkdownContent content={researchContent} />
             </div>
           )}
 
@@ -189,7 +177,7 @@ export default function InterviewPrepPage() {
               <Building2 className="mx-auto mb-4 h-10 w-10 opacity-30" />
               <p className="font-medium text-foreground">No research yet</p>
               <p className="mt-2 text-sm">
-                Research gives you AI/product strategy, recent news, engineering culture, competitive landscape, and your personal angle — all from live web data.
+                Covers AI/product strategy, recent news, engineering culture, competitive landscape, and your personal angle.
               </p>
             </div>
           )}
