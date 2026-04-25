@@ -34,7 +34,7 @@ export async function fetchLeverJobs(companySlug: string, companyName: string): 
     const { isRemote, remoteType } = detectRemoteType(posting.text, location, description)
 
     // Lever tags sometimes include "Remote"
-    const isRemoteFinal = isRemote || posting.tags.some((t) => /remote/i.test(t))
+    const isRemoteFinal = isRemote || (posting.tags ?? []).some((t) => /remote/i.test(t))
 
     return {
       url: posting.hostedUrl,
