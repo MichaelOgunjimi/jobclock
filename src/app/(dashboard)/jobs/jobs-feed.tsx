@@ -42,11 +42,11 @@ const SOURCE_LABELS: Record<string, string> = {
   tracked: "Tracked",
 }
 
-const JOBS_PER_PAGE = 50
-// How many API pages to fetch per batch. Each batch fires BATCH_SIZE parallel
-// requests per source, merges all results globally, then paginates locally.
-// This gives a truly sorted cross-source stream instead of per-page independent sorts.
-const BATCH_SIZE = 5
+const JOBS_PER_PAGE = 20
+// One API page per source per batch. Keeps Adzuna from 429-ing (5 parallel
+// requests triggered their rate-limiter). Pool still grows globally sorted
+// as the user loads more — each load appends one new page per source.
+const BATCH_SIZE = 1
 
 function sortJobsBy(jobs: Job[], by: "relevance" | "date" | "salary"): Job[] {
   if (by === "date") {
