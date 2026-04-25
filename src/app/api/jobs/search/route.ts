@@ -238,8 +238,8 @@ export async function GET(request: NextRequest) {
     // "Most Recent" and "Salary" work across the full merged set.
     if (sort === "date") {
       jobs = jobs.sort((a, b) => {
-        const ta = a.postedAt ? new Date(a.postedAt).getTime() : 0
-        const tb = b.postedAt ? new Date(b.postedAt).getTime() : 0
+        const ta = a.postedAt ? new Date(a.postedAt).getTime() : (a.lastSeenAt ? new Date(a.lastSeenAt).getTime() : 0)
+        const tb = b.postedAt ? new Date(b.postedAt).getTime() : (b.lastSeenAt ? new Date(b.lastSeenAt).getTime() : 0)
         return tb - ta
       })
 
