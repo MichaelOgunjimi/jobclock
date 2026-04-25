@@ -239,6 +239,12 @@ export async function GET(request: NextRequest) {
         const tb = b.postedAt ? new Date(b.postedAt).getTime() : 0
         return tb - ta
       })
+
+      // Drop listings older than 6 months when the caller wants recent results.
+      // Adzuna and CareerJet both keep stale listings indefinitely; without this
+      // old jobs fill the tail of every page even after a date sort.
+      const cutoff = Date.now() - 180 * 24 * 60 * 60 * 1000
+      jobs = jobs.filter(j => !j.postedAt || new Date(j.postedAt).getTime() >= cutoff)
     } else if (sort === "salary") {
       jobs = jobs.sort((a, b) => {
         const sa = a.salaryMax ?? a.salaryMin ?? 0
@@ -247,13 +253,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Cap total to prevent absurd page counts. Adzuna/CareerJet report inflated
-    // totals (e.g. 10,000+) but their APIs only return meaningfully distinct
-    // results for the first ~10 pages before cycling. Capping here stops the
-    // pagination UI from showing 200 fake pages.
-    const cappedTotal = Math.min(totalCount, perPageNum * 10)
-
-    return NextResponse.json({ jobs, total: cappedTotal, page: pageNum, perPage: perPageNum })
+    return NextResponse.json({ jobs, total: jobs.length, page: pageNum, perPage: perPageNum })
   } catch (error) {
     console.error("Job search error:", error)
     return NextResponse.json({ error: "Failed to search jobs" }, { status: 500 })

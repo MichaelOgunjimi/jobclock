@@ -46,7 +46,7 @@ const JOBS_PER_PAGE = 50
 // How many API pages to fetch per batch. Each batch fires BATCH_SIZE parallel
 // requests per source, merges all results globally, then paginates locally.
 // This gives a truly sorted cross-source stream instead of per-page independent sorts.
-const BATCH_SIZE = 3
+const BATCH_SIZE = 5
 
 function sortJobsBy(jobs: Job[], by: "relevance" | "date" | "salary"): Job[] {
   if (by === "date") {
@@ -97,7 +97,7 @@ export function JobsFeed({
   const [query, setQuery] = useState(initialQuery)
   const [location, setLocation] = useState(initialLocation)
   const [salary, setSalary] = useState(initialSalary)
-  const [sortBy, setSortBy] = useState<"relevance" | "date" | "salary">("relevance")
+  const [sortBy, setSortBy] = useState<"relevance" | "date" | "salary">("date")
   const [experienceLevels, setExperienceLevels] = useState<string[]>(initialExperienceLevels)
   const [selectedSources, setSelectedSources] = useState<string[]>(
     enabledSources.length > 0 ? enabledSources : ["adzuna"]
@@ -135,9 +135,12 @@ export function JobsFeed({
     ? filteredByTitle
     : filteredByTitle.filter((j) => !ignoredUrls.has(j.url))
 
-  const displayStart = (displayPage - 1) * JOBS_PER_PAGE
-  const jobs = processedJobs.slice(displayStart, displayStart + JOBS_PER_PAGE)
   const totalDisplayPages = Math.max(1, Math.ceil(processedJobs.length / JOBS_PER_PAGE))
+  // Clamp so that if a batch load doesn't add a new full page the display page
+  // stays valid and the user sees the last available page rather than an empty one.
+  const safePage = Math.min(displayPage, totalDisplayPages)
+  const displayStart = (safePage - 1) * JOBS_PER_PAGE
+  const jobs = processedJobs.slice(displayStart, displayStart + JOBS_PER_PAGE)
 
   // Fetches BATCH_SIZE API pages in parallel, merges into the local pool, and sorts
   // globally. append=false resets the pool (new search); append=true extends it
@@ -450,7 +453,8 @@ export function JobsFeed({
             )}
             {processedJobs.length > 0 && (
               <p className="mt-1">
-                Page {displayPage} of {totalDisplayPages}
+                Page {safePage} of {totalDisplayPages}
+                {hasMoreServer && <span className="ml-1 text-xs">· more to load</span>}
               </p>
             )}
             {ignoredUrls.size > 0 && (
@@ -528,10 +532,10 @@ export function JobsFeed({
         {hasSearched && (totalDisplayPages > 1 || hasMoreServer) && (
           <div className="flex flex-col gap-3 border-t px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
             <p className="text-sm text-muted-foreground">
-              Page <span className="font-medium text-foreground">{displayPage}</span> of{" "}
+              Page <span className="font-medium text-foreground">{safePage}</span> of{" "}
               <span className="font-medium text-foreground">{totalDisplayPages}</span>
-              {hasMoreServer && displayPage === totalDisplayPages && (
-                <span className="ml-1 text-xs">· next page loads more from server</span>
+              {hasMoreServer && safePage === totalDisplayPages && (
+                <span className="ml-1 text-xs">· next page loads more</span>
               )}
             </p>
             <div className="flex flex-wrap items-center gap-2">
@@ -540,11 +544,11 @@ export function JobsFeed({
                 variant="outline"
                 size="sm"
                 onClick={() => void handlePrevPage()}
-                disabled={searching || loadingMore || displayPage === 1}
+                disabled={searching || loadingMore || safePage === 1}
               >
                 Previous
               </Button>
-              {getVisiblePages(displayPage, totalDisplayPages).map((entry, index) =>
+              {getVisiblePages(safePage, totalDisplayPages).map((entry, index) =>
                 entry === "ellipsis" ? (
                   <span key={`ellipsis-${index}`} className="px-2 text-sm text-muted-foreground">…</span>
                 ) : (
@@ -552,10 +556,10 @@ export function JobsFeed({
                     key={entry}
                     type="button"
                     size="sm"
-                    variant={entry === displayPage ? "default" : "outline"}
+                    variant={entry === safePage ? "default" : "outline"}
                     onClick={() => { setDisplayPage(entry); resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" }) }}
                     disabled={searching || loadingMore}
-                    aria-current={entry === displayPage ? "page" : undefined}
+                    aria-current={entry === safePage ? "page" : undefined}
                   >
                     {entry}
                   </Button>
@@ -566,7 +570,7 @@ export function JobsFeed({
                 variant="outline"
                 size="sm"
                 onClick={() => void handleNextPage()}
-                disabled={searching || loadingMore || (displayPage === totalDisplayPages && !hasMoreServer)}
+                disabled={searching || loadingMore || (safePage === totalDisplayPages && !hasMoreServer)}
               >
                 {loadingMore ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Next"}
               </Button>
