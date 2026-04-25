@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, BookOpen, Building2, Loader2, RefreshCw } from "lucide-react"
+import { ArrowLeft, BookOpen, Building2, Loader2, RefreshCw, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { MarkdownContent } from "@/components/ui/markdown-content"
@@ -22,6 +22,7 @@ export default function InterviewPrepPage() {
   const [loadingResearch, setLoadingResearch] = useState(false)
   const [prepError, setPrepError] = useState<string | null>(null)
   const [researchError, setResearchError] = useState<string | null>(null)
+  const [storyCount, setStoryCount] = useState<number | null>(null)
 
   useEffect(() => {
     async function loadSaved() {
@@ -31,9 +32,10 @@ export default function InterviewPrepPage() {
           fetch(`/api/applications/${applicationId}/interview`),
           fetch(`/api/applications/${applicationId}/company-research`),
         ])
-        const prepData = await prepRes.json() as { content: string | null }
+        const prepData = await prepRes.json() as { content: string | null; storyCount?: number }
         const researchData = await researchRes.json() as { content: string | null }
         if (prepData.content) setPrepContent(prepData.content)
+        if (prepData.storyCount !== undefined) setStoryCount(prepData.storyCount)
         if (researchData.content) setResearchContent(researchData.content)
       } finally {
         setLoadingPrep(false)
@@ -47,9 +49,10 @@ export default function InterviewPrepPage() {
     setPrepError(null)
     try {
       const res = await fetch(`/api/applications/${applicationId}/interview`, { method: "POST" })
-      const data = await res.json() as { content?: string; error?: string }
+      const data = await res.json() as { content?: string; error?: string; storyCount?: number }
       if (!res.ok) throw new Error(data.error ?? "Failed to generate interview prep")
       setPrepContent(data.content ?? null)
+      if (data.storyCount !== undefined) setStoryCount(data.storyCount)
     } catch (err) {
       setPrepError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
@@ -125,6 +128,19 @@ export default function InterviewPrepPage() {
               Uses the job description + your story bank. Saved automatically.
             </p>
           </div>
+
+          {storyCount === 0 && (
+            <div className="flex items-start gap-3 border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                Your story bank was empty when this was generated — all questions show "Best story: —".{" "}
+                <Link href="/interview" className="underline underline-offset-2 hover:opacity-70">
+                  Add STAR stories
+                </Link>{" "}
+                then regenerate for matched answers.
+              </span>
+            </div>
+          )}
 
           {prepError && (
             <div className="border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">

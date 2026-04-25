@@ -97,7 +97,8 @@ export async function GET(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const [prep] = await db.select().from(interviewPrep).where(eq(interviewPrep.applicationId, applicationId)).limit(1)
-  if (!prep) return NextResponse.json({ content: null, research: null })
-  const raw = (prep.suggestedAnswers as { raw?: string } | null)?.raw ?? null
-  return NextResponse.json({ content: raw, research: prep.researchContent ?? null, questions: prep.questions ?? [] })
+  if (!prep) return NextResponse.json({ content: null, research: null, storyCount: null })
+  const saved = prep.suggestedAnswers as { raw?: string; storyCount?: number } | null
+  const raw = saved?.raw ?? null
+  return NextResponse.json({ content: raw, research: prep.researchContent ?? null, questions: prep.questions ?? [], storyCount: saved?.storyCount ?? null })
 }
