@@ -118,3 +118,28 @@ export async function deleteStory(id: string): Promise<{ error?: string }> {
   revalidatePath("/interview")
   return {}
 }
+
+export async function importSampleStories(): Promise<{ imported: number } | { error: string }> {
+  const userId = await getAuthenticatedUserId()
+  if (!userId) return { error: "Unauthorized" }
+
+  const { SAMPLE_STORIES } = await import("@/lib/jobs/sample-stories")
+
+  const rows = await db
+    .insert(storyBank)
+    .values(
+      SAMPLE_STORIES.map((s) => ({
+        userId,
+        title: s.title,
+        situation: s.situation,
+        task: s.task,
+        action: s.action,
+        result: s.result,
+        tags: s.tags,
+      }))
+    )
+    .returning({ id: storyBank.id })
+
+  revalidatePath("/interview")
+  return { imported: rows.length }
+}
