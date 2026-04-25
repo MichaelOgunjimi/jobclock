@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { TagInput } from "@/components/ui/tag-input"
 import { toast } from "sonner"
-import { BookOpen, ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react"
+import { BookOpen, ChevronDown, ChevronUp, Download, Plus, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { createStory, updateStory, deleteStory, type StoryEntry } from "./actions"
+import { createStory, updateStory, deleteStory, importSampleStories, type StoryEntry } from "./actions"
 
 function Textarea({
   id,
@@ -255,6 +255,7 @@ function AddStoryForm({ onAdded }: { onAdded: (story: StoryEntry) => void }) {
 
 export function StoryBank({ initial }: { initial: StoryEntry[] }) {
   const [stories, setStories] = useState<StoryEntry[]>(initial)
+  const [importing, startImport] = useTransition()
 
   function handleAdded(story: StoryEntry) {
     setStories((prev) => [story, ...prev])
@@ -264,16 +265,35 @@ export function StoryBank({ initial }: { initial: StoryEntry[] }) {
     setStories((prev) => prev.filter((s) => s.id !== id))
   }
 
+  function handleImport() {
+    startImport(async () => {
+      const res = await importSampleStories()
+      if ("error" in res) {
+        toast.error(res.error)
+      } else {
+        toast.success(`${res.imported} example stories loaded — edit them to match your own experience`)
+        // Reload page to show the newly inserted stories
+        window.location.reload()
+      }
+    })
+  }
+
   return (
     <div className="space-y-6">
-      <AddStoryForm onAdded={handleAdded} />
+      <div className="flex items-center gap-3">
+        <AddStoryForm onAdded={handleAdded} />
+        <Button variant="ghost" size="sm" onClick={handleImport} disabled={importing} className="text-muted-foreground">
+          <Download className="mr-1.5 h-4 w-4" />
+          {importing ? "Loading…" : "Load examples"}
+        </Button>
+      </div>
 
       {stories.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-12 text-center">
+        <div className="flex flex-col items-center gap-3 py-12 text-center">
           <BookOpen className="h-8 w-8 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">No stories yet</p>
-          <p className="text-xs text-muted-foreground/70">
-            Add STAR stories to reference when preparing for interviews
+          <p className="text-xs text-muted-foreground/70 max-w-xs">
+            Add your own STAR stories, or click <strong className="text-muted-foreground">Load examples</strong> above to import 8 ready-made templates you can edit.
           </p>
         </div>
       ) : (
