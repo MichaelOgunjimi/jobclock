@@ -6,6 +6,7 @@ import { storyBank, interviewPrep } from "@/lib/db/schema"
 import { resolveAiConfig, generateText, type UserPreferences } from "@/lib/ai"
 import { callPerplexity } from "@/lib/ai/perplexity"
 import { decrypt } from "@/lib/crypto"
+import { interviewSystemPrompt, interviewUserPrompt } from "@/lib/prompts/interview"
 import type { AppWithJob } from "@/lib/supabase/database.types"
 
 export async function POST(
@@ -44,37 +45,8 @@ export async function POST(
       ).join("\n\n")
     : "No stories in the story bank yet."
 
-  const systemPrompt = `You are an expert interview coach. Be specific and grounded in the actual job description provided. Never fabricate interview questions — only generate ones clearly suggested by the JD or standard for this role type.`
-
-  const userPrompt = `Prepare a structured interview plan for the ${title} role at ${company}.
-
-Job Description:
-${description.slice(0, 3000)}
-
-Candidate's STAR story bank:
-${storyBankText}
-
-Generate a plan with exactly these sections:
-
-1. PROCESS OVERVIEW
-   - Typical interview rounds for this type of role (e.g. HR screen, technical, system design, behavioural, hiring manager)
-   - What each round likely focuses on, based on the JD
-   - Approximate timeline if inferable
-
-2. LIKELY QUESTIONS (10–12 questions)
-   For each: the question, which round it appears in, and which story from the bank best answers it (or "—" if none fits).
-   Format each as: Q1. [question] | Round: [round name] | Best story: [story title or —]
-
-3. TECHNICAL PREP CHECKLIST
-   - Key skills, tools, and frameworks from the JD the candidate must be ready to demonstrate
-   - Any specific algorithms, architectures, or concepts to review
-
-4. RED FLAGS TO ADDRESS
-   - Anything in the JD that might suggest a gap; one sentence on how to handle each
-
-5. QUESTIONS TO ASK THEM (5 strong questions for the candidate to ask)
-
-Keep it grounded in the JD. Label anything inferred as [inferred].`
+  const systemPrompt = interviewSystemPrompt()
+  const userPrompt = interviewUserPrompt({ title, company, description, storyBankText })
 
   let content: string
   try {
@@ -82,22 +54,11 @@ Keep it grounded in the JD. Label anything inferred as [inferred].`
     if (rawPerplexityKey) {
       const perplexityKey = decrypt(rawPerplexityKey)
       content = await callPerplexity(
-        [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
+        [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
         { apiKey: perplexityKey, model: "sonar-pro", maxTokens: 3000 }
       )
     } else {
-      let settings: ReturnType<typeof resolveAiConfig>["settings"]
-      let apiKey: string
-      try {
-        const resolved = resolveAiConfig(preferences)
-        settings = resolved.settings
-        apiKey = resolved.apiKey
-      } catch (err) {
-        return NextResponse.json({ error: err instanceof Error ? err.message : "No AI API key configured." }, { status: 422 })
-      }
+      const { settings, apiKey } = resolveAiConfig(preferences)
       content = await generateText(settings, apiKey, systemPrompt, userPrompt, 3000)
     }
   } catch (err) {
@@ -106,15 +67,21 @@ Keep it grounded in the JD. Label anything inferred as [inferred].`
 
   const questionsArray = content
     .split("\n")
-    .filter((line) => /^Q\d+\./.test(line.trim()))
+    .filter((line) => /^\*\*Q\d+\.\*\*|^Q\d+\./.test(line.trim()))
     .map((line) => line.trim())
 
   const existing = await db.select({ id: interviewPrep.id }).from(interviewPrep).where(eq(interviewPrep.applicationId, applicationId)).limit(1)
 
   if (existing.length > 0) {
-    await db.update(interviewPrep).set({ questions: questionsArray, suggestedAnswers: { raw: content, storyCount: stories.length } }).where(eq(interviewPrep.applicationId, applicationId))
+    await db.update(interviewPrep)
+      .set({ questions: questionsArray, suggestedAnswers: { raw: content, storyCount: stories.length } })
+      .where(eq(interviewPrep.applicationId, applicationId))
   } else {
-    await db.insert(interviewPrep).values({ applicationId, questions: questionsArray, suggestedAnswers: { raw: content, storyCount: stories.length } })
+    await db.insert(interviewPrep).values({
+      applicationId,
+      questions: questionsArray,
+      suggestedAnswers: { raw: content, storyCount: stories.length },
+    })
   }
 
   return NextResponse.json({ content, questions: questionsArray, storyCount: stories.length })
@@ -130,7 +97,7 @@ export async function GET(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const [prep] = await db.select().from(interviewPrep).where(eq(interviewPrep.applicationId, applicationId)).limit(1)
-  if (!prep) return NextResponse.json({ content: null })
+  if (!prep) return NextResponse.json({ content: null, research: null })
   const raw = (prep.suggestedAnswers as { raw?: string } | null)?.raw ?? null
-  return NextResponse.json({ content: raw, questions: prep.questions ?? [] })
+  return NextResponse.json({ content: raw, research: prep.researchContent ?? null, questions: prep.questions ?? [] })
 }
