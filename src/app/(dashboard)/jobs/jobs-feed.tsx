@@ -43,6 +43,28 @@ const SOURCE_LABELS: Record<string, string> = {
 }
 
 const JOBS_PER_PAGE = 50
+// How many API pages to fetch per batch. Each batch fires BATCH_SIZE parallel
+// requests per source, merges all results globally, then paginates locally.
+// This gives a truly sorted cross-source stream instead of per-page independent sorts.
+const BATCH_SIZE = 3
+
+function sortJobsBy(jobs: Job[], by: "relevance" | "date" | "salary"): Job[] {
+  if (by === "date") {
+    return [...jobs].sort((a, b) => {
+      const ta = a.postedAt ? new Date(a.postedAt).getTime() : 0
+      const tb = b.postedAt ? new Date(b.postedAt).getTime() : 0
+      return tb - ta
+    })
+  }
+  if (by === "salary") {
+    return [...jobs].sort((a, b) => {
+      const sa = a.salaryMax ?? a.salaryMin ?? 0
+      const sb = b.salaryMax ?? b.salaryMin ?? 0
+      return sb - sa
+    })
+  }
+  return jobs  // relevance: keep API order
+}
 
 const EXPERIENCE_KEYWORDS: Record<string, string[]> = {
   entry_level: ["entry", "entry-level", "entry level", "junior", "associate", "graduate", "trainee", "apprentice"],
@@ -80,12 +102,18 @@ export function JobsFeed({
   const [selectedSources, setSelectedSources] = useState<string[]>(
     enabledSources.length > 0 ? enabledSources : ["adzuna"]
   )
-  const [rawJobs, setRawJobs] = useState<Job[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
+  // Pool of all jobs fetched so far across all batches, globally sorted
+  const [poolJobs, setPoolJobs] = useState<Job[]>([])
+  // Which display page (1-indexed) within the local pool we're showing
+  const [displayPage, setDisplayPage] = useState(1)
+  // Which API batch we last fetched (1 = pages 1-3, 2 = pages 4-6, …)
+  const [apiBatch, setApiBatch] = useState(0)
+  // True if the last batch came back full — more results may exist on the server
+  const [hasMoreServer, setHasMoreServer] = useState(true)
   const [searching, setSearching] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const resultsScrollRef = useRef<HTMLDivElement>(null)
-  // Track URLs seen across all pages to avoid cross-page duplicates from parallel queries
+  // Persists across batches — prevents the same job appearing in two different batches
   const seenUrlsRef = useRef<Set<string>>(new Set())
 
   const [savedUrls, setSavedUrls] = useState<Set<string>>(new Set(initialSavedUrls))
@@ -95,7 +123,7 @@ export function JobsFeed({
   const [titleIncludes, setTitleIncludes] = useState("")
   const [titleExcludes, setTitleExcludes] = useState("")
 
-  const deduplicated = deduplicateJobs(rawJobs)
+  const deduplicated = deduplicateJobs(poolJobs)
   const filteredByExperience = filterByExperience(deduplicated, experienceLevels)
   const filteredByTitle = filteredByExperience.filter((j) => {
     const title = j.title.toLowerCase()
@@ -103,62 +131,87 @@ export function JobsFeed({
     if (titleExcludes && title.includes(titleExcludes.toLowerCase())) return false
     return true
   })
-  const jobs = showHidden
+  const processedJobs = showHidden
     ? filteredByTitle
     : filteredByTitle.filter((j) => !ignoredUrls.has(j.url))
 
-  async function fetchJobs(searchPage = 1, overrideSort?: typeof sortBy, overrideLevels?: string[]) {
-    setSearching(true)
+  const displayStart = (displayPage - 1) * JOBS_PER_PAGE
+  const jobs = processedJobs.slice(displayStart, displayStart + JOBS_PER_PAGE)
+  const totalDisplayPages = Math.max(1, Math.ceil(processedJobs.length / JOBS_PER_PAGE))
+
+  // Fetches BATCH_SIZE API pages in parallel, merges into the local pool, and sorts
+  // globally. append=false resets the pool (new search); append=true extends it
+  // (loading more). existingPool must be passed explicitly to avoid stale closure.
+  async function fetchBatch(
+    batchNum: number,
+    append: boolean,
+    existingPool: Job[],
+    overrideSort?: typeof sortBy,
+    overrideLevels?: string[]
+  ) {
+    if (append) setLoadingMore(true)
+    else setSearching(true)
+
+    if (!append) seenUrlsRef.current = new Set()
 
     try {
-      const params = new URLSearchParams()
-      if (query) params.set("q", query)
-      if (location) params.set("location", location)
-      if (salary) params.set("salary_min", salary)
-      params.set("sort", overrideSort ?? sortBy)
-      const levels = overrideLevels !== undefined ? overrideLevels : experienceLevels
-      if (levels.length > 0) params.set("experience", levels.join(","))
-      if (selectedSources.length > 0) params.set("sources", selectedSources.join(","))
-      params.set("page", String(searchPage))
-      params.set("per_page", String(JOBS_PER_PAGE))
+      const effectiveSort = overrideSort ?? sortBy
+      const effectiveLevels = overrideLevels !== undefined ? overrideLevels : experienceLevels
+      const startApiPage = (batchNum - 1) * BATCH_SIZE + 1
 
-      const res = await fetch(`/api/jobs/search?${params.toString()}`)
-      const data = await res.json()
+      const responses = await Promise.all(
+        Array.from({ length: BATCH_SIZE }, (_, i) => {
+          const params = new URLSearchParams()
+          if (query) params.set("q", query)
+          if (location) params.set("location", location)
+          if (salary) params.set("salary_min", salary)
+          params.set("sort", effectiveSort)
+          if (effectiveLevels.length > 0) params.set("experience", effectiveLevels.join(","))
+          if (selectedSources.length > 0) params.set("sources", selectedSources.join(","))
+          params.set("page", String(startApiPage + i))
+          params.set("per_page", String(JOBS_PER_PAGE))
+          return fetch(`/api/jobs/search?${params.toString()}`)
+            .then(r => r.json() as Promise<{ jobs?: Job[]; error?: string }>)
+        })
+      )
 
-      if (!res.ok) {
-        toast.error(data.error ?? "Failed to fetch jobs")
-        return
+      const batchJobs: Job[] = []
+      let fullPageCount = 0
+      for (const data of responses) {
+        const page = data.jobs ?? []
+        if (page.length >= JOBS_PER_PAGE) fullPageCount++
+        batchJobs.push(...page)
       }
 
-      // On a new search (page 1) reset the seen-URL tracker so the session starts
-      // fresh. On page navigation keep the existing set so jobs from earlier pages
-      // are filtered out — Adzuna/CareerJet cycle results on deep pages and without
-      // this a job from page 2 can reappear unchanged on page 8.
-      if (searchPage === 1) {
-        seenUrlsRef.current = new Set()
-      }
-
-      const newJobs = (data.jobs ?? []).filter((job: Job) => {
-        if (seenUrlsRef.current.has(job.url)) return false
-        seenUrlsRef.current.add(job.url)
+      const uniqueNew = batchJobs.filter(j => {
+        if (seenUrlsRef.current.has(j.url)) return false
+        seenUrlsRef.current.add(j.url)
         return true
       })
 
-      setRawJobs(newJobs)
-      setTotal(data.total ?? 0)
-      setPage(searchPage)
+      const merged = append ? [...existingPool, ...uniqueNew] : uniqueNew
+      const sorted = sortJobsBy(merged, effectiveSort)
+
+      setPoolJobs(sorted)
+      setApiBatch(batchNum)
+      setHasMoreServer(fullPageCount > 0)
       setHasSearched(true)
-      resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+
+      if (!append) {
+        setDisplayPage(1)
+        resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+      }
     } catch {
       toast.error("Failed to fetch jobs")
     } finally {
       setSearching(false)
+      setLoadingMore(false)
     }
   }
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
-    fetchJobs(1)
+    void fetchBatch(1, false, [])
   }
 
   function toggleSource(source: string) {
@@ -176,7 +229,7 @@ export function JobsFeed({
       ? experienceLevels.filter((l) => l !== level)
       : [...experienceLevels, level]
     setExperienceLevels(next)
-    if (hasSearched) fetchJobs(1, undefined, next)
+    if (hasSearched) void fetchBatch(1, false, [], undefined, next)
   }
 
   async function handleSaveJob(job: Job) {
@@ -202,7 +255,24 @@ export function JobsFeed({
     await ignoreJob(job.url)
   }
 
-  const totalPages = Math.max(1, Math.ceil(total / JOBS_PER_PAGE))
+  async function handlePrevPage() {
+    if (displayPage > 1) {
+      setDisplayPage(p => p - 1)
+      resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+    }
+  }
+
+  async function handleNextPage() {
+    const nextPage = displayPage + 1
+    if (nextPage <= totalDisplayPages) {
+      setDisplayPage(nextPage)
+      resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+    } else if (hasMoreServer && !loadingMore && !searching) {
+      await fetchBatch(apiBatch + 1, true, poolJobs)
+      setDisplayPage(nextPage)
+      resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+    }
+  }
 
   return (
     <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] xl:gap-8">
@@ -279,7 +349,7 @@ export function JobsFeed({
               onChange={(e) => {
                 const val = e.target.value as typeof sortBy
                 setSortBy(val)
-                if (hasSearched) fetchJobs(1, val)
+                if (hasSearched) void fetchBatch(1, false, [], val)
               }}
               className="form-select"
             >
@@ -364,10 +434,13 @@ export function JobsFeed({
 
         {hasSearched && (
           <div className="text-[13px] text-muted-foreground">
-            <p className="font-medium text-foreground">{total.toLocaleString()} roles found</p>
-            {deduplicated.length < rawJobs.length && (
+            <p className="font-medium text-foreground">
+              {poolJobs.length.toLocaleString()} roles loaded
+              {hasMoreServer && <span className="font-normal"> · more available</span>}
+            </p>
+            {deduplicated.length < poolJobs.length && (
               <p className="mt-1 text-xs">
-                {rawJobs.length - deduplicated.length} duplicate{rawJobs.length - deduplicated.length === 1 ? "" : "s"} hidden
+                {poolJobs.length - deduplicated.length} duplicate{poolJobs.length - deduplicated.length === 1 ? "" : "s"} hidden
               </p>
             )}
             {(titleIncludes || titleExcludes) && (
@@ -375,12 +448,9 @@ export function JobsFeed({
                 {filteredByTitle.length} match title filter
               </p>
             )}
-            {jobs.length > 0 && (
+            {processedJobs.length > 0 && (
               <p className="mt-1">
-                Page {page} of {experienceLevels.length > 0 || titleIncludes || titleExcludes ? `~${totalPages}` : totalPages}
-                {(experienceLevels.length > 0 || titleIncludes || titleExcludes) && (
-                  <span className="ml-1 text-xs">(approx — filter active)</span>
-                )}
+                Page {displayPage} of {totalDisplayPages}
               </p>
             )}
             {ignoredUrls.size > 0 && (
@@ -429,8 +499,8 @@ export function JobsFeed({
                     ? "The title filter removed all results. Try clearing the include/exclude fields."
                     : filteredByExperience.length > 0 && experienceLevels.length > 0
                     ? "The experience filter removed all results. Try deselecting some levels."
-                    : page > 1 && rawJobs.length === 0
-                    ? "All results on this page were already shown on an earlier page — you've reached the end of unique results."
+                    : !hasMoreServer
+                    ? "You've seen all available unique results for this search."
                     : "Try broadening the keywords, location, or lowering the salary floor."}
                 </p>
               </div>
@@ -455,39 +525,37 @@ export function JobsFeed({
           </div>
         </ScrollArea>
 
-        {hasSearched && jobs.length > 0 && totalPages > 1 && (
+        {hasSearched && (totalDisplayPages > 1 || hasMoreServer) && (
           <div className="flex flex-col gap-3 border-t px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
             <p className="text-sm text-muted-foreground">
-              Showing page <span className="font-medium text-foreground">{page}</span> of{" "}
-              <span className="font-medium text-foreground">{totalPages}</span>
+              Page <span className="font-medium text-foreground">{displayPage}</span> of{" "}
+              <span className="font-medium text-foreground">{totalDisplayPages}</span>
+              {hasMoreServer && displayPage === totalDisplayPages && (
+                <span className="ml-1 text-xs">· next page loads more from server</span>
+              )}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => fetchJobs(page - 1)}
-                disabled={searching || page === 1}
+                onClick={() => void handlePrevPage()}
+                disabled={searching || loadingMore || displayPage === 1}
               >
                 Previous
               </Button>
-              {getVisiblePages(page, totalPages).map((entry, index) =>
+              {getVisiblePages(displayPage, totalDisplayPages).map((entry, index) =>
                 entry === "ellipsis" ? (
-                  <span
-                    key={`ellipsis-${index}`}
-                    className="px-2 text-sm text-muted-foreground"
-                  >
-                    …
-                  </span>
+                  <span key={`ellipsis-${index}`} className="px-2 text-sm text-muted-foreground">…</span>
                 ) : (
                   <Button
                     key={entry}
                     type="button"
                     size="sm"
-                    variant={entry === page ? "default" : "outline"}
-                    onClick={() => fetchJobs(entry)}
-                    disabled={searching}
-                    aria-current={entry === page ? "page" : undefined}
+                    variant={entry === displayPage ? "default" : "outline"}
+                    onClick={() => { setDisplayPage(entry); resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" }) }}
+                    disabled={searching || loadingMore}
+                    aria-current={entry === displayPage ? "page" : undefined}
                   >
                     {entry}
                   </Button>
@@ -497,10 +565,10 @@ export function JobsFeed({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => fetchJobs(page + 1)}
-                disabled={searching || page === totalPages}
+                onClick={() => void handleNextPage()}
+                disabled={searching || loadingMore || (displayPage === totalDisplayPages && !hasMoreServer)}
               >
-                Next
+                {loadingMore ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Next"}
               </Button>
             </div>
           </div>
