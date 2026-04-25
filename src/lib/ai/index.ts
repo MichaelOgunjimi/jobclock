@@ -9,15 +9,16 @@ export const PROVIDER_MODELS: Record<AiProvider, { id: string; label: string }[]
     { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5 (Fastest)" },
   ],
   openai: [
-    { id: "gpt-4o", label: "GPT-4o (Most Capable)" },
-    { id: "gpt-4o-mini", label: "GPT-4o Mini (Fast & Affordable)" },
-    { id: "gpt-4-turbo", label: "GPT-4 Turbo" },
+    { id: "gpt-4.1", label: "GPT-4.1 (Best quality)" },
+    { id: "gpt-4.1-mini", label: "GPT-4.1 Mini (Fast & affordable)" },
+    { id: "gpt-4o", label: "GPT-4o" },
+    { id: "gpt-4o-mini", label: "GPT-4o Mini" },
   ],
 }
 
 export const DEFAULT_MODELS: Record<AiProvider, string> = {
   anthropic: "claude-sonnet-4-6",
-  openai: "gpt-4o-mini",
+  openai: "gpt-4.1-mini",
 }
 
 export interface AiSettings {
