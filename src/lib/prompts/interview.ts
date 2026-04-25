@@ -28,9 +28,13 @@ Generate a plan with exactly these sections:
 - What each round likely focuses on, based on the JD
 - Approximate timeline if inferable
 
-## 2. Likely Questions
-List 10–12 questions. For each, include which round it appears in and which story from the bank best answers it (or "—" if none fits).
-Format each as: **Q1.** [question] | Round: [round name] | Best story: [story title or —]
+## 2. Likely Questions (10–12 questions)
+For each question use this exact two-line format — question on line 1, blockquote on line 2:
+
+**Q1.** [question text]
+> *Round: [round name] | Best story: [story title — one sentence on why it fits, or "No matching story yet"]*
+
+Leave a blank line between each question.
 
 ## 3. Technical Prep Checklist
 - Key skills, tools, and frameworks from the JD the candidate must be ready to demonstrate
