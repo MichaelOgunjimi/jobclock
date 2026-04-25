@@ -16,7 +16,7 @@ export interface SyncResult {
   errors: string[]
 }
 
-async function upsertJobIntoCache(job: PersistedJobInput): Promise<void> {
+export async function upsertJobIntoCache(job: PersistedJobInput): Promise<void> {
   const industry = classifyJobIndustry(job.title)
   await db
     .insert(jobsCache)
@@ -56,7 +56,7 @@ async function upsertJobIntoCache(job: PersistedJobInput): Promise<void> {
     })
 }
 
-async function fetchJobsForCompany(company: {
+export async function fetchJobsForCompany(company: {
   atsType: string | null
   atsBoardIdentifier: string | null
   name: string

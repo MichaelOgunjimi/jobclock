@@ -124,6 +124,39 @@ export const PRESET_COMPANIES: PresetCompany[] = [
   { name: "Orbital Witness", careersUrl: "https://jobs.ashbyhq.com/orbitalwitness", notes: "London. AI for property due diligence.", category: "UK PropTech" },
   { name: "Motorway", careersUrl: "https://job-boards.greenhouse.io/motorway", notes: "London. AI-powered used car marketplace.", category: "UK PropTech" },
   { name: "Cuvva", careersUrl: "https://jobs.lever.co/cuvva", notes: "London. Flexible car and travel insurance.", category: "UK PropTech" },
+
+  // UK Fintech — extended
+  { name: "ClearScore", careersUrl: "https://job-boards.eu.greenhouse.io/clearscoretechnologylimited", notes: "London. Credit score and financial health app.", category: "UK Fintech" },
+  { name: "Salary Finance", careersUrl: "https://job-boards.eu.greenhouse.io/salaryfinance83", notes: "London. Employer-linked financial wellbeing.", category: "UK Fintech" },
+  { name: "Capital on Tap", careersUrl: "https://job-boards.greenhouse.io/capitalontap", notes: "London. SME credit card and financial platform.", category: "UK Fintech" },
+  { name: "Clear Street", careersUrl: "https://job-boards.greenhouse.io/clearstreet", notes: "London / NYC. Modern clearing and prime brokerage.", category: "UK Fintech" },
+  { name: "Plaid", careersUrl: "https://jobs.lever.co/plaid", notes: "London. Open-banking connectivity API.", category: "UK Fintech" },
+  { name: "NewDay", careersUrl: "https://newday.wd3.myworkdayjobs.com/NewDay", notes: "London. Consumer credit cards and fintech.", category: "UK Fintech" },
+
+  // AI Labs & Research — extended
+  { name: "xAI", careersUrl: "https://job-boards.greenhouse.io/xai", notes: "SF / remote. Elon Musk's AI lab — Grok.", category: "AI Labs" },
+  { name: "Scale AI", careersUrl: "https://job-boards.greenhouse.io/scaleai", notes: "SF. AI data infrastructure and RLHF.", category: "AI Labs" },
+  { name: "i.AI", careersUrl: "https://job-boards.eu.greenhouse.io/iai", notes: "London. UK government AI incubator.", category: "AI Labs" },
+  { name: "QuantCo", careersUrl: "https://jobs.lever.co/quantco-", notes: "Europe / remote. Applied AI for enterprises.", category: "AI Labs" },
+  { name: "H Company", careersUrl: "https://jobs.ashbyhq.com/hcompany", notes: "London / Paris. AGI-focused research lab.", category: "AI Labs" },
+
+  // Dev Tools / AI Infra — extended
+  { name: "Snyk", careersUrl: "https://boards.greenhouse.io/snyk", notes: "London. Developer-first security platform.", category: "Dev Tools / AI Infra" },
+  { name: "Metabase", careersUrl: "https://jobs.lever.co/metabase", notes: "Remote. Open-source BI and analytics.", category: "Dev Tools / AI Infra" },
+  { name: "Bluefish AI", careersUrl: "https://job-boards.greenhouse.io/bluefishai", notes: "London / remote UK. AI platform and infra.", category: "Dev Tools / AI Infra" },
+  { name: "Remote", careersUrl: "https://job-boards.greenhouse.io/remotecom", notes: "Fully remote. Global HR and payroll platform.", category: "Dev Tools / AI Infra" },
+  { name: "Heron Data", careersUrl: "https://jobs.ashbyhq.com/herondata", notes: "London. AI workflow automation for fintechs.", category: "Dev Tools / AI Infra" },
+  { name: "Ashby (company)", careersUrl: "https://jobs.ashbyhq.com/ashby", notes: "Remote / UK. All-in-one recruiting platform.", category: "Dev Tools / AI Infra" },
+
+  // CX / Contact Centre — extended
+  { name: "Hook", careersUrl: "https://jobs.ashbyhq.com/hook", notes: "London. Revenue retention and CS platform.", category: "CX / Contact Centre" },
+
+  // Consulting & Enterprise — extended
+  { name: "Theodo UK", careersUrl: "https://jobs.lever.co/theodo", notes: "London. Lean software consultancy.", category: "Enterprise" },
+  { name: "Financial Technology Partners", careersUrl: "https://job-boards.greenhouse.io/financialtechnologypartners", notes: "SF / NYC. Fintech-focused investment bank.", category: "Enterprise" },
+
+  // UK Climate Tech — extended
+  { name: "Lottie", careersUrl: "https://jobs.ashbyhq.com/lottie", notes: "London. Care-home marketplace and fintech.", category: "UK Climate Tech" },
 ]
 
 export const PRESET_CATEGORIES = [...new Set(PRESET_COMPANIES.map((c) => c.category))]
