@@ -88,6 +88,42 @@ export const PRESET_COMPANIES: PresetCompany[] = [
   { name: "Spotify", careersUrl: "https://jobs.lever.co/spotify", notes: "Stockholm / NYC / London. Audio platform.", category: "Enterprise" },
   { name: "Salesforce", careersUrl: "https://careers.salesforce.com", notes: "Agentforce AI agents platform.", category: "Enterprise" },
   { name: "Twilio", careersUrl: "https://www.twilio.com/en-us/company/jobs", notes: "Voice/messaging infrastructure.", category: "Enterprise" },
+
+  // UK Fintech & Neobanks
+  { name: "Monzo", careersUrl: "https://job-boards.greenhouse.io/monzo", notes: "London. UK's leading neobank.", category: "UK Fintech" },
+  { name: "Revolut", careersUrl: "https://jobs.lever.co/revolut", notes: "London. Global neobank, 40M+ customers.", category: "UK Fintech" },
+  { name: "Starling Bank", careersUrl: "https://www.starlingbank.com/careers", notes: "London. Award-winning digital bank.", category: "UK Fintech" },
+  { name: "Wise", careersUrl: "https://jobs.lever.co/transferwise", notes: "London. Global money transfer. Public.", category: "UK Fintech" },
+  { name: "GoCardless", careersUrl: "https://job-boards.greenhouse.io/gocardless", notes: "London. Bank debit payments platform.", category: "UK Fintech" },
+  { name: "Checkout.com", careersUrl: "https://jobs.ashbyhq.com/checkout.com", notes: "London. Global payments processing.", category: "UK Fintech" },
+  { name: "Cleo", careersUrl: "https://jobs.ashbyhq.com/cleo", notes: "London. AI-powered financial assistant.", category: "UK Fintech" },
+  { name: "Freetrade", careersUrl: "https://job-boards.greenhouse.io/freetrade", notes: "London. Commission-free investing app.", category: "UK Fintech" },
+  { name: "Kroo", careersUrl: "https://jobs.ashbyhq.com/kroo", notes: "London. Social neobank.", category: "UK Fintech" },
+  { name: "Thought Machine", careersUrl: "https://job-boards.greenhouse.io/thoughtmachine", notes: "London. Cloud-native core banking (Vault).", category: "UK Fintech" },
+  { name: "Modulr", careersUrl: "https://jobs.lever.co/modulrfinance", notes: "London / Edinburgh. Payments-as-a-service.", category: "UK Fintech" },
+  { name: "Quantexa", careersUrl: "https://job-boards.greenhouse.io/quantexa", notes: "London. AI-driven decisioning for finance.", category: "UK Fintech" },
+
+  // UK AI / Deep Tech
+  { name: "Tractable", careersUrl: "https://jobs.lever.co/tractable", notes: "London. AI for accident & disaster recovery.", category: "UK Deep Tech" },
+  { name: "Darktrace", careersUrl: "https://jobs.lever.co/darktrace", notes: "Cambridge. AI cybersecurity. Public.", category: "UK Deep Tech" },
+  { name: "Graphcore", careersUrl: "https://job-boards.greenhouse.io/graphcore", notes: "Bristol. AI/ML chip (IPU) maker.", category: "UK Deep Tech" },
+  { name: "Improbable", careersUrl: "https://jobs.lever.co/improbable", notes: "London. Simulation and virtual worlds.", category: "UK Deep Tech" },
+  { name: "Kheiron Medical", careersUrl: "https://jobs.ashbyhq.com/kheironmed", notes: "London. AI for cancer screening.", category: "UK Deep Tech" },
+  { name: "Eigen Technologies", careersUrl: "https://job-boards.greenhouse.io/eigentechnologies", notes: "London. NLP for financial document intelligence.", category: "UK Deep Tech" },
+  { name: "Signal AI", careersUrl: "https://jobs.lever.co/signalai", notes: "London. AI for media intelligence and risk.", category: "UK Deep Tech" },
+  { name: "Peak AI", careersUrl: "https://jobs.ashbyhq.com/peak", notes: "Manchester. AI decision intelligence platform.", category: "UK Deep Tech" },
+  { name: "Secondmind", careersUrl: "https://jobs.lever.co/secondmind", notes: "Cambridge. Probabilistic ML for engineering.", category: "UK Deep Tech" },
+  { name: "Wayve", careersUrl: "https://job-boards.greenhouse.io/wayve", notes: "London. Embodied AI for autonomous vehicles.", category: "UK Deep Tech" },
+
+  // UK Climate & Energy Tech
+  { name: "Octopus Energy", careersUrl: "https://jobs.lever.co/octopusenergy", notes: "London. Tech-first energy supplier.", category: "UK Climate Tech" },
+  { name: "Kraken Technologies", careersUrl: "https://jobs.lever.co/krakentech", notes: "London. Energy tech platform (Octopus spin-out).", category: "UK Climate Tech" },
+  { name: "Ripple Energy", careersUrl: "https://jobs.ashbyhq.com/rippleenergy", notes: "London. Community renewable energy.", category: "UK Climate Tech" },
+
+  // UK PropTech & Other
+  { name: "Orbital Witness", careersUrl: "https://jobs.ashbyhq.com/orbitalwitness", notes: "London. AI for property due diligence.", category: "UK PropTech" },
+  { name: "Motorway", careersUrl: "https://job-boards.greenhouse.io/motorway", notes: "London. AI-powered used car marketplace.", category: "UK PropTech" },
+  { name: "Cuvva", careersUrl: "https://jobs.lever.co/cuvva", notes: "London. Flexible car and travel insurance.", category: "UK PropTech" },
 ]
 
 export const PRESET_CATEGORIES = [...new Set(PRESET_COMPANIES.map((c) => c.category))]
