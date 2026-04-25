@@ -4,6 +4,8 @@ import { eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { storyBank, interviewPrep } from "@/lib/db/schema"
 import { resolveAiConfig, generateText, type UserPreferences } from "@/lib/ai"
+import { callPerplexity } from "@/lib/ai/perplexity"
+import { decrypt } from "@/lib/crypto"
 import type { AppWithJob } from "@/lib/supabase/database.types"
 
 export async function POST(
@@ -33,15 +35,6 @@ export async function POST(
   }
 
   const preferences = (profileData?.preferences ?? {}) as UserPreferences
-  let settings: ReturnType<typeof resolveAiConfig>["settings"]
-  let apiKey: string
-  try {
-    const resolved = resolveAiConfig(preferences)
-    settings = resolved.settings
-    apiKey = resolved.apiKey
-  } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "No AI API key configured." }, { status: 422 })
-  }
 
   const stories = await db.select().from(storyBank).where(eq(storyBank.userId, user.id)).orderBy(storyBank.createdAt)
 
@@ -83,26 +76,48 @@ Generate a plan with exactly these sections:
 
 Keep it grounded in the JD. Label anything inferred as [inferred].`
 
+  let content: string
   try {
-    const content = await generateText(settings, apiKey, systemPrompt, userPrompt, 3000)
-
-    const questionsArray = content
-      .split("\n")
-      .filter((line) => /^Q\d+\./.test(line.trim()))
-      .map((line) => line.trim())
-
-    const existing = await db.select({ id: interviewPrep.id }).from(interviewPrep).where(eq(interviewPrep.applicationId, applicationId)).limit(1)
-
-    if (existing.length > 0) {
-      await db.update(interviewPrep).set({ questions: questionsArray, suggestedAnswers: { raw: content, storyCount: stories.length } }).where(eq(interviewPrep.applicationId, applicationId))
+    const rawPerplexityKey = preferences.perplexity_api_key
+    if (rawPerplexityKey) {
+      const perplexityKey = decrypt(rawPerplexityKey)
+      content = await callPerplexity(
+        [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        { apiKey: perplexityKey, model: "sonar-pro", maxTokens: 3000 }
+      )
     } else {
-      await db.insert(interviewPrep).values({ applicationId, questions: questionsArray, suggestedAnswers: { raw: content, storyCount: stories.length } })
+      let settings: ReturnType<typeof resolveAiConfig>["settings"]
+      let apiKey: string
+      try {
+        const resolved = resolveAiConfig(preferences)
+        settings = resolved.settings
+        apiKey = resolved.apiKey
+      } catch (err) {
+        return NextResponse.json({ error: err instanceof Error ? err.message : "No AI API key configured." }, { status: 422 })
+      }
+      content = await generateText(settings, apiKey, systemPrompt, userPrompt, 3000)
     }
-
-    return NextResponse.json({ content, questions: questionsArray, storyCount: stories.length })
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Interview prep generation failed" }, { status: 500 })
   }
+
+  const questionsArray = content
+    .split("\n")
+    .filter((line) => /^Q\d+\./.test(line.trim()))
+    .map((line) => line.trim())
+
+  const existing = await db.select({ id: interviewPrep.id }).from(interviewPrep).where(eq(interviewPrep.applicationId, applicationId)).limit(1)
+
+  if (existing.length > 0) {
+    await db.update(interviewPrep).set({ questions: questionsArray, suggestedAnswers: { raw: content, storyCount: stories.length } }).where(eq(interviewPrep.applicationId, applicationId))
+  } else {
+    await db.insert(interviewPrep).values({ applicationId, questions: questionsArray, suggestedAnswers: { raw: content, storyCount: stories.length } })
+  }
+
+  return NextResponse.json({ content, questions: questionsArray, storyCount: stories.length })
 }
 
 export async function GET(
