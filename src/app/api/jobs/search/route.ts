@@ -247,7 +247,13 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ jobs, total: totalCount, page: pageNum, perPage: perPageNum })
+    // Cap total to prevent absurd page counts. Adzuna/CareerJet report inflated
+    // totals (e.g. 10,000+) but their APIs only return meaningfully distinct
+    // results for the first ~10 pages before cycling. Capping here stops the
+    // pagination UI from showing 200 fake pages.
+    const cappedTotal = Math.min(totalCount, perPageNum * 10)
+
+    return NextResponse.json({ jobs, total: cappedTotal, page: pageNum, perPage: perPageNum })
   } catch (error) {
     console.error("Job search error:", error)
     return NextResponse.json({ error: "Failed to search jobs" }, { status: 500 })
