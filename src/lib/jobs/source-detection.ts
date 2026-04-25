@@ -49,7 +49,7 @@ export function detectAtsFromUrl(rawUrl: string): AtsDetectionResult {
 
   // Greenhouse: boards.greenhouse.io/SLUG or boards-api.greenhouse.io/v1/boards/SLUG
   // or SLUG.greenhouse.io (custom domain embed is rare but handle it)
-  if (host === "boards.greenhouse.io" || host === "boards-api.greenhouse.io" || host === "job-boards.greenhouse.io") {
+  if (host === "boards.greenhouse.io" || host === "boards-api.greenhouse.io" || host === "job-boards.greenhouse.io" || host === "job-boards.eu.greenhouse.io") {
     // path: /SLUG or /embed/job_board (with ?for=SLUG) or /v1/boards/SLUG/jobs
     const forParam = parsed.searchParams.get("for")
     if (forParam) return { atsType: "greenhouse", boardIdentifier: forParam }

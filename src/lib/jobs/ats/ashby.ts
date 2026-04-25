@@ -21,7 +21,7 @@ function stripHtml(html: string | null | undefined): string | null {
 }
 
 export async function fetchAshbyJobs(orgSlug: string, companyName: string): Promise<PersistedJobInput[]> {
-  const url = `https://api.ashbyhq.com/posting-api/job-board?organizationHostedJobsPageName=${encodeURIComponent(orgSlug)}`
+  const url = `https://api.ashbyhq.com/posting-api/job-board/${encodeURIComponent(orgSlug)}`
   const res = await fetch(url, {
     headers: { "User-Agent": "Jobclock/1.0" },
     next: { revalidate: 0 },
