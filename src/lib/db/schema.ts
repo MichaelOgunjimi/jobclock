@@ -198,6 +198,7 @@ export const interviewPrep = pgTable("interview_prep", {
     .notNull(),
   questions: text("questions").array(),
   suggestedAnswers: jsonb("suggested_answers"),
+  researchContent: text("research_content"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })
 
