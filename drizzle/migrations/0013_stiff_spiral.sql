@@ -1,0 +1,1 @@
+ALTER TABLE "interview_prep" ADD COLUMN "research_content" text;
