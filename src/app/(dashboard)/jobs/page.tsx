@@ -54,6 +54,8 @@ export default async function JobsPage() {
   if (enabledSources.length === 0) {
     enabledSources.push("adzuna")
   }
+  // Tracked companies always available — queries jobs_cache for ATS-synced roles
+  enabledSources.push("tracked")
 
   const savedJobUrls = (applications ?? [])
     .map((a) => ((a as unknown as { jobs_cache: { url: string } | null }).jobs_cache)?.url)

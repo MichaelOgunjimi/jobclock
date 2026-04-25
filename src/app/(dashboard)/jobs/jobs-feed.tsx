@@ -39,6 +39,7 @@ const SOURCE_LABELS: Record<string, string> = {
   adzuna: "Adzuna",
   reed: "Reed",
   careerjet: "Careerjet",
+  tracked: "Tracked",
 }
 
 const JOBS_PER_PAGE = 50
