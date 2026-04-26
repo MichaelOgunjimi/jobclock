@@ -61,13 +61,15 @@ export async function POST(request: NextRequest) {
   if (!app) return NextResponse.json({ error: "Not found" }, { status: 404 })
   const typedApp = app as unknown as AppWithJob
 
-  // Fetch CV + AI settings in parallel
-  const cvId = typedApp.customized_cv_id
-  const [{ data: profile }, { data: cvRow }] = await Promise.all([
+  // Fetch CV + AI settings in parallel.
+  // Priority: tailored CV from customized_cvs → user's primary CV from user_cvs.
+  const customizedCvId = typedApp.customized_cv_id
+  const [{ data: profile }, { data: tailoredCvRow }, { data: baseCvRow }] = await Promise.all([
     supabase.from("profiles").select("preferences").eq("id", user.id).single(),
-    cvId
-      ? supabase.from("user_cvs").select("parsed_json, name").eq("id", cvId).eq("user_id", user.id).single()
+    customizedCvId
+      ? supabase.from("customized_cvs").select("cv_json").eq("id", customizedCvId).eq("user_id", user.id).single()
       : Promise.resolve({ data: null }),
+    supabase.from("user_cvs").select("parsed_json, name").eq("user_id", user.id).eq("is_primary", true).maybeSingle(),
   ])
 
   const prefs = (profile?.preferences ?? {}) as UserPreferences
@@ -94,7 +96,9 @@ export async function POST(request: NextRequest) {
         }`
       : null
 
-  const cv = cvRow?.parsed_json as CvData | null
+  const cv = (tailoredCvRow?.cv_json ?? baseCvRow?.parsed_json ?? null) as CvData | null
+
+  const cvName = tailoredCvRow ? "tailored CV" : (baseCvRow?.name ?? null)
 
   const systemPrompt = buildChatAssistantSystemPrompt({
     title: job?.title ?? "Unknown",
@@ -104,7 +108,7 @@ export async function POST(request: NextRequest) {
     status: typedApp.status,
     description: job?.description ?? "No description provided.",
     cv,
-    cvName: cvRow?.name ?? null,
+    cvName,
   })
 
   try {
