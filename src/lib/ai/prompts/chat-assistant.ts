@@ -1,5 +1,36 @@
 import type { CvData } from "@/lib/supabase/database.types"
 
+function formatCv(cv: CvData, label: string): string[] {
+  return [
+    "",
+    `--- ${label} ---`,
+    cv.name ? `Name: ${cv.name}` : null,
+    cv.summary ? `Summary: ${cv.summary}` : null,
+    cv.skills?.length ? `Skills: ${cv.skills.join(", ")}` : null,
+    cv.experience?.length
+      ? [
+          "Experience:",
+          ...cv.experience.map(
+            (e) =>
+              `  - ${e.title} at ${e.company}${e.start_date ? ` (${e.start_date}–${e.end_date ?? "present"})` : ""}: ${e.description}`
+          ),
+        ].join("\n")
+      : null,
+    cv.education?.length
+      ? [
+          "Education:",
+          ...cv.education.map(
+            (e) =>
+              `  - ${e.degree}${e.field ? ` in ${e.field}` : ""} at ${e.institution}${e.end_date ? ` (${e.end_date})` : ""}${e.grade ? `, ${e.grade}` : ""}`
+          ),
+        ].join("\n")
+      : null,
+    cv.certifications?.length
+      ? `Certifications: ${cv.certifications.join(", ")}`
+      : null,
+  ].filter((l): l is string => l !== null)
+}
+
 export function buildChatAssistantSystemPrompt(params: {
   title: string
   company: string
@@ -7,39 +38,25 @@ export function buildChatAssistantSystemPrompt(params: {
   salaryLine: string | null
   status: string
   description: string
-  cv: CvData | null
-  cvName: string | null
+  baseCv: CvData | null
+  baseCvName: string | null
+  tailoredCv: CvData | null
 }): string {
-  const cvLines: (string | null)[] = params.cv
-    ? [
-        "",
-        `User's CV (${params.cvName ?? "uploaded CV"}):`,
-        params.cv.name ? `Name: ${params.cv.name}` : null,
-        params.cv.summary ? `Summary: ${params.cv.summary}` : null,
-        params.cv.skills?.length ? `Skills: ${params.cv.skills.join(", ")}` : null,
-        params.cv.experience?.length
-          ? [
-              "Experience:",
-              ...params.cv.experience.map(
-                (e) =>
-                  `  - ${e.title} at ${e.company}${e.start_date ? ` (${e.start_date}–${e.end_date ?? "present"})` : ""}: ${e.description}`
-              ),
-            ].join("\n")
-          : null,
-        params.cv.education?.length
-          ? [
-              "Education:",
-              ...params.cv.education.map(
-                (e) =>
-                  `  - ${e.degree}${e.field ? ` in ${e.field}` : ""} at ${e.institution}${e.end_date ? ` (${e.end_date})` : ""}${e.grade ? `, ${e.grade}` : ""}`
-              ),
-            ].join("\n")
-          : null,
-        params.cv.certifications?.length
-          ? `Certifications: ${params.cv.certifications.join(", ")}`
-          : null,
-      ]
-    : ["", "No CV selected for this application yet."]
+  const cvSection: string[] = []
+
+  if (!params.baseCv && !params.tailoredCv) {
+    cvSection.push("", "No CV uploaded yet.")
+  } else {
+    if (params.baseCv) {
+      cvSection.push(...formatCv(params.baseCv, `Main CV${params.baseCvName ? ` — ${params.baseCvName}` : ""}`))
+    }
+    if (params.tailoredCv) {
+      cvSection.push(...formatCv(params.tailoredCv, "Tailored CV — AI-customised for this specific role"))
+    }
+    if (params.baseCv && params.tailoredCv) {
+      cvSection.push("", "When suggesting improvements, reference the tailored CV for this role and the main CV for the full picture.")
+    }
+  }
 
   return [
     "You are a job application assistant. The user is working on the following application:",
@@ -52,7 +69,7 @@ export function buildChatAssistantSystemPrompt(params: {
     "",
     "Job description:",
     params.description,
-    ...cvLines,
+    ...cvSection,
     "",
     "Help the user with their application. You can:",
     "- Search the web and explain what the company does, their culture, and recent news",
@@ -64,6 +81,6 @@ export function buildChatAssistantSystemPrompt(params: {
     "Search the web proactively when asked about the company or role — don't rely only on training data.",
     "Be concise, specific, and practical.",
   ]
-    .filter((l) => l !== null)
+    .filter((l): l is string => l !== null)
     .join("\n")
 }
