@@ -174,7 +174,7 @@ export function DashboardTopbar({
 
   return (
     <div className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
-      <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-3 px-4 sm:h-[73px] sm:px-6 md:px-10 xl:px-12">
+      <div className="flex h-16 w-full items-center justify-between gap-3 px-4 sm:h-[73px] sm:px-6 md:px-8">
         <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           <Button
             type="button"
