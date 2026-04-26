@@ -96,10 +96,6 @@ export async function POST(request: NextRequest) {
         }`
       : null
 
-  const cv = (tailoredCvRow?.cv_json ?? baseCvRow?.parsed_json ?? null) as CvData | null
-
-  const cvName = tailoredCvRow ? "tailored CV" : (baseCvRow?.name ?? null)
-
   const systemPrompt = buildChatAssistantSystemPrompt({
     title: job?.title ?? "Unknown",
     company: job?.company ?? "Unknown",
@@ -107,8 +103,9 @@ export async function POST(request: NextRequest) {
     salaryLine,
     status: typedApp.status,
     description: job?.description ?? "No description provided.",
-    cv,
-    cvName,
+    baseCv: (baseCvRow?.parsed_json ?? null) as CvData | null,
+    baseCvName: baseCvRow?.name ?? null,
+    tailoredCv: (tailoredCvRow?.cv_json ?? null) as CvData | null,
   })
 
   try {
