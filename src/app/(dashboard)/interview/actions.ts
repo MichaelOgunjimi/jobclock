@@ -1,6 +1,6 @@
 "use server"
 
-import { and, eq, desc } from "drizzle-orm"
+import { and, eq, desc, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
@@ -125,10 +125,21 @@ export async function importSampleStories(): Promise<{ imported: number } | { er
 
   const { SAMPLE_STORIES } = await import("@/lib/jobs/sample-stories")
 
+  const sampleTitles = SAMPLE_STORIES.map((s) => s.title)
+  const existing = await db
+    .select({ title: storyBank.title })
+    .from(storyBank)
+    .where(and(eq(storyBank.userId, userId), inArray(storyBank.title, sampleTitles)))
+
+  const existingTitles = new Set(existing.map((r) => r.title))
+  const toInsert = SAMPLE_STORIES.filter((s) => !existingTitles.has(s.title))
+
+  if (toInsert.length === 0) return { imported: 0 }
+
   const rows = await db
     .insert(storyBank)
     .values(
-      SAMPLE_STORIES.map((s) => ({
+      toInsert.map((s) => ({
         userId,
         title: s.title,
         situation: s.situation,

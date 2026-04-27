@@ -44,9 +44,9 @@ export async function saveAiSettings(formData: FormData) {
 
   const provider = formData.get("provider") as AiProvider
   const model = formData.get("model") as string
-  const anthropicKey = (formData.get("anthropic_api_key") as string).trim()
-  const openaiKey = (formData.get("openai_api_key") as string).trim()
-  const perplexityKey = (formData.get("perplexity_api_key") as string).trim()
+  const anthropicKey = ((formData.get("anthropic_api_key") as string | null) ?? "").trim()
+  const openaiKey = ((formData.get("openai_api_key") as string | null) ?? "").trim()
+  const perplexityKey = ((formData.get("perplexity_api_key") as string | null) ?? "").trim()
 
   if (!VALID_PROVIDERS.has(provider)) {
     return { error: "Invalid provider" }

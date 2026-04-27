@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { resolveAiConfig, generateText, type UserPreferences } from "@/lib/ai"
 import type { AppWithJob } from "@/lib/supabase/database.types"
+import { aiGenerateRateLimit } from "@/lib/rate-limit"
+
+const MAX_QUESTION_LENGTH = 2_000
+const MAX_ANSWER_LENGTH = 5_000
 
 export async function POST(
   req: NextRequest,
@@ -13,10 +17,19 @@ export async function POST(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = await req.json() as { question?: string; answer?: string }
-  const { question, answer } = body
+  const { success: withinLimit } = await aiGenerateRateLimit.limit(user.id)
+  if (!withinLimit) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment before trying again." },
+      { status: 429 }
+    )
+  }
 
-  if (!question?.trim() || !answer?.trim()) {
+  const body = await req.json() as { question?: string; answer?: string }
+  const question = body.question?.trim().slice(0, MAX_QUESTION_LENGTH)
+  const answer = body.answer?.trim().slice(0, MAX_ANSWER_LENGTH)
+
+  if (!question || !answer) {
     return NextResponse.json({ error: "question and answer are required" }, { status: 400 })
   }
 
@@ -33,7 +46,18 @@ export async function POST(
   const description = (app.custom_description ?? app.jobs_cache?.description ?? "").slice(0, 1500)
 
   const preferences = (profileData?.preferences ?? {}) as UserPreferences
-  const { settings, apiKey } = resolveAiConfig(preferences)
+  let settings: ReturnType<typeof resolveAiConfig>["settings"]
+  let apiKey: string
+  try {
+    const resolved = resolveAiConfig(preferences)
+    settings = resolved.settings
+    apiKey = resolved.apiKey
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "No AI API key configured" },
+      { status: 422 }
+    )
+  }
 
   const systemPrompt = `You are a tough but fair interview coach. Be direct — if an answer is weak, say so clearly. If it's strong, acknowledge that too. Focus on what the candidate can act on immediately.`
 

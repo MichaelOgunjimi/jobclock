@@ -52,6 +52,8 @@ export function buildChatAssistantSystemPrompt(params: {
     }
     if (params.tailoredCv) {
       cvSection.push(...formatCv(params.tailoredCv, "Tailored CV — AI-customised for this specific role"))
+    } else {
+      cvSection.push("", "Tailored CV: not generated yet for this role.")
     }
     if (params.baseCv && params.tailoredCv) {
       cvSection.push("", "When suggesting improvements, reference the tailored CV for this role and the main CV for the full picture.")
