@@ -135,7 +135,7 @@ export const applications = pgTable(
     status: applicationStatusEnum("status").default("saved"),
     appliedAt: timestamp("applied_at", { withTimezone: true }),
     coverLetterId: uuid("cover_letter_id").references((): AnyPgColumn => coverLetters.id, { onDelete: "set null" }),
-    customizedCvId: uuid("customized_cv_id").references((): AnyPgColumn => customizedCvs.id, { onDelete: "set null" }),
+    selectedCvId: uuid("selected_cv_id").references((): AnyPgColumn => userCvs.id, { onDelete: "set null" }),
     structureId: uuid("structure_id").references((): AnyPgColumn => coverLetterStructures.id, { onDelete: "set null" }),
     coverLetterTone: text("cover_letter_tone"),
     source: text("source"),
