@@ -259,7 +259,7 @@ export async function parseImportedJobPreview(input: {
       pageHints: input.pageHints,
       pageText: sanitizePageText(input.pageText),
     }),
-    1200
+    4096
   )
 
   let extracted: unknown

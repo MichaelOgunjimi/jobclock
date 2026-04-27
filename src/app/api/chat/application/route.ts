@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
 
       const stream = client.messages.stream({
         model: settings.model,
-        max_tokens: 1024,
+        max_tokens: 4096,
         system: systemPrompt,
         tools: [{ type: "web_search_20250305", name: "web_search" }],
         messages: validatedMessages.map((m) => ({
