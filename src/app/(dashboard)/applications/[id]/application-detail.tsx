@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   ArrowLeft,
+  BookOpen,
   ExternalLink,
   Loader2,
   Send,
@@ -17,6 +18,7 @@ import { buttonVariants } from "@/components/ui/button-styles"
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { MarkdownContent } from "@/components/ui/markdown-content"
 import { cn } from "@/lib/utils"
 import {
   updateStatus,
@@ -28,6 +30,7 @@ import {
   deleteApplication,
   generateCoverLetter,
 } from "./actions"
+import { FollowUpCard } from "./follow-up-card"
 import type { ApplicationStatus, Database, WritingStyle } from "@/lib/supabase/database.types"
 
 type ApplicationRow = Database["public"]["Tables"]["applications"]["Row"]
@@ -55,6 +58,8 @@ interface Props {
   writingStyles: WritingStyleRow[]
   tailoredCvs: TailoredCvRow[]
   generatedCoverLetter: GeneratedCoverLetterRow | null
+  followUpDueAt: string | null
+  followUpNotes: string | null
 }
 
 // ── Status config ────────────────────────────────────────────────────────────
@@ -345,6 +350,8 @@ function NotesCard({
 
 // ── Description card ─────────────────────────────────────────────────────────
 
+const DESCRIPTION_PREVIEW_LINES = 6
+
 function DescriptionCard({
   applicationId,
   initialDescription,
@@ -354,10 +361,17 @@ function DescriptionCard({
 }) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const [description, setDescription] = useState(initialDescription ?? "")
   const [savedDescription, setSavedDescription] = useState(initialDescription ?? "")
   const [saveError, setSaveError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+
+  const lines = description.split("\n")
+  const isTruncatable = lines.length > DESCRIPTION_PREVIEW_LINES
+  const preview = isTruncatable && !expanded
+    ? lines.slice(0, DESCRIPTION_PREVIEW_LINES).join("\n")
+    : description
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -382,53 +396,51 @@ function DescriptionCard({
   }
 
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader className="shrink-0 border-b">
+    <Card>
+      <CardHeader className="border-b">
         <CardTitle>Job Description</CardTitle>
         {!editing && (
           <CardAction>
-            <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
-              Edit
-            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>Edit</Button>
           </CardAction>
         )}
       </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col pt-5">
+      <CardContent className="pt-5">
         {editing ? (
-          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-3">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <input type="hidden" name="applicationId" value={applicationId} />
             <textarea
               name="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               autoFocus
-              className="min-h-0 flex-1 w-full resize-none border border-input bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+              rows={12}
+              className="w-full resize-none border border-input bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
               placeholder="Paste the full job description here…"
             />
-            <div className="flex shrink-0 flex-col gap-2">
-              {saveError && (
-                <p className="text-[12px] text-destructive">{saveError}</p>
-              )}
+            <div className="flex flex-col gap-2">
+              {saveError && <p className="text-[12px] text-destructive">{saveError}</p>}
               <div className="flex gap-2">
-                <Button type="submit" size="sm" variant="default" disabled={pending}>
-                  {pending ? "Saving…" : "Save"}
-                </Button>
-                <Button type="button" size="sm" variant="ghost" onClick={handleCancel} disabled={pending}>
-                  Cancel
-                </Button>
+                <Button type="submit" size="sm" disabled={pending}>{pending ? "Saving…" : "Save"}</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={handleCancel} disabled={pending}>Cancel</Button>
               </div>
             </div>
           </form>
         ) : description ? (
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-            <p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
-              {description}
-            </p>
+          <div>
+            <p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{preview}</p>
+            {isTruncatable && (
+              <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                className="mt-2 text-xs font-medium text-foreground underline underline-offset-2 hover:opacity-70 transition-opacity"
+              >
+                {expanded ? "Show less" : `Read more (${lines.length - DESCRIPTION_PREVIEW_LINES} more lines)`}
+              </button>
+            )}
           </div>
         ) : (
-          <p className="text-sm italic text-muted-foreground">
-            No description yet — click Edit to paste one.
-          </p>
+          <p className="text-sm italic text-muted-foreground">No description yet — click Edit to paste one.</p>
         )}
       </CardContent>
     </Card>
@@ -543,18 +555,19 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
               >
                 <div
                   className={cn(
-                    "max-w-[85%] px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap",
+                    "max-w-[85%] px-3 py-2 text-sm leading-relaxed",
                     msg.role === "user"
-                      ? "bg-foreground text-background"
+                      ? "bg-foreground text-background whitespace-pre-wrap"
                       : "border bg-secondary text-foreground"
                   )}
                 >
-                  {msg.content ||
-                    (isLoading && i === messages.length - 1 ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin opacity-50" />
-                    ) : (
-                      ""
-                    ))}
+                  {msg.role === "assistant" && msg.content ? (
+                    <MarkdownContent content={msg.content} />
+                  ) : msg.content ? (
+                    msg.content
+                  ) : isLoading && i === messages.length - 1 ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin opacity-50" />
+                  ) : null}
                 </div>
               </div>
             ))
@@ -1100,31 +1113,26 @@ function CoverLetterCard({
           )}
 
           {generatedCoverLetter && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-muted-foreground">
-                  Generated {generatedDate}
-                  {generatedCoverLetter.tone ? ` · ${generatedCoverLetter.tone}` : ""}
-                </span>
-              </div>
-
-              {/* Scrollable preview */}
-              <div className="max-h-[200px] overflow-y-auto border bg-secondary/30 p-3">
-                <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground">
-                  {generatedCoverLetter.content}
+            <div className="border bg-secondary/40 px-4 py-3 space-y-3">
+              {/* Meta + teaser */}
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                  Generated {generatedDate}{generatedCoverLetter.tone ? ` · ${generatedCoverLetter.tone}` : ""}
+                </p>
+                <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-2">
+                  {generatedCoverLetter.content?.slice(0, 160)}…
                 </p>
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
                   onClick={handleCopy}
-                  className="flex-1 sm:flex-none"
                 >
-                  {copied ? "Copied!" : "Copy"}
+                  {copied ? "Copied!" : "Copy text"}
                 </Button>
                 <Button
                   type="button"
@@ -1132,13 +1140,9 @@ function CoverLetterCard({
                   variant="outline"
                   onClick={handleDownloadPdf}
                   disabled={downloading}
-                  className="flex-1 sm:flex-none"
                 >
                   {downloading ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Downloading…
-                    </>
+                    <><Loader2 className="h-3.5 w-3.5 animate-spin" />Downloading…</>
                   ) : (
                     "Download PDF"
                   )}
@@ -1205,6 +1209,8 @@ export function ApplicationDetail({
   writingStyles,
   tailoredCvs,
   generatedCoverLetter,
+  followUpDueAt,
+  followUpNotes,
 }: Props) {
   const job = application.jobs_cache
   const hasDescription = !!(application.custom_description || job?.description)
@@ -1282,6 +1288,13 @@ export function ApplicationDetail({
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to pipeline
           </Link>
+          <Link
+            href={`/applications/${application.id}/interview`}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center sm:w-auto")}
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            Interview Prep
+          </Link>
           {job?.url && (
             <a
               href={job.url}
@@ -1300,94 +1313,72 @@ export function ApplicationDetail({
       {/* Status pipeline */}
       <Card>
         <CardContent className="pt-5 pb-5 sm:pt-6">
-          <StatusStepper
-            currentStatus={application.status}
-            applicationId={application.id}
-          />
+          <StatusStepper currentStatus={application.status} applicationId={application.id} />
         </CardContent>
       </Card>
 
-      {/* Two-column content */}
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-stretch lg:gap-8">
-        {/* Left column — only borrow the right column height on desktop */}
-        <div className="lg:relative">
-          <div className="flex flex-col lg:absolute lg:inset-0">
-            <DescriptionCard
-              applicationId={application.id}
-              initialDescription={application.custom_description ?? job?.description ?? null}
-            />
-          </div>
+      {/* Metadata bar */}
+      {(detailItems.length > 0 || job?.is_easy_apply != null) && (
+        <div className="flex flex-wrap gap-x-6 gap-y-2 border border-border bg-secondary/30 px-4 py-3">
+          {detailItems.map((item) => (
+            <div key={item.label} className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{item.label}</span>
+              <span className="text-xs font-medium text-foreground">{item.value}</span>
+            </div>
+          ))}
+          {job?.is_easy_apply != null && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Easy Apply</span>
+              <Badge className={job.is_easy_apply
+                ? "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
+                : "border-border bg-secondary text-foreground"
+              }>
+                {job.is_easy_apply ? "Yes" : "No"}
+              </Badge>
+            </div>
+          )}
+          {job?.url && (
+            <a href={job.url} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors ml-auto">
+              <ExternalLink className="h-3 w-3" />
+              Job posting
+            </a>
+          )}
         </div>
+      )}
 
-        {/* Right column */}
-        <div className="space-y-6">
-          <CvCard
-            applicationId={application.id}
-            cvs={cvs}
-            currentCvId={application.customized_cv_id}
-            tailoredCvs={tailoredCvs}
-            hasDescription={hasDescription}
-          />
-          <CoverLetterCard
-            applicationId={application.id}
-            writingStyles={writingStyles}
-            currentStructureId={application.structure_id ?? null}
-            currentTone={application.cover_letter_tone ?? null}
-            generatedCoverLetter={generatedCoverLetter}
-            hasDescription={hasDescription}
-          />
-          <NotesCard
-            applicationId={application.id}
-            initialNotes={application.notes}
-          />
+      {/* Job description — full width, collapsible */}
+      <DescriptionCard
+        applicationId={application.id}
+        initialDescription={application.custom_description ?? job?.description ?? null}
+      />
 
-          {/* Details */}
-          <Card>
-            <CardHeader className="border-b">
-              <CardTitle>Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5 pt-5">
-              <div className="grid gap-3 sm:grid-cols-2">
-                {detailItems.map((item) => (
-                  <div key={item.label} className="border border-border bg-secondary/35 px-4 py-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                      {item.label}
-                    </p>
-                    <p className="mt-2 text-sm font-medium text-foreground">{item.value}</p>
-                  </div>
-                ))}
-                {job?.is_easy_apply != null && (
-                  <div className="border border-border bg-secondary/35 px-4 py-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                      Easy Apply
-                    </p>
-                    <div className="mt-2">
-                      <Badge
-                        className={
-                          job.is_easy_apply
-                            ? "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
-                            : "border-border bg-secondary text-foreground"
-                        }
-                      >
-                        {job.is_easy_apply ? "Yes" : "No"}
-                      </Badge>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {job?.url && (
-                <a
-                  href={job.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-4 block break-all text-[12px] text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
-                >
-                  {job.url}
-                </a>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+      {/* 2-col card grid */}
+      <div className="grid gap-6 sm:grid-cols-2">
+        <CvCard
+          applicationId={application.id}
+          cvs={cvs}
+          currentCvId={application.selected_cv_id}
+          tailoredCvs={tailoredCvs}
+          hasDescription={hasDescription}
+        />
+        <CoverLetterCard
+          applicationId={application.id}
+          writingStyles={writingStyles}
+          currentStructureId={application.structure_id ?? null}
+          currentTone={application.cover_letter_tone ?? null}
+          generatedCoverLetter={generatedCoverLetter}
+          hasDescription={hasDescription}
+        />
+        <NotesCard
+          applicationId={application.id}
+          initialNotes={application.notes}
+        />
+        <FollowUpCard
+          applicationId={application.id}
+          initialFollowUpDueAt={followUpDueAt}
+          initialFollowUpNotes={followUpNotes}
+        />
       </div>
 
       {/* AI chat — full width */}

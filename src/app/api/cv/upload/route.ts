@@ -6,6 +6,7 @@ import mammoth from "mammoth"
 import { parseCvWithAi } from "@/lib/ai/parse-cv"
 import type { UserPreferences } from "@/lib/ai"
 import type { Json } from "@/lib/supabase/database.types"
+import { cvGenerateRateLimit } from "@/lib/rate-limit"
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,6 +22,14 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { success: withinLimit } = await cvGenerateRateLimit.limit(user.id)
+    if (!withinLimit) {
+      return NextResponse.json(
+        { error: "Too many uploads. Please wait a moment before trying again." },
+        { status: 429 }
+      )
     }
 
     const formData = await request.formData()

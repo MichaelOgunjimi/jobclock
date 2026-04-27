@@ -120,7 +120,7 @@ describe("application actions", () => {
     const call = supabaseMock
       .getQueryCalls()
       .find((query) => query.table === "applications" && query.operation === "update")
-    expect(call?.payload).toEqual({ customized_cv_id: null })
+    expect(call?.payload).toEqual({ selected_cv_id: null })
   })
 
   it("updateCoverLetter converts empty id to null", async () => {
@@ -182,7 +182,7 @@ describe("application actions", () => {
       data: {
         id: "app-1",
         user_id: mockUser.id,
-        customized_cv_id: null,
+        selected_cv_id: null,
         structure_id: null,
         cover_letter_tone: null,
         custom_description: "Detailed job description",
@@ -243,7 +243,7 @@ describe("application actions", () => {
         id: "app-1",
         user_id: mockUser.id,
         custom_description: "desc",
-        customized_cv_id: null,
+        selected_cv_id: null,
         structure_id: null,
         cover_letter_tone: null,
         jobs_cache: { title: "Role", company: "Org", description: "desc" },

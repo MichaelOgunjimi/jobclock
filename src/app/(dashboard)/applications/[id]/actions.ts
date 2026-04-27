@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { resolveAiConfig, generateText } from "@/lib/ai"
 import { aiGenerateRateLimit } from "@/lib/rate-limit"
+import { and, eq } from "drizzle-orm"
+import { db } from "@/lib/db"
+import { applications } from "@/lib/db/schema"
 import type { ApplicationStatus, AppWithJob, CvData } from "@/lib/supabase/database.types"
 import type { AiSettings, UserPreferences } from "@/lib/ai"
 import {
@@ -109,7 +112,7 @@ export async function updateCv(formData: FormData) {
 
   await supabase
     .from("applications")
-    .update({ customized_cv_id: cvId || null })
+    .update({ selected_cv_id: cvId || null })
     .eq("id", applicationId)
     .eq("user_id", user.id)
 
@@ -327,7 +330,7 @@ export async function generateCoverLetter(
   const job = app.jobs_cache
 
   // Resolve base CV and writing style in parallel
-  let baseCvId: string | null = app.customized_cv_id ?? null
+  let baseCvId: string | null = app.selected_cv_id ?? null
   if (!baseCvId) {
     const { data: primaryCv } = await supabase
       .from("user_cvs")
@@ -430,4 +433,26 @@ export async function generateCoverLetter(
 
   revalidatePath(`/applications/${applicationId}`)
   return { success: true }
+}
+
+export async function updateFollowUp(applicationId: string, data: {
+  followUpDueAt: string | null
+  followUpNotes: string | null
+}): Promise<{ error?: string }> {
+  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Unauthorized" }
+
+  await db
+    .update(applications)
+    .set({
+      followUpDueAt: data.followUpDueAt ? new Date(data.followUpDueAt) : null,
+      followUpNotes: data.followUpNotes ?? null,
+    })
+    .where(and(eq(applications.id, applicationId), eq(applications.userId, user.id)))
+
+  revalidatePath(`/applications/${applicationId}`)
+  return {}
 }

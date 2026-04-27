@@ -83,8 +83,13 @@ export const jobsCache = pgTable("jobs_cache", {
   salaryCurrency: text("salary_currency").default("GBP"),
   postedAt: timestamp("posted_at", { withTimezone: true }),
   scrapedAt: timestamp("scraped_at", { withTimezone: true }).defaultNow(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow(),
   isEasyApply: boolean("is_easy_apply").default(false),
   applyDeadline: date("apply_deadline"),
+  isRemote: boolean("is_remote"),
+  remoteType: text("remote_type"), // "remote" | "hybrid" | "on-site"
+  industryKey: text("industry_key"),
+  industryLabel: text("industry_label"),
 })
 
 // ============================================================
@@ -130,7 +135,7 @@ export const applications = pgTable(
     status: applicationStatusEnum("status").default("saved"),
     appliedAt: timestamp("applied_at", { withTimezone: true }),
     coverLetterId: uuid("cover_letter_id").references((): AnyPgColumn => coverLetters.id, { onDelete: "set null" }),
-    customizedCvId: uuid("customized_cv_id").references((): AnyPgColumn => customizedCvs.id, { onDelete: "set null" }),
+    selectedCvId: uuid("selected_cv_id").references((): AnyPgColumn => userCvs.id, { onDelete: "set null" }),
     structureId: uuid("structure_id").references((): AnyPgColumn => coverLetterStructures.id, { onDelete: "set null" }),
     coverLetterTone: text("cover_letter_tone"),
     source: text("source"),
@@ -143,6 +148,9 @@ export const applications = pgTable(
     applicationQualityScore: integer("application_quality_score"),
     rightToWorkConfirmed: boolean("right_to_work_confirmed").default(false),
     customDescription: text("custom_description"),
+    followUpDueAt: timestamp("follow_up_due_at", { withTimezone: true }),
+    followUpCount: integer("follow_up_count").default(0),
+    followUpNotes: text("follow_up_notes"),
   },
   (table) => [
     uniqueIndex("applications_user_id_job_id_unique").on(table.userId, table.jobId),
@@ -190,6 +198,7 @@ export const interviewPrep = pgTable("interview_prep", {
     .notNull(),
   questions: text("questions").array(),
   suggestedAnswers: jsonb("suggested_answers"),
+  researchContent: text("research_content"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })
 
@@ -210,4 +219,50 @@ export const offers = pgTable("offers", {
   remotePolicy: text("remote_policy"),
   startDate: date("start_date"),
   negotiationNotes: text("negotiation_notes"),
+})
+
+// ============================================================
+// TRACKED COMPANIES
+// ============================================================
+
+export const trackedCompanies = pgTable("tracked_companies", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull(),
+  name: text("name").notNull(),
+  careersUrl: text("careers_url").notNull(),
+  atsType: text("ats_type"), // "greenhouse" | "lever" | "ashby" | "unknown"
+  atsBoardIdentifier: text("ats_board_identifier"),
+  enabled: boolean("enabled").notNull().default(true),
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+})
+
+// ============================================================
+// IGNORED JOBS
+// ============================================================
+
+export const ignoredJobs = pgTable("ignored_jobs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull(),
+  jobId: uuid("job_id")
+    .notNull()
+    .references(() => jobsCache.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+})
+
+// ============================================================
+// STORY BANK (STAR-format interview stories)
+// ============================================================
+
+export const storyBank = pgTable("story_bank", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull(),
+  title: text("title").notNull(),
+  situation: text("situation"),
+  task: text("task"),
+  action: text("action"),
+  result: text("result"),
+  tags: text("tags").array(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 })

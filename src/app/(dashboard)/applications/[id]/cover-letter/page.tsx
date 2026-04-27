@@ -40,7 +40,7 @@ export default async function CoverLetterPreviewPage({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const typedApp = app as any as {
-    customized_cv_id: string | null
+    selected_cv_id: string | null
     jobs_cache: { title?: string; company?: string } | null
   }
 
@@ -57,7 +57,7 @@ export default async function CoverLetterPreviewPage({
   if (!coverLetter) notFound()
 
   // Get user's CV for sender header info
-  const cvId = typedApp.customized_cv_id
+  const cvId = typedApp.selected_cv_id
   const { data: cvRow } = cvId
     ? await supabase
         .from("user_cvs")

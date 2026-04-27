@@ -84,7 +84,7 @@ export function AiSettingsForm({
   keyStatus,
 }: {
   current: AiSettings
-  keyStatus: { anthropic: KeySource; openai: KeySource }
+  keyStatus: { anthropic: KeySource; openai: KeySource; perplexity: KeySource }
 }) {
   const [provider, setProvider] = useState<AiProvider>(current.provider)
   const [model, setModel] = useState(current.model)
@@ -181,6 +181,21 @@ export function AiSettingsForm({
         <p className="text-xs text-muted-foreground">
           Leave blank to keep existing key. Keys are stored securely and only accessible to you.
         </p>
+      </div>
+
+      <div className="space-y-4 rounded border border-border p-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Perplexity (optional)</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            When set, Company Research uses Perplexity&apos;s live web search instead of your AI model&apos;s training data — giving you current news, funding rounds, and recent hires.
+          </p>
+        </div>
+        <ApiKeyInput
+          name="perplexity_api_key"
+          label="Perplexity API Key"
+          source={keyStatus.perplexity}
+          onTyped={() => setHasKeyInput(true)}
+        />
       </div>
 
       <Button type="submit" disabled={!isDirty || isPending} className="w-full sm:w-auto">

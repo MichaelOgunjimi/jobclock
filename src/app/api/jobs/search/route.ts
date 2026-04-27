@@ -4,8 +4,65 @@ import { searchAdzunaJobs } from "@/lib/jobs/adzuna"
 import { searchReedJobs } from "@/lib/jobs/reed"
 import { searchCareerjetJobs } from "@/lib/jobs/careerjet"
 import { decrypt } from "@/lib/crypto"
+import { db } from "@/lib/db"
+import { jobsCache } from "@/lib/db/schema"
+import { and, or, ilike, inArray, eq, desc } from "drizzle-orm"
 import type { Job } from "@/lib/jobs/types"
 import type { UserPreferences } from "@/lib/ai"
+
+const ATS_SOURCES = ["greenhouse", "lever", "ashby", "workday"]
+
+async function searchTrackedJobs(query: string | undefined, location: string | undefined, perPage: number, page: number): Promise<{ jobs: Job[]; total: number; page: number }> {
+  const conditions = [inArray(jobsCache.source, ATS_SOURCES)]
+
+  if (query) {
+    conditions.push(
+      or(
+        ilike(jobsCache.title, `%${query}%`),
+        ilike(jobsCache.company, `%${query}%`)
+      )!
+    )
+  }
+
+  if (location) {
+    conditions.push(
+      or(
+        ilike(jobsCache.location, `%${location}%`),
+        eq(jobsCache.isRemote, true)
+      )!
+    )
+  }
+
+  const offset = (page - 1) * perPage
+
+  const rows = await db
+    .select()
+    .from(jobsCache)
+    .where(and(...conditions))
+    .orderBy(desc(jobsCache.lastSeenAt))
+    .limit(perPage)
+    .offset(offset)
+
+  const jobs: Job[] = rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    company: r.company,
+    location: r.location ?? null,
+    description: r.description ?? null,
+    salaryMin: r.salaryMin ? Number(r.salaryMin) : null,
+    salaryMax: r.salaryMax ? Number(r.salaryMax) : null,
+    salaryCurrency: r.salaryCurrency ?? "GBP",
+    postedAt: r.postedAt?.toISOString() ?? null,
+    url: r.url,
+    source: r.source,
+    isEasyApply: r.isEasyApply ?? null,
+    lastSeenAt: r.lastSeenAt?.toISOString() ?? null,
+    isRemote: r.isRemote ?? null,
+    remoteType: r.remoteType ?? null,
+  }))
+
+  return { jobs, total: jobs.length, page: 1 }
+}
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -111,6 +168,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  if (sources.includes("tracked")) {
+    fetchers.push(searchTrackedJobs(query, location, perPageNum, pageNum))
+  }
+
   if (sources.includes("careerjet")) {
     const careerjetKey = process.env.CAREERJET_API_KEY
     if (careerjetKey) {
@@ -166,11 +227,34 @@ export async function GET(request: NextRequest) {
 
     // Deduplicate by URL
     const seen = new Set<string>()
-    const jobs = allJobs.filter((job) => {
+    let jobs = allJobs.filter((job) => {
       if (seen.has(job.url)) return false
       seen.add(job.url)
       return true
     })
+
+    // Re-sort merged results — each source returns its own ordered slice so the
+    // combined array interleaves them unsorted. Apply a global sort here so
+    // "Most Recent" and "Salary" work across the full merged set.
+    if (sort === "date") {
+      jobs = jobs.sort((a, b) => {
+        const ta = a.postedAt ? new Date(a.postedAt).getTime() : (a.lastSeenAt ? new Date(a.lastSeenAt).getTime() : 0)
+        const tb = b.postedAt ? new Date(b.postedAt).getTime() : (b.lastSeenAt ? new Date(b.lastSeenAt).getTime() : 0)
+        return tb - ta
+      })
+
+      // Drop listings older than 6 months when the caller wants recent results.
+      // Adzuna and CareerJet both keep stale listings indefinitely; without this
+      // old jobs fill the tail of every page even after a date sort.
+      const cutoff = Date.now() - 180 * 24 * 60 * 60 * 1000
+      jobs = jobs.filter(j => !j.postedAt || new Date(j.postedAt).getTime() >= cutoff)
+    } else if (sort === "salary") {
+      jobs = jobs.sort((a, b) => {
+        const sa = a.salaryMax ?? a.salaryMin ?? 0
+        const sb = b.salaryMax ?? b.salaryMin ?? 0
+        return sb - sa
+      })
+    }
 
     return NextResponse.json({ jobs, total: totalCount, page: pageNum, perPage: perPageNum })
   } catch (error) {

@@ -78,6 +78,34 @@
       "when": 1777012329573,
       "tag": "0010_first_chameleon",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1777014707839,
+      "tag": "0011_mean_magus",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1777041942047,
+      "tag": "0012_hard_thaddeus_ross",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1777092603320,
+      "tag": "0013_stiff_spiral",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1745748000000,
+      "tag": "0014_rename_selected_cv_id",
+      "breakpoints": true
     }
   ]
 }

@@ -12,4 +12,7 @@ export interface Job {
   source: string
   isEasyApply: boolean | null
   applyDeadline?: string | null
+  lastSeenAt?: string | null
+  isRemote?: boolean | null
+  remoteType?: string | null
 }

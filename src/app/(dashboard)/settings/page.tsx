@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect } from "next/navigation"
 import { resolveAiSettings, type UserPreferences, type JobSources } from "@/lib/ai"
 import { getActivePersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
+import { listTrackedCompanies } from "./actions"
 import { SettingsTabs } from "./settings-tabs"
 
 export const metadata: Metadata = {
@@ -18,7 +19,7 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth")
 
-  const [{ data: profile }, { data: profileData }, extensionToken] = await Promise.all([
+  const [{ data: profile }, { data: profileData }, extensionToken, companies] = await Promise.all([
     supabase.from("profiles").select("preferences").eq("id", user.id).single(),
     supabase
       .from("profiles")
@@ -26,6 +27,7 @@ export default async function SettingsPage() {
       .eq("id", user.id)
       .single(),
     getActivePersonalApiTokenMetadata(user.id),
+    listTrackedCompanies(),
   ])
 
   const preferences = profile?.preferences as UserPreferences | null
@@ -37,6 +39,9 @@ export default async function SettingsPage() {
   const openaiKeySource = preferences?.openai_api_key
     ? "saved"
     : process.env.OPENAI_API_KEY ? "env" : "none"
+  const perplexityKeySource = preferences?.perplexity_api_key
+    ? "saved"
+    : process.env.PERPLEXITY_API_KEY ? "env" : "none"
 
   const jobSources: JobSources = (preferences?.job_sources as JobSources) ?? {}
 
@@ -61,7 +66,7 @@ export default async function SettingsPage() {
       <Suspense>
         <SettingsTabs
           aiSettings={aiSettings}
-          keyStatus={{ anthropic: anthropicKeySource as "saved" | "env" | "none", openai: openaiKeySource as "saved" | "env" | "none" }}
+          keyStatus={{ anthropic: anthropicKeySource as "saved" | "env" | "none", openai: openaiKeySource as "saved" | "env" | "none", perplexity: perplexityKeySource as "saved" | "env" | "none" }}
           preferredCvTemplate={preferredCvTemplate}
           preferredCoverLetterTemplate={preferredCoverLetterTemplate}
           jobSources={jobSources}
@@ -73,6 +78,7 @@ export default async function SettingsPage() {
             right_to_work_uk: profileData?.right_to_work_uk ?? null,
             experience_level: profileData?.experience_level ?? null,
           }}
+          trackedCompanies={companies}
         />
       </Suspense>
     </div>

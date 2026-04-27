@@ -1,6 +1,9 @@
 import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
+import { eq, and } from "drizzle-orm"
+import { db } from "@/lib/db"
+import { applications } from "@/lib/db/schema"
 import type { Database } from "@/lib/supabase/database.types"
 import { ApplicationDetail } from "./application-detail"
 
@@ -46,6 +49,7 @@ export default async function ApplicationDetailPage({
     { data: writingStylesData },
     { data: tailoredCvsData },
     { data: generatedCoverLetterData },
+    followUpData,
   ] = await Promise.all([
     supabase
       .from("user_cvs")
@@ -74,15 +78,25 @@ export default async function ApplicationDetailPage({
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    db
+      .select({ followUpDueAt: applications.followUpDueAt, followUpNotes: applications.followUpNotes })
+      .from(applications)
+      .where(and(eq(applications.id, id), eq(applications.userId, user.id)))
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
   ])
 
   return (
-    <ApplicationDetail
-      application={application}
-      cvs={cvsData ?? []}
-      writingStyles={writingStylesData ?? []}
-      tailoredCvs={tailoredCvsData ?? []}
-      generatedCoverLetter={generatedCoverLetterData ?? null}
-    />
+    <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
+      <ApplicationDetail
+        application={application}
+        cvs={cvsData ?? []}
+        writingStyles={writingStylesData ?? []}
+        tailoredCvs={tailoredCvsData ?? []}
+        generatedCoverLetter={generatedCoverLetterData ?? null}
+        followUpDueAt={followUpData?.followUpDueAt?.toISOString() ?? null}
+        followUpNotes={followUpData?.followUpNotes ?? null}
+      />
+    </div>
   )
 }

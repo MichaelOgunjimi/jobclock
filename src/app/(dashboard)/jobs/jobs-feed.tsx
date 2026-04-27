@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { saveJob } from "./actions"
+import { saveJob, ignoreJob } from "./actions"
 import { EXPERIENCE_LEVELS } from "@/app/(dashboard)/profile/profile-tabs"
 import type { Job } from "@/lib/jobs/types"
+import { deduplicateJobs } from "@/lib/jobs/dedup"
 import {
   Search,
   MapPin,
@@ -19,8 +20,10 @@ import {
   Bookmark,
   BookmarkCheck,
   Loader2,
+  EyeOff,
+  Wifi,
 } from "lucide-react"
-import { formatDistanceToNow } from "date-fns"
+import { formatDistanceToNow, differenceInDays } from "date-fns"
 
 interface JobsFeedProps {
   initialQuery: string
@@ -29,15 +32,40 @@ interface JobsFeedProps {
   initialExperienceLevels: string[]
   enabledSources: string[]
   initialSavedUrls: string[]
+  initialIgnoredUrls?: string[]
 }
 
 const SOURCE_LABELS: Record<string, string> = {
   adzuna: "Adzuna",
   reed: "Reed",
   careerjet: "Careerjet",
+  tracked: "Tracked",
 }
 
-const JOBS_PER_PAGE = 50
+const JOBS_PER_PAGE = 20
+// One API page per source per batch. Keeps Adzuna from 429-ing (5 parallel
+// requests triggered their rate-limiter). Pool still grows globally sorted
+// as the user loads more — each load appends one new page per source.
+const BATCH_SIZE = 1
+
+function sortJobsBy(jobs: Job[], by: "relevance" | "date" | "salary"): Job[] {
+  if (by === "date") {
+    return [...jobs].sort((a, b) => {
+      // Fall back to lastSeenAt for ATS jobs that have no postedAt (keeps freshly-synced jobs visible)
+      const ta = a.postedAt ? new Date(a.postedAt).getTime() : (a.lastSeenAt ? new Date(a.lastSeenAt).getTime() : 0)
+      const tb = b.postedAt ? new Date(b.postedAt).getTime() : (b.lastSeenAt ? new Date(b.lastSeenAt).getTime() : 0)
+      return tb - ta
+    })
+  }
+  if (by === "salary") {
+    return [...jobs].sort((a, b) => {
+      const sa = a.salaryMax ?? a.salaryMin ?? 0
+      const sb = b.salaryMax ?? b.salaryMin ?? 0
+      return sb - sa
+    })
+  }
+  return jobs  // relevance: keep API order
+}
 
 const EXPERIENCE_KEYWORDS: Record<string, string[]> = {
   entry_level: ["entry", "entry-level", "entry level", "junior", "associate", "graduate", "trainee", "apprentice"],
@@ -65,76 +93,129 @@ export function JobsFeed({
   initialExperienceLevels,
   enabledSources,
   initialSavedUrls,
+  initialIgnoredUrls = [],
 }: JobsFeedProps) {
   const [query, setQuery] = useState(initialQuery)
   const [location, setLocation] = useState(initialLocation)
   const [salary, setSalary] = useState(initialSalary)
-  const [sortBy, setSortBy] = useState<"relevance" | "date" | "salary">("relevance")
+  const [sortBy, setSortBy] = useState<"relevance" | "date" | "salary">("date")
   const [experienceLevels, setExperienceLevels] = useState<string[]>(initialExperienceLevels)
   const [selectedSources, setSelectedSources] = useState<string[]>(
     enabledSources.length > 0 ? enabledSources : ["adzuna"]
   )
-  const [rawJobs, setRawJobs] = useState<Job[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
+  // Pool of all jobs fetched so far across all batches, globally sorted
+  const [poolJobs, setPoolJobs] = useState<Job[]>([])
+  // Which display page (1-indexed) within the local pool we're showing
+  const [displayPage, setDisplayPage] = useState(1)
+  // Which API batch we last fetched (1 = pages 1-3, 2 = pages 4-6, …)
+  const [apiBatch, setApiBatch] = useState(0)
+  // True if the last batch came back full — more results may exist on the server
+  const [hasMoreServer, setHasMoreServer] = useState(true)
   const [searching, setSearching] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const resultsScrollRef = useRef<HTMLDivElement>(null)
-  // Track URLs seen across all pages to avoid cross-page duplicates from parallel queries
+  // Persists across batches — prevents the same job appearing in two different batches
   const seenUrlsRef = useRef<Set<string>>(new Set())
 
-  const jobs = filterByExperience(rawJobs, experienceLevels)
   const [savedUrls, setSavedUrls] = useState<Set<string>>(new Set(initialSavedUrls))
+  const [ignoredUrls, setIgnoredUrls] = useState<Set<string>>(new Set(initialIgnoredUrls))
+  const [showHidden, setShowHidden] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+  const [titleIncludes, setTitleIncludes] = useState("")
+  const [titleExcludes, setTitleExcludes] = useState("")
 
-  async function fetchJobs(searchPage = 1, overrideSort?: typeof sortBy, overrideLevels?: string[]) {
-    setSearching(true)
+  const deduplicated = deduplicateJobs(poolJobs)
+  const filteredByExperience = filterByExperience(deduplicated, experienceLevels)
+  const filteredByTitle = filteredByExperience.filter((j) => {
+    const title = j.title.toLowerCase()
+    if (titleIncludes && !title.includes(titleIncludes.toLowerCase())) return false
+    if (titleExcludes && title.includes(titleExcludes.toLowerCase())) return false
+    return true
+  })
+  const processedJobs = showHidden
+    ? filteredByTitle
+    : filteredByTitle.filter((j) => !ignoredUrls.has(j.url))
+
+  const totalDisplayPages = Math.max(1, Math.ceil(processedJobs.length / JOBS_PER_PAGE))
+  // Clamp so that if a batch load doesn't add a new full page the display page
+  // stays valid and the user sees the last available page rather than an empty one.
+  const safePage = Math.min(displayPage, totalDisplayPages)
+  const displayStart = (safePage - 1) * JOBS_PER_PAGE
+  const jobs = processedJobs.slice(displayStart, displayStart + JOBS_PER_PAGE)
+
+  // Fetches BATCH_SIZE API pages in parallel, merges into the local pool, and sorts
+  // globally. append=false resets the pool (new search); append=true extends it
+  // (loading more). existingPool must be passed explicitly to avoid stale closure.
+  async function fetchBatch(
+    batchNum: number,
+    append: boolean,
+    existingPool: Job[],
+    overrideSort?: typeof sortBy,
+    overrideLevels?: string[]
+  ) {
+    if (append) setLoadingMore(true)
+    else setSearching(true)
+
+    if (!append) seenUrlsRef.current = new Set()
 
     try {
-      const params = new URLSearchParams()
-      if (query) params.set("q", query)
-      if (location) params.set("location", location)
-      if (salary) params.set("salary_min", salary)
-      params.set("sort", overrideSort ?? sortBy)
-      const levels = overrideLevels !== undefined ? overrideLevels : experienceLevels
-      if (levels.length > 0) params.set("experience", levels.join(","))
-      if (selectedSources.length > 0) params.set("sources", selectedSources.join(","))
-      params.set("page", String(searchPage))
-      params.set("per_page", String(JOBS_PER_PAGE))
+      const effectiveSort = overrideSort ?? sortBy
+      const effectiveLevels = overrideLevels !== undefined ? overrideLevels : experienceLevels
+      const startApiPage = (batchNum - 1) * BATCH_SIZE + 1
 
-      const res = await fetch(`/api/jobs/search?${params.toString()}`)
-      const data = await res.json()
+      const responses = await Promise.all(
+        Array.from({ length: BATCH_SIZE }, (_, i) => {
+          const params = new URLSearchParams()
+          if (query) params.set("q", query)
+          if (location) params.set("location", location)
+          if (salary) params.set("salary_min", salary)
+          params.set("sort", effectiveSort)
+          if (effectiveLevels.length > 0) params.set("experience", effectiveLevels.join(","))
+          if (selectedSources.length > 0) params.set("sources", selectedSources.join(","))
+          params.set("page", String(startApiPage + i))
+          params.set("per_page", String(JOBS_PER_PAGE))
+          return fetch(`/api/jobs/search?${params.toString()}`)
+            .then(r => r.json() as Promise<{ jobs?: Job[]; error?: string }>)
+        })
+      )
 
-      if (!res.ok) {
-        toast.error(data.error ?? "Failed to fetch jobs")
-        return
+      const batchJobs: Job[] = []
+      let fullPageCount = 0
+      for (const data of responses) {
+        const page = data.jobs ?? []
+        if (page.length >= JOBS_PER_PAGE) fullPageCount++
+        batchJobs.push(...page)
       }
 
-      // Reset dedup tracker on every fetch — each page independently deduplicates
-      // across sources (Adzuna + Careerjet may return the same job on the same page)
-      seenUrlsRef.current = new Set()
-
-      // Filter out any URLs already shown on previous pages
-      const newJobs = (data.jobs ?? []).filter((job: Job) => {
-        if (seenUrlsRef.current.has(job.url)) return false
-        seenUrlsRef.current.add(job.url)
+      const uniqueNew = batchJobs.filter(j => {
+        if (seenUrlsRef.current.has(j.url)) return false
+        seenUrlsRef.current.add(j.url)
         return true
       })
 
-      setRawJobs(newJobs)
-      setTotal(data.total ?? 0)
-      setPage(searchPage)
+      const merged = append ? [...existingPool, ...uniqueNew] : uniqueNew
+      const sorted = sortJobsBy(merged, effectiveSort)
+
+      setPoolJobs(sorted)
+      setApiBatch(batchNum)
+      setHasMoreServer(fullPageCount > 0)
       setHasSearched(true)
-      resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+
+      if (!append) {
+        setDisplayPage(1)
+        resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+      }
     } catch {
       toast.error("Failed to fetch jobs")
     } finally {
       setSearching(false)
+      setLoadingMore(false)
     }
   }
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
-    fetchJobs(1)
+    void fetchBatch(1, false, [])
   }
 
   function toggleSource(source: string) {
@@ -152,7 +233,7 @@ export function JobsFeed({
       ? experienceLevels.filter((l) => l !== level)
       : [...experienceLevels, level]
     setExperienceLevels(next)
-    if (hasSearched) fetchJobs(1, undefined, next)
+    if (hasSearched) void fetchBatch(1, false, [], undefined, next)
   }
 
   async function handleSaveJob(job: Job) {
@@ -173,7 +254,29 @@ export function JobsFeed({
     }
   }
 
-  const totalPages = Math.max(1, Math.ceil(total / JOBS_PER_PAGE))
+  async function handleIgnoreJob(job: Job) {
+    setIgnoredUrls((prev) => new Set([...prev, job.url]))
+    await ignoreJob(job.url)
+  }
+
+  async function handlePrevPage() {
+    if (displayPage > 1) {
+      setDisplayPage(p => p - 1)
+      resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+    }
+  }
+
+  async function handleNextPage() {
+    const nextPage = displayPage + 1
+    if (nextPage <= totalDisplayPages) {
+      setDisplayPage(nextPage)
+      resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+    } else if (hasMoreServer && !loadingMore && !searching) {
+      await fetchBatch(apiBatch + 1, true, poolJobs)
+      setDisplayPage(nextPage)
+      resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+    }
+  }
 
   return (
     <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] xl:gap-8">
@@ -208,6 +311,26 @@ export function JobsFeed({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="title-includes">Title includes</Label>
+            <Input
+              id="title-includes"
+              placeholder="e.g. Engineer"
+              value={titleIncludes}
+              onChange={(e) => setTitleIncludes(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="title-excludes">Title excludes</Label>
+            <Input
+              id="title-excludes"
+              placeholder="e.g. Manager"
+              value={titleExcludes}
+              onChange={(e) => setTitleExcludes(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="salary">Minimum Salary</Label>
             <div className="relative">
               <PoundSterling className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -230,7 +353,7 @@ export function JobsFeed({
               onChange={(e) => {
                 const val = e.target.value as typeof sortBy
                 setSortBy(val)
-                if (hasSearched) fetchJobs(1, val)
+                if (hasSearched) void fetchBatch(1, false, [], val)
               }}
               className="form-select"
             >
@@ -315,23 +438,34 @@ export function JobsFeed({
 
         {hasSearched && (
           <div className="text-[13px] text-muted-foreground">
-            <p className="font-medium text-foreground">{total.toLocaleString()} roles found</p>
-            {experienceLevels.length > 0 && rawJobs.length > 0 && (
-              <p className="mt-1">
-                {jobs.length === 0
-                  ? "No results match the selected experience levels"
-                  : jobs.length < rawJobs.length
-                  ? `${jobs.length} match experience filter`
-                  : null}
+            <p className="font-medium text-foreground">
+              {poolJobs.length.toLocaleString()} roles loaded
+              {hasMoreServer && <span className="font-normal"> · more available</span>}
+            </p>
+            {deduplicated.length < poolJobs.length && (
+              <p className="mt-1 text-xs">
+                {poolJobs.length - deduplicated.length} duplicate{poolJobs.length - deduplicated.length === 1 ? "" : "s"} hidden
               </p>
             )}
-            {jobs.length > 0 && (
-              <p className="mt-1">
-                Page {page} of {experienceLevels.length > 0 ? `~${totalPages}` : totalPages}
-                {experienceLevels.length > 0 && (
-                  <span className="ml-1 text-xs">(approx — filter active)</span>
-                )}
+            {(titleIncludes || titleExcludes) && (
+              <p className="mt-1 text-xs">
+                {filteredByTitle.length} match title filter
               </p>
+            )}
+            {processedJobs.length > 0 && (
+              <p className="mt-1">
+                Page {safePage} of {totalDisplayPages}
+                {hasMoreServer && <span className="ml-1 text-xs">· more to load</span>}
+              </p>
+            )}
+            {ignoredUrls.size > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowHidden((v) => !v)}
+                className="mt-1 text-xs underline underline-offset-2 hover:text-foreground"
+              >
+                {showHidden ? "Hide hidden jobs" : `Show ${ignoredUrls.size} hidden job${ignoredUrls.size === 1 ? "" : "s"}`}
+              </button>
             )}
           </div>
         )}
@@ -366,8 +500,12 @@ export function JobsFeed({
                 <Briefcase className="mx-auto mb-4 h-10 w-10 opacity-30" />
                 <p className="font-medium text-foreground">No jobs found</p>
                 <p className="mt-2 text-sm">
-                  {rawJobs.length > 0 && experienceLevels.length > 0
+                  {filteredByTitle.length === 0 && (titleIncludes || titleExcludes)
+                    ? "The title filter removed all results. Try clearing the include/exclude fields."
+                    : filteredByExperience.length > 0 && experienceLevels.length > 0
                     ? "The experience filter removed all results. Try deselecting some levels."
+                    : !hasMoreServer
+                    ? "You've seen all available unique results for this search."
                     : "Try broadening the keywords, location, or lowering the salary floor."}
                 </p>
               </div>
@@ -377,7 +515,9 @@ export function JobsFeed({
                   key={job.url}
                   job={job}
                   isSaved={savedUrls.has(job.url)}
+                  isHidden={ignoredUrls.has(job.url)}
                   onSave={() => handleSaveJob(job)}
+                  onHide={() => handleIgnoreJob(job)}
                 />
               ))
             )}
@@ -390,39 +530,37 @@ export function JobsFeed({
           </div>
         </ScrollArea>
 
-        {hasSearched && jobs.length > 0 && totalPages > 1 && (
+        {hasSearched && (totalDisplayPages > 1 || hasMoreServer) && (
           <div className="flex flex-col gap-3 border-t px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
             <p className="text-sm text-muted-foreground">
-              Showing page <span className="font-medium text-foreground">{page}</span> of{" "}
-              <span className="font-medium text-foreground">{totalPages}</span>
+              Page <span className="font-medium text-foreground">{safePage}</span> of{" "}
+              <span className="font-medium text-foreground">{totalDisplayPages}</span>
+              {hasMoreServer && safePage === totalDisplayPages && (
+                <span className="ml-1 text-xs">· next page loads more</span>
+              )}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => fetchJobs(page - 1)}
-                disabled={searching || page === 1}
+                onClick={() => void handlePrevPage()}
+                disabled={searching || loadingMore || safePage === 1}
               >
                 Previous
               </Button>
-              {getVisiblePages(page, totalPages).map((entry, index) =>
+              {getVisiblePages(safePage, totalDisplayPages).map((entry, index) =>
                 entry === "ellipsis" ? (
-                  <span
-                    key={`ellipsis-${index}`}
-                    className="px-2 text-sm text-muted-foreground"
-                  >
-                    …
-                  </span>
+                  <span key={`ellipsis-${index}`} className="px-2 text-sm text-muted-foreground">…</span>
                 ) : (
                   <Button
                     key={entry}
                     type="button"
                     size="sm"
-                    variant={entry === page ? "default" : "outline"}
-                    onClick={() => fetchJobs(entry)}
-                    disabled={searching}
-                    aria-current={entry === page ? "page" : undefined}
+                    variant={entry === safePage ? "default" : "outline"}
+                    onClick={() => { setDisplayPage(entry); resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" }) }}
+                    disabled={searching || loadingMore}
+                    aria-current={entry === safePage ? "page" : undefined}
                   >
                     {entry}
                   </Button>
@@ -432,10 +570,10 @@ export function JobsFeed({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => fetchJobs(page + 1)}
-                disabled={searching || page === totalPages}
+                onClick={() => void handleNextPage()}
+                disabled={searching || loadingMore || (safePage === totalDisplayPages && !hasMoreServer)}
               >
-                Next
+                {loadingMore ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Next"}
               </Button>
             </div>
           </div>
@@ -461,16 +599,29 @@ function getVisiblePages(currentPage: number, totalPages: number): Array<number 
   return [1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages]
 }
 
+function freshnessInfo(lastSeenAt: string | null | undefined): { label: string; className: string } | null {
+  if (!lastSeenAt) return null
+  const days = differenceInDays(new Date(), new Date(lastSeenAt))
+  if (days < 3) return { label: "Fresh", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" }
+  if (days < 7) return { label: "Recent", className: "border-border bg-secondary text-muted-foreground" }
+  return { label: "Stale", className: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400" }
+}
+
 function JobCard({
   job,
   isSaved,
+  isHidden,
   onSave,
+  onHide,
 }: {
   job: Job
   isSaved: boolean
+  isHidden: boolean
   onSave: () => Promise<void>
+  onHide: () => void
 }) {
   const [isPending, startTransition] = useTransition()
+  const freshness = freshnessInfo(job.lastSeenAt)
 
   function handleSave() {
     startTransition(async () => {
@@ -479,7 +630,7 @@ function JobCard({
   }
 
   return (
-    <div className="border bg-card transition-colors hover:border-foreground/30">
+    <div className={cn("border bg-card transition-colors hover:border-foreground/30", isHidden && "opacity-50")}>
       <div className="border-b px-5 py-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
@@ -489,8 +640,18 @@ function JobCard({
               {job.company}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {/* Source badge */}
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {freshness && (
+              <span className={cn("border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide", freshness.className)}>
+                {freshness.label}
+              </span>
+            )}
+            {job.remoteType && (
+              <span className="flex items-center gap-1 border border-border bg-secondary px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                <Wifi className="h-2.5 w-2.5" />
+                {job.remoteType}
+              </span>
+            )}
             <span className="border border-border bg-secondary px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               {SOURCE_LABELS[job.source] ?? job.source}
             </span>
@@ -526,6 +687,11 @@ function JobCard({
           {job.postedAt && (
             <span>{formatDistanceToNow(new Date(job.postedAt), { addSuffix: true })}</span>
           )}
+          {job.lastSeenAt && freshness?.label === "Stale" && (
+            <span className="text-amber-600 dark:text-amber-400">
+              Last verified {formatDistanceToNow(new Date(job.lastSeenAt), { addSuffix: true })}
+            </span>
+          )}
         </div>
 
         {job.description && (
@@ -555,6 +721,17 @@ function JobCard({
             )}
             {isSaved ? "Saved" : "Save to pipeline"}
           </Button>
+          {!isSaved && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="w-full text-muted-foreground hover:text-foreground sm:w-auto"
+              onClick={onHide}
+            >
+              <EyeOff className="h-3.5 w-3.5" />
+              Hide
+            </Button>
+          )}
         </div>
       </div>
     </div>

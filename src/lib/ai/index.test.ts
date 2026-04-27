@@ -38,7 +38,7 @@ describe("ai config helpers", () => {
   it("resolveAiSettings uses defaults and explicit preferences", () => {
     expect(resolveAiSettings(null)).toEqual({
       provider: "openai",
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-mini",
     })
 
     expect(

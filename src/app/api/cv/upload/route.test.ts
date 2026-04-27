@@ -7,6 +7,9 @@ vi.mock("@/lib/supabase/config", () => ({ isSupabaseConfigured: vi.fn() }))
 vi.mock("pdf-parse", () => ({ default: vi.fn() }))
 vi.mock("mammoth", () => ({ default: { extractRawText: vi.fn() } }))
 vi.mock("@/lib/ai/parse-cv", () => ({ parseCvWithAi: vi.fn() }))
+vi.mock("@/lib/rate-limit", () => ({
+  cvGenerateRateLimit: { limit: vi.fn().mockResolvedValue({ success: true }) },
+}))
 
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
