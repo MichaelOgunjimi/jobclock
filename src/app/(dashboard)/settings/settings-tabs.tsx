@@ -15,11 +15,13 @@ import { AiSettingsForm } from "./ai-settings-form"
 import { ExtensionSettingsCard } from "./extension-settings-card"
 import { TemplatePicker } from "./template-picker"
 import { JobSourcesForm } from "./job-sources-form"
+import { TrackedCompaniesForm } from "./tracked-companies-form"
 import { savePreferences } from "../profile/actions"
 import type { AiSettings, JobSources } from "@/lib/ai"
 import type { PersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
+import type { TrackedCompany } from "./actions"
 
-type KeyStatus = { anthropic: "saved" | "env" | "none"; openai: "saved" | "env" | "none" }
+type KeyStatus = { anthropic: "saved" | "env" | "none"; openai: "saved" | "env" | "none"; perplexity: "saved" | "env" | "none" }
 
 const EXPERIENCE_LEVELS = [
   { value: "graduate", label: "Graduate / Entry Level" },
@@ -61,6 +63,7 @@ export function SettingsTabs({
   jobSources,
   extensionToken,
   profilePrefs,
+  trackedCompanies,
 }: {
   aiSettings: AiSettings
   keyStatus: KeyStatus
@@ -69,10 +72,11 @@ export function SettingsTabs({
   jobSources: JobSources
   extensionToken: PersonalApiTokenMetadata | null
   profilePrefs: ProfilePrefs
+  trackedCompanies: TrackedCompany[]
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const validTabs = ["ai", "appearance", "extension", "job-search", "job-sources"]
+  const validTabs = ["ai", "appearance", "extension", "job-search", "job-sources", "companies"]
   const activeTab = validTabs.includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "ai"
 
   const [roles, setRoles] = useState<string[]>(profilePrefs.desired_roles ?? [])
@@ -123,6 +127,7 @@ export function SettingsTabs({
         <TabsTrigger value="extension" className="shrink-0 px-2.5 sm:px-4">Extension</TabsTrigger>
         <TabsTrigger value="job-search" className="shrink-0 px-2.5 sm:px-4">Job Search</TabsTrigger>
         <TabsTrigger value="job-sources" className="shrink-0 px-2.5 sm:px-4">Job Sources</TabsTrigger>
+        <TabsTrigger value="companies" className="shrink-0 px-2.5 sm:px-4">Companies</TabsTrigger>
       </TabsList>
 
       {/* AI Tab */}
@@ -308,6 +313,22 @@ export function SettingsTabs({
           </CardHeader>
           <CardContent className="pt-6">
             <JobSourcesForm initial={jobSources} />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Tracked Companies Tab */}
+      <TabsContent value="companies">
+        <Card>
+          <CardHeader className="border-b pb-6">
+            <p className="section-label">Jobs</p>
+            <CardTitle>Tracked Companies</CardTitle>
+            <CardDescription>
+              Add companies whose careers pages you want to monitor. Jobs are synced directly from Greenhouse, Lever, and Ashby boards and appear in your job feed.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <TrackedCompaniesForm initial={trackedCompanies} />
           </CardContent>
         </Card>
       </TabsContent>

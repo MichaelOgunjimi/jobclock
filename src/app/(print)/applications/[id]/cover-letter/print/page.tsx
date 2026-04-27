@@ -45,7 +45,7 @@ export default async function ApplicationCoverLetterPrintPage({
         .single(),
       supabase
         .from("applications")
-        .select("customized_cv_id, jobs_cache(title, company)")
+        .select("selected_cv_id, jobs_cache(title, company)")
         .eq("id", id)
         .eq("user_id", user.id)
         .maybeSingle(),
@@ -55,23 +55,22 @@ export default async function ApplicationCoverLetterPrintPage({
 
   const typedApplication = application as
     | {
-        customized_cv_id: string | null
+        selected_cv_id: string | null
         jobs_cache: { title: string; company: string } | null
       }
     | null
 
   let senderCv: CvData | null = null
 
-  if (typedApplication?.customized_cv_id) {
-    const { data: customizedCv } = await supabase
-      .from("customized_cvs")
-      .select("cv_json")
-      .eq("id", typedApplication.customized_cv_id)
-      .eq("application_id", id)
+  if (typedApplication?.selected_cv_id) {
+    const { data: selectedCv } = await supabase
+      .from("user_cvs")
+      .select("parsed_json")
+      .eq("id", typedApplication.selected_cv_id)
       .eq("user_id", user.id)
       .maybeSingle()
 
-    senderCv = (customizedCv?.cv_json as CvData | null) ?? null
+    senderCv = (selectedCv?.parsed_json as CvData | null) ?? null
   }
 
   if (!senderCv) {

@@ -16,6 +16,8 @@ export interface PersistedJobInput {
   postedAt?: string | null
   isEasyApply?: boolean | null
   applyDeadline?: string | null
+  isRemote?: boolean | null
+  remoteType?: string | null
 }
 
 function toTimestamp(value: string | null | undefined): Date | null {
@@ -179,6 +181,9 @@ export async function persistJobForUser(
         postedAt: toTimestamp(job.postedAt),
         isEasyApply: job.isEasyApply ?? false,
         applyDeadline: job.applyDeadline ?? null,
+        isRemote: job.isRemote ?? null,
+        remoteType: job.remoteType ?? null,
+        lastSeenAt: new Date(),
       })
       .onConflictDoUpdate({
         target: jobsCache.url,
@@ -194,7 +199,10 @@ export async function persistJobForUser(
           postedAt: toTimestamp(job.postedAt),
           isEasyApply: job.isEasyApply ?? false,
           applyDeadline: job.applyDeadline ?? null,
+          isRemote: job.isRemote ?? null,
+          remoteType: job.remoteType ?? null,
           scrapedAt: new Date(),
+          lastSeenAt: new Date(),
         },
       })
       .returning({ id: jobsCache.id })

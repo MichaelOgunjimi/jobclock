@@ -1,5 +1,79 @@
 import type { CvData } from "@/lib/supabase/database.types"
 
+function formatCv(cv: CvData, label: string): string[] {
+  return [
+    "",
+    `--- ${label} ---`,
+    cv.name ? `Name: ${cv.name}` : null,
+    cv.summary ? `Summary: ${cv.summary}` : null,
+    cv.skills?.length ? `Skills: ${cv.skills.join(", ")}` : null,
+
+    // Experience with full bullet points — not just description
+    cv.experience?.length
+      ? [
+          "Experience:",
+          ...cv.experience.map((e) => {
+            const header = `  - ${e.title} at ${e.company}${e.start_date ? ` (${e.start_date}–${e.end_date ?? "present"})` : ""}`
+            const desc = e.description ? `\n    Summary: ${e.description}` : ""
+            const highlights =
+              e.highlights?.length
+                ? `\n    Key points:\n${e.highlights.map((h) => `      • ${h}`).join("\n")}`
+                : ""
+            return header + desc + highlights
+          }),
+        ].join("\n")
+      : null,
+
+    // Projects — critical context for recent graduates and career changers
+    cv.projects?.length
+      ? [
+          "Projects:",
+          ...cv.projects.map((p) => {
+            const header = `  - ${p.name}${p.start_date ? ` (${p.start_date}–${p.end_date ?? "present"})` : ""}`
+            const desc = p.description ? `\n    Summary: ${p.description}` : ""
+            const tech =
+              p.technologies?.length
+                ? `\n    Technologies: ${p.technologies.join(", ")}`
+                : ""
+            const highlights =
+              p.highlights?.length
+                ? `\n    Key points:\n${p.highlights.map((h) => `      • ${h}`).join("\n")}`
+                : ""
+            return header + desc + tech + highlights
+          }),
+        ].join("\n")
+      : null,
+
+    cv.education?.length
+      ? [
+          "Education:",
+          ...cv.education.map(
+            (e) =>
+              `  - ${e.degree}${e.field ? ` in ${e.field}` : ""} at ${e.institution}` +
+              `${e.end_date ? ` (${e.end_date})` : ""}${e.grade ? `, ${e.grade}` : ""}` +
+              `${e.relevant_modules?.length ? `\n    Modules: ${e.relevant_modules.join(", ")}` : ""}`
+          ),
+        ].join("\n")
+      : null,
+
+    cv.certifications?.length
+      ? `Certifications: ${cv.certifications.join(", ")}`
+      : null,
+
+    cv.activities?.length
+      ? [
+          "Activities & Volunteering:",
+          ...cv.activities.map(
+            (a) =>
+              `  - ${a.title} at ${a.company}` +
+              `${a.start_date ? ` (${a.start_date}–${a.end_date ?? "present"})` : ""}` +
+              `${a.description ? `: ${a.description}` : ""}`
+          ),
+        ].join("\n")
+      : null,
+  ].filter((l): l is string => l !== null)
+}
+
 export function buildChatAssistantSystemPrompt(params: {
   title: string
   company: string
@@ -7,86 +81,27 @@ export function buildChatAssistantSystemPrompt(params: {
   salaryLine: string | null
   status: string
   description: string
-  cv: CvData | null
-  cvName: string | null
+  baseCv: CvData | null
+  baseCvName: string | null
+  tailoredCv: CvData | null
 }): string {
-  const cvLines: (string | null)[] = params.cv
-    ? [
-        "",
-        `User's CV (${params.cvName ?? "uploaded CV"}):`,
-        params.cv.name ? `Name: ${params.cv.name}` : null,
-        params.cv.summary ? `Summary: ${params.cv.summary}` : null,
-        params.cv.skills?.length ? `Skills: ${params.cv.skills.join(", ")}` : null,
+  const cvSection: string[] = []
 
-        // Experience with full bullet points — not just description
-        params.cv.experience?.length
-          ? [
-              "Experience:",
-              ...params.cv.experience.map((e) => {
-                const header = `  - ${e.title} at ${e.company}${e.start_date ? ` (${e.start_date}–${e.end_date ?? "present"})` : ""}`
-                const desc = e.description ? `\n    Summary: ${e.description}` : ""
-                const highlights =
-                  e.highlights?.length
-                    ? `\n    Key points:\n${e.highlights.map((h) => `      • ${h}`).join("\n")}`
-                    : ""
-                return header + desc + highlights
-              }),
-            ].join("\n")
-          : null,
-
-        // Projects — critical context for recent graduates and career changers
-        params.cv.projects?.length
-          ? [
-              "Projects:",
-              ...params.cv.projects.map((p) => {
-                const header = `  - ${p.name}${p.start_date ? ` (${p.start_date}–${p.end_date ?? "present"})` : ""}`
-                const desc = p.description ? `\n    Summary: ${p.description}` : ""
-                const tech =
-                  p.technologies?.length
-                    ? `\n    Technologies: ${p.technologies.join(", ")}`
-                    : ""
-                const highlights =
-                  p.highlights?.length
-                    ? `\n    Key points:\n${p.highlights.map((h) => `      • ${h}`).join("\n")}`
-                    : ""
-                return header + desc + tech + highlights
-              }),
-            ].join("\n")
-          : null,
-
-        params.cv.education?.length
-          ? [
-              "Education:",
-              ...params.cv.education.map(
-                (e) =>
-                  `  - ${e.degree}${e.field ? ` in ${e.field}` : ""} at ${e.institution}` +
-                  `${e.end_date ? ` (${e.end_date})` : ""}${e.grade ? `, ${e.grade}` : ""}` +
-                  `${e.relevant_modules?.length ? `\n    Modules: ${e.relevant_modules.join(", ")}` : ""}`
-              ),
-            ].join("\n")
-          : null,
-
-        params.cv.certifications?.length
-          ? `Certifications: ${params.cv.certifications.join(", ")}`
-          : null,
-
-        params.cv.activities?.length
-          ? [
-              "Activities & Volunteering:",
-              ...params.cv.activities.map(
-                (a) =>
-                  `  - ${a.title} at ${a.company}` +
-                  `${a.start_date ? ` (${a.start_date}–${a.end_date ?? "present"})` : ""}` +
-                  `${a.description ? `: ${a.description}` : ""}`
-              ),
-            ].join("\n")
-          : null,
-      ]
-    : [
-        "",
-        "No CV selected for this application yet. The user can upload or select one in the application settings.",
-        "You can still help with company research, general interview tips, and cover letter guidance.",
-      ]
+  if (!params.baseCv && !params.tailoredCv) {
+    cvSection.push("", "No CV uploaded yet.")
+  } else {
+    if (params.baseCv) {
+      cvSection.push(...formatCv(params.baseCv, `Main CV${params.baseCvName ? ` — ${params.baseCvName}` : ""}`))
+    }
+    if (params.tailoredCv) {
+      cvSection.push(...formatCv(params.tailoredCv, "Tailored CV — AI-customised for this specific role"))
+    } else {
+      cvSection.push("", "Tailored CV: not generated yet for this role.")
+    }
+    if (params.baseCv && params.tailoredCv) {
+      cvSection.push("", "When suggesting improvements, reference the tailored CV for this role and the main CV for the full picture.")
+    }
+  }
 
   return [
     "You are a job application assistant helping a candidate apply for a specific role.",
@@ -100,7 +115,7 @@ export function buildChatAssistantSystemPrompt(params: {
     "",
     "Job description:",
     params.description,
-    ...cvLines,
+    ...cvSection,
     "",
     "Your capabilities — help the user with any of the following:",
     "- Research the company: what they do, their culture, recent news, and what they typically look for in candidates",
@@ -121,6 +136,6 @@ export function buildChatAssistantSystemPrompt(params: {
     "",
     "Always search the web when asked about the company or role — do not rely solely on training data.",
   ]
-    .filter((l) => l !== null)
+    .filter((l): l is string => l !== null)
     .join("\n")
 }

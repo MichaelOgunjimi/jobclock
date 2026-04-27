@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { resolveAiConfig, generateText } from "@/lib/ai"
 import { extractJson } from "@/lib/ai/extract-json"
 import { cvGenerateRateLimit } from "@/lib/rate-limit"
+import { normalizeObjectStrings } from "@/lib/cv/normalize"
 import type { UserPreferences } from "@/lib/ai"
 import type { AppWithJob, CvData, Json } from "@/lib/supabase/database.types"
 import {
@@ -74,7 +75,7 @@ export async function POST(
   }
 
   // Resolve base CV
-  let baseCvId: string | null = app.customized_cv_id ?? null
+  let baseCvId: string | null = app.selected_cv_id ?? null
   if (!baseCvId) {
     const { data: primaryCv } = await supabase
       .from("user_cvs")
@@ -92,6 +93,7 @@ export async function POST(
     .from("user_cvs")
     .select("parsed_json")
     .eq("id", baseCvId)
+    .eq("user_id", user.id)
     .single()
 
   if (!cvRow?.parsed_json) {
@@ -253,7 +255,7 @@ export async function POST(
         const { error: insertError } = await supabase.from("customized_cvs").insert({
           user_id: user.id,
           application_id: applicationId,
-          cv_json: result.cv as unknown as Json,
+          cv_json: normalizeObjectStrings(result.cv) as unknown as Json,
           ats_score: result.ats_match_estimate?.score ?? null,
           skills_gap: skillsGap as unknown as Json,
         })

@@ -10,6 +10,10 @@ import {
   revokePersonalApiTokens,
   type PersonalApiTokenMetadata,
 } from "@/lib/personal-api-tokens"
+import { and, eq } from "drizzle-orm"
+import { db } from "@/lib/db"
+import { trackedCompanies } from "@/lib/db/schema"
+import { detectAtsFromUrl } from "@/lib/jobs/source-detection"
 
 const VALID_PROVIDERS = new Set<AiProvider>(["anthropic", "openai"])
 
@@ -40,8 +44,9 @@ export async function saveAiSettings(formData: FormData) {
 
   const provider = formData.get("provider") as AiProvider
   const model = formData.get("model") as string
-  const anthropicKey = (formData.get("anthropic_api_key") as string).trim()
-  const openaiKey = (formData.get("openai_api_key") as string).trim()
+  const anthropicKey = ((formData.get("anthropic_api_key") as string | null) ?? "").trim()
+  const openaiKey = ((formData.get("openai_api_key") as string | null) ?? "").trim()
+  const perplexityKey = ((formData.get("perplexity_api_key") as string | null) ?? "").trim()
 
   if (!VALID_PROVIDERS.has(provider)) {
     return { error: "Invalid provider" }
@@ -52,7 +57,7 @@ export async function saveAiSettings(formData: FormData) {
     return { error: "Invalid model for provider" }
   }
 
-  if ((anthropicKey || openaiKey) && !isEncryptionConfigured()) {
+  if ((anthropicKey || openaiKey || perplexityKey) && !isEncryptionConfigured()) {
     return { error: "ENCRYPTION_SECRET must be configured to store API keys securely." }
   }
 
@@ -74,6 +79,7 @@ export async function saveAiSettings(formData: FormData) {
     // Only overwrite a key if user entered a new value; empty = keep existing
     ...(anthropicKey ? { anthropic_api_key: encrypt(anthropicKey) } : {}),
     ...(openaiKey ? { openai_api_key: encrypt(openaiKey) } : {}),
+    ...(perplexityKey ? { perplexity_api_key: encrypt(perplexityKey) } : {}),
   }
 
   const { error } = await supabase
@@ -228,4 +234,95 @@ export async function revokeExtensionToken() {
   } catch {
     return { error: "Failed to revoke extension token" }
   }
+}
+
+// ============================================================
+// TRACKED COMPANIES
+// ============================================================
+
+export type TrackedCompany = {
+  id: string
+  name: string
+  careersUrl: string
+  atsType: string | null
+  atsBoardIdentifier: string | null
+  enabled: boolean
+  lastSyncedAt: string | null
+  createdAt: string | null
+}
+
+export async function listTrackedCompanies(): Promise<TrackedCompany[]> {
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return []
+
+  const rows = await db
+    .select()
+    .from(trackedCompanies)
+    .where(eq(trackedCompanies.userId, auth.userId))
+    .orderBy(trackedCompanies.createdAt)
+
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    careersUrl: r.careersUrl,
+    atsType: r.atsType,
+    atsBoardIdentifier: r.atsBoardIdentifier,
+    enabled: r.enabled,
+    lastSyncedAt: r.lastSyncedAt?.toISOString() ?? null,
+    createdAt: r.createdAt?.toISOString() ?? null,
+  }))
+}
+
+export async function addTrackedCompany(name: string, careersUrl: string) {
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return { error: auth.error as string }
+
+  const trimmedUrl = careersUrl.trim()
+  if (!trimmedUrl) return { error: "Careers URL is required" }
+
+  const { atsType, boardIdentifier } = detectAtsFromUrl(trimmedUrl)
+
+  try {
+    const [row] = await db
+      .insert(trackedCompanies)
+      .values({
+        userId: auth.userId,
+        name: name.trim(),
+        careersUrl: trimmedUrl,
+        atsType: atsType ?? "unknown",
+        atsBoardIdentifier: boardIdentifier,
+        enabled: true,
+      })
+      .returning({ id: trackedCompanies.id })
+
+    revalidatePath("/settings")
+    return { id: row.id }
+  } catch {
+    return { error: "Failed to add company" }
+  }
+}
+
+export async function toggleTrackedCompany(id: string, enabled: boolean): Promise<{ error?: string }> {
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return { error: auth.error }
+
+  await db
+    .update(trackedCompanies)
+    .set({ enabled })
+    .where(and(eq(trackedCompanies.id, id), eq(trackedCompanies.userId, auth.userId)))
+
+  revalidatePath("/settings")
+  return {}
+}
+
+export async function deleteTrackedCompany(id: string): Promise<{ error?: string }> {
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return { error: auth.error }
+
+  await db
+    .delete(trackedCompanies)
+    .where(and(eq(trackedCompanies.id, id), eq(trackedCompanies.userId, auth.userId)))
+
+  revalidatePath("/settings")
+  return {}
 }
