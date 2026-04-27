@@ -5,10 +5,6 @@
       "schedule": "0 8 * * *"
     },
     {
-      "path": "/api/cron/sync-companies",
-      "schedule": "0 */2 * * *"
-    },
-    {
       "path": "/api/cron/sync-presets",
       "schedule": "0 3 * * *"
     }

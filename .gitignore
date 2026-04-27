@@ -27,7 +27,7 @@ test-results/
 docs/
 *.pem
 skills-lock.json
-scripts/
+# scripts/ — tracked (contains setup and migration utilities)
 .claude/
 
 # debug
