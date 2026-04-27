@@ -8,6 +8,7 @@ import { callPerplexity } from "@/lib/ai/perplexity"
 import { decrypt } from "@/lib/crypto"
 import { interviewSystemPrompt, interviewUserPrompt } from "@/lib/prompts/interview"
 import type { AppWithJob } from "@/lib/supabase/database.types"
+import { aiGenerateRateLimit } from "@/lib/rate-limit"
 
 export async function POST(
   _req: NextRequest,
@@ -18,6 +19,14 @@ export async function POST(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { success: withinLimit } = await aiGenerateRateLimit.limit(user.id)
+  if (!withinLimit) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment before trying again." },
+      { status: 429 }
+    )
+  }
 
   const [{ data: appData }, { data: profileData }] = await Promise.all([
     supabase.from("applications").select("*, jobs_cache (*)").eq("id", applicationId).eq("user_id", user.id).single(),
@@ -95,6 +104,15 @@ export async function GET(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // Verify the application belongs to this user before returning saved prep
+  const { data: appCheck } = await supabase
+    .from("applications")
+    .select("id")
+    .eq("id", applicationId)
+    .eq("user_id", user.id)
+    .single()
+  if (!appCheck) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
   const [prep] = await db.select().from(interviewPrep).where(eq(interviewPrep.applicationId, applicationId)).limit(1)
   if (!prep) return NextResponse.json({ content: null, research: null, storyCount: null })
