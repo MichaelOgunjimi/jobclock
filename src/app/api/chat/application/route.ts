@@ -62,14 +62,24 @@ export async function POST(request: NextRequest) {
   const typedApp = app as unknown as AppWithJob
 
   // Fetch CV + AI settings in parallel.
-  // Priority: tailored CV from customized_cvs → user's primary CV from user_cvs.
-  const customizedCvId = typedApp.customized_cv_id
+  // applications.customized_cv_id = FK to user_cvs.id (user-selected base CV).
+  // Tailored CV lives in customized_cvs keyed by application_id, not by that field.
+  const selectedCvId = typedApp.customized_cv_id
   const [{ data: profile }, { data: tailoredCvRow }, { data: baseCvRow }] = await Promise.all([
     supabase.from("profiles").select("preferences").eq("id", user.id).single(),
-    customizedCvId
-      ? supabase.from("customized_cvs").select("cv_json").eq("id", customizedCvId).eq("user_id", user.id).single()
-      : Promise.resolve({ data: null }),
-    supabase.from("user_cvs").select("parsed_json, name").eq("user_id", user.id).eq("is_primary", true).maybeSingle(),
+    // Latest AI-generated tailored CV for this application
+    supabase
+      .from("customized_cvs")
+      .select("cv_json")
+      .eq("application_id", applicationId)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    // User-selected base CV, or fall back to their primary CV
+    selectedCvId
+      ? supabase.from("user_cvs").select("parsed_json, name").eq("id", selectedCvId).eq("user_id", user.id).single()
+      : supabase.from("user_cvs").select("parsed_json, name").eq("user_id", user.id).eq("is_primary", true).maybeSingle(),
   ])
 
   const prefs = (profile?.preferences ?? {}) as UserPreferences

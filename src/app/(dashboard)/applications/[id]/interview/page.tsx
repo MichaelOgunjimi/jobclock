@@ -264,7 +264,7 @@ export default function InterviewPrepPage() {
             <div className="flex items-start gap-3 border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>
-                Your story bank was empty when this was generated — all questions show "Best story: —".{" "}
+                Your story bank was empty when this was generated — all questions show &quot;Best story: —&quot;.{" "}
                 <Link href="/interview" className="underline underline-offset-2 hover:opacity-70">
                   Add STAR stories
                 </Link>{" "}
@@ -289,7 +289,7 @@ export default function InterviewPrepPage() {
             <div className="border bg-secondary px-6 py-14 text-center text-muted-foreground">
               <BookOpen className="mx-auto mb-4 h-10 w-10 opacity-30" />
               <p className="font-medium text-foreground">No prep generated yet</p>
-              <p className="mt-2 text-sm">Hit "Generate" to get a tailored interview plan based on the job description and your story bank.</p>
+              <p className="mt-2 text-sm">Hit &quot;Generate&quot; to get a tailored interview plan based on the job description and your story bank.</p>
             </div>
           )}
         </div>

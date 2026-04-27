@@ -256,7 +256,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ jobs, total: jobs.length, page: pageNum, perPage: perPageNum })
+    return NextResponse.json({ jobs, total: totalCount, page: pageNum, perPage: perPageNum })
   } catch (error) {
     console.error("Job search error:", error)
     return NextResponse.json({ error: "Failed to search jobs" }, { status: 500 })
