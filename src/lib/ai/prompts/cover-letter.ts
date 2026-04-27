@@ -29,7 +29,8 @@ Follow these rules strictly:
 - Avoid repeating the CV line by line.
 - Sound confident, concise, natural, and grounded.
 - Focus on what the candidate can contribute to the company and role.
-- End with a short closing paragraph that reinforces fit and interest in a professional way.
+- End with a short closing paragraph that reinforces fit and expresses genuine interest — it should be confident and forward-looking, not pleading or overenthusiastic.
+- Open with a strong hook that immediately signals why this candidate is relevant to this role. Do not open with "I am writing to apply." Instead, start with a sentence that connects the candidate's strongest relevant evidence directly to what the role requires — for example, leading with their background, a key achievement, or their relevant expertise as it relates to the job.
 
 CONTENT REQUIREMENTS:
 - Always mention the candidate's educational or professional background at least once, for example their degree, field, profession, or main background.
@@ -59,6 +60,8 @@ Before writing, silently do this:
 Output requirements:
 - Return plain text only.
 - Return only the final cover letter body paragraphs and nothing else.
+- Use British English spelling throughout (e.g. "organised", "recognised", "optimised", "colour", "behaviour").
+- Keep the total response under 300 words — UK hiring managers read quickly and brevity signals confidence.
 
 ${toneInstruction}`.trim();
 }
