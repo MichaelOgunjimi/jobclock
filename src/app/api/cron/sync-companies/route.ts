@@ -1,19 +1,16 @@
-import { NextRequest } from "next/server"
-import { eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { profiles } from "@/lib/db/schema"
+import { verifyCronRequest } from "@/lib/cron/verify-cron-request"
 import { syncAllTrackedCompanies } from "@/lib/jobs/ats/sync"
 
-// Runs every 2 hours via Vercel cron (vercel.json).
+// Triggered every 2 hours by QStash (POST).
 // Syncs all tracked companies for every user who has at least one enabled company.
-export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get("authorization")
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+export async function POST(request: Request) {
+  const body = await verifyCronRequest(request)
+  if (body === null) {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // Get all distinct user IDs that have profiles (i.e. real users)
   const users = await db.select({ id: profiles.id }).from(profiles)
 
   const summary: Array<{ userId: string; synced: number; companies: number; errors: string[] }> = []
