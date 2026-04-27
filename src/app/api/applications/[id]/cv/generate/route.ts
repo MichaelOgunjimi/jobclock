@@ -93,6 +93,7 @@ export async function POST(
     .from("user_cvs")
     .select("parsed_json")
     .eq("id", baseCvId)
+    .eq("user_id", user.id)
     .single()
 
   if (!cvRow?.parsed_json) {
