@@ -6,11 +6,9 @@ import { syncPresetCompanies } from "@/lib/jobs/sync-preset-companies"
 // Header: Authorization: Bearer <CRON_SECRET>
 export async function POST(request: NextRequest) {
   const secret = process.env.CRON_SECRET
-  if (secret) {
-    const auth = request.headers.get("authorization")
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+  const auth = request.headers.get("authorization")
+  if (!secret || auth !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   try {
