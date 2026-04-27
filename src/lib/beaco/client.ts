@@ -19,6 +19,25 @@ interface BeacoBatchPayload {
   events: BeacoEventPayload[]
 }
 
+const templateIdCache = new Map<string, string>()
+
+export async function resolveTemplateId(name: string): Promise<string | null> {
+  if (!BEACO_API_KEY) return null
+  if (templateIdCache.has(name)) return templateIdCache.get(name)!
+
+  const res = await fetch(`${BEACO_API_URL}/api/v1/templates?name=${encodeURIComponent(name)}`, {
+    headers: { "X-API-Key": BEACO_API_KEY },
+  })
+  if (!res.ok) return null
+
+  const data = (await res.json()) as { items?: { id: string; name: string }[] }
+  const match = data.items?.find((t) => t.name === name)
+  if (!match) return null
+
+  templateIdCache.set(name, match.id)
+  return match.id
+}
+
 export async function sendBeacoEvent(event: BeacoEventPayload): Promise<void> {
   if (!BEACO_API_KEY) return
   const res = await fetch(`${BEACO_API_URL}/api/v1/events`, {
