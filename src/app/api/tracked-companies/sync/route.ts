@@ -18,7 +18,7 @@ export async function POST() {
   }
 
   try {
-    const results = await syncAllTrackedCompanies(user.id)
+    const results = await syncAllTrackedCompanies(user.id, user.email ?? "")
     const totalSynced = results.reduce((sum, r) => sum + r.synced, 0)
     return NextResponse.json({ synced: totalSynced, companies: results })
   } catch (err) {
