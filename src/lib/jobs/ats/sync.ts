@@ -1,9 +1,10 @@
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { jobsCache, trackedCompanies } from "@/lib/db/schema"
 import { checkAtsRateLimit } from "@/lib/jobs/ats-rate-limit"
 import type { PersistedJobInput } from "@/lib/jobs/persist-job"
 import { classifyJobIndustry } from "@/lib/jobs/industry-classification"
+import { sendNewJobAlerts } from "@/lib/beacon/job-alerts"
 import { fetchGreenhouseJobs } from "./greenhouse"
 import { fetchLeverJobs } from "./lever"
 import { fetchAshbyJobs } from "./ashby"
@@ -13,6 +14,7 @@ export interface SyncResult {
   companyId: string
   companyName: string
   synced: number
+  newJobs: number
   errors: string[]
 }
 
@@ -79,7 +81,11 @@ export async function fetchJobsForCompany(company: {
   }
 }
 
-export async function syncTrackedCompany(companyId: string, userId: string): Promise<SyncResult> {
+export async function syncTrackedCompany(
+  companyId: string,
+  userId: string,
+  userEmail: string
+): Promise<SyncResult> {
   const [company] = await db
     .select()
     .from(trackedCompanies)
@@ -87,23 +93,36 @@ export async function syncTrackedCompany(companyId: string, userId: string): Pro
     .limit(1)
 
   if (!company) throw new Error(`Tracked company not found: ${companyId}`)
-  if (!company.enabled) return { companyId, companyName: company.name, synced: 0, errors: ["Company sync is disabled"] }
+  if (!company.enabled) {
+    return { companyId, companyName: company.name, synced: 0, newJobs: 0, errors: ["Company sync is disabled"] }
+  }
 
   const atsType = company.atsType ?? "unknown"
   const { allowed } = await checkAtsRateLimit(atsType)
   if (!allowed) {
-    return { companyId, companyName: company.name, synced: 0, errors: ["Rate limit reached for this ATS"] }
+    return { companyId, companyName: company.name, synced: 0, newJobs: 0, errors: ["Rate limit reached for this ATS"] }
   }
 
   const errors: string[] = []
   let synced = 0
+  const newJobsList: PersistedJobInput[] = []
 
   try {
     const jobs = await fetchJobsForCompany(company)
+
+    // Detect new jobs by diffing against existing URLs in a single query
+    const urls = jobs.map((j) => j.url)
+    const existingRows =
+      urls.length > 0
+        ? await db.select({ url: jobsCache.url }).from(jobsCache).where(inArray(jobsCache.url, urls))
+        : []
+    const existingUrls = new Set(existingRows.map((r) => r.url))
+
     for (const job of jobs) {
       try {
         await upsertJobIntoCache(job)
         synced++
+        if (!existingUrls.has(job.url)) newJobsList.push(job)
       } catch (err) {
         errors.push(`Failed to upsert job "${job.title}": ${err instanceof Error ? err.message : String(err)}`)
       }
@@ -117,16 +136,23 @@ export async function syncTrackedCompany(companyId: string, userId: string): Pro
     .set({ lastSyncedAt: new Date() })
     .where(eq(trackedCompanies.id, companyId))
 
-  return { companyId, companyName: company.name, synced, errors }
+  // Fire job alerts outside the main loop — don't block sync on email failure
+  if (newJobsList.length > 0) {
+    sendNewJobAlerts(userEmail, userId, newJobsList).catch((err) =>
+      console.error(`[job-alerts] failed to send alerts for user ${userId}:`, err)
+    )
+  }
+
+  return { companyId, companyName: company.name, synced, newJobs: newJobsList.length, errors }
 }
 
-export async function syncAllTrackedCompanies(userId: string): Promise<SyncResult[]> {
+export async function syncAllTrackedCompanies(userId: string, userEmail: string): Promise<SyncResult[]> {
   const companies = await db
     .select()
     .from(trackedCompanies)
     .where(and(eq(trackedCompanies.userId, userId), eq(trackedCompanies.enabled, true)))
 
-  const results = await Promise.allSettled(companies.map((c) => syncTrackedCompany(c.id, userId)))
+  const results = await Promise.allSettled(companies.map((c) => syncTrackedCompany(c.id, userId, userEmail)))
 
   return results.map((r, i) => {
     if (r.status === "fulfilled") return r.value
@@ -134,6 +160,7 @@ export async function syncAllTrackedCompanies(userId: string): Promise<SyncResul
       companyId: companies[i].id,
       companyName: companies[i].name,
       synced: 0,
+      newJobs: 0,
       errors: [r.reason instanceof Error ? r.reason.message : String(r.reason)],
     }
   })
