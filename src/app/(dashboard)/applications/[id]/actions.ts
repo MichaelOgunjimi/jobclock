@@ -112,7 +112,7 @@ export async function updateCv(formData: FormData) {
 
   await supabase
     .from("applications")
-    .update({ customized_cv_id: cvId || null })
+    .update({ selected_cv_id: cvId || null })
     .eq("id", applicationId)
     .eq("user_id", user.id)
 
@@ -330,7 +330,7 @@ export async function generateCoverLetter(
   const job = app.jobs_cache
 
   // Resolve base CV and writing style in parallel
-  let baseCvId: string | null = app.customized_cv_id ?? null
+  let baseCvId: string | null = app.selected_cv_id ?? null
   if (!baseCvId) {
     const { data: primaryCv } = await supabase
       .from("user_cvs")

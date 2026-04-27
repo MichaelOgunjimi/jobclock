@@ -1358,7 +1358,7 @@ export function ApplicationDetail({
         <CvCard
           applicationId={application.id}
           cvs={cvs}
-          currentCvId={application.customized_cv_id}
+          currentCvId={application.selected_cv_id}
           tailoredCvs={tailoredCvs}
           hasDescription={hasDescription}
         />

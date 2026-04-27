@@ -75,7 +75,7 @@ export async function POST(
   }
 
   // Resolve base CV
-  let baseCvId: string | null = app.customized_cv_id ?? null
+  let baseCvId: string | null = app.selected_cv_id ?? null
   if (!baseCvId) {
     const { data: primaryCv } = await supabase
       .from("user_cvs")

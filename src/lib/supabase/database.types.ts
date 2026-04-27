@@ -194,7 +194,7 @@ export type Database = {
 					status: ApplicationStatus;
 					applied_at: string | null;
 					cover_letter_id: string | null;
-					customized_cv_id: string | null;
+					selected_cv_id: string | null;
 					structure_id: string | null;
 					cover_letter_tone: "professional" | "enthusiastic" | "conservative" | "story" | null;
 					source: string | null;
@@ -215,7 +215,7 @@ export type Database = {
 					status?: ApplicationStatus;
 					applied_at?: string | null;
 					cover_letter_id?: string | null;
-					customized_cv_id?: string | null;
+					selected_cv_id?: string | null;
 					structure_id?: string | null;
 					cover_letter_tone?: "professional" | "enthusiastic" | "conservative" | "story" | null;
 					source?: string | null;
@@ -236,7 +236,7 @@ export type Database = {
 					status?: ApplicationStatus;
 					applied_at?: string | null;
 					cover_letter_id?: string | null;
-					customized_cv_id?: string | null;
+					selected_cv_id?: string | null;
 					structure_id?: string | null;
 					cover_letter_tone?: "professional" | "enthusiastic" | "conservative" | "story" | null;
 					source?: string | null;

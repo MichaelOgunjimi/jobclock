@@ -62,9 +62,9 @@ export async function POST(request: NextRequest) {
   const typedApp = app as unknown as AppWithJob
 
   // Fetch CV + AI settings in parallel.
-  // applications.customized_cv_id = FK to user_cvs.id (user-selected base CV).
-  // Tailored CV lives in customized_cvs keyed by application_id, not by that field.
-  const selectedCvId = typedApp.customized_cv_id
+  // applications.selected_cv_id = FK to user_cvs.id (user-selected base CV).
+  // Tailored CV lives in customized_cvs keyed by application_id.
+  const selectedCvId = typedApp.selected_cv_id
   const [{ data: profile }, { data: tailoredCvRow }, { data: baseCvRow }] = await Promise.all([
     supabase.from("profiles").select("preferences").eq("id", user.id).single(),
     // Latest AI-generated tailored CV for this application
