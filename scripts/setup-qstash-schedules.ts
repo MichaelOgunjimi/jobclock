@@ -32,7 +32,7 @@ const schedules = [
 async function main() {
   // List existing schedules so we don't create duplicates
   const existing = await client.schedules.list()
-  const existingDestinations = new Set(existing.schedules?.map((s) => s.destination) ?? [])
+  const existingDestinations = new Set(existing.map((s) => s.destination))
 
   for (const schedule of schedules) {
     if (existingDestinations.has(schedule.destination)) {
