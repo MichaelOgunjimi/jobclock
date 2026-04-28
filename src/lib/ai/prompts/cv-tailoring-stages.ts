@@ -360,7 +360,7 @@ SKILLS
     - Keep skills as simple text entries.
 
 HEADLINE
-20. Set `cv.headline` to the exact role title from the job analysis (e.g. "Graduate Software Engineer"). This appears directly below the candidate's name on the CV and signals the target role to ATS.
+20. Set "cv.headline" to the exact role title from the job analysis (e.g. "Graduate Software Engineer"). This appears directly below the candidate's name on the CV and signals the target role to ATS.
 
 OUTPUT METADATA
 21. "match_summary": one concise sentence describing what was strengthened and which major JD keywords were surfaced.
