@@ -243,11 +243,6 @@ export async function GET(request: NextRequest) {
         return tb - ta
       })
 
-      // Drop listings older than 6 months when the caller wants recent results.
-      // Adzuna and CareerJet both keep stale listings indefinitely; without this
-      // old jobs fill the tail of every page even after a date sort.
-      const cutoff = Date.now() - 180 * 24 * 60 * 60 * 1000
-      jobs = jobs.filter(j => !j.postedAt || new Date(j.postedAt).getTime() >= cutoff)
     } else if (sort === "salary") {
       jobs = jobs.sort((a, b) => {
         const sa = a.salaryMax ?? a.salaryMin ?? 0
