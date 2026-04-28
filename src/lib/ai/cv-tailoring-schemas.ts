@@ -101,6 +101,7 @@ const cvProjectSchema = z
 export const cvDataSchema = z
   .object({
     name: optCoerceStr,
+    headline: optCoerceStr,
     email: optCoerceStr,
     phone: optCoerceStr,
     location: optCoerceStr,

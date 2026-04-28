@@ -192,6 +192,11 @@ export function TemplateBold({ cv }: CvTemplateProps) {
             {cv.name}
           </div>
         )}
+        {cv.headline && (
+          <div style={{ fontSize: 12.5, color: "#cbd5e1", marginBottom: 4 }}>
+            {cv.headline}
+          </div>
+        )}
         {(contactParts.length > 0 || linkParts.length > 0) && (
           <div style={{ fontSize: 11.2, color: "#94a3b8", lineHeight: 1.4 }}>
             {contactParts.join(" | ")}

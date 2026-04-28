@@ -183,10 +183,15 @@ export function TemplateProfessional({ cv }: CvTemplateProps) {
               fontWeight: 700,
               borderBottom: "1px solid #1a1a1a",
               paddingBottom: 2,
-              marginBottom: 6,
+              marginBottom: 4,
             }}
           >
             {cv.name}
+          </div>
+        )}
+        {cv.headline && (
+          <div style={{ fontSize: 12.5, color: "#555", marginBottom: 4 }}>
+            {cv.headline}
           </div>
         )}
 
