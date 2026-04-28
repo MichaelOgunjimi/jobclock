@@ -51,31 +51,25 @@ export function createPdfRoute({
     try {
       browser = await launchPdfBrowser()
 
-      const context = await browser.newContext({
-        extraHTTPHeaders: {
-          cookie: request.headers.get("cookie") ?? "",
-        },
+      const page = await browser.newPage()
+
+      await page.setExtraHTTPHeaders({
+        cookie: request.headers.get("cookie") ?? "",
       })
-      const page = await context.newPage()
 
       await page.goto(printUrl.toString(), { waitUntil: "load" })
-      await page.emulateMedia({ media: "print" })
-      await page.waitForSelector(`[${dataAttribute}='true']`, { timeout: 15_000 })
+      await page.emulateMediaType("print")
+      await page.waitForSelector(`[${dataAttribute}="true"]`, { timeout: 15_000 })
 
       const pdfBuffer = await page.pdf({
         format: "A4",
         printBackground: true,
         displayHeaderFooter: false,
         preferCSSPageSize: true,
-        margin: {
-          top: "0",
-          right: "0",
-          bottom: "0",
-          left: "0",
-        },
+        margin: { top: "0", right: "0", bottom: "0", left: "0" },
       })
 
-      await context.close()
+      await page.close()
 
       return new NextResponse(new Uint8Array(pdfBuffer), {
         status: 200,

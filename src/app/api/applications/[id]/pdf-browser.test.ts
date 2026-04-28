@@ -1,25 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi, beforeEach } from "vitest"
 
-const playwrightLaunch = vi.hoisted(() => vi.fn())
-const coreLaunch = vi.hoisted(() => vi.fn())
-const executablePath = vi.hoisted(() => vi.fn())
+const puppeteerLaunch = vi.hoisted(() => vi.fn())
+const sparticuzArgs = ["--serverless"]
+const sparticuzExecutablePath = vi.hoisted(() => vi.fn())
 
-vi.mock("@playwright/test", () => ({
-  chromium: {
-    launch: playwrightLaunch,
-  },
+vi.mock("puppeteer-core", () => ({
+  launch: puppeteerLaunch,
 }))
 
 vi.mock("@sparticuz/chromium", () => ({
   default: {
-    args: ["--serverless"],
-    executablePath,
-  },
-}))
-
-vi.mock("playwright-core", () => ({
-  chromium: {
-    launch: coreLaunch,
+    args: sparticuzArgs,
+    executablePath: sparticuzExecutablePath,
   },
 }))
 
@@ -27,38 +19,27 @@ import { launchPdfBrowser } from "./pdf-browser"
 
 describe("launchPdfBrowser", () => {
   beforeEach(() => {
-    delete process.env.PLAYWRIGHT_BROWSERS_PATH
-    playwrightLaunch.mockReset()
-    coreLaunch.mockReset()
-    executablePath.mockReset()
-    executablePath.mockResolvedValue("/tmp/chromium")
+    puppeteerLaunch.mockReset()
+    sparticuzExecutablePath.mockReset()
+    sparticuzExecutablePath.mockResolvedValue("/tmp/chromium")
   })
 
-  it("uses the original Playwright browser path when available", async () => {
-    const browser = { close: vi.fn(), newContext: vi.fn() }
-    playwrightLaunch.mockResolvedValue(browser)
+  it("launches with sparticuz chromium", async () => {
+    const browser = { close: vi.fn(), newPage: vi.fn() }
+    puppeteerLaunch.mockResolvedValue(browser)
 
     await expect(launchPdfBrowser()).resolves.toBe(browser)
 
-    expect(playwrightLaunch).toHaveBeenCalledWith({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    })
-    expect(process.env.PLAYWRIGHT_BROWSERS_PATH).toBe("0")
-    expect(coreLaunch).not.toHaveBeenCalled()
-  })
-
-  it("falls back to serverless Chromium when the original path cannot launch", async () => {
-    const browser = { close: vi.fn(), newContext: vi.fn() }
-    playwrightLaunch.mockRejectedValue(new Error("browser executable missing"))
-    coreLaunch.mockResolvedValue(browser)
-
-    await expect(launchPdfBrowser()).resolves.toBe(browser)
-
-    expect(coreLaunch).toHaveBeenCalledWith({
-      args: ["--serverless"],
+    expect(puppeteerLaunch).toHaveBeenCalledWith({
+      args: sparticuzArgs,
       executablePath: "/tmp/chromium",
       headless: true,
     })
+  })
+
+  it("rejects when launch fails", async () => {
+    puppeteerLaunch.mockRejectedValue(new Error("launch failed"))
+
+    await expect(launchPdfBrowser()).rejects.toThrow("launch failed")
   })
 })
