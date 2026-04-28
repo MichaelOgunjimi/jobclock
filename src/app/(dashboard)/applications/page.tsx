@@ -20,6 +20,7 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button-styles"
 import type { ApplicationStatus, Database } from "@/lib/supabase/database.types"
+import { ApplicationsFilterBar } from "./applications-filter-bar"
 
 export const metadata: Metadata = {
   title: "Applications",
@@ -47,7 +48,7 @@ const APPLICATIONS_PER_PAGE = 8
 export default async function ApplicationsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ page?: string }>
+  searchParams?: Promise<{ page?: string; status?: string; sort?: string }>
 }) {
   if (!isSupabaseConfigured()) {
     redirect("/auth")
@@ -55,6 +56,19 @@ export default async function ApplicationsPage({
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined
   const currentPage = Math.max(1, Number(resolvedSearchParams?.page ?? "1") || 1)
+
+  // Filter param — validate against known statuses
+  const rawStatus = resolvedSearchParams?.status ?? ""
+  const activeStatus: ApplicationStatus | "all" =
+    rawStatus && VALID_APPLICATION_STATUSES.has(rawStatus as ApplicationStatus)
+      ? (rawStatus as ApplicationStatus)
+      : "all"
+
+  // Sort param
+  const VALID_SORTS = new Set(["saved_desc", "saved_asc", "applied_desc", "company_asc"])
+  const rawSort = resolvedSearchParams?.sort ?? ""
+  const activeSort = VALID_SORTS.has(rawSort) ? rawSort : "saved_desc"
+
   const rangeStart = (currentPage - 1) * APPLICATIONS_PER_PAGE
   const rangeEnd = rangeStart + APPLICATIONS_PER_PAGE - 1
 
@@ -65,45 +79,68 @@ export default async function ApplicationsPage({
     redirect("/auth")
   }
 
+  // Base query
+  let query = supabase
+    .from("applications")
+    .select(`
+      id,
+      status,
+      created_at,
+      applied_at,
+      source,
+      notes,
+      tags,
+      jobs_cache (
+        id,
+        title,
+        company,
+        location,
+        url,
+        salary_min,
+        salary_max
+      )
+    `, { count: "exact" })
+    .eq("user_id", user.id)
+
+  // Apply status filter
+  if (activeStatus !== "all") {
+    query = query.eq("status", activeStatus)
+  }
+
+  // Apply sort
+  if (activeSort === "saved_asc") {
+    query = query.order("created_at", { ascending: true })
+  } else if (activeSort === "applied_desc") {
+    query = query.order("applied_at", { ascending: false, nullsFirst: false })
+  } else {
+    query = query.order("created_at", { ascending: false })
+  }
+
   const [
     { data: applicationsData, count: totalApplications },
     { data: applicationStatuses },
   ] = await Promise.all([
-    supabase
-      .from("applications")
-      .select(`
-        id,
-        status,
-        created_at,
-        applied_at,
-        source,
-        notes,
-        tags,
-        jobs_cache (
-          id,
-          title,
-          company,
-          location,
-          url,
-          salary_min,
-          salary_max
-        )
-      `, { count: "exact" })
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .range(rangeStart, rangeEnd),
+    query.range(rangeStart, rangeEnd),
     supabase
       .from("applications")
       .select("status")
       .eq("user_id", user.id),
   ])
 
-  const applications = (applicationsData ?? []) as ApplicationWithJob[]
+  let applications = (applicationsData ?? []) as ApplicationWithJob[]
+
+  // Company A–Z sort happens post-fetch (joined field, can't ORDER BY in Supabase easily)
+  if (activeSort === "company_asc") {
+    applications = [...applications].sort((a, b) =>
+      (a.jobs_cache?.company ?? "").localeCompare(b.jobs_cache?.company ?? "")
+    )
+  }
+
   const totalPages = Math.max(1, Math.ceil((totalApplications ?? 0) / APPLICATIONS_PER_PAGE))
   const safeCurrentPage = Math.min(currentPage, totalPages)
 
   if ((totalApplications ?? 0) > 0 && currentPage !== safeCurrentPage) {
-    redirect(buildApplicationsPageHref(safeCurrentPage))
+    redirect(buildApplicationsPageHref(safeCurrentPage, activeStatus, activeSort))
   }
 
   const statusOptions: {
@@ -231,6 +268,12 @@ export default async function ApplicationsPage({
         </Card>
       ) : (
         <div className="space-y-4">
+          <ApplicationsFilterBar
+            counts={statusCounts}
+            total={totalApplications ?? 0}
+            activeStatus={activeStatus}
+            activeSort={activeSort}
+          />
           <div className="flex flex-col gap-2 border border-border bg-secondary/35 px-5 py-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <p>
               Showing{" "}
@@ -241,7 +284,7 @@ export default async function ApplicationsPage({
               <span className="font-medium text-foreground">
                 {(totalApplications ?? applications.length).toLocaleString()}
               </span>{" "}
-              applications
+              {activeStatus !== "all" ? `${activeStatus} ` : ""}applications
             </p>
             <p>
               Page{" "}
@@ -384,7 +427,7 @@ export default async function ApplicationsPage({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Link
-                  href={buildApplicationsPageHref(Math.max(1, safeCurrentPage - 1))}
+                  href={buildApplicationsPageHref(Math.max(1, safeCurrentPage - 1), activeStatus, activeSort)}
                   aria-disabled={safeCurrentPage === 1}
                   className={cn(
                     buttonVariants({ variant: "outline", size: "sm" }),
@@ -404,7 +447,7 @@ export default async function ApplicationsPage({
                   ) : (
                     <Link
                       key={entry}
-                      href={buildApplicationsPageHref(entry)}
+                      href={buildApplicationsPageHref(entry, activeStatus, activeSort)}
                       className={cn(
                         buttonVariants({
                           variant: entry === safeCurrentPage ? "default" : "outline",
@@ -418,7 +461,7 @@ export default async function ApplicationsPage({
                   )
                 )}
                 <Link
-                  href={buildApplicationsPageHref(Math.min(totalPages, safeCurrentPage + 1))}
+                  href={buildApplicationsPageHref(Math.min(totalPages, safeCurrentPage + 1), activeStatus, activeSort)}
                   aria-disabled={safeCurrentPage === totalPages}
                   className={cn(
                     buttonVariants({ variant: "outline", size: "sm" }),
@@ -436,8 +479,13 @@ export default async function ApplicationsPage({
   )
 }
 
-function buildApplicationsPageHref(page: number) {
-  return page <= 1 ? "/applications" : `/applications?page=${page}`
+function buildApplicationsPageHref(page: number, status?: string, sort?: string) {
+  const params = new URLSearchParams()
+  if (page > 1) params.set("page", String(page))
+  if (status && status !== "all") params.set("status", status)
+  if (sort && sort !== "saved_desc") params.set("sort", sort)
+  const qs = params.toString()
+  return qs ? `/applications?${qs}` : "/applications"
 }
 
 function getVisiblePages(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
