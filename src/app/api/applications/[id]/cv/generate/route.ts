@@ -5,7 +5,7 @@ import { extractJson } from "@/lib/ai/extract-json"
 import { cvGenerateRateLimit } from "@/lib/rate-limit"
 import { normalizeObjectStrings } from "@/lib/cv/normalize"
 import type { UserPreferences } from "@/lib/ai"
-import type { AppWithJob, CvData, Json } from "@/lib/supabase/database.types"
+import type { AppWithJob, Json } from "@/lib/supabase/database.types"
 import {
   STAGE_B_SYSTEM_PROMPT,
   buildStageBUserPrompt,

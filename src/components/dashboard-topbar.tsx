@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { useRef, useState, useCallback } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -69,7 +70,7 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
   }
 
   const avatarEl = userProfile.avatarUrl ? (
-    <img src={userProfile.avatarUrl} alt="" className="h-full w-full object-cover" />
+    <Image src={userProfile.avatarUrl} alt="" fill sizes="32px" className="object-cover" unoptimized />
   ) : (
     <span>{initials}</span>
   )

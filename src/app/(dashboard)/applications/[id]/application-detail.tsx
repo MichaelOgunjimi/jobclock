@@ -11,7 +11,6 @@ import {
   Send,
   Trash2,
 } from "lucide-react"
-import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
@@ -24,7 +23,6 @@ import {
   updateStatus,
   updateNotes,
   updateCv,
-  updateCoverLetter,
   updateWritingStyle,
   updateDescription,
   deleteApplication,
