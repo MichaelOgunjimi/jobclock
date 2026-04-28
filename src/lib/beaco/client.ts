@@ -9,7 +9,7 @@ interface BeacoRecipient {
 
 interface BeacoEventPayload {
   event_type: string
-  template_id?: string
+  template_name?: string
   recipients: BeacoRecipient[]
   payload: Record<string, string>
   idempotency_key?: string

@@ -1,7 +1,7 @@
 import type { PersistedJobInput } from "@/lib/jobs/persist-job"
 import { sendBeacoEvent } from "./client"
 
-const TEMPLATE_ID = process.env.BEACO_JOB_ALERT_TEMPLATE_ID ?? ""
+const TEMPLATE_NAME = process.env.BEACO_JOB_ALERT_TEMPLATE_NAME ?? "job-alert"
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
 
 function buildJobsListHtml(jobs: PersistedJobInput[]): string {
@@ -43,12 +43,12 @@ export async function sendNewJobAlerts(
   userId: string,
   newJobs: PersistedJobInput[]
 ): Promise<void> {
-  if (!TEMPLATE_ID || newJobs.length === 0) return
+  if (newJobs.length === 0) return
 
   const count = newJobs.length
   await sendBeacoEvent({
     event_type: "job.new_match",
-    template_id: TEMPLATE_ID,
+    template_name: TEMPLATE_NAME,
     recipients: [{ channels: ["email"], email: userEmail, user_id: userId }],
     payload: {
       job_count: String(count),
