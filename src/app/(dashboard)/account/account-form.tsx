@@ -1,5 +1,6 @@
 "use client"
 
+import NextImage from "next/image"
 import { useRef, useState, useTransition } from "react"
 import { Link2, Loader2, Upload, UserRound } from "lucide-react"
 import { toast } from "sonner"
@@ -147,10 +148,13 @@ export function AccountForm({ userId, initialData }: AccountFormProps) {
                 aria-label="Upload profile photo"
               >
                 {avatarUrl && !avatarLoadFailed ? (
-                  <img
+                  <NextImage
                     src={avatarUrl}
                     alt=""
-                    className="h-full w-full object-cover"
+                    fill
+                    sizes="80px"
+                    className="object-cover"
+                    unoptimized
                     onLoad={() => setAvatarLoadFailed(false)}
                     onError={() => setAvatarLoadFailed(true)}
                   />

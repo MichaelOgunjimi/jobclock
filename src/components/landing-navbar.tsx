@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight, LayoutDashboard, Menu, UserCircle, X } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
@@ -152,7 +153,7 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
                     className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden border bg-secondary text-[11px] font-semibold uppercase tracking-wide text-foreground transition-colors hover:border-foreground/40"
                   >
                     {userProfile.avatarUrl ? (
-                      <img src={userProfile.avatarUrl} alt="" className="h-full w-full object-cover" />
+                      <Image src={userProfile.avatarUrl} alt="" fill sizes="32px" className="object-cover" unoptimized />
                     ) : (
                       getInitials(userProfile.fullName, userProfile.email)
                     )}
