@@ -359,14 +359,17 @@ SKILLS
     - Skills in "remove" must not appear in the output at all.
     - Keep skills as simple text entries.
 
+HEADLINE
+20. Set `cv.headline` to the exact role title from the job analysis (e.g. "Graduate Software Engineer"). This appears directly below the candidate's name on the CV and signals the target role to ATS.
+
 OUTPUT METADATA
-20. "match_summary": one concise sentence describing what was strengthened and which major JD keywords were surfaced.
-21. "ats_match_estimate.score" (integer 0–100) is a reasoned estimate based on:
+21. "match_summary": one concise sentence describing what was strengthened and which major JD keywords were surfaced.
+22. "ats_match_estimate.score" (integer 0–100) is a reasoned estimate based on:
     - ~40%: keyword alignment with JD must-haves.
     - ~30%: relevance of prioritised sections to core responsibilities.
     - ~20%: qualification coverage (education, years of experience).
     - ~10%: clarity and ATS-friendly structure.
-22. "ats_match_estimate.basis": one sentence explaining the score (e.g. "Strong alignment on backend skills and AWS, but limited evidence of production-scale systems").
+23. "ats_match_estimate.basis": one sentence explaining the score (e.g. "Strong alignment on backend skills and AWS, but limited evidence of production-scale systems").
 
 RESPONSE FORMAT
 Respond ONLY with a single raw JSON object and NOTHING else.

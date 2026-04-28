@@ -174,6 +174,11 @@ export function TemplateCompact({ cv }: CvTemplateProps) {
             {cv.name}
           </div>
         )}
+        {cv.headline && (
+          <div style={{ fontSize: 12, color: "#555", marginBottom: 4 }}>
+            {cv.headline}
+          </div>
+        )}
         {(contactParts.length > 0 || linkParts.length > 0) && (
           <div style={{ fontSize: 11, color: "#555", lineHeight: 1.4 }}>
             {contactParts.join(" | ")}
