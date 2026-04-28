@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation"
+import { Suspense } from "react"
 import type { CoverLetterRenderData, CvData } from "@/lib/supabase/database.types"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
@@ -7,6 +8,7 @@ import {
   isCoverLetterTemplateName,
   type CoverLetterTemplateName,
 } from "@/components/cover-letter/templates/cover-letter-template-renderer"
+import { AutoPrint } from "@/app/(print)/auto-print"
 
 export const dynamic = "force-dynamic"
 
@@ -148,6 +150,9 @@ export default async function ApplicationCoverLetterPrintPage({
           min-height: auto;
         }
       `}</style>
+      <Suspense>
+        <AutoPrint />
+      </Suspense>
       <main className="bg-white">
         <CoverLetterPaper
           data={renderData}
