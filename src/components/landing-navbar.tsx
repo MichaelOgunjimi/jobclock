@@ -150,7 +150,7 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
                     href="/account"
                     aria-label="Account"
                     title={userProfile.fullName ?? userProfile.email}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden border bg-secondary text-[11px] font-semibold uppercase tracking-wide text-foreground transition-colors hover:border-foreground/40"
+                    className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden border bg-secondary text-[11px] font-semibold uppercase tracking-wide text-foreground transition-colors hover:border-foreground/40"
                   >
                     {userProfile.avatarUrl ? (
                       <Image src={userProfile.avatarUrl} alt="" fill sizes="32px" className="object-cover" unoptimized />

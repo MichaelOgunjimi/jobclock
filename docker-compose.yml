@@ -1,0 +1,20 @@
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    ports:
+      - "3300:3000"
+    volumes:
+      - .:/app
+      # Keep the container's node_modules isolated from the host's
+      - /app/node_modules
+      # Keep the container's .next build cache isolated from the host's
+      - /app/.next
+    env_file:
+      - .env.local
+    environment:
+      NODE_ENV: development
+      # Polling-based file watching for reliable HMR across Docker volumes on macOS
+      WATCHPACK_POLLING: "true"
+    restart: unless-stopped
