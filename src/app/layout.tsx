@@ -4,6 +4,7 @@ import { Geist_Mono, IBM_Plex_Sans, IBM_Plex_Serif } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Analytics } from "@vercel/analytics/next"
 
 const uiSans = IBM_Plex_Sans({
   variable: "--font-ui-sans",
@@ -55,6 +56,7 @@ export default async function RootLayout({
           {children}
           <Toaster />
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   )
