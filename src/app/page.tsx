@@ -71,8 +71,8 @@ export default async function HomePage() {
         <div className="landing-glow landing-glow-two" aria-hidden="true" />
         <div className="landing-grid absolute inset-0 opacity-60" aria-hidden="true" />
 
-        <div className="relative mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 pb-12 pt-36 sm:px-6 sm:pt-40 md:px-10 md:pb-16 md:pt-32 xl:px-12">
-          <div className="grid flex-1 items-center gap-12 py-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16 lg:py-20">
+        <div className="relative mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 pb-12 pt-24 sm:px-6 sm:pt-28 md:px-10 md:pb-16 md:pt-28 xl:px-12">
+          <div className="grid flex-1 items-start gap-12 py-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16 lg:py-12">
             <div className="space-y-10">
               <div className="landing-reveal landing-delay-1 space-y-6">
                 <div className="inline-flex items-center gap-2 border bg-secondary px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
