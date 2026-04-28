@@ -6,6 +6,7 @@ interface AdzunaSearchParams {
 	app_id: string;
 	app_key: string;
 	what?: string;
+	what_and?: string;
 	what_or?: string;
 	where?: string;
 	location_id?: number;
@@ -78,7 +79,10 @@ export async function searchAdzunaJobs(params: {
 		results_per_page: params.resultsPerPage ?? 20,
 	};
 
-	if (params.query) searchParams.what = params.query;
+	// what_and matches all query words anywhere in the job ad (title + body),
+	// not just the title. "what" requires all words in the title only, which
+	// is too restrictive for multi-word queries like "Graduate Software Engineer".
+	if (params.query) searchParams.what_and = params.query;
 	if (params.whatOr) searchParams.what_or = params.whatOr;
 	if (params.location) searchParams.where = params.location;
 	if (params.salaryMin) searchParams.salary_min = params.salaryMin;
