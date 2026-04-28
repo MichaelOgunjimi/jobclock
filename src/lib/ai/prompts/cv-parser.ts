@@ -57,6 +57,8 @@ FIELD MAPPING RULES:
 - "description" fields (experience, education, projects): construct minimal descriptions by concatenating original sentences or phrases from the CV; do not paraphrase.
 - "highlights": store individual original bullet points or clearly separated key points as separate strings.
 - "technologies" in projects: fill from any explicit technologies list (e.g. "Technologies: Python; Flask") using exact wording as individual array items.
+- "url" in projects: use the live/demo/project URL when explicitly present.
+- "code_url" in projects: use the source-code repository URL when explicitly present, such as GitHub, GitLab, or Bitbucket.
 - "location" fields (experience, education): copy the location text exactly if present.
 - "relevant_modules" in education: each module as its own string, preserving names and ordering.
 
@@ -122,7 +124,8 @@ JSON SCHEMA (SHAPE ONLY, EXAMPLES ARE ILLUSTRATIVE):
       "description": "Short description built from original CV wording only",
       "highlights": ["Original bullet text", "Original bullet text"],
       "technologies": ["Exact technology wording"],
-      "url": "Exact project URL if explicitly present or null",
+      "url": "Exact live/demo/project URL if explicitly present or null",
+      "code_url": "Exact source-code repository URL if explicitly present or null",
       "start_date": "Exact date text or null",
       "end_date": "Exact date text or null"
     }
@@ -147,6 +150,8 @@ ADDITIONAL EXTRACTION RULES:
 - If there is no explicit professional summary section in the CV, set "summary" to null or omit it.
 - If the CV lists "Relevant Coursework", "Relevant Modules", or similar under an education entry, split it into individual module names and put them in "relevant_modules" for that education entry.
 - If technologies are listed after a label such as "Technologies:" or "Technologies Used:", split them by separators (commas, semicolons, bullets) and put them into the "technologies" array, preserving wording.
+- If a project has both a deployed/demo link and a source-code link, put the deployed/demo link in "url" and the repository link in "code_url".
+- If a project has only one GitHub/GitLab/Bitbucket repository link, put it in "code_url". If it has only one non-repository project link, put it in "url".
 - If a website or GitHub profile appears in the contact section and there is a "website" field, put the main personal/portfolio site into "website". If both website and GitHub exist and only one "website" field is available, choose the personal portfolio site for "website".
 - Do not paraphrase bullet points; copy them verbatim into "highlights" where possible.
 - For CVs that clearly have no work experience, use an empty array for "experience".

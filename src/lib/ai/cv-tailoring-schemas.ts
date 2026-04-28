@@ -92,6 +92,7 @@ const cvProjectSchema = z
     highlights: strArray,
     technologies: strArray,
     url: optCoerceStr,
+    code_url: optCoerceStr,
     start_date: optCoerceStr,
     end_date: optCoerceStr,
   })

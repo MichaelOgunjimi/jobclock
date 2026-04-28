@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useDownloadPdf } from "@/hooks/use-download-pdf"
+import { buildCvFilenameBase } from "@/lib/document-filename"
 import { cn } from "@/lib/utils"
 import type { CvData } from "@/lib/supabase/database.types"
 import { normalizeCvData, sanitizeCvData, type NormalizedCvData } from "@/lib/cv-data"
@@ -28,6 +29,8 @@ interface Props {
   generatedAt: string
   initialTemplate: CvTemplateName
   skillsGap: unknown
+  jobTitle: string | null
+  jobCompany: string | null
 }
 
 function parseSkillsGap(raw: unknown): { gap: string[]; changes: string | null; matched: string[] } {
@@ -196,6 +199,8 @@ export function CvPreviewClient({
   generatedAt,
   initialTemplate,
   skillsGap: rawSkillsGap,
+  jobTitle,
+  jobCompany,
 }: Props) {
   const [data, setData] = useState<NormalizedCvData>(() => normalizeCvData(cvData))
   const [template, setTemplate] = useState<CvTemplateName>(initialTemplate)
@@ -205,11 +210,17 @@ export function CvPreviewClient({
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() =>
     JSON.stringify(normalizeCvData(cvData)),
   )
+  const filenameBase = buildCvFilenameBase({
+    fullName: data.name,
+    company: jobCompany,
+    role: jobTitle,
+  })
   const { handleDownloadPdf, isDownloading } = useDownloadPdf({
     type: "cv",
     applicationId,
     template,
     filenamePrefix: "tailored-cv",
+    filenameBase,
     onBeforeDownload: async () => {
       if (hasUnsavedChanges) {
         return persistCurrentCv(true)

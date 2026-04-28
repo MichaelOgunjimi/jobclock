@@ -1,4 +1,5 @@
 import type { CvData, CvExperience, CvEducation, CvProject } from "@/lib/supabase/database.types"
+import { ProjectLinks } from "@/components/cv/templates/project-links"
 
 interface CvTemplateProps {
   cv: CvData
@@ -111,18 +112,10 @@ function ProjectEntry({ entry }: { entry: CvProject }) {
   return (
     <div style={{ marginBottom: 9 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-        {entry.url ? (
-          <a
-            href={entry.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ fontSize: 12, fontWeight: 700, color: "inherit", textDecoration: "underline" }}
-          >
-            {entry.name}
-          </a>
-        ) : (
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a1a" }}>{entry.name}</span>
-        )}
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a1a" }}>
+          {entry.name}
+          <ProjectLinks project={entry} style={{ fontSize: 9.5, fontWeight: 700, color: "#2563eb" }} />
+        </span>
         {dates && (
           <span style={{ fontSize: 11, color: "#777", whiteSpace: "nowrap" }}>{dates}</span>
         )}

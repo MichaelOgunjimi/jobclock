@@ -359,9 +359,15 @@ function ProjectEntryForm({
           placeholder="Fuzzy Text Summarization System"
         />
         <Field
-          label="URL"
+          label="Live URL"
           value={entry.url ?? ""}
           onChange={(value) => set("url", value)}
+          placeholder="https://your-project.com"
+        />
+        <Field
+          label="Code URL"
+          value={entry.code_url ?? ""}
+          onChange={(value) => set("code_url", value)}
           placeholder="https://github.com/..."
         />
         <Field
@@ -629,6 +635,7 @@ export function CvEditorForm({
                     technologies: [],
                     highlights: [],
                     url: "",
+                    code_url: "",
                     start_date: "",
                     end_date: "",
                   },
