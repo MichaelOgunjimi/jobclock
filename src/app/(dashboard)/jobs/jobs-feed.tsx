@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useRef } from "react"
+import { useState, useTransition, useRef, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -124,6 +124,17 @@ export function JobsFeed({
   const [titleIncludes, setTitleIncludes] = useState("")
   const [titleExcludes, setTitleExcludes] = useState("")
 
+  // Auto-search on first mount when preferences are pre-filled
+  const didAutoSearch = useRef(false)
+  useEffect(() => {
+    if (!didAutoSearch.current && (initialQuery || initialLocation)) {
+      didAutoSearch.current = true
+      void fetchBatch(1, false, [])
+    }
+  // fetchBatch is stable across renders — the ref guard prevents double-firing
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const deduplicated = deduplicateJobs(poolJobs)
   const filteredByExperience = filterByExperience(deduplicated, experienceLevels)
   const filteredByTitle = filteredByExperience.filter((j) => {
@@ -152,7 +163,7 @@ export function JobsFeed({
     existingPool: Job[],
     overrideSort?: typeof sortBy,
     overrideLevels?: string[]
-  ) {
+  ): Promise<{ newJobsAdded: number }> {
     if (append) setLoadingMore(true)
     else setSearching(true)
 
@@ -198,15 +209,21 @@ export function JobsFeed({
 
       setPoolJobs(sorted)
       setApiBatch(batchNum)
-      setHasMoreServer(fullPageCount > 0)
+      // Only signal "more available" if the API returned a full page AND we actually
+      // got new unique jobs. If all results were duplicates there's no point fetching
+      // another batch — the pool won't grow and the user gets stuck on the same page.
+      setHasMoreServer(fullPageCount > 0 && uniqueNew.length > 0)
       setHasSearched(true)
 
       if (!append) {
         setDisplayPage(1)
         resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
       }
+
+      return { newJobsAdded: uniqueNew.length }
     } catch {
       toast.error("Failed to fetch jobs")
+      return { newJobsAdded: 0 }
     } finally {
       setSearching(false)
       setLoadingMore(false)
@@ -272,9 +289,11 @@ export function JobsFeed({
       setDisplayPage(nextPage)
       resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
     } else if (hasMoreServer && !loadingMore && !searching) {
-      await fetchBatch(apiBatch + 1, true, poolJobs)
-      setDisplayPage(nextPage)
-      resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+      const { newJobsAdded } = await fetchBatch(apiBatch + 1, true, poolJobs)
+      if (newJobsAdded > 0) {
+        setDisplayPage(nextPage)
+        resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+      }
     }
   }
 
