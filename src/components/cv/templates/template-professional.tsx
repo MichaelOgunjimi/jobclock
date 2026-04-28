@@ -1,4 +1,5 @@
 import type { CvData, CvExperience, CvEducation, CvProject } from "@/lib/supabase/database.types"
+import { ProjectLinks } from "@/components/cv/templates/project-links"
 
 interface CvTemplateProps {
   cv: CvData
@@ -81,13 +82,7 @@ function EducationEntry({ entry }: { entry: CvEducation }) {
   const degreeLabel = entry.field ? `${entry.degree}, ${entry.field}` : entry.degree
 
   return (
-    <div
-      style={{
-        marginBottom: 12,
-        borderLeft: "3px solid #1a1a1a",
-        paddingLeft: 10,
-      }}
-    >
+    <div style={{ marginBottom: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
         <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>{entry.institution}</span>
         {entry.location && (
@@ -120,24 +115,13 @@ function ProjectEntry({ entry }: { entry: CvProject }) {
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
-        {entry.url ? (
-          <a
-            href={entry.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              color: "inherit",
-              textDecoration: "underline",
-            }}
-          >
-            {entry.name}
-          </a>
-        ) : (
-          <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>{entry.name}</span>
-        )}
+        <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>
+          {entry.name}
+          <ProjectLinks
+            project={entry}
+            style={{ fontSize: 10, fontWeight: 700, color: "#2563eb", textTransform: "none" }}
+          />
+        </span>
         {dates && (
           <span style={{ fontSize: 11, whiteSpace: "nowrap" }}>{dates}</span>
         )}

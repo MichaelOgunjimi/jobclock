@@ -35,11 +35,16 @@ function formatCv(cv: CvData, label: string): string[] {
               p.technologies?.length
                 ? `\n    Technologies: ${p.technologies.join(", ")}`
                 : ""
+            const links = [
+              p.url ? `Live: ${p.url}` : null,
+              p.code_url ? `Code: ${p.code_url}` : null,
+            ].filter(Boolean)
+            const linkText = links.length ? `\n    Links: ${links.join(" | ")}` : ""
             const highlights =
               p.highlights?.length
                 ? `\n    Key points:\n${p.highlights.map((h) => `      • ${h}`).join("\n")}`
                 : ""
-            return header + desc + tech + highlights
+            return header + desc + tech + linkText + highlights
           }),
         ].join("\n")
       : null,

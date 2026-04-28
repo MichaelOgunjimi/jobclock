@@ -2,12 +2,10 @@ import { forwardRef } from "react"
 import { cn } from "@/lib/utils"
 import type { CvData } from "@/lib/supabase/database.types"
 import { CvTemplateRenderer, type CvTemplateName } from "@/components/cv/templates/cv-template-renderer"
-
-const CV_A4_WIDTH_MM = 210
-const CV_A4_HEIGHT_MM = 297
-
-const CV_A4_WIDTH_STYLE = `${CV_A4_WIDTH_MM}mm`
-const CV_A4_MIN_HEIGHT_STYLE = `${CV_A4_HEIGHT_MM}mm`
+import {
+  CV_A4_MIN_HEIGHT_STYLE,
+  CV_A4_WIDTH_STYLE,
+} from "@/components/cv/document/cv-page-metrics"
 
 interface CvPaperProps {
   cv: CvData
@@ -40,6 +38,9 @@ export const CvPaper = forwardRef<HTMLDivElement, CvPaperProps>(function CvPaper
         style={{
           width: CV_A4_WIDTH_STYLE,
           minHeight: CV_A4_MIN_HEIGHT_STYLE,
+          boxSizing: "border-box",
+          printColorAdjust: "exact",
+          WebkitPrintColorAdjust: "exact",
         }}
       >
         <CvTemplateRenderer cv={cv} template={template} />

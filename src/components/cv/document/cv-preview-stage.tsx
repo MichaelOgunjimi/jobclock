@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from "react"
 import type { CvData } from "@/lib/supabase/database.types"
 import { cn } from "@/lib/utils"
 import { CvPaper } from "@/components/cv/document/cv-paper"
+import {
+  CV_A4_WIDTH_PX,
+  getCvPrintSafeBoundaryPositions,
+} from "@/components/cv/document/cv-page-metrics"
 import type { CvTemplateName } from "@/components/cv/templates/cv-template-renderer"
-
-const A4_WIDTH_PX = (210 / 25.4) * 96
-const A4_HEIGHT_PX = (297 / 25.4) * 96
 
 export function CvPreviewStage({
   cv,
@@ -20,21 +21,26 @@ export function CvPreviewStage({
 }) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
+  const paperRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
-  const [contentHeight, setContentHeight] = useState(0)
+  const [paperHeight, setPaperHeight] = useState(0)
 
   useEffect(() => {
     function update() {
       const viewport = viewportRef.current
-      const content = contentRef.current
+      const paper = paperRef.current
       if (!viewport) return
 
       const viewportWidth = viewport.clientWidth
       const gutter = viewportWidth < 640 ? 16 : 4
       const availableWidth = Math.max(viewportWidth - gutter, 0)
-      setScale(Math.min(1, availableWidth / A4_WIDTH_PX))
+      const nextScale = Math.min(1, availableWidth / CV_A4_WIDTH_PX)
+      setScale(nextScale)
 
-      if (content) setContentHeight(content.scrollHeight)
+      if (paper) {
+        const measuredHeight = paper.getBoundingClientRect().height / nextScale
+        setPaperHeight(Number.isFinite(measuredHeight) ? measuredHeight : paper.scrollHeight)
+      }
     }
 
     update()
@@ -46,14 +52,16 @@ export function CvPreviewStage({
     return () => observer.disconnect()
   }, [])
 
+  const pageBoundaries = getCvPrintSafeBoundaryPositions(paperHeight)
+
   return (
     <div ref={viewportRef} className={cn("w-full", className)}>
       {/* Shell sized to the scaled dimensions so nothing overflows/clips */}
       <div
         className="cv-preview-paper-shell overflow-hidden"
         style={{
-          width: A4_WIDTH_PX * scale,
-          height: contentHeight > 0 ? contentHeight * scale : "auto",
+          width: CV_A4_WIDTH_PX * scale,
+          height: paperHeight > 0 ? paperHeight * scale : "auto",
           margin: "0 auto",
         }}
       >
@@ -63,21 +71,23 @@ export function CvPreviewStage({
           style={{
             transform: `scale(${scale})`,
             transformOrigin: "top left",
-            width: A4_WIDTH_PX,
+            width: CV_A4_WIDTH_PX,
             position: "relative",
           }}
         >
           <CvPaper
+            ref={paperRef}
             cv={cv}
             template={template}
             className="shrink-0"
             includeShadow
           />
-          {contentHeight > A4_HEIGHT_PX && (
+          {pageBoundaries.map((boundaryTop, index) => (
             <div
+              key={boundaryTop}
               style={{
                 position: "absolute",
-                top: A4_HEIGHT_PX,
+                top: boundaryTop,
                 left: 0,
                 right: 0,
                 pointerEvents: "none",
@@ -99,10 +109,10 @@ export function CvPreviewStage({
                   textTransform: "uppercase",
                 }}
               >
-                A4 limit
+                End page {index + 1}
               </span>
             </div>
-          )}
+          ))}
         </div>
       </div>
     </div>
