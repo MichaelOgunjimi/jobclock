@@ -1,28 +1,14 @@
-import type { Browser } from "@playwright/test"
+import type { Browser } from "puppeteer-core"
 
-export type PdfBrowser = Pick<Browser, "close" | "newContext">
+export type PdfBrowser = Pick<Browser, "close" | "newPage">
 
 export async function launchPdfBrowser(): Promise<PdfBrowser> {
-  try {
-    process.env.PLAYWRIGHT_BROWSERS_PATH ??= "0"
-    const { chromium } = await import("@playwright/test")
+  const { launch } = await import("puppeteer-core")
+  const { default: chromium } = await import("@sparticuz/chromium")
 
-    return await chromium.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    })
-  } catch (error) {
-    console.warn("Falling back to serverless Chromium for PDF generation", error)
-
-    const { default: sparticuz } = await import("@sparticuz/chromium")
-    const { chromium } = await import("playwright-core")
-
-    const browser = await chromium.launch({
-      args: sparticuz.args,
-      executablePath: await sparticuz.executablePath(),
-      headless: true,
-    })
-
-    return browser as unknown as PdfBrowser
-  }
+  return launch({
+    args: chromium.args,
+    executablePath: await chromium.executablePath(),
+    headless: true,
+  })
 }
