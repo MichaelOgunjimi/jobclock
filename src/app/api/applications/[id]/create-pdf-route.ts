@@ -1,8 +1,8 @@
-import type { Browser } from "playwright-core"
 import { NextResponse, type NextRequest } from "next/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { createClient } from "@/lib/supabase/server"
-import { withPdfExtension } from "@/lib/document-filename"
+import { buildAttachmentContentDisposition } from "@/lib/document-filename"
+import { launchPdfBrowser, type PdfBrowser } from "./pdf-browser"
 
 type RouteParams = { params: Promise<{ id: string }> }
 
@@ -46,16 +46,10 @@ export function createPdfRoute({
       printUrl.searchParams.set("template", template)
     }
 
-    let browser: Browser | null = null
+    let browser: PdfBrowser | null = null
 
     try {
-      const { chromium: sparticuz } = await import("@sparticuz/chromium")
-      const { chromium } = await import("playwright-core")
-      browser = await chromium.launch({
-        args: sparticuz.args,
-        executablePath: await sparticuz.executablePath(),
-        headless: true,
-      })
+      browser = await launchPdfBrowser()
 
       const context = await browser.newContext({
         extraHTTPHeaders: {
@@ -87,7 +81,9 @@ export function createPdfRoute({
         status: 200,
         headers: {
           "Content-Type": "application/pdf",
-          "Content-Disposition": `attachment; filename="${withPdfExtension(requestedFilename ?? `${filenamePrefix}-${template ?? defaultTemplate}`)}"`,
+          "Content-Disposition": buildAttachmentContentDisposition(
+            requestedFilename ?? `${filenamePrefix}-${template ?? defaultTemplate}`,
+          ),
           "Cache-Control": "no-store",
         },
       })
