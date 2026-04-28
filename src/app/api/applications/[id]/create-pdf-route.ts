@@ -1,4 +1,4 @@
-import type { Browser } from "@playwright/test"
+import type { Browser } from "playwright-core"
 import { NextResponse, type NextRequest } from "next/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { createClient } from "@/lib/supabase/server"
@@ -49,10 +49,12 @@ export function createPdfRoute({
     let browser: Browser | null = null
 
     try {
-      const { chromium } = await import("@playwright/test")
+      const { chromium: sparticuz } = await import("@sparticuz/chromium")
+      const { chromium } = await import("playwright-core")
       browser = await chromium.launch({
+        args: sparticuz.args,
+        executablePath: await sparticuz.executablePath(),
         headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
       })
 
       const context = await browser.newContext({
