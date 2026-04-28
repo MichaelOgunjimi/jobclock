@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { CvPaper } from "@/components/cv/document/cv-paper"
 import {
   CV_A4_WIDTH_PX,
-  getCvPrintSafeBoundaryPositions,
+  getCvA4PageBoundaries,
 } from "@/components/cv/document/cv-page-metrics"
 import type { CvTemplateName } from "@/components/cv/templates/cv-template-renderer"
 
@@ -52,7 +52,7 @@ export function CvPreviewStage({
     return () => observer.disconnect()
   }, [])
 
-  const pageBoundaries = getCvPrintSafeBoundaryPositions(paperHeight)
+  const pageBoundaries = getCvA4PageBoundaries(paperHeight)
 
   return (
     <div ref={viewportRef} className={cn("w-full", className)}>
@@ -82,12 +82,12 @@ export function CvPreviewStage({
             className="shrink-0"
             includeShadow
           />
-          {pageBoundaries.map((boundaryTop, index) => (
+          {pageBoundaries.map((boundary) => (
             <div
-              key={boundaryTop}
+              key={boundary.page}
               style={{
                 position: "absolute",
-                top: boundaryTop,
+                top: `${boundary.topMm}mm`,
                 left: 0,
                 right: 0,
                 pointerEvents: "none",
@@ -109,7 +109,7 @@ export function CvPreviewStage({
                   textTransform: "uppercase",
                 }}
               >
-                End page {index + 1}
+                End page {boundary.page}
               </span>
             </div>
           ))}

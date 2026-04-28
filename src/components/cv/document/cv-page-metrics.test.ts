@@ -4,12 +4,8 @@ import {
   CV_A4_HEIGHT_PX,
   CV_A4_WIDTH_MM,
   CV_A4_WIDTH_PX,
-  CV_PRINT_SAFE_BOTTOM_GUARD_MM,
-  CV_PRINT_SAFE_HEIGHT_MM,
-  CV_PRINT_SAFE_HEIGHT_PX,
-  getCvPrintSafeBoundaryPositions,
-  isOverCvPrintSafeHeight,
-  mmToCssPx,
+  getCvA4PageBoundaries,
+  isOverCvA4PageHeight,
 } from "./cv-page-metrics"
 
 describe("CV page metrics", () => {
@@ -20,20 +16,19 @@ describe("CV page metrics", () => {
     expect(CV_A4_HEIGHT_PX).toBeCloseTo(1122.5, 1)
   })
 
-  it("sets the print safe limit inside A4", () => {
-    expect(CV_PRINT_SAFE_BOTTOM_GUARD_MM).toBe(4)
-    expect(CV_PRINT_SAFE_HEIGHT_MM).toBe(293)
-    expect(CV_PRINT_SAFE_HEIGHT_PX).toBeCloseTo(mmToCssPx(293), 4)
-  })
-
-  it("detects content beyond the print safe limit", () => {
-    expect(isOverCvPrintSafeHeight(CV_PRINT_SAFE_HEIGHT_PX)).toBe(false)
-    expect(isOverCvPrintSafeHeight(CV_PRINT_SAFE_HEIGHT_PX + 0.01)).toBe(true)
+  it("detects content beyond one A4 page", () => {
+    expect(isOverCvA4PageHeight(CV_A4_HEIGHT_PX)).toBe(false)
+    expect(isOverCvA4PageHeight(CV_A4_HEIGHT_PX + 0.01)).toBe(true)
   })
 
   it("returns a boundary line for each page crossed", () => {
-    expect(getCvPrintSafeBoundaryPositions(CV_PRINT_SAFE_HEIGHT_PX)).toEqual([])
-    expect(getCvPrintSafeBoundaryPositions(CV_PRINT_SAFE_HEIGHT_PX + 1)).toHaveLength(1)
-    expect(getCvPrintSafeBoundaryPositions(CV_PRINT_SAFE_HEIGHT_PX + CV_A4_HEIGHT_PX + 1)).toHaveLength(2)
+    expect(getCvA4PageBoundaries(CV_A4_HEIGHT_PX)).toEqual([])
+    expect(getCvA4PageBoundaries(CV_A4_HEIGHT_PX + 1)).toEqual([
+      { page: 1, topMm: 297, topPx: CV_A4_HEIGHT_PX },
+    ])
+    expect(getCvA4PageBoundaries(CV_A4_HEIGHT_PX * 2 + 1)).toEqual([
+      { page: 1, topMm: 297, topPx: CV_A4_HEIGHT_PX },
+      { page: 2, topMm: 594, topPx: CV_A4_HEIGHT_PX * 2 },
+    ])
   })
 })

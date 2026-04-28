@@ -32,3 +32,22 @@ export function withPdfExtension(filenameBase: string): string {
   const cleaned = cleanFilenamePart(filenameBase) ?? "document"
   return cleaned.toLowerCase().endsWith(".pdf") ? cleaned : `${cleaned}.pdf`
 }
+
+function asciiFilenameFallback(filename: string): string {
+  return (
+    filename
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^\x20-\x7E]/g, " ")
+      .replace(/["\\;]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim() || "document.pdf"
+  )
+}
+
+export function buildAttachmentContentDisposition(filenameBase: string): string {
+  const filename = withPdfExtension(filenameBase)
+  const fallback = asciiFilenameFallback(filename)
+
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+}
