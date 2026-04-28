@@ -6,7 +6,7 @@ export type PdfBrowser = Pick<Browser, "close" | "newPage">
 // warm starts — no file tracing required. Override with CHROMIUM_REMOTE_URL if needed.
 const CHROMIUM_REMOTE_URL =
   process.env.CHROMIUM_REMOTE_URL ??
-  "https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.tar"
+  "https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.x64.tar"
 
 export async function launchPdfBrowser(): Promise<PdfBrowser> {
   const { launch } = await import("puppeteer-core")
