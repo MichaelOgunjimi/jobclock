@@ -2,12 +2,16 @@ import type { Browser } from "puppeteer-core"
 
 export type PdfBrowser = Pick<Browser, "close" | "newPage">
 
+// On Vercel, sparticuz downloads this to /tmp on cold start and reuses it on
+// warm starts — no file tracing required. Override with CHROMIUM_REMOTE_URL if needed.
+const CHROMIUM_REMOTE_URL =
+  process.env.CHROMIUM_REMOTE_URL ??
+  "https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.tar"
+
 export async function launchPdfBrowser(): Promise<PdfBrowser> {
   const { launch } = await import("puppeteer-core")
 
-  // In local Docker dev (or any env where a system Chromium is available),
-  // PUPPETEER_EXECUTABLE_PATH points to the installed binary and avoids
-  // the x86_64-only @sparticuz/chromium failing on ARM64 hosts.
+  // Docker / local dev: use the system Chromium set by docker-compose
   const systemChromium = process.env.PUPPETEER_EXECUTABLE_PATH
   if (systemChromium) {
     return launch({
@@ -17,11 +21,11 @@ export async function launchPdfBrowser(): Promise<PdfBrowser> {
     })
   }
 
-  // Production (Vercel / AWS Lambda x86_64): use the bundled @sparticuz/chromium.
+  // Vercel / Lambda: download binary from GitHub releases, cached in /tmp
   const { default: chromium } = await import("@sparticuz/chromium")
   return launch({
     args: chromium.args,
-    executablePath: await chromium.executablePath(),
+    executablePath: await chromium.executablePath(CHROMIUM_REMOTE_URL),
     headless: true,
   })
 }
