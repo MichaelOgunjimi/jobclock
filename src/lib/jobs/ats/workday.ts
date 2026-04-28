@@ -37,7 +37,7 @@ interface WorkdayResponse {
 }
 
 const PAGE_SIZE = 20
-const MAX_PAGES = 25
+const MAX_PAGES = 3
 
 export async function fetchWorkdayJobs(careersUrl: string, companyName: string): Promise<PersistedJobInput[]> {
   const config = parseWorkdayUrl(careersUrl)
