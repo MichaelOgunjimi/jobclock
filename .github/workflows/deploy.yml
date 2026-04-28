@@ -6,11 +6,10 @@ name: Migrate & Deploy
 # workflow is the only path to production.
 #
 # Required GitHub secrets (Settings → Secrets and variables → Actions):
-#   DATABASE_URL   — direct Postgres connection string (port 5432, not pooler)
-#   VERCEL_TOKEN   — from vercel.com/account/tokens
-#
-# VERCEL_ORG_ID and VERCEL_PROJECT_ID are read from the committed
-# .vercel/project.json so they don't need to be secrets.
+#   DATABASE_URL        — direct Postgres connection string (port 5432, not pooler)
+#   VERCEL_TOKEN        — from vercel.com/account/tokens (scope: your personal account or team)
+#   VERCEL_ORG_ID       — "orgId" from .vercel/project.json (not committed — add as secret)
+#   VERCEL_PROJECT_ID   — "projectId" from .vercel/project.json (not committed — add as secret)
 
 on:
   push:
@@ -57,9 +56,9 @@ jobs:
       - name: Deploy to production
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          export VERCEL_ORG_ID=$(node -p "require('./.vercel/project.json').orgId")
-          export VERCEL_PROJECT_ID=$(node -p "require('./.vercel/project.json').projectId")
           npx vercel pull --yes --environment=production --token=$VERCEL_TOKEN
           npx vercel build --prod --token=$VERCEL_TOKEN
           npx vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
