@@ -4,6 +4,7 @@ export type PdfBrowser = Pick<Browser, "close" | "newContext">
 
 export async function launchPdfBrowser(): Promise<PdfBrowser> {
   try {
+    process.env.PLAYWRIGHT_BROWSERS_PATH ??= "0"
     const { chromium } = await import("@playwright/test")
 
     return await chromium.launch({
