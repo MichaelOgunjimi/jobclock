@@ -101,6 +101,7 @@ const cvProjectSchema = z
 export const cvDataSchema = z
   .object({
     name: optCoerceStr,
+    headline: optCoerceStr,
     email: optCoerceStr,
     phone: optCoerceStr,
     location: optCoerceStr,
@@ -191,14 +192,19 @@ export const cvTailoringPlanSchema = z
     education_plan: z.array(tailoringInstructionSchema).default([]),
     skills_plan: z
       .object({
+        keep: strArray,
         prioritize: strArray,
         add_if_present_in_cv: strArray,
+        remove: strArray,
+        // accept old field name gracefully during transition
         remove_or_deprioritize: strArray,
         ordering_strategy: coerceStr.default(""),
       })
       .default({
+        keep: [],
         prioritize: [],
         add_if_present_in_cv: [],
+        remove: [],
         remove_or_deprioritize: [],
         ordering_strategy: "",
       }),

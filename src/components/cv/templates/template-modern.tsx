@@ -164,6 +164,11 @@ export function TemplateModern({ cv }: CvTemplateProps) {
             {cv.name}
           </div>
         )}
+        {cv.headline && (
+          <div style={{ fontSize: 13, color: "#555", marginBottom: 4 }}>
+            {cv.headline}
+          </div>
+        )}
         {(contactParts.length > 0 || linkParts.length > 0) && (
           <div style={{ fontSize: 11.5, color: "#555" }}>
             {contactParts.join(" | ")}

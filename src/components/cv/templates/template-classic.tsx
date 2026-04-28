@@ -168,6 +168,19 @@ export function TemplateClassic({ cv }: CvTemplateProps) {
             {cv.name}
           </div>
         )}
+        {cv.headline && (
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 400,
+              color: "#555",
+              letterSpacing: "0.5px",
+              marginBottom: 4,
+            }}
+          >
+            {cv.headline}
+          </div>
+        )}
         {contactParts.length > 0 && (
           <div style={{ fontSize: 11.5, color: "#444" }}>
             {contactParts.join(" | ")}

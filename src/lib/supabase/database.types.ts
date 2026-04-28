@@ -436,6 +436,8 @@ export type WritingStyle = Database["public"]["Tables"]["cover_letter_structures
 // Parsed CV data structure
 export interface CvData {
 	name?: string;
+	/** Role-specific headline injected during tailoring (e.g. "Graduate Software Engineer") */
+	headline?: string;
 	email?: string;
 	phone?: string;
 	location?: string;
