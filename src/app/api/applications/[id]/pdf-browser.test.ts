@@ -27,6 +27,7 @@ import { launchPdfBrowser } from "./pdf-browser"
 
 describe("launchPdfBrowser", () => {
   beforeEach(() => {
+    delete process.env.PLAYWRIGHT_BROWSERS_PATH
     playwrightLaunch.mockReset()
     coreLaunch.mockReset()
     executablePath.mockReset()
@@ -43,6 +44,7 @@ describe("launchPdfBrowser", () => {
       headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     })
+    expect(process.env.PLAYWRIGHT_BROWSERS_PATH).toBe("0")
     expect(coreLaunch).not.toHaveBeenCalled()
   })
 
