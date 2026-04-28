@@ -184,10 +184,22 @@ export function TemplateMinimal({ cv }: CvTemplateProps) {
               fontWeight: 300,
               letterSpacing: "2.2px",
               textTransform: "uppercase",
-              marginBottom: 6,
+              marginBottom: 4,
             }}
           >
             {cv.name}
+          </div>
+        )}
+        {cv.headline && (
+          <div
+            style={{
+              fontSize: 12.5,
+              color: "#777",
+              letterSpacing: "0.5px",
+              marginBottom: 4,
+            }}
+          >
+            {cv.headline}
           </div>
         )}
         {(contactParts.length > 0 || linkParts.length > 0) && (

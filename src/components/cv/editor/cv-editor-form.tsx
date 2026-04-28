@@ -478,6 +478,12 @@ export function CvEditorForm({
               placeholder="Michael Ogunjimi"
             />
             <Field
+              label="Role Headline"
+              value={value.headline ?? ""}
+              onChange={(nextValue) => set("headline", nextValue)}
+              placeholder="e.g. Graduate Software Engineer"
+            />
+            <Field
               label="Email"
               value={value.email ?? ""}
               onChange={(nextValue) => set("email", nextValue)}

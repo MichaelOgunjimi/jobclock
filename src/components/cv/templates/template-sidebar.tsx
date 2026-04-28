@@ -193,6 +193,11 @@ export function TemplateSidebar({ cv }: CvTemplateProps) {
             {cv.name}
           </div>
         )}
+        {cv.headline && (
+          <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 8 }}>
+            {cv.headline}
+          </div>
+        )}
 
         {/* Contact details */}
         <div style={{ marginTop: 10 }}>
