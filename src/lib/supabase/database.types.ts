@@ -480,6 +480,7 @@ export interface CvProject {
 	highlights?: string[];
 	technologies?: string[];
 	url?: string;
+	code_url?: string;
 	start_date?: string;
 	end_date?: string;
 }

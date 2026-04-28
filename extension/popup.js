@@ -48,14 +48,6 @@ const nodes = {
   recentEmpty: document.getElementById("recent-empty"),
 }
 
-function titleCase(value) {
-  return value
-    .split("-")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ")
-}
-
 function truncateText(value, maxLength = PREVIEW_DESCRIPTION_MAX) {
   if (!value) return ""
   if (value.length <= maxLength) return value

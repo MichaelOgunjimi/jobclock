@@ -2,6 +2,7 @@ import type { Browser } from "@playwright/test"
 import { NextResponse, type NextRequest } from "next/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { createClient } from "@/lib/supabase/server"
+import { withPdfExtension } from "@/lib/document-filename"
 
 type RouteParams = { params: Promise<{ id: string }> }
 
@@ -38,6 +39,7 @@ export function createPdfRoute({
 
     const { id } = await params
     const template = request.nextUrl.searchParams.get("template")
+    const requestedFilename = request.nextUrl.searchParams.get("filename")
     const printUrl = new URL(`/applications/${id}/${printPath}`, request.nextUrl.origin)
 
     if (template && templateValidator(template)) {
@@ -83,7 +85,7 @@ export function createPdfRoute({
         status: 200,
         headers: {
           "Content-Type": "application/pdf",
-          "Content-Disposition": `attachment; filename="${filenamePrefix}-${template ?? defaultTemplate}.pdf"`,
+          "Content-Disposition": `attachment; filename="${withPdfExtension(requestedFilename ?? `${filenamePrefix}-${template ?? defaultTemplate}`)}"`,
           "Cache-Control": "no-store",
         },
       })

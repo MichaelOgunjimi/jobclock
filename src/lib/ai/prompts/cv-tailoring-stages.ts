@@ -289,7 +289,7 @@ ACCURACY (NON-NEGOTIABLE)
    - Promotions, leadership responsibilities, or project scopes that are not clearly present in the original CV.
 2. You may only rephrase or reorganise what is already there. You may not add new tools, frameworks, or results that are not evidenced.
 3. Keep these fields EXACTLY as in the original CV:
-   - company, title, institution, degree, field, start_date, end_date, location, grade, gpa, honors, name (for projects), url, technologies.
+   - company, title, institution, degree, field, start_date, end_date, location, grade, gpa, honors, name (for projects), url, code_url, technologies.
 4. Only the following fields may be rewritten (and only when the plan says so):
    - "highlights", "description", "summary", and "skills".
 5. If an original field is empty or missing, leave it empty or omit it. Do NOT fill in with guesses.

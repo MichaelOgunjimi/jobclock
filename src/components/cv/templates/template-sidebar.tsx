@@ -1,4 +1,5 @@
 import type { CvData, CvExperience, CvEducation, CvProject } from "@/lib/supabase/database.types"
+import { ProjectLinks } from "@/components/cv/templates/project-links"
 
 interface CvTemplateProps {
   cv: CvData
@@ -8,15 +9,15 @@ function SidebarSectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: 700,
-        letterSpacing: "1.5px",
+        letterSpacing: "1.1px",
         textTransform: "uppercase",
         color: "#f5f5f5",
         borderBottom: "1px solid #444",
         paddingBottom: 3,
-        marginTop: 20,
-        marginBottom: 8,
+        marginTop: 14,
+        marginBottom: 6,
       }}
     >
       {children}
@@ -28,14 +29,14 @@ function MainSectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: 700,
-        letterSpacing: "1.5px",
+        letterSpacing: "1.1px",
         textTransform: "uppercase",
         borderBottom: "1.5px solid #333",
         paddingBottom: 3,
-        marginBottom: 10,
-        marginTop: 18,
+        marginBottom: 7,
+        marginTop: 14,
         color: "#1a1a1a",
       }}
     >
@@ -52,30 +53,30 @@ function dateRange(start?: string, end?: string): string {
 function ExperienceEntry({ entry }: { entry: CvExperience }) {
   const dates = dateRange(entry.start_date, entry.end_date)
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div style={{ marginBottom: 9 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <span style={{ fontWeight: 700, fontSize: 14, color: "#1a1a1a" }}>{entry.title}</span>
+        <span style={{ fontWeight: 700, fontSize: 12.5, color: "#1a1a1a" }}>{entry.title}</span>
         {dates && (
-          <span style={{ fontSize: 12.5, color: "#555", whiteSpace: "nowrap", marginLeft: 8 }}>
+          <span style={{ fontSize: 11.3, color: "#555", whiteSpace: "nowrap", marginLeft: 8 }}>
             {dates}
           </span>
         )}
       </div>
-      <div style={{ fontSize: 13, color: "#555", fontStyle: "italic", marginTop: 1 }}>
+      <div style={{ fontSize: 11.3, color: "#555", fontStyle: "italic", marginTop: 1 }}>
         {entry.company}
         {entry.location && ` — ${entry.location}`}
       </div>
       {entry.highlights && entry.highlights.length > 0 && (
         <ul style={{ margin: "5px 0 0", paddingLeft: 18 }}>
           {entry.highlights.map((h, i) => (
-            <li key={i} style={{ fontSize: 13, lineHeight: 1.65, color: "#1a1a1a", marginBottom: 2 }}>
+            <li key={i} style={{ fontSize: 12, lineHeight: 1.5, color: "#1a1a1a", marginBottom: 1 }}>
               {h}
             </li>
           ))}
         </ul>
       )}
       {(!entry.highlights || entry.highlights.length === 0) && entry.description && (
-        <p style={{ fontSize: 13, lineHeight: 1.65, color: "#1a1a1a", margin: "5px 0 0" }}>
+        <p style={{ fontSize: 12, lineHeight: 1.5, color: "#1a1a1a", margin: "5px 0 0" }}>
           {entry.description}
         </p>
       )}
@@ -87,30 +88,30 @@ function EducationEntry({ entry }: { entry: CvEducation }) {
   const dates = [entry.start_date, entry.end_date].filter(Boolean).join(" – ")
   const degreeLabel = entry.field ? `${entry.degree} — ${entry.field}` : entry.degree
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div style={{ marginBottom: 9 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <span style={{ fontWeight: 700, fontSize: 14, color: "#1a1a1a" }}>{entry.institution}</span>
+        <span style={{ fontWeight: 700, fontSize: 12.5, color: "#1a1a1a" }}>{entry.institution}</span>
         {entry.location && (
-          <span style={{ fontSize: 13, color: "#555" }}>{entry.location}</span>
+          <span style={{ fontSize: 11.3, color: "#555" }}>{entry.location}</span>
         )}
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 1 }}>
-        <span style={{ fontSize: 13, color: "#555", fontStyle: "italic" }}>{degreeLabel}</span>
+        <span style={{ fontSize: 11.3, color: "#555", fontStyle: "italic" }}>{degreeLabel}</span>
         {dates && (
-          <span style={{ fontSize: 12.5, color: "#777", whiteSpace: "nowrap" }}>{dates}</span>
+          <span style={{ fontSize: 11.3, color: "#777", whiteSpace: "nowrap" }}>{dates}</span>
         )}
       </div>
       {entry.gpa && (
-        <div style={{ fontSize: 13, color: "#555", marginTop: 2 }}>GPA: {entry.gpa}</div>
+        <div style={{ fontSize: 11.3, color: "#555", marginTop: 2 }}>GPA: {entry.gpa}</div>
       )}
       {entry.honors && (
-        <div style={{ fontSize: 13, color: "#555", marginTop: 2 }}>{entry.honors}</div>
+        <div style={{ fontSize: 11.3, color: "#555", marginTop: 2 }}>{entry.honors}</div>
       )}
       {entry.grade && !entry.gpa && (
-        <div style={{ fontSize: 13, color: "#555", marginTop: 2 }}>{entry.grade}</div>
+        <div style={{ fontSize: 11.3, color: "#555", marginTop: 2 }}>{entry.grade}</div>
       )}
       {entry.relevant_modules && entry.relevant_modules.length > 0 && (
-        <div style={{ fontSize: 13, color: "#555", marginTop: 3 }}>
+        <div style={{ fontSize: 11.3, color: "#555", marginTop: 3 }}>
           Relevant Modules: {entry.relevant_modules.join(", ")}
         </div>
       )}
@@ -121,22 +122,14 @@ function EducationEntry({ entry }: { entry: CvEducation }) {
 function ProjectEntry({ entry }: { entry: CvProject }) {
   const dates = dateRange(entry.start_date, entry.end_date)
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div style={{ marginBottom: 9 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        {entry.url ? (
-          <a
-            href={entry.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ fontWeight: 700, fontSize: 14, color: "inherit", textDecoration: "underline" }}
-          >
-            {entry.name}
-          </a>
-        ) : (
-          <span style={{ fontWeight: 700, fontSize: 14, color: "#1a1a1a" }}>{entry.name}</span>
-        )}
+        <span style={{ fontWeight: 700, fontSize: 12.5, color: "#1a1a1a" }}>
+          {entry.name}
+          <ProjectLinks project={entry} style={{ fontSize: 10, fontWeight: 700, color: "#2563eb" }} />
+        </span>
         {dates && (
-          <span style={{ fontSize: 12.5, color: "#555", whiteSpace: "nowrap", marginLeft: 8 }}>
+          <span style={{ fontSize: 11.3, color: "#555", whiteSpace: "nowrap", marginLeft: 8 }}>
             {dates}
           </span>
         )}
@@ -144,19 +137,19 @@ function ProjectEntry({ entry }: { entry: CvProject }) {
       {entry.highlights && entry.highlights.length > 0 && (
         <ul style={{ margin: "5px 0 0", paddingLeft: 18 }}>
           {entry.highlights.map((h, i) => (
-            <li key={i} style={{ fontSize: 13, lineHeight: 1.65, color: "#1a1a1a", marginBottom: 2 }}>
+            <li key={i} style={{ fontSize: 12, lineHeight: 1.5, color: "#1a1a1a", marginBottom: 1 }}>
               {h}
             </li>
           ))}
         </ul>
       )}
       {(!entry.highlights || entry.highlights.length === 0) && entry.description && (
-        <p style={{ fontSize: 13, lineHeight: 1.65, color: "#1a1a1a", margin: "5px 0 0" }}>
+        <p style={{ fontSize: 12, lineHeight: 1.5, color: "#1a1a1a", margin: "5px 0 0" }}>
           {entry.description}
         </p>
       )}
       {entry.technologies && entry.technologies.length > 0 && (
-        <div style={{ fontSize: 13, color: "#555", marginTop: 4 }}>
+        <div style={{ fontSize: 11.3, color: "#555", marginTop: 4 }}>
           Technologies: {entry.technologies.join(", ")}
         </div>
       )}
@@ -172,6 +165,7 @@ export function TemplateSidebar({ cv }: CvTemplateProps) {
         background: "white",
         minHeight: "297mm",
         display: "flex",
+        boxSizing: "border-box",
       }}
     >
       {/* Left sidebar */}
@@ -180,7 +174,7 @@ export function TemplateSidebar({ cv }: CvTemplateProps) {
           width: "30%",
           background: "#1a1a1a",
           color: "#f5f5f5",
-          padding: "32px 20px",
+          padding: "26px 18px",
           boxSizing: "border-box",
           flexShrink: 0,
         }}
@@ -189,11 +183,11 @@ export function TemplateSidebar({ cv }: CvTemplateProps) {
         {cv.name && (
           <div
             style={{
-              fontSize: 17,
+              fontSize: 16,
               fontWeight: 700,
               color: "white",
               marginBottom: 4,
-              lineHeight: 1.3,
+              lineHeight: 1.2,
             }}
           >
             {cv.name}
@@ -203,22 +197,22 @@ export function TemplateSidebar({ cv }: CvTemplateProps) {
         {/* Contact details */}
         <div style={{ marginTop: 10 }}>
           {cv.email && (
-            <div style={{ fontSize: 12, color: "#ccc", marginBottom: 3, wordBreak: "break-all" }}>
+            <div style={{ fontSize: 11, color: "#ccc", marginBottom: 2, wordBreak: "break-all" }}>
               {cv.email}
             </div>
           )}
           {cv.phone && (
-            <div style={{ fontSize: 12, color: "#ccc", marginBottom: 3 }}>
+            <div style={{ fontSize: 11, color: "#ccc", marginBottom: 2 }}>
               {cv.phone}
             </div>
           )}
           {cv.location && (
-            <div style={{ fontSize: 12, color: "#ccc", marginBottom: 3 }}>
+            <div style={{ fontSize: 11, color: "#ccc", marginBottom: 2 }}>
               {cv.location}
             </div>
           )}
           {cv.linkedin && (
-            <div style={{ fontSize: 12, color: "#ccc", marginBottom: 3, wordBreak: "break-all" }}>
+            <div style={{ fontSize: 11, color: "#ccc", marginBottom: 2, wordBreak: "break-all" }}>
               <a
                 href={cv.linkedin.startsWith("http") ? cv.linkedin : `https://${cv.linkedin}`}
                 target="_blank"
@@ -230,7 +224,7 @@ export function TemplateSidebar({ cv }: CvTemplateProps) {
             </div>
           )}
           {cv.website && (
-            <div style={{ fontSize: 12, color: "#ccc", marginBottom: 3, wordBreak: "break-all" }}>
+            <div style={{ fontSize: 11, color: "#ccc", marginBottom: 2, wordBreak: "break-all" }}>
               <a
                 href={cv.website.startsWith("http") ? cv.website : `https://${cv.website}`}
                 target="_blank"
@@ -254,7 +248,7 @@ export function TemplateSidebar({ cv }: CvTemplateProps) {
                   style={{
                     background: "#333",
                     padding: "2px 8px",
-                    fontSize: 12,
+                    fontSize: 11,
                     color: "#eee",
                     marginBottom: 3,
                   }}
@@ -271,7 +265,7 @@ export function TemplateSidebar({ cv }: CvTemplateProps) {
           <>
             <SidebarSectionHeading>Languages</SidebarSectionHeading>
             {cv.languages.map((lang, i) => (
-              <div key={i} style={{ fontSize: 12, color: "#ccc", marginBottom: 3 }}>
+              <div key={i} style={{ fontSize: 11, color: "#ccc", marginBottom: 2 }}>
                 {lang}
               </div>
             ))}
@@ -283,7 +277,7 @@ export function TemplateSidebar({ cv }: CvTemplateProps) {
           <>
             <SidebarSectionHeading>Certifications</SidebarSectionHeading>
             {cv.certifications.map((cert, i) => (
-              <div key={i} style={{ fontSize: 12, color: "#ccc", marginBottom: 3 }}>
+              <div key={i} style={{ fontSize: 11, color: "#ccc", marginBottom: 2 }}>
                 {cert}
               </div>
             ))}
@@ -295,7 +289,7 @@ export function TemplateSidebar({ cv }: CvTemplateProps) {
       <div
         style={{
           width: "70%",
-          padding: "32px 28px",
+          padding: "26px 24px",
           boxSizing: "border-box",
         }}
       >
@@ -303,7 +297,7 @@ export function TemplateSidebar({ cv }: CvTemplateProps) {
         {cv.summary && (
           <>
             <MainSectionHeading>Profile</MainSectionHeading>
-            <p style={{ fontSize: 13.5, lineHeight: 1.7, color: "#1a1a1a", margin: 0 }}>
+            <p style={{ fontSize: 12, lineHeight: 1.5, color: "#1a1a1a", margin: 0 }}>
               {cv.summary}
             </p>
           </>

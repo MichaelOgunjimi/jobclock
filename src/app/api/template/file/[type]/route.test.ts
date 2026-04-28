@@ -20,7 +20,7 @@ describe("GET /api/template/file/[type]", () => {
     }))
 
     const storageFromMock = vi.mocked(supabaseMock.client.storage.from)
-    storageFromMock.mockImplementation((_bucket: string) => ({
+    storageFromMock.mockImplementation(() => ({
       download: downloadMock,
     }) as never)
 

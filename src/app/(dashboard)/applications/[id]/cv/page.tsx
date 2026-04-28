@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
-import type { CvData } from "@/lib/supabase/database.types"
+import type { AppWithJob, CvData } from "@/lib/supabase/database.types"
 import type { Metadata } from "next"
 import { CvPreviewClient } from "./cv-preview-client"
 
@@ -21,7 +21,7 @@ export default async function CvPreviewPage({
   } = await supabase.auth.getUser()
   if (!user) redirect("/auth")
 
-  const [{ data: cvData }, { data: profile }] = await Promise.all([
+  const [{ data: cvData }, { data: profile }, { data: application }] = await Promise.all([
     supabase
       .from("customized_cvs")
       .select("id, cv_json, ats_score, created_at, skills_gap")
@@ -35,12 +35,19 @@ export default async function CvPreviewPage({
       .select("preferences")
       .eq("id", user.id)
       .single(),
+    supabase
+      .from("applications")
+      .select("*, jobs_cache (*)")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ])
 
   if (!cvData?.cv_json) notFound()
 
   const prefs = (profile?.preferences ?? {}) as Record<string, unknown>
   const initialTemplate = (prefs.preferred_cv_template as string) ?? "modern"
+  const job = (application as unknown as AppWithJob | null)?.jobs_cache
 
   return (
     <CvPreviewClient
@@ -51,6 +58,8 @@ export default async function CvPreviewPage({
       generatedAt={cvData.created_at}
       initialTemplate={initialTemplate as "classic" | "modern" | "sidebar"}
       skillsGap={cvData.skills_gap}
+      jobTitle={job?.title ?? null}
+      jobCompany={job?.company ?? null}
     />
   )
 }
