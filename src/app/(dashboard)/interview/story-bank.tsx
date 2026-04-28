@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label"
 import { TagInput } from "@/components/ui/tag-input"
 import { toast } from "sonner"
 import { BookOpen, ChevronDown, ChevronUp, Download, Plus, Trash2 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { createStory, updateStory, deleteStory, importSampleStories, type StoryEntry } from "./actions"
 
 function Textarea({

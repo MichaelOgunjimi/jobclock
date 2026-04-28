@@ -1,4 +1,5 @@
 import type { CvData, CvExperience, CvEducation, CvProject } from "@/lib/supabase/database.types"
+import { ProjectLinks } from "@/components/cv/templates/project-links"
 
 interface CvTemplateProps {
   cv: CvData
@@ -11,16 +12,16 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
         style={{
           border: 0,
           borderTop: "0.5px solid #e0e0e0",
-          margin: "24px 0 8px",
+          margin: "18px 0 6px",
         }}
       />
       <div
         style={{
-          fontSize: 10,
+          fontSize: 9.5,
           textTransform: "uppercase",
-          letterSpacing: "2.5px",
+          letterSpacing: "2px",
           color: "#999",
-          marginBottom: 8,
+          marginBottom: 6,
         }}
       >
         {children}
@@ -37,7 +38,7 @@ function dateRange(start?: string, end?: string): string {
 function ExperienceEntry({ entry }: { entry: CvExperience }) {
   const dates = dateRange(entry.start_date, entry.end_date)
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div style={{ marginBottom: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <span style={{ fontWeight: 700, fontSize: 13, color: "#333" }}>{entry.company}</span>
         {dates && (
@@ -56,8 +57,8 @@ function ExperienceEntry({ entry }: { entry: CvExperience }) {
             <li
               key={index}
               style={{
-                fontSize: 12.5,
-                lineHeight: 1.6,
+                fontSize: 12,
+                lineHeight: 1.5,
                 color: "#333",
                 marginBottom: 2,
               }}
@@ -68,7 +69,7 @@ function ExperienceEntry({ entry }: { entry: CvExperience }) {
         </ul>
       )}
       {(!entry.highlights || entry.highlights.length === 0) && entry.description && (
-        <p style={{ fontSize: 12.5, lineHeight: 1.65, color: "#333", margin: "6px 0 0" }}>
+        <p style={{ fontSize: 12, lineHeight: 1.5, color: "#333", margin: "6px 0 0" }}>
           {entry.description}
         </p>
       )}
@@ -81,7 +82,7 @@ function EducationEntry({ entry }: { entry: CvEducation }) {
   const degreeLabel = entry.field ? `${entry.degree} — ${entry.field}` : entry.degree
 
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div style={{ marginBottom: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <span style={{ fontWeight: 700, fontSize: 13, color: "#333" }}>{entry.institution}</span>
         {dates && (
@@ -95,16 +96,16 @@ function EducationEntry({ entry }: { entry: CvEducation }) {
         {entry.location && ` · ${entry.location}`}
       </div>
       {entry.gpa && (
-        <div style={{ fontSize: 12.5, lineHeight: 1.65, color: "#333", marginTop: 3 }}>GPA: {entry.gpa}</div>
+        <div style={{ fontSize: 12, lineHeight: 1.5, color: "#333", marginTop: 3 }}>GPA: {entry.gpa}</div>
       )}
       {entry.honors && (
-        <div style={{ fontSize: 12.5, lineHeight: 1.65, color: "#333", marginTop: 2 }}>{entry.honors}</div>
+        <div style={{ fontSize: 12, lineHeight: 1.5, color: "#333", marginTop: 2 }}>{entry.honors}</div>
       )}
       {entry.grade && !entry.gpa && (
-        <div style={{ fontSize: 12.5, lineHeight: 1.65, color: "#333", marginTop: 2 }}>{entry.grade}</div>
+        <div style={{ fontSize: 12, lineHeight: 1.5, color: "#333", marginTop: 2 }}>{entry.grade}</div>
       )}
       {entry.relevant_modules && entry.relevant_modules.length > 0 && (
-        <div style={{ fontSize: 12.5, lineHeight: 1.65, color: "#333", marginTop: 2 }}>
+        <div style={{ fontSize: 12, lineHeight: 1.5, color: "#333", marginTop: 2 }}>
           Relevant Modules: {entry.relevant_modules.join(", ")}
         </div>
       )}
@@ -115,20 +116,12 @@ function EducationEntry({ entry }: { entry: CvEducation }) {
 function ProjectEntry({ entry }: { entry: CvProject }) {
   const dates = dateRange(entry.start_date, entry.end_date)
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div style={{ marginBottom: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        {entry.url ? (
-          <a
-            href={entry.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ fontWeight: 700, fontSize: 13, color: "inherit", textDecoration: "underline" }}
-          >
-            {entry.name}
-          </a>
-        ) : (
-          <span style={{ fontWeight: 700, fontSize: 13, color: "#333" }}>{entry.name}</span>
-        )}
+        <span style={{ fontWeight: 700, fontSize: 13, color: "#333" }}>
+          {entry.name}
+          <ProjectLinks project={entry} style={{ fontSize: 9.5, fontWeight: 700, color: "#2563eb" }} />
+        </span>
         {dates && (
           <span style={{ fontSize: 12, color: "#999", whiteSpace: "nowrap", marginLeft: 8 }}>
             {dates}
@@ -141,8 +134,8 @@ function ProjectEntry({ entry }: { entry: CvProject }) {
             <li
               key={index}
               style={{
-                fontSize: 12.5,
-                lineHeight: 1.6,
+                fontSize: 12,
+                lineHeight: 1.5,
                 color: "#333",
                 marginBottom: 2,
               }}
@@ -153,12 +146,12 @@ function ProjectEntry({ entry }: { entry: CvProject }) {
         </ul>
       )}
       {(!entry.highlights || entry.highlights.length === 0) && entry.description && (
-        <p style={{ fontSize: 12.5, lineHeight: 1.65, color: "#333", margin: "6px 0 0" }}>
+        <p style={{ fontSize: 12, lineHeight: 1.5, color: "#333", margin: "6px 0 0" }}>
           {entry.description}
         </p>
       )}
       {entry.technologies && entry.technologies.length > 0 && (
-        <div style={{ fontSize: 12, lineHeight: 1.65, color: "#777", marginTop: 3 }}>
+        <div style={{ fontSize: 11.5, lineHeight: 1.5, color: "#777", marginTop: 3 }}>
           {entry.technologies.join(", ")}
         </div>
       )}
@@ -178,7 +171,7 @@ export function TemplateMinimal({ cv }: CvTemplateProps) {
       style={{
         fontFamily: "system-ui, -apple-system, sans-serif",
         background: "white",
-        padding: "40px 48px",
+        padding: "34px 42px",
         color: "#333",
         boxSizing: "border-box",
       }}
@@ -187,9 +180,9 @@ export function TemplateMinimal({ cv }: CvTemplateProps) {
         {cv.name && (
           <div
             style={{
-              fontSize: 21,
+              fontSize: 19,
               fontWeight: 300,
-              letterSpacing: "3px",
+              letterSpacing: "2.2px",
               textTransform: "uppercase",
               marginBottom: 6,
             }}
@@ -221,7 +214,7 @@ export function TemplateMinimal({ cv }: CvTemplateProps) {
       {cv.summary && (
         <>
           <SectionHeading>Summary</SectionHeading>
-          <p style={{ fontSize: 12.5, lineHeight: 1.65, color: "#333", margin: 0 }}>{cv.summary}</p>
+          <p style={{ fontSize: 12, lineHeight: 1.5, color: "#333", margin: 0 }}>{cv.summary}</p>
         </>
       )}
 
@@ -264,7 +257,7 @@ export function TemplateMinimal({ cv }: CvTemplateProps) {
       {cv.skills && cv.skills.length > 0 && (
         <>
           <SectionHeading>Skills</SectionHeading>
-          <p style={{ fontSize: 12.5, lineHeight: 1.65, color: "#333", margin: 0 }}>
+          <p style={{ fontSize: 12, lineHeight: 1.5, color: "#333", margin: 0 }}>
             {cv.skills.join(", ")}
           </p>
         </>
@@ -273,7 +266,7 @@ export function TemplateMinimal({ cv }: CvTemplateProps) {
       {cv.certifications && cv.certifications.length > 0 && (
         <>
           <SectionHeading>Certifications</SectionHeading>
-          <p style={{ fontSize: 12.5, lineHeight: 1.65, color: "#333", margin: 0 }}>
+          <p style={{ fontSize: 12, lineHeight: 1.5, color: "#333", margin: 0 }}>
             {cv.certifications.join(", ")}
           </p>
         </>
@@ -282,7 +275,7 @@ export function TemplateMinimal({ cv }: CvTemplateProps) {
       {cv.languages && cv.languages.length > 0 && (
         <>
           <SectionHeading>Languages</SectionHeading>
-          <p style={{ fontSize: 12.5, lineHeight: 1.65, color: "#333", margin: 0 }}>
+          <p style={{ fontSize: 12, lineHeight: 1.5, color: "#333", margin: 0 }}>
             {cv.languages.join(", ")}
           </p>
         </>

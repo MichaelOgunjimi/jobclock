@@ -45,6 +45,8 @@ export function sanitizeCvData(data: CvData | null | undefined): NormalizedCvDat
     })),
     projects: normalized.projects.map((entry) => ({
       ...entry,
+      url: entry.url?.trim(),
+      code_url: entry.code_url?.trim(),
       technologies: cleanStringArray(entry.technologies),
       highlights: cleanStringArray(entry.highlights),
     })),
