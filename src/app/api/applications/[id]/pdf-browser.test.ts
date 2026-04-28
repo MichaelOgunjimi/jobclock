@@ -39,7 +39,6 @@ describe("launchPdfBrowser", () => {
 
   it("rejects when launch fails", async () => {
     puppeteerLaunch.mockRejectedValue(new Error("launch failed"))
-
     await expect(launchPdfBrowser()).rejects.toThrow("launch failed")
   })
 })

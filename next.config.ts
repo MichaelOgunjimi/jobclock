@@ -9,10 +9,16 @@ const allowedDevOrigins =
 
 const nextConfig: NextConfig = {
 	reactCompiler: true,
-	serverExternalPackages: ["pdf-parse"],
-	outputFileTracingIncludes: {
-		"/api/applications/*/*/pdf": [
-			"./node_modules/playwright/node_modules/playwright-core/.local-browsers/**/*",
+	output: process.env.NEXT_STANDALONE === "1" ? "standalone" : undefined,
+	serverExternalPackages: ["pdf-parse", "@playwright/test", "playwright", "playwright-core"],
+	outputFileTracingExcludes: {
+		"/api/applications/[id]/cv/pdf": [
+			"./node_modules/playwright/**",
+			"./node_modules/@playwright/**",
+		],
+		"/api/applications/[id]/cover-letter/pdf": [
+			"./node_modules/playwright/**",
+			"./node_modules/@playwright/**",
 		],
 	},
 	allowedDevOrigins: ["127.0.0.1", ...allowedDevOrigins],
