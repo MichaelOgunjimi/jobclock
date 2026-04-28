@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation"
+import { Suspense } from "react"
 import type { CvData } from "@/lib/supabase/database.types"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
@@ -7,6 +8,7 @@ import {
   isCvTemplateName,
   type CvTemplateName,
 } from "@/components/cv/templates/cv-template-renderer"
+import { AutoPrint } from "@/app/(print)/auto-print"
 
 export const dynamic = "force-dynamic"
 
@@ -74,6 +76,9 @@ export default async function ApplicationCvPrintPage({
           min-height: auto;
         }
       `}</style>
+      <Suspense>
+        <AutoPrint />
+      </Suspense>
       <main className="bg-white">
         <CvPaper
           cv={cvRow.cv_json as unknown as CvData}
