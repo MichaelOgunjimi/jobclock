@@ -18,16 +18,6 @@ const nextConfig: NextConfig = {
 		"playwright",
 		"playwright-core",
 	],
-	// sparticuz loads its binary via path.join(__dirname, '../bin/chromium.br') —
-	// a dynamic path the file tracer won't follow. Include it explicitly.
-	outputFileTracingIncludes: {
-		"/api/applications/[id]/cv/pdf": [
-			"./node_modules/@sparticuz/chromium/bin/**",
-		],
-		"/api/applications/[id]/cover-letter/pdf": [
-			"./node_modules/@sparticuz/chromium/bin/**",
-		],
-	},
 	// @playwright/test ships a 257 MB Chromium that must never enter the bundle.
 	outputFileTracingExcludes: {
 		"/api/applications/[id]/cv/pdf": [
