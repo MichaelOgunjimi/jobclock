@@ -23,7 +23,13 @@ export async function verifyCronRequest(req: Request): Promise<string | null> {
 
     try {
       const receiver = new Receiver({ currentSigningKey, nextSigningKey })
-      await receiver.verify({ signature, body, url: req.url })
+      // Build the canonical URL from the configured app URL + pathname.
+      // req.url on Vercel may use an internal deployment domain that differs
+      // from the custom domain QStash signed against, causing verification to fail.
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
+      const pathname = new URL(req.url).pathname
+      const canonicalUrl = `${appUrl}${pathname}`
+      await receiver.verify({ signature, body, url: canonicalUrl })
       return body
     } catch {
       return null
