@@ -111,16 +111,21 @@ export default async function ApplicationsPage({
     query = query.eq("status", activeStatus)
   }
 
-  // Apply search — find matching job IDs first, then filter applications
+  // Apply search — find matching job IDs first, then filter applications.
+  // Strip chars that would break PostgREST or() filter syntax (comma, parens).
   if (activeSearch) {
-    const { data: matchingJobs } = await supabase
+    const escaped = activeSearch.replace(/[,()']/g, " ")
+    const { data: matchingJobs, error: searchError } = await supabase
       .from("jobs_cache")
       .select("id")
-      .or(`title.ilike.%${activeSearch}%,company.ilike.%${activeSearch}%`)
-    const jobIds = matchingJobs?.map((j) => j.id) ?? []
-    query = jobIds.length > 0
-      ? query.in("job_id", jobIds)
-      : query.in("job_id", ["00000000-0000-0000-0000-000000000000"]) // force empty
+      .or(`title.ilike.%${escaped}%,company.ilike.%${escaped}%`)
+    if (!searchError) {
+      const jobIds = matchingJobs?.map((j) => j.id) ?? []
+      query = jobIds.length > 0
+        ? query.in("job_id", jobIds)
+        : query.in("job_id", ["00000000-0000-0000-0000-000000000000"]) // force empty
+    }
+    // On search error: skip the filter and show all results rather than hiding everything
   }
 
   // Apply sort
