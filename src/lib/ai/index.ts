@@ -9,7 +9,8 @@ export const PROVIDER_MODELS: Record<AiProvider, { id: string; label: string }[]
     { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5 (Fastest)" },
   ],
   openai: [
-    { id: "o3", label: "o3 (Most capable)" },
+    { id: "gpt-4.5-preview", label: "GPT-4.5 Preview (Best quality)" },
+    { id: "o3", label: "o3 (Best reasoning)" },
     { id: "o4-mini", label: "o4-mini (Fast reasoning)" },
     { id: "gpt-4.1", label: "GPT-4.1 (Recommended)" },
     { id: "gpt-4.1-mini", label: "GPT-4.1 Mini (Fast & affordable)" },
