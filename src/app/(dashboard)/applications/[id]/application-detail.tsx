@@ -426,7 +426,7 @@ function DescriptionCard({
           </form>
         ) : description ? (
           <div>
-            <p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{preview}</p>
+            <MarkdownContent content={preview} className="text-muted-foreground" />
             {isTruncatable && (
               <button
                 type="button"
