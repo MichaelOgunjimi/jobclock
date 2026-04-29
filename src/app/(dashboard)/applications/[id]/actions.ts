@@ -11,6 +11,7 @@ import { db } from "@/lib/db"
 import { applications } from "@/lib/db/schema"
 import type { ApplicationStatus, AppWithJob, CvData } from "@/lib/supabase/database.types"
 import type { AiSettings, UserPreferences } from "@/lib/ai"
+import { normalizeCoverLetterText } from "@/lib/cover-letter/normalize"
 import {
   buildCoverLetterSystemPrompt,
   buildCoverLetterUserPrompt,
@@ -415,7 +416,7 @@ export async function generateCoverLetter(
     user_id: user.id,
     application_id: applicationId,
     label: `AI — ${job?.title ?? "Application"} at ${job?.company ?? "Company"}`,
-    content: content.trim(),
+    content: normalizeCoverLetterText(content),
     tone: resolvedTone,
   }).select("id").single()
 
