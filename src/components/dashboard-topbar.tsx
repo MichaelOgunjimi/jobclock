@@ -69,12 +69,6 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
     window.location.href = "/auth"
   }
 
-  const avatarEl = userProfile.avatarUrl ? (
-    <Image src={userProfile.avatarUrl} alt="" fill sizes="32px" className="object-cover" unoptimized />
-  ) : (
-    <span>{initials}</span>
-  )
-
   return (
     <div
       className="relative"
@@ -89,7 +83,11 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
         onClick={() => setOpen((v) => !v)}
         className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden border bg-secondary text-[11px] font-semibold uppercase tracking-wide text-foreground transition-colors hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30"
       >
-        {avatarEl}
+        {userProfile.avatarUrl ? (
+          <Image src={userProfile.avatarUrl} alt="" width={32} height={32} className="h-full w-full object-cover" unoptimized />
+        ) : (
+          <span>{initials}</span>
+        )}
       </button>
 
       {open && (
@@ -101,7 +99,11 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
           <div className="border-b px-4 py-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden border bg-secondary text-[13px] font-semibold uppercase tracking-wide text-foreground">
-                {avatarEl}
+                {userProfile.avatarUrl ? (
+                  <Image src={userProfile.avatarUrl} alt="" width={40} height={40} className="h-full w-full object-cover" unoptimized />
+                ) : (
+                  <span>{initials}</span>
+                )}
               </div>
               <div className="min-w-0">
                 {userProfile.fullName && (
