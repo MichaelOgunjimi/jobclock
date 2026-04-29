@@ -37,7 +37,6 @@ function ExperienceEntry({ entry }: { entry: CvExperience }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
         <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>
           {entry.company}
-          {entry.description ? ` (${entry.description})` : ""}
         </span>
         {entry.location && (
           <span style={{ fontSize: 11, whiteSpace: "nowrap" }}>{entry.location}</span>
