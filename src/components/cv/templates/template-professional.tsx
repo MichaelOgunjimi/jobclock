@@ -149,6 +149,11 @@ function ProjectEntry({ entry }: { entry: CvProject }) {
           {entry.description}
         </p>
       )}
+      {entry.technologies && entry.technologies.length > 0 && (
+        <div style={{ fontSize: 10.5, color: "#555", marginTop: 4 }}>
+          Technologies: {entry.technologies.join(", ")}
+        </div>
+      )}
     </div>
   )
 }
@@ -170,7 +175,7 @@ export function TemplateProfessional({ cv }: CvTemplateProps) {
         fontFamily: "Georgia, 'Times New Roman', serif",
         color: "#1a1a1a",
         background: "white",
-        padding: "28px 40px",
+        padding: "22px 32px",
         boxSizing: "border-box",
       }}
     >
