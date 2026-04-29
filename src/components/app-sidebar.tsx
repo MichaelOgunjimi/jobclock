@@ -42,9 +42,20 @@ export function AppSidebar({
   const pathname = usePathname()
   const supabase = isSupabaseConfigured() ? createClient() : null
   const isPreviewPage = pathname.endsWith("/cv") || pathname.endsWith("/cover-letter")
-  const [userCollapsed, setUserCollapsed] = useState(false)
+  const [userCollapsed, setUserCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false
+    return localStorage.getItem("sidebar-collapsed") === "true"
+  })
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
   const isCollapsed = isPreviewPage || userCollapsed
+
+  function toggleCollapsed() {
+    setUserCollapsed((prev) => {
+      const next = !prev
+      localStorage.setItem("sidebar-collapsed", String(next))
+      return next
+    })
+  }
 
   async function confirmSignOut() {
     if (!supabase) {
@@ -74,7 +85,7 @@ export function AppSidebar({
             variant="ghost"
             size="icon-sm"
             className="hidden border-0 text-sidebar-foreground hover:bg-white/5 hover:text-white lg:inline-flex"
-            onClick={() => setUserCollapsed((value) => !value)}
+            onClick={() => toggleCollapsed()}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
