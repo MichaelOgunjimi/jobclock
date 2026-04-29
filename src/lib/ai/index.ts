@@ -11,7 +11,7 @@ export const PROVIDER_MODELS: Record<AiProvider, { id: string; label: string }[]
   openai: [
     { id: "o3", label: "o3 (Most capable)" },
     { id: "o4-mini", label: "o4-mini (Fast reasoning)" },
-    { id: "gpt-4.1", label: "GPT-4.1" },
+    { id: "gpt-4.1", label: "GPT-4.1 (Recommended)" },
     { id: "gpt-4.1-mini", label: "GPT-4.1 Mini (Fast & affordable)" },
     { id: "gpt-4o", label: "GPT-4o" },
     { id: "gpt-4o-mini", label: "GPT-4o Mini" },
@@ -20,7 +20,7 @@ export const PROVIDER_MODELS: Record<AiProvider, { id: string; label: string }[]
 
 export const DEFAULT_MODELS: Record<AiProvider, string> = {
   anthropic: "claude-sonnet-4-6",
-  openai: "gpt-4.1-mini",
+  openai: "gpt-4.1",
 }
 
 export interface AiSettings {
