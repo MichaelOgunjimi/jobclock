@@ -43,14 +43,14 @@ export function AppSidebar({
   const supabase = isSupabaseConfigured() ? createClient() : null
   const isPreviewPage = pathname.endsWith("/cv") || pathname.endsWith("/cover-letter")
   const [userCollapsed, setUserCollapsed] = useState(false)
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false)
   const isCollapsed = isPreviewPage || userCollapsed
 
-  async function handleSignOut() {
+  async function confirmSignOut() {
     if (!supabase) {
       toast.error(SUPABASE_SETUP_MESSAGE)
       return
     }
-
     await supabase.auth.signOut()
     window.location.href = "/auth"
   }
@@ -147,7 +147,7 @@ export function AppSidebar({
             <span className={cn(isCollapsed && "lg:hidden")}>Settings</span>
           </Link>
           <button
-            onClick={handleSignOut}
+            onClick={() => setShowLogoutDialog(true)}
             className={cn(
               "flex w-full items-center gap-3 border border-transparent px-4 py-3 text-[13px] font-medium tracking-[0.02em] text-sidebar-foreground transition-colors hover:border-white/10 hover:bg-white/5 hover:text-white",
               isCollapsed && "lg:mx-auto lg:w-12 lg:justify-center lg:px-0"
@@ -198,6 +198,21 @@ export function AppSidebar({
       >
         {renderNavContent()}
       </aside>
+
+      {showLogoutDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm border border-border bg-background shadow-lg">
+            <div className="px-5 py-4">
+              <h2 className="text-sm font-medium">Sign out?</h2>
+              <p className="mt-1 text-xs text-muted-foreground">You will be returned to the login page.</p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
+              <Button variant="outline" size="sm" onClick={() => setShowLogoutDialog(false)}>Cancel</Button>
+              <Button variant="destructive" size="sm" onClick={confirmSignOut}>Sign out</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

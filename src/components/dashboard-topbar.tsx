@@ -42,6 +42,7 @@ interface UserProfile {
 
 function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
   const [open, setOpen] = useState(false)
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -62,7 +63,7 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
 
   const initials = getInitials(userProfile.fullName, userProfile.email)
 
-  async function handleSignOut() {
+  async function confirmSignOut() {
     if (!isSupabaseConfigured()) return
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -142,12 +143,27 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
           <div className="border-t py-1">
             <button
               type="button"
-              onClick={handleSignOut}
+              onClick={() => { setOpen(false); setShowLogoutDialog(true) }}
               className="flex w-full items-center gap-3 px-4 py-2.5 text-[13px] text-foreground transition-colors hover:bg-muted"
             >
               <LogOut className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               Sign out
             </button>
+          </div>
+        </div>
+      )}
+
+      {showLogoutDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm border border-border bg-background shadow-lg">
+            <div className="px-5 py-4">
+              <h2 className="text-sm font-medium">Sign out?</h2>
+              <p className="mt-1 text-xs text-muted-foreground">You will be returned to the login page.</p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
+              <Button variant="outline" size="sm" onClick={() => setShowLogoutDialog(false)}>Cancel</Button>
+              <Button variant="destructive" size="sm" onClick={confirmSignOut}>Sign out</Button>
+            </div>
           </div>
         </div>
       )}
