@@ -9,6 +9,7 @@ import { decrypt } from "@/lib/crypto"
 import { interviewSystemPrompt, interviewUserPrompt } from "@/lib/prompts/interview"
 import type { AppWithJob } from "@/lib/supabase/database.types"
 import { aiGenerateRateLimit } from "@/lib/rate-limit"
+import { normalizeAiMarkdown } from "@/lib/cv/normalize"
 
 export async function POST(
   _req: NextRequest,
@@ -74,7 +75,8 @@ export async function POST(
     return NextResponse.json({ error: err instanceof Error ? err.message : "Interview prep generation failed" }, { status: 500 })
   }
 
-  const questionsArray = content
+  const normalizedContent = normalizeAiMarkdown(content)
+  const questionsArray = normalizedContent
     .split("\n")
     .filter((line) => /^\*\*Q\d+\.\*\*|^Q\d+\./.test(line.trim()))
     .map((line) => line.trim())
@@ -83,17 +85,17 @@ export async function POST(
 
   if (existing.length > 0) {
     await db.update(interviewPrep)
-      .set({ questions: questionsArray, suggestedAnswers: { raw: content, storyCount: stories.length } })
+      .set({ questions: questionsArray, suggestedAnswers: { raw: normalizedContent, storyCount: stories.length } })
       .where(eq(interviewPrep.applicationId, applicationId))
   } else {
     await db.insert(interviewPrep).values({
       applicationId,
       questions: questionsArray,
-      suggestedAnswers: { raw: content, storyCount: stories.length },
+      suggestedAnswers: { raw: normalizedContent, storyCount: stories.length },
     })
   }
 
-  return NextResponse.json({ content, questions: questionsArray, storyCount: stories.length })
+  return NextResponse.json({ content: normalizedContent, questions: questionsArray, storyCount: stories.length })
 }
 
 export async function GET(

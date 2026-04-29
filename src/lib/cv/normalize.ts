@@ -35,3 +35,26 @@ export function normalizeObjectStrings<T>(obj: T): T {
   }
   return obj
 }
+
+/**
+ * Character-level normalisation for markdown-rendered AI output (interview prep,
+ * research, chat). Cleans smart quotes, ligatures, and zero-width chars but
+ * leaves markdown structure and em dashes intact so MarkdownContent renders correctly.
+ */
+const MARKDOWN_CHAR_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/[''‚‛]/g, "'"],
+  [/[""„‟]/g, '"'],
+  [/…/g, "..."],
+  [/ /g, " "],
+  [/ﬁ/g, "fi"],
+  [/ﬂ/g, "fl"],
+  [/[​‌‍﻿]/g, ""],
+]
+
+export function normalizeAiMarkdown(text: string): string {
+  let result = text
+  for (const [pattern, replacement] of MARKDOWN_CHAR_REPLACEMENTS) {
+    result = result.replace(pattern, replacement)
+  }
+  return result
+}
