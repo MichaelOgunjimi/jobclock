@@ -9,6 +9,7 @@ import { decrypt } from "@/lib/crypto"
 import { researchSystemPrompt, researchUserPrompt } from "@/lib/prompts/company-research"
 import type { AppWithJob } from "@/lib/supabase/database.types"
 import { aiGenerateRateLimit } from "@/lib/rate-limit"
+import { normalizeAiMarkdown } from "@/lib/cv/normalize"
 
 // D3: 6-axis company research. Uses Perplexity (live web) if the user has
 // configured a key; otherwise falls back to Claude/OpenAI training knowledge.
@@ -72,15 +73,17 @@ export async function POST(
     return NextResponse.json({ error: err instanceof Error ? err.message : "Company research failed" }, { status: 500 })
   }
 
+  const normalizedContent = normalizeAiMarkdown(content)
+
   // Save to DB so navigating away doesn't lose it
   const existing = await db.select({ id: interviewPrep.id }).from(interviewPrep).where(eq(interviewPrep.applicationId, applicationId)).limit(1)
   if (existing.length > 0) {
-    await db.update(interviewPrep).set({ researchContent: content }).where(eq(interviewPrep.applicationId, applicationId))
+    await db.update(interviewPrep).set({ researchContent: normalizedContent }).where(eq(interviewPrep.applicationId, applicationId))
   } else {
-    await db.insert(interviewPrep).values({ applicationId, researchContent: content })
+    await db.insert(interviewPrep).values({ applicationId, researchContent: normalizedContent })
   }
 
-  return NextResponse.json({ content, company, title })
+  return NextResponse.json({ content: normalizedContent, company, title })
 }
 
 export async function GET(
