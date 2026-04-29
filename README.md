@@ -166,19 +166,6 @@ Drizzle ORM owns the application schema. The workflow is:
 
 Supabase SQL (`supabase/sql/platform-setup.sql`) is reserved for platform-specific configuration: RLS policies, auth triggers, storage buckets, and storage policies.
 
-See [docs/project/database-workflow.md](docs/project/database-workflow.md) for the full migration strategy.
-
----
-
-## Documentation
-
-| Document | Description |
-|---|---|
-| [Architecture Guide](docs/project/ARCHITECTURE.md) | System design, data flow, AI pipeline |
-| [API Reference](docs/project/API.md) | HTTP endpoints, request/response shapes |
-| [Database Workflow](docs/project/database-workflow.md) | Drizzle ORM, migrations, schema management |
-| [Background Generation Plan](docs/project/background-generation-plan.md) | Planned QStash-based async generation |
-
 ---
 
 ## Browser Extension
