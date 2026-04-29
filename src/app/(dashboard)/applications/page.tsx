@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
   Briefcase,
+  Search,
   CalendarDays,
   ChevronDown,
   CircleDot,
@@ -48,7 +49,7 @@ const APPLICATIONS_PER_PAGE = 8
 export default async function ApplicationsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ page?: string; status?: string; sort?: string }>
+  searchParams?: Promise<{ page?: string; status?: string; sort?: string; q?: string }>
 }) {
   if (!isSupabaseConfigured()) {
     redirect("/auth")
@@ -68,6 +69,9 @@ export default async function ApplicationsPage({
   const VALID_SORTS = new Set(["saved_desc", "saved_asc", "applied_desc", "company_asc"])
   const rawSort = resolvedSearchParams?.sort ?? ""
   const activeSort = VALID_SORTS.has(rawSort) ? rawSort : "saved_desc"
+
+  // Search param
+  const activeSearch = (resolvedSearchParams?.q ?? "").trim().slice(0, 100)
 
   const rangeStart = (currentPage - 1) * APPLICATIONS_PER_PAGE
   const rangeEnd = rangeStart + APPLICATIONS_PER_PAGE - 1
@@ -107,6 +111,18 @@ export default async function ApplicationsPage({
     query = query.eq("status", activeStatus)
   }
 
+  // Apply search — find matching job IDs first, then filter applications
+  if (activeSearch) {
+    const { data: matchingJobs } = await supabase
+      .from("jobs_cache")
+      .select("id")
+      .or(`title.ilike.%${activeSearch}%,company.ilike.%${activeSearch}%`)
+    const jobIds = matchingJobs?.map((j) => j.id) ?? []
+    query = jobIds.length > 0
+      ? query.in("job_id", jobIds)
+      : query.in("job_id", ["00000000-0000-0000-0000-000000000000"]) // force empty
+  }
+
   // Apply sort
   if (activeSort === "saved_asc") {
     query = query.order("created_at", { ascending: true })
@@ -140,7 +156,7 @@ export default async function ApplicationsPage({
   const safeCurrentPage = Math.min(currentPage, totalPages)
 
   if ((totalApplications ?? 0) > 0 && currentPage !== safeCurrentPage) {
-    redirect(buildApplicationsPageHref(safeCurrentPage, activeStatus, activeSort))
+    redirect(buildApplicationsPageHref(safeCurrentPage, activeStatus, activeSort, activeSearch))
   }
 
   const statusOptions: {
@@ -255,7 +271,7 @@ export default async function ApplicationsPage({
         </div>
       </div>
 
-      {applications.length === 0 ? (
+      {(applicationStatuses ?? []).length === 0 ? (
         <Card>
           <CardContent className="py-14 text-center text-muted-foreground">
             <Briefcase className="mx-auto mb-4 h-10 w-10" />
@@ -273,7 +289,18 @@ export default async function ApplicationsPage({
             total={totalApplications ?? 0}
             activeStatus={activeStatus}
             activeSort={activeSort}
+            activeSearch={activeSearch}
           />
+          {applications.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                <Search className="mx-auto mb-3 h-8 w-8" />
+                <p className="font-medium text-foreground">No results</p>
+                <p className="mt-1 text-sm">No applications match your search or filter.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
           <div className="flex flex-col gap-2 border border-border bg-secondary/35 px-5 py-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <p>
               Showing{" "}
@@ -427,7 +454,7 @@ export default async function ApplicationsPage({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Link
-                  href={buildApplicationsPageHref(Math.max(1, safeCurrentPage - 1), activeStatus, activeSort)}
+                  href={buildApplicationsPageHref(Math.max(1, safeCurrentPage - 1), activeStatus, activeSort, activeSearch)}
                   aria-disabled={safeCurrentPage === 1}
                   className={cn(
                     buttonVariants({ variant: "outline", size: "sm" }),
@@ -447,7 +474,7 @@ export default async function ApplicationsPage({
                   ) : (
                     <Link
                       key={entry}
-                      href={buildApplicationsPageHref(entry, activeStatus, activeSort)}
+                      href={buildApplicationsPageHref(entry, activeStatus, activeSort, activeSearch)}
                       className={cn(
                         buttonVariants({
                           variant: entry === safeCurrentPage ? "default" : "outline",
@@ -461,7 +488,7 @@ export default async function ApplicationsPage({
                   )
                 )}
                 <Link
-                  href={buildApplicationsPageHref(Math.min(totalPages, safeCurrentPage + 1), activeStatus, activeSort)}
+                  href={buildApplicationsPageHref(Math.min(totalPages, safeCurrentPage + 1), activeStatus, activeSort, activeSearch)}
                   aria-disabled={safeCurrentPage === totalPages}
                   className={cn(
                     buttonVariants({ variant: "outline", size: "sm" }),
@@ -473,17 +500,20 @@ export default async function ApplicationsPage({
               </div>
             </nav>
           )}
+            </>
+          )}
         </div>
       )}
     </div>
   )
 }
 
-function buildApplicationsPageHref(page: number, status?: string, sort?: string) {
+function buildApplicationsPageHref(page: number, status?: string, sort?: string, q?: string) {
   const params = new URLSearchParams()
   if (page > 1) params.set("page", String(page))
   if (status && status !== "all") params.set("status", status)
   if (sort && sort !== "saved_desc") params.set("sort", sort)
+  if (q) params.set("q", q)
   const qs = params.toString()
   return qs ? `/applications?${qs}` : "/applications"
 }

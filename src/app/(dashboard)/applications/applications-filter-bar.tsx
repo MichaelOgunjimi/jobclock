@@ -1,6 +1,8 @@
 "use client"
 
 import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
+import { Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
 
@@ -27,11 +29,26 @@ interface Props {
   total: number
   activeStatus: string
   activeSort: string
+  activeSearch: string
 }
 
-export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort }: Props) {
+export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort, activeSearch }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [searchInput, setSearchInput] = useState(activeSearch)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Sync if the URL param changes externally (e.g. browser back)
+  useEffect(() => { setSearchInput(activeSearch) }, [activeSearch])
+
+  function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value
+    setSearchInput(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      router.push(buildUrl({ q: value || null, page: null }))
+    }, 350)
+  }
 
   function buildUrl(overrides: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString())
@@ -52,7 +69,21 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort 
   }
 
   return (
-    <div className="flex flex-col gap-3 border border-border bg-secondary/35 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 border border-border bg-secondary/35 px-5 py-4">
+      {/* Search */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          placeholder="Search by role or company…"
+          value={searchInput}
+          onChange={handleSearchChange}
+          className="w-full border border-border bg-background py-2 pl-9 pr-3 text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
+        />
+      </div>
+
+      {/* Status pills + sort */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       {/* Status pills */}
       <div className="flex flex-wrap gap-2">
         {STATUS_PILLS.map((pill) => {
@@ -93,6 +124,7 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort 
             </option>
           ))}
         </select>
+      </div>
       </div>
     </div>
   )
