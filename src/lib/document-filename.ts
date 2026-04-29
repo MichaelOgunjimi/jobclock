@@ -28,6 +28,21 @@ export function buildCvFilenameBase({
   return parts.join(" - ")
 }
 
+export function buildCoverLetterFilenameBase({
+  fullName,
+  company,
+  role,
+}: CvFilenameParts): string {
+  const parts = [
+    cleanFilenamePart(fullName),
+    cleanFilenamePart(company),
+    cleanFilenamePart(role),
+    "Cover Letter",
+  ].filter((part): part is string => Boolean(part))
+
+  return parts.join(" - ")
+}
+
 export function withPdfExtension(filenameBase: string): string {
   const cleaned = cleanFilenamePart(filenameBase) ?? "document"
   return cleaned.toLowerCase().endsWith(".pdf") ? cleaned : `${cleaned}.pdf`

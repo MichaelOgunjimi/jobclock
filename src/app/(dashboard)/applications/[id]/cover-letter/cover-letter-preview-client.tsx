@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useDownloadPdf } from "@/hooks/use-download-pdf"
+import { buildCoverLetterFilenameBase } from "@/lib/document-filename"
 import { cn } from "@/lib/utils"
 import type { CvData, CoverLetterRenderData } from "@/lib/supabase/database.types"
 import { CoverLetterPreviewStage } from "@/components/cover-letter/document/cover-letter-preview-stage"
@@ -104,11 +105,17 @@ export function CoverLetterPreviewClient({
   const [copied, setCopied] = useState(false)
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(initialContent)
+  const filenameBase = buildCoverLetterFilenameBase({
+    fullName: senderCv?.name,
+    company: jobCompany,
+    role: jobTitle,
+  })
   const { handleDownloadPdf, isDownloading } = useDownloadPdf({
     type: "cover-letter",
     applicationId,
     template,
     filenamePrefix: "cover-letter",
+    filenameBase,
     onBeforeDownload: async () => {
       if (hasUnsavedChanges) {
         return handleSave()
