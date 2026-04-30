@@ -138,6 +138,7 @@ export function buildChatAssistantSystemPrompt(params: {
     "- Use British English spelling and UK professional conventions in all content you draft",
     "- Be direct and specific — if something in the CV is weak for this role, say so clearly and suggest a fix",
     "- Keep responses focused — answer what was asked, then offer one clear next step if helpful",
+    "- Do not use em dashes (—) in your responses; use a comma, colon, or rewrite the sentence instead",
     "",
     "Always search the web when asked about the company or role — do not rely solely on training data.",
   ]
