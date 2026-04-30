@@ -29,6 +29,8 @@ import {
   generateCoverLetter,
 } from "./actions"
 import { FollowUpCard } from "./follow-up-card"
+import { useDownloadPdf } from "@/hooks/use-download-pdf"
+import { buildCoverLetterFilenameBase } from "@/lib/document-filename"
 import type { ApplicationStatus, Database, WritingStyle } from "@/lib/supabase/database.types"
 
 type ApplicationRow = Database["public"]["Tables"]["applications"]["Row"]
@@ -892,6 +894,8 @@ const TONES = [
 
 function CoverLetterCard({
   applicationId,
+  jobTitle,
+  jobCompany,
   writingStyles,
   currentStructureId,
   currentTone,
@@ -899,6 +903,8 @@ function CoverLetterCard({
   hasDescription,
 }: {
   applicationId: string
+  jobTitle: string | null
+  jobCompany: string | null
   writingStyles: WritingStyleRow[]
   currentStructureId: string | null
   currentTone: string | null
@@ -914,27 +920,15 @@ function CoverLetterCard({
   const [genPending, startGenTransition] = useTransition()
   const [genError, setGenError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [downloading, setDownloading] = useState(false)
 
-  // Load html2pdf.js from CDN once on mount (shared with CvCard via data-html2pdf flag)
-  useEffect(() => {
-    if (document.querySelector('script[data-html2pdf]')) return
-    const script = document.createElement("script")
-    script.src =
-      "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
-    script.integrity =
-      "sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg=="
-    script.crossOrigin = "anonymous"
-    script.dataset.html2pdf = "1"
-    script.async = true
-    script.onerror = () => {
-      console.error("Failed to load html2pdf.js from CDN")
-    }
-    document.body.appendChild(script)
-    return () => {
-      if (document.body.contains(script)) document.body.removeChild(script)
-    }
-  }, [])
+  const filenameBase = buildCoverLetterFilenameBase({ fullName: null, company: jobCompany, role: jobTitle })
+  const { handleDownloadPdf, isDownloading: downloading } = useDownloadPdf({
+    type: "cover-letter",
+    applicationId,
+    template: "modern",
+    filenamePrefix: "cover-letter",
+    filenameBase,
+  })
 
   function handleStructureChange(structureId: string) {
     setSelectedStructureId(structureId)
@@ -971,39 +965,6 @@ function CoverLetterCard({
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
-  }
-
-  function handleDownloadPdf() {
-    if (!generatedCoverLetter?.content) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const html2pdf = (window as any).html2pdf
-    if (!html2pdf) return
-
-    setDownloading(true)
-
-    const el = document.createElement("div")
-    el.style.cssText =
-      "font-family: Georgia, serif; font-size: 13px; line-height: 1.7; color: #111; padding: 0; white-space: pre-wrap;"
-    el.textContent = generatedCoverLetter.content
-    document.body.appendChild(el)
-
-    html2pdf()
-      .from(el)
-      .set({
-        margin: [15, 15, 15, 15],
-        filename: "cover-letter.pdf",
-        jsPDF: { unit: "mm", format: "a4" },
-        html2canvas: { scale: 2 },
-      })
-      .save()
-      .then(() => {
-        document.body.removeChild(el)
-        setDownloading(false)
-      })
-      .catch(() => {
-        document.body.removeChild(el)
-        setDownloading(false)
-      })
   }
 
   const generatedDate = generatedCoverLetter
@@ -1362,6 +1323,8 @@ export function ApplicationDetail({
         />
         <CoverLetterCard
           applicationId={application.id}
+          jobTitle={job?.title ?? null}
+          jobCompany={job?.company ?? null}
           writingStyles={writingStyles}
           currentStructureId={application.structure_id ?? null}
           currentTone={application.cover_letter_tone ?? null}
