@@ -31,81 +31,14 @@ function cleanText(value, maxLength = 4000) {
 }
 
 async function extractCurrentPage(tabId) {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["page-extractor.js"],
+  })
+
   const [{ result }] = await chrome.scripting.executeScript({
     target: { tabId },
-    func: () => {
-      function text(selector) {
-        const node = document.querySelector(selector)
-        return node instanceof HTMLElement ? node.innerText.trim() : ""
-      }
-
-      function attr(selector, name) {
-        return document.querySelector(selector)?.getAttribute(name) || ""
-      }
-
-      function collectJsonLd() {
-        const nodes = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
-        return nodes
-          .map((node) => node.textContent || "")
-          .filter(Boolean)
-          .slice(0, 5)
-      }
-
-      const linkedinTitle =
-        text(".job-details-jobs-unified-top-card__job-title") ||
-        text(".jobs-unified-top-card__job-title") ||
-        text(".top-card-layout__title") ||
-        text(".topcard__title")
-
-      const linkedinCompany =
-        text(".job-details-jobs-unified-top-card__company-name") ||
-        text(".jobs-unified-top-card__company-name") ||
-        text(".topcard__org-name-link") ||
-        text(".topcard__flavor")
-
-      const linkedinLocation =
-        text(".job-details-jobs-unified-top-card__primary-description-container") ||
-        text(".jobs-unified-top-card__bullet") ||
-        text(".topcard__flavor--bullet")
-
-      const linkedinDescription =
-        text(".jobs-description__content") ||
-        text(".jobs-box__html-content") ||
-        text(".show-more-less-html__markup") ||
-        text(".description__text")
-
-      const metaBits = [
-        attr('meta[property="og:title"]', "content"),
-        attr('meta[property="og:description"]', "content"),
-        attr('meta[name="description"]', "content"),
-      ].filter(Boolean)
-
-      return {
-        pageTitle: document.title || "",
-        pageText: (document.body?.innerText || "").slice(0, 180000),
-        pageHints: {
-          title: linkedinTitle || text("h1") || attr('meta[property="og:title"]', "content") || "",
-          company:
-            linkedinCompany ||
-            attr('meta[property="og:site_name"]', "content") ||
-            "",
-          location: linkedinLocation || "",
-          description:
-            linkedinDescription ||
-            attr('meta[property="og:description"]', "content") ||
-            attr('meta[name="description"]', "content") ||
-            "",
-          salaryText:
-            text('[class*="salary"]') ||
-            text('[data-test-id*="salary"]') ||
-            "",
-          metadata: [
-            ...metaBits,
-            ...collectJsonLd(),
-          ],
-        },
-      }
-    },
+    func: () => globalThis.collectJobAssistantPageData(),
   })
 
   return {

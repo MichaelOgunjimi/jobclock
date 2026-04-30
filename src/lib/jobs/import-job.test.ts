@@ -4,6 +4,7 @@ import {
   chooseDescription,
   deriveTitleAndCompanyFromPageTitle,
   isSubstantialDescription,
+  parseSalaryText,
 } from "./import-job"
 
 describe("isSubstantialDescription", () => {
@@ -73,5 +74,15 @@ describe("buildFallbackPreview", () => {
         isEasyApply: true,
       })
     )
+  })
+})
+
+describe("parseSalaryText", () => {
+  it("normalizes Glassdoor estimated salary ranges", () => {
+    expect(parseSalaryText("£30K - £40K (Employer Est.)")).toEqual({
+      salaryMin: 30000,
+      salaryMax: 40000,
+      salaryCurrency: "GBP",
+    })
   })
 })
