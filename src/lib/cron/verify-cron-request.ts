@@ -11,6 +11,14 @@ import { Receiver } from "@upstash/qstash"
  *
  * Returns the raw request body string on success, or null on auth failure.
  * The body is returned so callers don't have to read it a second time.
+ *
+ * Note: We intentionally do NOT pass `url` to `Receiver.verify`. QStash signs
+ * a specific destination URL, but the URL Vercel exposes inside the function
+ * (req.url) often differs from that — internal deployment domain vs custom
+ * domain, trailing slashes, protocol — which silently breaks verification.
+ * Skipping the URL claim keeps the body+signature integrity check, which is
+ * what actually proves the request came from QStash (no one else holds the
+ * signing keys).
  */
 export async function verifyCronRequest(req: Request): Promise<string | null> {
   const body = await req.text()
@@ -19,19 +27,20 @@ export async function verifyCronRequest(req: Request): Promise<string | null> {
   if (signature) {
     const currentSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY
     const nextSigningKey = process.env.QSTASH_NEXT_SIGNING_KEY
-    if (!currentSigningKey || !nextSigningKey) return null
+    if (!currentSigningKey || !nextSigningKey) {
+      console.error("[verifyCronRequest] missing QSTASH signing keys in env")
+      return null
+    }
 
     try {
       const receiver = new Receiver({ currentSigningKey, nextSigningKey })
-      // Build the canonical URL from the configured app URL + pathname.
-      // req.url on Vercel may use an internal deployment domain that differs
-      // from the custom domain QStash signed against, causing verification to fail.
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
-      const pathname = new URL(req.url).pathname
-      const canonicalUrl = `${appUrl}${pathname}`
-      await receiver.verify({ signature, body, url: canonicalUrl })
+      await receiver.verify({ signature, body })
       return body
-    } catch {
+    } catch (err) {
+      console.error(
+        "[verifyCronRequest] qstash signature verification failed:",
+        err instanceof Error ? err.message : err,
+      )
       return null
     }
   }
@@ -42,5 +51,10 @@ export async function verifyCronRequest(req: Request): Promise<string | null> {
     return body
   }
 
+  if (!cronSecret) {
+    console.error("[verifyCronRequest] no upstash-signature and CRON_SECRET not configured")
+  } else {
+    console.error("[verifyCronRequest] no upstash-signature and bearer token did not match CRON_SECRET")
+  }
   return null
 }
