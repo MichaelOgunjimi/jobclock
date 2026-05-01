@@ -142,6 +142,56 @@ export function chooseDescription(parsedDescription: string | null, hintedDescri
   return hintedDescription
 }
 
+function parseSalaryValue(value: string): number | null {
+  const match = value.match(/\d[\d,.]*/)
+  if (!match) return null
+
+  const numeric = Number(match[0].replace(/,/g, ""))
+  if (!Number.isFinite(numeric)) return null
+
+  return /k/i.test(value) ? numeric * 1000 : numeric
+}
+
+export function parseSalaryText(value: string | null | undefined): {
+  salaryMin: number | null
+  salaryMax: number | null
+  salaryCurrency: string | null
+} | null {
+  if (!value) return null
+
+  const cleaned = value.replace(/\s+/g, " ").trim()
+  if (!cleaned) return null
+
+  const currency = /€|eur/i.test(cleaned)
+    ? "EUR"
+    : /\$|usd/i.test(cleaned)
+      ? "USD"
+      : /£|gbp/i.test(cleaned)
+        ? "GBP"
+        : null
+
+  if (!currency) return null
+
+  const salaryValues = cleaned.match(/(?:£|\$|€|gbp|usd|eur)?\s*\d[\d,.]*(?:\s*k)?/gi) ?? []
+  const parsedValues = salaryValues.map(parseSalaryValue).filter((salary): salary is number => salary !== null)
+
+  if (parsedValues.length === 0) return null
+
+  if (parsedValues.length === 1) {
+    return {
+      salaryMin: parsedValues[0],
+      salaryMax: null,
+      salaryCurrency: currency,
+    }
+  }
+
+  return {
+    salaryMin: Math.min(...parsedValues),
+    salaryMax: Math.max(...parsedValues),
+    salaryCurrency: currency,
+  }
+}
+
 export function buildFallbackPreview(input: {
   url: string
   fallbackSource: string
@@ -158,6 +208,7 @@ export function buildFallbackPreview(input: {
   const easyApplyHint = /easy apply|quick apply/i.test(
     `${input.pageTitle}\n${input.hints?.location ?? ""}\n${input.hints?.description ?? ""}\n${input.pageText.slice(0, 4000)}`
   )
+  const parsedSalary = parseSalaryText(input.hints?.salaryText)
 
   return {
     url: input.url,
@@ -166,9 +217,9 @@ export function buildFallbackPreview(input: {
     company,
     location: cleanCandidateText(input.hints?.location),
     description: chooseDescription(null, cleanCandidateText(input.hints?.description)),
-    salaryMin: null,
-    salaryMax: null,
-    salaryCurrency: "GBP",
+    salaryMin: parsedSalary?.salaryMin ?? null,
+    salaryMax: parsedSalary?.salaryMax ?? null,
+    salaryCurrency: parsedSalary?.salaryCurrency ?? "GBP",
     postedAt: null,
     isEasyApply: easyApplyHint ? true : null,
   }
@@ -186,6 +237,7 @@ function normalizePreview(
       ? parsed.description
       : null
   const hintedDescription = hints?.description ?? null
+  const parsedSalary = parseSalaryText(hints?.salaryText)
 
   const candidate = {
     url,
@@ -203,9 +255,9 @@ function normalizePreview(
         ? parsed.location
         : hints?.location,
     description: chooseDescription(parsedDescription, hintedDescription),
-    salaryMin: parsed.salaryMin,
-    salaryMax: parsed.salaryMax,
-    salaryCurrency: parsed.salaryCurrency ?? "GBP",
+    salaryMin: parsed.salaryMin ?? parsedSalary?.salaryMin,
+    salaryMax: parsed.salaryMax ?? parsedSalary?.salaryMax,
+    salaryCurrency: parsed.salaryCurrency ?? parsedSalary?.salaryCurrency ?? "GBP",
     postedAt: parsed.postedAt,
     isEasyApply: parsed.isEasyApply,
   }
