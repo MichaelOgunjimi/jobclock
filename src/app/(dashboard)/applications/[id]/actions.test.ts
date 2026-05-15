@@ -24,6 +24,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { generateText, resolveAiConfig } from "@/lib/ai"
+import { buildCoverLetterUserPrompt } from "@/lib/ai/prompts"
 import { aiGenerateRateLimit } from "@/lib/rate-limit"
 import {
   deleteApplication,
@@ -221,6 +222,81 @@ describe("application actions", () => {
       tone: "professional",
     })
     expect(revalidatePath).toHaveBeenCalledWith("/applications/app-1")
+  })
+
+  it("threads stored company research into the cover letter prompt when present", async () => {
+    supabaseMock.setQueryResult("applications.select.single", {
+      data: {
+        id: "app-1",
+        user_id: mockUser.id,
+        selected_cv_id: null,
+        structure_id: null,
+        cover_letter_tone: null,
+        custom_description: "Detailed job description",
+        jobs_cache: { title: "Engineer", company: "ACME", description: "fallback" },
+      },
+    })
+    supabaseMock.setQueryResult("profiles.select.single", {
+      data: { preferences: { ai_provider: "openai", ai_model: "gpt-4o-mini" } },
+    })
+    supabaseMock.setQueryResult("user_cvs.select.maybeSingle", { data: { id: "cv-1" } })
+    supabaseMock.setQueryResult("user_cvs.select.single", {
+      data: { parsed_json: { skills: ["TypeScript"] } },
+    })
+    supabaseMock.setQueryResult("cover_letter_structures.select.maybeSingle", {
+      data: { content: "Template content", default_tone: "professional" },
+    })
+    supabaseMock.setQueryResult("interview_prep.select.maybeSingle", {
+      data: { research_content: "ACME recently launched a logistics API." },
+    })
+    vi.mocked(resolveAiConfig).mockReturnValue({
+      settings: { provider: "openai", model: "gpt-4o-mini" },
+      apiKey: "api-key",
+    })
+    vi.mocked(generateText).mockResolvedValue("letter")
+
+    await generateCoverLetter("app-1")
+
+    expect(buildCoverLetterUserPrompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        companyResearch: "ACME recently launched a logistics API.",
+      }),
+    )
+  })
+
+  it("omits company research from the prompt when none is stored", async () => {
+    supabaseMock.setQueryResult("applications.select.single", {
+      data: {
+        id: "app-1",
+        user_id: mockUser.id,
+        selected_cv_id: null,
+        structure_id: null,
+        cover_letter_tone: null,
+        custom_description: "Detailed job description",
+        jobs_cache: { title: "Engineer", company: "ACME", description: "fallback" },
+      },
+    })
+    supabaseMock.setQueryResult("profiles.select.single", {
+      data: { preferences: { ai_provider: "openai", ai_model: "gpt-4o-mini" } },
+    })
+    supabaseMock.setQueryResult("user_cvs.select.maybeSingle", { data: { id: "cv-1" } })
+    supabaseMock.setQueryResult("user_cvs.select.single", {
+      data: { parsed_json: { skills: ["TypeScript"] } },
+    })
+    supabaseMock.setQueryResult("cover_letter_structures.select.maybeSingle", {
+      data: { content: "Template content", default_tone: "professional" },
+    })
+    supabaseMock.setQueryResult("interview_prep.select.maybeSingle", { data: null })
+    vi.mocked(resolveAiConfig).mockReturnValue({
+      settings: { provider: "openai", model: "gpt-4o-mini" },
+      apiKey: "api-key",
+    })
+    vi.mocked(generateText).mockResolvedValue("letter")
+
+    await generateCoverLetter("app-1")
+
+    const call = vi.mocked(buildCoverLetterUserPrompt).mock.calls[0]?.[0]
+    expect(call?.companyResearch ?? null).toBeNull()
   })
 
   it("generateCoverLetter returns errors for missing description and AI failures", async () => {
