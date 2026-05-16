@@ -196,7 +196,10 @@ The candidate's master CV contains many skills. The tailored output must include
 - "skills_plan.keep": skills that are directly relevant to the JD — include these in the output.
 - "skills_plan.prioritize": subset of keep — move these to the front because they match JD must-haves exactly.
 - "skills_plan.add_if_present_in_cv": JD skills that appear in the candidate's experience/project/education text but are missing from the skills array; only include if clearly evidenced.
-- "skills_plan.remove": skills with no relevance to this role — OMIT them from the output entirely. Be aggressive: if a skill is not needed for this role, remove it. A focused 12–18 skill list beats an exhaustive 35-skill dump.
+- "skills_plan.remove": skills with no relevance to this role — OMIT them from the output entirely. Be aggressive: if a skill is not needed for this role, remove it. A focused list beats an exhaustive 35-skill dump. Scale the cap to the target seniority:
+  - "entry", "junior": aim for 8–12 skills.
+  - "mid": aim for 10–15 skills.
+  - "senior", "lead": aim for 12–18 skills.
 - "skills_plan.ordering_strategy": brief description of how to order the kept skills (e.g. "languages first, then frameworks, then databases, then tooling").
 
 SUMMARY STRATEGY
@@ -332,12 +335,17 @@ ATS KEYWORD INTEGRATION
     - Weave "target_keywords" from the plan into the bullets using the EXACT phrasing from the job description.
     - Place important keywords near the start of bullets where it reads naturally.
     - Each such entry should contain at least 2 of its target_keywords across its bullets.
-11. If a target_keyword cannot be added without breaking factual accuracy (e.g. a tool the candidate never used), DO NOT add it. Preserve honesty over keyword density.
+11. If a target_keyword cannot be added without breaking factual accuracy (e.g. a tool the candidate never used), DO NOT add it. Preserve honesty over keyword density. INSTEAD, surface the adjacent transferable tool or experience the candidate DOES have, by its actual name. For example, if the JD asks for Kubernetes and the candidate has only used Docker, write "container orchestration with Docker" — never "container orchestration" on its own (which implies Kubernetes), and never name Kubernetes. Never use the JD's must-have phrase without the candidate's actual tool name attached to it.
 
 BULLET WRITING QUALITY
 12. For every entry, ensure:
     - Minimum 2 highlights, maximum 5.
     - Bullets are substantive and specific, not vague one-liners.
+    - Each rewritten bullet should evidence at least 2 of the following four axes:
+      - A measurable result (number, percentage, scale, time saved, revenue, users impacted).
+      - A strategic contribution (a decision or choice the candidate made — not just work they did).
+      - Cross-functional collaboration (worked with another team, function, or stakeholder).
+      - Tools, platforms, or processes used (named explicitly).
 13. Start every bullet with a strong, varied action verb. Avoid repeating the same verb more than twice across the entire CV:
     Led, Built, Reduced, Increased, Architected, Shipped, Drove, Designed, Implemented, Optimised, Delivered, Migrated, Automated, Developed, Established, Streamlined, Orchestrated, Spearheaded, Consolidated, Launched, Engineered, Configured, Integrated, Mentored, Resolved, Scaled, Transformed, Analysed, Collaborated, Deployed.
     Never start with: "Responsible for", "Worked on", "Helped with", "Assisted", "Involved in".
@@ -351,6 +359,7 @@ ORDERING & SUMMARY
     - Move deprioritised entries to the bottom.
 18. Rewrite the summary ONLY if summary_strategy.should_rewrite is true; otherwise, copy it verbatim.
     - When rewriting, weave in the summary_strategy.focus_keywords and focus_themes naturally, using exact JD phrasing where appropriate.
+    - Shape the rewritten summary so it opens with role identity + years of experience (or seniority level if junior), then states the candidate's strongest capability for this role, then closes with commercial impact or specialisation. This is guidance, not a rigid line-count — let the content breathe naturally.
 
 SKILLS
 19. Apply "skills_plan" to produce a focused, role-specific skills list:

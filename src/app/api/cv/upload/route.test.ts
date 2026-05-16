@@ -7,6 +7,7 @@ vi.mock("@/lib/supabase/config", () => ({ isSupabaseConfigured: vi.fn() }))
 vi.mock("pdf-parse", () => ({ default: vi.fn() }))
 vi.mock("mammoth", () => ({ default: { extractRawText: vi.fn() } }))
 vi.mock("@/lib/ai/parse-cv", () => ({ parseCvWithAi: vi.fn() }))
+vi.mock("@/lib/ai/cv-review", () => ({ reviewCv: vi.fn() }))
 vi.mock("@/lib/rate-limit", () => ({
   cvGenerateRateLimit: { limit: vi.fn().mockResolvedValue({ success: true }) },
 }))
@@ -16,6 +17,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config"
 import pdfParse from "pdf-parse"
 import mammoth from "mammoth"
 import { parseCvWithAi } from "@/lib/ai/parse-cv"
+import { reviewCv } from "@/lib/ai/cv-review"
 import { POST } from "./route"
 
 const LONG_TEXT =
@@ -52,6 +54,7 @@ describe("POST /api/cv/upload", () => {
     vi.mocked(pdfParse).mockResolvedValue({ text: LONG_TEXT } as never)
     vi.mocked(mammoth.extractRawText).mockResolvedValue({ value: LONG_TEXT } as never)
     vi.mocked(parseCvWithAi).mockResolvedValue(PARSED_CV as never)
+    vi.mocked(reviewCv).mockResolvedValue([])
     supabaseMock.setQueryResult("profiles.select.single", {
       data: { preferences: { ai_provider: "openai" } },
     })
@@ -232,5 +235,62 @@ describe("POST /api/cv/upload", () => {
       is_primary: true,
       file_path: null,
     })
+  })
+
+  it("persists review_findings in the inserted user_cvs row when review succeeds", async () => {
+    const findings = [
+      {
+        category: "weak_verb",
+        severity: "high",
+        location: { section: "experience", entryId: "Junior Developer at Acme Corp", bulletIndex: 0 },
+        message: "Bullet starts with 'Responsible for'.",
+        suggestion: "Lead with a strong action verb.",
+      },
+    ]
+    vi.mocked(reviewCv).mockResolvedValueOnce(findings as never)
+
+    const insertedPayloads: Array<Record<string, unknown>> = []
+    const fromMock = supabaseMock.client.from as ReturnType<typeof vi.fn>
+    const originalFrom = fromMock.getMockImplementation() as ((table: string) => Record<string, unknown>) | undefined
+    fromMock.mockImplementation((table: string) => {
+      const builder = originalFrom ? (originalFrom(table) as Record<string, unknown>) : {}
+      if (table === "user_cvs" && typeof builder.insert === "function") {
+        const originalInsert = builder.insert as (payload: unknown) => unknown
+        builder.insert = (payload: unknown) => {
+          insertedPayloads.push(payload as Record<string, unknown>)
+          return originalInsert(payload)
+        }
+      }
+      return builder as never
+    })
+
+    const response = await POST(createFormDataRequest({ file: validPdfFile }))
+
+    expect(response.status).toBe(200)
+    expect(insertedPayloads[0]).toMatchObject({ review_findings: findings })
+  })
+
+  it("still succeeds when review fails — inserts the CV without findings", async () => {
+    vi.mocked(reviewCv).mockRejectedValueOnce(new Error("review boom"))
+
+    const insertedPayloads: Array<Record<string, unknown>> = []
+    const fromMock = supabaseMock.client.from as ReturnType<typeof vi.fn>
+    const originalFrom = fromMock.getMockImplementation() as ((table: string) => Record<string, unknown>) | undefined
+    fromMock.mockImplementation((table: string) => {
+      const builder = originalFrom ? (originalFrom(table) as Record<string, unknown>) : {}
+      if (table === "user_cvs" && typeof builder.insert === "function") {
+        const originalInsert = builder.insert as (payload: unknown) => unknown
+        builder.insert = (payload: unknown) => {
+          insertedPayloads.push(payload as Record<string, unknown>)
+          return originalInsert(payload)
+        }
+      }
+      return builder as never
+    })
+
+    const response = await POST(createFormDataRequest({ file: validPdfFile }))
+
+    expect(response.status).toBe(200)
+    expect(insertedPayloads[0]?.review_findings ?? null).toBeNull()
   })
 })

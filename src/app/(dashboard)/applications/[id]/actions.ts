@@ -357,7 +357,7 @@ export async function generateCoverLetter(
         .eq("slug", "professional")
         .maybeSingle()
 
-  const [cvResult, structureResult] = await Promise.all([
+  const [cvResult, structureResult, researchResult] = await Promise.all([
     baseCvId
       ? supabase
           .from("user_cvs")
@@ -366,10 +366,17 @@ export async function generateCoverLetter(
           .single()
       : Promise.resolve({ data: null }),
     structureQuery,
+    supabase
+      .from("interview_prep")
+      .select("research_content")
+      .eq("application_id", applicationId)
+      .maybeSingle(),
   ])
 
   const cvParsed = cvResult.data?.parsed_json as CvData | null
   const structure = structureResult.data as { content?: string; default_tone?: string | null } | null
+  const companyResearch =
+    (researchResult.data as { research_content?: string | null } | null)?.research_content?.trim() || undefined
 
   // Tone: use the override stored on the application, then structure default, then "professional"
   const resolvedTone = (app.cover_letter_tone ?? structure?.default_tone ?? "professional") as
@@ -402,6 +409,7 @@ export async function generateCoverLetter(
     description,
     cvContext,
     templateSnippet,
+    companyResearch,
   })
 
   let content: string

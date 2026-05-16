@@ -60,6 +60,7 @@ export const userCvs = pgTable("user_cvs", {
   userId: uuid("user_id").notNull(),
   originalFilePath: text("original_file_path"),
   parsedJson: jsonb("parsed_json"),
+  reviewFindings: jsonb("review_findings"),
   filePath: text("file_path"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   isPrimary: boolean("is_primary").default(false),

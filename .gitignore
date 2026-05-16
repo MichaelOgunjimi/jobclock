@@ -24,7 +24,7 @@ test-results/
 
 # misc
 .DS_Store
-docs/
+docs/scratch/
 *.pem
 skills-lock.json
 # scripts/ — tracked (contains setup and migration utilities)
@@ -50,3 +50,7 @@ landing-*.yaml
 *.tsbuildinfo
 next-env.d.ts
 .progress/
+
+# drizzle introspection output — reference only; not source of truth
+drizzle/migrations/schema.ts
+drizzle/migrations/relations.ts

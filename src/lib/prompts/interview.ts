@@ -49,3 +49,36 @@ Five strong questions for the candidate to ask.
 
 Keep it grounded in the JD. Label anything inferred as *[inferred]*.`
 }
+
+export function interviewAnswerSystemPrompt(): string {
+  return `You are an expert interview coach drafting a STAR answer for a single interview question. Use ONLY the candidate's provided story as the source of facts — never fabricate or invent details (metrics, dates, technologies, outcomes) that are not in the story. If the story is thin, keep the answer short rather than padding with invented context. Write in first person, in the candidate's natural voice (conversational but professional). Output plain text only — no headings, no markdown.`
+}
+
+export function interviewAnswerPrompt({
+  question,
+  story,
+  jdContext,
+}: {
+  question: string
+  story: string
+  jdContext: string
+}): string {
+  return `Draft a STAR-structured answer to this interview question, using only the candidate's story below.
+
+## Question
+${question}
+
+## Candidate's Story
+${story}
+
+## Job Context
+${jdContext}
+
+## Instructions
+- Structure the answer using the STAR pattern (Situation, Task, Action, Result), but write it naturally — don't label the parts explicitly.
+- Tie the result back to what the role values, drawn from the job context.
+- Keep it under 200 words.
+- Use only facts present in the story. Do not invent metrics, tools, or outcomes.
+
+Return the answer text only.`
+}

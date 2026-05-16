@@ -4,6 +4,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config"
 import pdfParse from "pdf-parse"
 import mammoth from "mammoth"
 import { parseCvWithAi } from "@/lib/ai/parse-cv"
+import { reviewCv } from "@/lib/ai/cv-review"
 import type { UserPreferences } from "@/lib/ai"
 import type { Json } from "@/lib/supabase/database.types"
 import { cvGenerateRateLimit } from "@/lib/rate-limit"
@@ -115,6 +116,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // AI-powered content-level review (non-blocking: parse succeeds even if review fails)
+    let reviewFindings: Awaited<ReturnType<typeof reviewCv>> | null = null
+    try {
+      reviewFindings = await reviewCv(parsedCv, preferences)
+    } catch (reviewError) {
+      console.error("CV review error (non-fatal):", reviewError)
+    }
+
     // Upload original file to Supabase Storage
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
     const fileName = `${user.id}/${Date.now()}-${safeName}`
@@ -148,6 +157,7 @@ export async function POST(request: NextRequest) {
         name: cvName ?? parsedCv.name ?? file.name.replace(/\.[^.]+$/, ""),
         original_file_path: fileName,
         parsed_json: parsedCv as unknown as Json,
+        review_findings: reviewFindings as unknown as Json,
         file_path: null,
         is_primary: isPrimary,
       })

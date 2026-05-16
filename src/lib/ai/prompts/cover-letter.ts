@@ -32,6 +32,12 @@ Follow these rules strictly:
 - End with a short closing paragraph that reinforces fit and expresses genuine interest — it should be confident and forward-looking, not pleading or overenthusiastic.
 - Open with a strong hook that immediately signals why this candidate is relevant to this role. Do not open with "I am writing to apply." Instead, start with a sentence that connects the candidate's strongest relevant evidence directly to what the role requires — for example, leading with their background, a key achievement, or their relevant expertise as it relates to the job.
 
+COMPANY RESEARCH (only when provided):
+- If a ### COMPANY RESEARCH section is present in the user message, you may weave at most one specific reference from it into a single paragraph.
+- That reference must be tied directly to candidate evidence — i.e. it links to something the candidate has actually done or learned, not a standalone fact.
+- Never drop a company fact as a standalone name-drop. "I was excited to read about your Series C" is forbidden.
+- If no company research is provided, draw context only from the job description.
+
 CONTENT REQUIREMENTS:
 - Always mention the candidate's educational or professional background at least once, for example their degree, field, profession, or main background.
 - Always include at least one concrete example of something the candidate has done, delivered, supported, improved, built, coordinated, or achieved, with brief relevant detail where available.
@@ -72,6 +78,7 @@ export function buildCoverLetterUserPrompt(params: {
 	description: string;
 	cvContext: string;
 	templateSnippet?: string;
+	companyResearch?: string;
 }): string {
 	return `\
 ### ROLE
@@ -84,6 +91,13 @@ ${params.description}
 ${params.cvContext}
 
 ${
+	params.companyResearch?.trim() ?
+		`### COMPANY RESEARCH
+${params.companyResearch}
+
+`
+	:	""
+}${
 	params.templateSnippet?.trim() ?
 		`### WRITING STYLE GUIDE
 The following is a structural writing guide — it defines paragraph order, emphasis, and flow.
