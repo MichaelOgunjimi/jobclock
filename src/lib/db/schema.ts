@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core"
+import { sql } from "drizzle-orm"
 
 // ============================================================
 // ENUMS
@@ -202,6 +203,33 @@ export const interviewPrep = pgTable("interview_prep", {
   researchContent: text("research_content"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })
+
+// ============================================================
+// GENERATION JOBS (async generation lifecycle)
+// ============================================================
+
+export const generationJobs = pgTable(
+  "generation_jobs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    applicationId: uuid("application_id").references((): AnyPgColumn => applications.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    status: text("status").notNull().default("queued"),
+    resultRef: uuid("result_ref"),
+    error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
+    params: jsonb("params"),
+    seenAt: timestamp("seen_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("generation_jobs_active_unique")
+      .on(table.applicationId, table.kind)
+      .where(sql`${table.status} in ('queued','running')`),
+  ]
+)
 
 // ============================================================
 // OFFERS
