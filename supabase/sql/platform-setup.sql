@@ -306,3 +306,58 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.generation_jobs;
   END IF;
 END $$;
+
+-- ============================================================
+-- RLS BACKFILL: tables added after the original policy block
+-- (issue #62 — were PostgREST-exposed without RLS)
+-- ============================================================
+
+ALTER TABLE public.personal_api_tokens ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own api tokens" ON public.personal_api_tokens;
+CREATE POLICY "Users can view own api tokens" ON public.personal_api_tokens FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own api tokens" ON public.personal_api_tokens;
+CREATE POLICY "Users can insert own api tokens" ON public.personal_api_tokens FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own api tokens" ON public.personal_api_tokens;
+CREATE POLICY "Users can update own api tokens" ON public.personal_api_tokens FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own api tokens" ON public.personal_api_tokens;
+CREATE POLICY "Users can delete own api tokens" ON public.personal_api_tokens FOR DELETE USING (auth.uid() = user_id);
+
+ALTER TABLE public.story_bank ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own stories" ON public.story_bank;
+CREATE POLICY "Users can view own stories" ON public.story_bank FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own stories" ON public.story_bank;
+CREATE POLICY "Users can insert own stories" ON public.story_bank FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own stories" ON public.story_bank;
+CREATE POLICY "Users can update own stories" ON public.story_bank FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own stories" ON public.story_bank;
+CREATE POLICY "Users can delete own stories" ON public.story_bank FOR DELETE USING (auth.uid() = user_id);
+
+ALTER TABLE public.tracked_companies ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own tracked companies" ON public.tracked_companies;
+CREATE POLICY "Users can view own tracked companies" ON public.tracked_companies FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own tracked companies" ON public.tracked_companies;
+CREATE POLICY "Users can insert own tracked companies" ON public.tracked_companies FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own tracked companies" ON public.tracked_companies;
+CREATE POLICY "Users can update own tracked companies" ON public.tracked_companies FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own tracked companies" ON public.tracked_companies;
+CREATE POLICY "Users can delete own tracked companies" ON public.tracked_companies FOR DELETE USING (auth.uid() = user_id);
+
+ALTER TABLE public.ignored_jobs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own ignored jobs" ON public.ignored_jobs;
+CREATE POLICY "Users can view own ignored jobs" ON public.ignored_jobs FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own ignored jobs" ON public.ignored_jobs;
+CREATE POLICY "Users can insert own ignored jobs" ON public.ignored_jobs FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own ignored jobs" ON public.ignored_jobs;
+CREATE POLICY "Users can delete own ignored jobs" ON public.ignored_jobs FOR DELETE USING (auth.uid() = user_id);
+
+-- cover_letter_structures: built-in rows (user_id IS NULL) are shared and
+-- readable by all; users only write their own rows.
+ALTER TABLE public.cover_letter_structures ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "View built-in or own structures" ON public.cover_letter_structures;
+CREATE POLICY "View built-in or own structures" ON public.cover_letter_structures FOR SELECT USING (is_built_in OR auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own structures" ON public.cover_letter_structures;
+CREATE POLICY "Users can insert own structures" ON public.cover_letter_structures FOR INSERT WITH CHECK (auth.uid() = user_id AND is_built_in = false);
+DROP POLICY IF EXISTS "Users can update own structures" ON public.cover_letter_structures;
+CREATE POLICY "Users can update own structures" ON public.cover_letter_structures FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own structures" ON public.cover_letter_structures;
+CREATE POLICY "Users can delete own structures" ON public.cover_letter_structures FOR DELETE USING (auth.uid() = user_id);
