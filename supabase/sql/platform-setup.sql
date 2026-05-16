@@ -277,3 +277,32 @@ CREATE POLICY "Users can update their own templates" ON storage.objects
 DROP POLICY IF EXISTS "Users can delete their own templates" ON storage.objects;
 CREATE POLICY "Users can delete their own templates" ON storage.objects
   FOR DELETE USING (bucket_id = 'templates' AND auth.uid()::text = (storage.foldername(name))[1]);
+-- ============================================================
+-- GENERATION JOBS (async generation lifecycle + Realtime)
+-- ============================================================
+
+ALTER TABLE public.generation_jobs ENABLE ROW LEVEL SECURITY;
+
+-- The client subscribes to its own jobs via Supabase Realtime; server-side
+-- writes use the direct Postgres connection (Drizzle) which bypasses RLS,
+-- so only a SELECT policy is needed here.
+DROP POLICY IF EXISTS "Users can view own generation jobs" ON public.generation_jobs;
+CREATE POLICY "Users can view own generation jobs" ON public.generation_jobs
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Realtime needs the full old/new row on UPDATE so status transitions are
+-- delivered to the subscribed client.
+ALTER TABLE public.generation_jobs REPLICA IDENTITY FULL;
+
+-- Add the table to the Realtime publication (idempotent: skip if already a member).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'generation_jobs'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.generation_jobs;
+  END IF;
+END $$;
