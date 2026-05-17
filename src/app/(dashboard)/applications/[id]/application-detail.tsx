@@ -596,73 +596,7 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
   )
 }
 
-// ── Generation timeline ──────────────────────────────────────────────────────
-
-type StageStatus = "pending" | "running" | "done" | "error"
-type StageMap = Record<"B" | "C" | "D" | "E", StageStatus>
-
-const TIMELINE_STEPS: { label: string; stages: Array<"B" | "C" | "D" | "E"> }[] = [
-  { label: "Analysing JD", stages: ["B"] },
-  { label: "Matching with CV", stages: ["C"] },
-  { label: "Tailoring", stages: ["D", "E"] },
-  { label: "Done", stages: [] },
-]
-
-function stepStatus(step: typeof TIMELINE_STEPS[number], stages: StageMap, isDone: boolean): StageStatus {
-  if (step.stages.length === 0) return isDone ? "done" : "pending"
-  if (step.stages.some((s) => stages[s] === "error")) return "error"
-  if (step.stages.every((s) => stages[s] === "done")) return "done"
-  if (step.stages.some((s) => stages[s] === "running")) return "running"
-  return "pending"
-}
-
-function GenerationTimeline({ stages, isDone }: { stages: StageMap; isDone: boolean }) {
-  return (
-    <div className="space-y-2 py-1">
-      {TIMELINE_STEPS.map((step) => {
-        const status = stepStatus(step, stages, isDone)
-        return (
-          <div key={step.label} className="flex items-center gap-2.5">
-            <span
-              className={cn(
-                "flex h-4 w-4 shrink-0 items-center justify-center",
-                status === "running" && "text-foreground",
-                status === "done" && "text-foreground",
-                status === "error" && "text-destructive",
-                status === "pending" && "text-muted-foreground/40"
-              )}
-            >
-              {status === "running" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : status === "done" ? (
-                <span className="h-2 w-2 rounded-full bg-foreground" />
-              ) : status === "error" ? (
-                <span className="h-2 w-2 rounded-full bg-destructive" />
-              ) : (
-                <span className="h-2 w-2 rounded-full border border-muted-foreground/30" />
-              )}
-            </span>
-            <span
-              className={cn(
-                "text-[12px] font-medium tracking-wide uppercase",
-                status === "done" && "text-foreground",
-                status === "running" && "text-foreground",
-                status === "error" && "text-destructive",
-                status === "pending" && "text-muted-foreground/40"
-              )}
-            >
-              {step.label}
-            </span>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 // ── CV card ──────────────────────────────────────────────────────────────────
-
-const INITIAL_STAGES: StageMap = { B: "pending", C: "pending", D: "pending", E: "pending" }
 
 function CvCard({
   applicationId,
@@ -677,13 +611,12 @@ function CvCard({
   tailoredCvs: TailoredCvRow[]
   hasDescription: boolean
 }) {
-  const router = useRouter()
   const primaryCv = cvs.find((cv) => cv.is_primary)
   const defaultValue = currentCvId ?? primaryCv?.id ?? ""
   const [savePending, startSaveTransition] = useTransition()
   const [generating, setGenerating] = useState(false)
-  const [stages, setStages] = useState<StageMap>(INITIAL_STAGES)
-  const [isDone, setIsDone] = useState(false)
+  // TODO(module-4): replace with Realtime-driven state + toast
+  const [cvGenPending, setCvGenPending] = useState(false)
   const [genError, setGenError] = useState<string | null>(null)
 
   function handleSaveSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -694,64 +627,20 @@ function CvCard({
 
   async function handleGenerate() {
     setGenError(null)
-    setIsDone(false)
-    setStages(INITIAL_STAGES)
+    setCvGenPending(false)
     setGenerating(true)
-
-    let res: Response
     try {
-      res = await fetch(`/api/applications/${applicationId}/cv/generate`, { method: "POST" })
+      const res = await fetch(`/api/applications/${applicationId}/cv/generate`, { method: "POST" })
+      const data = await res.json() as { jobId?: string; deduped?: boolean; error?: string }
+      if (!res.ok) {
+        setGenError(data.error ?? "Failed to start CV generation.")
+        return
+      }
+      setCvGenPending(true)
     } catch {
       setGenError("Network error. Please try again.")
-      setGenerating(false)
-      return
-    }
-
-    if (!res.ok || !res.body) {
-      const body = await res.json().catch(() => ({}))
-      setGenError((body as { error?: string }).error ?? "Generation failed.")
-      setGenerating(false)
-      return
-    }
-
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ""
-    let finished = false
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split("\n")
-        buffer = lines.pop() ?? ""
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue
-          try {
-            const event = JSON.parse(line.slice(6)) as
-              | { stage: "B" | "C" | "D" | "E"; status: StageStatus; error?: string }
-              | { done: true }
-            if ("done" in event && event.done) {
-              setIsDone(true)
-              setGenerating(false)
-              finished = true
-              router.refresh()
-            } else if ("stage" in event) {
-              setStages((s) => ({ ...s, [event.stage]: event.status }))
-              if (event.status === "error") {
-                setGenError(event.error ?? "Generation failed.")
-                setGenerating(false)
-                finished = true
-              }
-            }
-          } catch {
-            // malformed SSE line — skip
-          }
-        }
-      }
     } finally {
-      if (!finished) setGenerating(false)
+      setGenerating(false)
     }
   }
 
@@ -825,15 +714,17 @@ function CvCard({
             )}
           </div>
 
-          {generating && (
-            <GenerationTimeline stages={stages} isDone={isDone} />
+          {cvGenPending && (
+            <p className="text-[12px] text-muted-foreground">
+              Generating in the background — this can take a minute; reload to see it once it&apos;s ready.
+            </p>
           )}
 
           {genError && (
             <p className="text-[12px] text-destructive">{genError}</p>
           )}
 
-          {!generating && latest && (
+          {!generating && !cvGenPending && latest && (
             <div className="space-y-2">
               {latest.changes && (
                 <p className="text-[12px] text-muted-foreground leading-relaxed">

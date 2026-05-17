@@ -95,4 +95,18 @@ describe("cvTailorHandler", () => {
 
     await expect(cvTailorHandler(JOB)).rejects.toThrow("Stage B validation failed")
   })
+
+  it("throws when context loader reports no CV so dispatcher marks job failed", async () => {
+    vi.mocked(loadCvTailorContext).mockRejectedValueOnce(new Error("No CV found. Upload a CV first."))
+
+    await expect(cvTailorHandler(JOB)).rejects.toThrow("No CV found. Upload a CV first.")
+  })
+
+  it("throws when resolveAiConfig has no API key so dispatcher marks job failed", async () => {
+    vi.mocked(resolveAiConfig).mockImplementationOnce(() => {
+      throw new Error("No API key configured.")
+    })
+
+    await expect(cvTailorHandler(JOB)).rejects.toThrow("No API key configured.")
+  })
 })
