@@ -1,3 +1,4 @@
+import "@/lib/generation/register"
 import { verifyCronRequest } from "@/lib/cron/verify-cron-request"
 import { runJob } from "@/lib/generation/dispatch"
 

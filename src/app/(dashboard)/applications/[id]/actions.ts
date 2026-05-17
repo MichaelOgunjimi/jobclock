@@ -4,18 +4,11 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
-import { resolveAiConfig, generateText } from "@/lib/ai"
-import { aiGenerateRateLimit } from "@/lib/rate-limit"
 import { and, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { applications } from "@/lib/db/schema"
-import type { ApplicationStatus, AppWithJob, CvData } from "@/lib/supabase/database.types"
-import type { AiSettings, UserPreferences } from "@/lib/ai"
-import { normalizeCoverLetterText } from "@/lib/cover-letter/normalize"
-import {
-  buildCoverLetterSystemPrompt,
-  buildCoverLetterUserPrompt,
-} from "@/lib/ai/prompts"
+import type { ApplicationStatus } from "@/lib/supabase/database.types"
+import { enqueueGeneration } from "@/lib/generation/enqueue"
 
 const VALID_STATUSES = new Set<ApplicationStatus>([
   "saved",
@@ -216,20 +209,11 @@ export async function updateDescription(
   return { success: true }
 }
 
-// ── AI helpers ────────────────────────────────────────────────────────────────
+// ── AI: Generate cover letter ─────────────────────────────────────────────────
 
-async function resolveApplicationContext(
+export async function generateCoverLetter(
   applicationId: string
-): Promise<
-  | { error: string }
-  | {
-      supabase: Awaited<ReturnType<typeof createClient>>
-      user: { id: string }
-      app: AppWithJob
-      profileData: { preferences?: unknown } | null
-      description: string
-    }
-> {
+): Promise<{ error?: string }> {
   if (!isSupabaseConfigured()) return { error: "Supabase not configured." }
 
   const supabase = await createClient()
@@ -238,210 +222,9 @@ async function resolveApplicationContext(
   } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated." }
 
-  const [{ data: appData }, { data: profileData }] = await Promise.all([
-    supabase
-      .from("applications")
-      .select("*, jobs_cache (*)")
-      .eq("id", applicationId)
-      .eq("user_id", user.id)
-      .single(),
-    supabase
-      .from("profiles")
-      .select("preferences")
-      .eq("id", user.id)
-      .single(),
-  ])
-
-  if (!appData) return { error: "Application not found." }
-  const app = appData as unknown as AppWithJob
-
-  const description = app.custom_description ?? app.jobs_cache?.description
-  if (!description?.trim()) {
-    return { error: "No job description found. Add one first." }
-  }
-
-  return { supabase, user: { id: user.id }, app, profileData, description }
-}
-
-
-function buildCvContext(cv: CvData | null): string {
-  if (!cv) return ""
-  const parts: string[] = []
-
-  if (cv.skills?.length) {
-    parts.push(`Skills: ${cv.skills.join(", ")}`)
-  }
-
-  if (cv.experience?.length) {
-    const expLines = cv.experience.map((e) => {
-      let line = `- ${e.title} at ${e.company}`
-      if (e.start_date || e.end_date) {
-        line += ` (${[e.start_date, e.end_date ?? "Present"].filter(Boolean).join(" – ")})`
-      }
-      if (e.highlights?.length) line += `\n  Key achievements: ${e.highlights.join("; ")}`
-      return line
-    })
-    parts.push(`Experience:\n${expLines.join("\n")}`)
-  }
-
-  if (cv.education?.length) {
-    const eduLines = cv.education.map((e) => {
-      let line = `- ${e.degree}${e.field ? ` in ${e.field}` : ""} — ${e.institution}`
-      if (e.gpa) line += ` (GPA: ${e.gpa})`
-      if (e.honors) line += ` (${e.honors})`
-      return line
-    })
-    parts.push(`Education:\n${eduLines.join("\n")}`)
-  }
-
-  if (cv.projects?.length) {
-    const projLines = cv.projects.map((p) => {
-      let line = `- ${p.name}: ${p.description}`
-      if (p.highlights?.length) line += ` — ${p.highlights.join("; ")}`
-      return line
-    })
-    parts.push(`Projects:\n${projLines.join("\n")}`)
-  }
-
-  if (cv.certifications?.length) {
-    parts.push(`Certifications: ${cv.certifications.join(", ")}`)
-  }
-
-  if (cv.languages?.length) {
-    parts.push(`Languages: ${cv.languages.join(", ")}`)
-  }
-
-  return parts.join("\n\n")
-}
-
-// ── AI: Generate cover letter ─────────────────────────────────────────────────
-
-export async function generateCoverLetter(
-  applicationId: string
-): Promise<{ error?: string; success?: boolean }> {
-  const context = await resolveApplicationContext(applicationId)
-  if ("error" in context) return { error: context.error }
-  const { supabase, user, app, profileData, description } = context
-
-  const { success: withinLimit } = await aiGenerateRateLimit.limit(user.id)
-  if (!withinLimit) {
-    return { error: "Rate limit reached. Please wait a moment before trying again." }
-  }
-
-  const job = app.jobs_cache
-
-  // Resolve base CV and writing style in parallel
-  let baseCvId: string | null = app.selected_cv_id ?? null
-  if (!baseCvId) {
-    const { data: primaryCv } = await supabase
-      .from("user_cvs")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("is_primary", true)
-      .maybeSingle()
-    baseCvId = primaryCv?.id ?? null
-  }
-
-  // Resolve writing style: use the one linked to the application, or fall back to the Professional built-in
-  const structureId = app.structure_id ?? null
-  const structureQuery = structureId
-    ? supabase
-        .from("cover_letter_structures")
-        .select("content, default_tone")
-        .eq("id", structureId)
-        .maybeSingle()
-    : supabase
-        .from("cover_letter_structures")
-        .select("content, default_tone")
-        .eq("is_built_in", true)
-        .eq("slug", "professional")
-        .maybeSingle()
-
-  const [cvResult, structureResult, researchResult] = await Promise.all([
-    baseCvId
-      ? supabase
-          .from("user_cvs")
-          .select("parsed_json")
-          .eq("id", baseCvId)
-          .single()
-      : Promise.resolve({ data: null }),
-    structureQuery,
-    supabase
-      .from("interview_prep")
-      .select("research_content")
-      .eq("application_id", applicationId)
-      .maybeSingle(),
-  ])
-
-  const cvParsed = cvResult.data?.parsed_json as CvData | null
-  const structure = structureResult.data as { content?: string; default_tone?: string | null } | null
-  const companyResearch =
-    (researchResult.data as { research_content?: string | null } | null)?.research_content?.trim() || undefined
-
-  // Tone: use the override stored on the application, then structure default, then "professional"
-  const resolvedTone = (app.cover_letter_tone ?? structure?.default_tone ?? "professional") as
-    | "professional"
-    | "enthusiastic"
-    | "conservative"
-    | "story"
-
-  // Resolve AI settings and API key
-  const preferences = (profileData?.preferences ?? {}) as UserPreferences
-  let settings: AiSettings
-  let apiKey: string
-  try {
-    const resolved = resolveAiConfig(preferences)
-    settings = resolved.settings
-    apiKey = resolved.apiKey
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "No API key configured." }
-  }
-
-  const toneInstruction = `Write in a ${resolvedTone} tone.`
-  const systemPrompt = buildCoverLetterSystemPrompt(toneInstruction)
-
-  const cvContext = buildCvContext(cvParsed)
-  const templateSnippet = structure?.content ?? ""
-
-  const userPrompt = buildCoverLetterUserPrompt({
-    title: job?.title ?? "the role",
-    company: job?.company ?? "the company",
-    description,
-    cvContext,
-    templateSnippet,
-    companyResearch,
-  })
-
-  let content: string
-  try {
-    content = await generateText(settings, apiKey, systemPrompt, userPrompt)
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "AI generation failed." }
-  }
-
-  // Insert new generated cover letter, returning ID directly to avoid race conditions
-  const { data: newLetter, error: insertError } = await supabase.from("cover_letters").insert({
-    user_id: user.id,
-    application_id: applicationId,
-    label: `AI — ${job?.title ?? "Application"} at ${job?.company ?? "Company"}`,
-    content: normalizeCoverLetterText(content),
-    tone: resolvedTone,
-  }).select("id").single()
-
-  if (insertError) return { error: insertError.message }
-
-  // Delete old generated cover letters only after successful insert
-  if (newLetter?.id) {
-    await supabase
-      .from("cover_letters")
-      .delete()
-      .eq("application_id", applicationId)
-      .eq("user_id", user.id)
-      .neq("id", newLetter.id)
-  }
-
-  revalidatePath(`/applications/${applicationId}`)
-  return { success: true }
+  const result = await enqueueGeneration({ kind: "cover_letter", userId: user.id, applicationId })
+  if ("error" in result) return { error: result.error }
+  return {}
 }
 
 export async function updateFollowUp(applicationId: string, data: {
