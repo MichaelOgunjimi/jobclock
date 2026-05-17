@@ -23,8 +23,9 @@ import type { JobAnalysis, CvMatchAnalysis, CvTailoringPlan, StoredSkillsGap } f
 import type { Json } from "@/lib/supabase/database.types"
 import type { GenerationJob } from "../jobs"
 import { loadCvTailorContext } from "./cv-tailor-context"
+import type { ZodType } from "zod/v4"
 
-function parseStage<T>(raw: string, schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: { issues: { path: (string | number)[]; message: string }[] } } }, stageName: string): T {
+function parseStage<T>(raw: string, schema: ZodType<T>, stageName: string): T {
   const extracted = extractJson(raw)
   const result = schema.safeParse(extracted)
   if (!result.success) {

@@ -49,7 +49,7 @@ describe("loadInterviewAnswerContext", () => {
   })
 
   it("throws when params are missing", async () => {
-    const jobNoParams = { ...JOB, params: null }
+    const jobNoParams = { ...(JOB as object), params: null }
     await expect(loadInterviewAnswerContext(jobNoParams as never)).rejects.toThrow("missing params")
   })
 
