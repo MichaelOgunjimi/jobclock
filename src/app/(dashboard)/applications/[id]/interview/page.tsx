@@ -159,6 +159,8 @@ export default function InterviewPrepPage() {
   const [loadingResearch, setLoadingResearch] = useState(false)
   const [prepError, setPrepError] = useState<string | null>(null)
   const [researchError, setResearchError] = useState<string | null>(null)
+  // TODO(module-4): replace with Realtime-driven state + toast
+  const [researchPending, setResearchPending] = useState(false)
   const [storyCount, setStoryCount] = useState<number | null>(null)
 
   useEffect(() => {
@@ -202,11 +204,12 @@ export default function InterviewPrepPage() {
   async function generateResearch() {
     setLoadingResearch(true)
     setResearchError(null)
+    setResearchPending(false)
     try {
       const res = await fetch(`/api/applications/${applicationId}/company-research`, { method: "POST" })
-      const data = await res.json() as { content?: string; error?: string }
-      if (!res.ok) throw new Error(data.error ?? "Failed to run company research")
-      setResearchContent(data.content ?? null)
+      const data = await res.json() as { jobId?: string; deduped?: boolean; error?: string }
+      if (!res.ok) throw new Error(data.error ?? "Failed to start company research")
+      setResearchPending(true)
     } catch (err) {
       setResearchError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
@@ -313,13 +316,19 @@ export default function InterviewPrepPage() {
             </div>
           )}
 
+          {researchPending && (
+            <div className="border border-border bg-secondary px-4 py-3 text-sm text-muted-foreground">
+              Generating in the background — this can take a minute; reload to see it once it&apos;s ready.
+            </div>
+          )}
+
           {researchContent && (
             <div className="border bg-card p-6">
               <MarkdownContent content={researchContent} />
             </div>
           )}
 
-          {!researchContent && !loadingResearch && !researchError && (
+          {!researchContent && !loadingResearch && !researchError && !researchPending && (
             <div className="border bg-secondary px-6 py-14 text-center text-muted-foreground">
               <Building2 className="mx-auto mb-4 h-10 w-10 opacity-30" />
               <p className="font-medium text-foreground">No research yet</p>
