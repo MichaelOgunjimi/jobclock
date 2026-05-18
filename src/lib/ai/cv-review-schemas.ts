@@ -40,4 +40,25 @@ export const reviewFindingsResponseSchema = z.object({
 
 export type CvReviewFinding = z.infer<typeof reviewFindingSchema>
 export type CvReviewFindingCategory = z.infer<typeof reviewFindingCategory>
+
+/**
+ * Tolerantly parse a persisted `user_cvs.review_findings` value. The column is
+ * untyped jsonb written by the review handler, so accept null, a bare array,
+ * or a `{ findings: [...] }` wrapper, and silently drop entries that no longer
+ * match the current finding schema.
+ */
+export function parseReviewFindings(raw: unknown): CvReviewFinding[] {
+  if (raw == null) return []
+  const list = Array.isArray(raw)
+    ? raw
+    : typeof raw === "object" && Array.isArray((raw as { findings?: unknown }).findings)
+      ? (raw as { findings: unknown[] }).findings
+      : []
+  const out: CvReviewFinding[] = []
+  for (const entry of list) {
+    const parsed = reviewFindingSchema.safeParse(entry)
+    if (parsed.success) out.push(parsed.data)
+  }
+  return out
+}
 export type CvReviewFindingSeverity = z.infer<typeof reviewFindingSeverity>
