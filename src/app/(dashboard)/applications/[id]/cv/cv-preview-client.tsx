@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, ChevronDown, Download, Info, PenLine, Printer, Save } from "lucide-react"
+import { ArrowLeft, ChevronDown, Download, FileText, Info, PenLine, Printer, Save } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
@@ -31,6 +31,7 @@ interface Props {
   skillsGap: unknown
   jobTitle: string | null
   jobCompany: string | null
+  hasCoverLetter: boolean
 }
 
 function parseSkillsGap(raw: unknown): { gap: string[]; changes: string | null; matched: string[] } {
@@ -201,6 +202,7 @@ export function CvPreviewClient({
   skillsGap: rawSkillsGap,
   jobTitle,
   jobCompany,
+  hasCoverLetter,
 }: Props) {
   const [data, setData] = useState<NormalizedCvData>(() => normalizeCvData(cvData))
   const [template, setTemplate] = useState<CvTemplateName>(initialTemplate)
@@ -271,13 +273,24 @@ export function CvPreviewClient({
     <div className="cv-workspace flex min-h-[calc(100vh-4rem)] flex-col bg-background lg:h-[calc(100vh-73px)]">
       <div className="border-b px-4 py-3 sm:px-6 lg:px-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href={`/applications/${applicationId}`}
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/applications/${applicationId}`}
+              className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back
+            </Link>
+            {hasCoverLetter && (
+              <Link
+                href={`/applications/${applicationId}/cover-letter`}
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                View cover letter
+              </Link>
+            )}
+          </div>
           <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             <span>{hasUnsavedChanges ? "Unsaved changes" : "Saved"}</span>
             <span className="hidden sm:inline">Tailored CV Workspace</span>
