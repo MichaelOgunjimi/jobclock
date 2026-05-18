@@ -21,7 +21,12 @@ export default async function CvPreviewPage({
   } = await supabase.auth.getUser()
   if (!user) redirect("/auth")
 
-  const [{ data: cvData }, { data: profile }, { data: application }] = await Promise.all([
+  const [
+    { data: cvData },
+    { data: profile },
+    { data: application },
+    { data: coverLetterExists },
+  ] = await Promise.all([
     supabase
       .from("customized_cvs")
       .select("id, cv_json, ats_score, created_at, skills_gap")
@@ -40,6 +45,13 @@ export default async function CvPreviewPage({
       .select("*, jobs_cache (*)")
       .eq("id", id)
       .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("cover_letters")
+      .select("id")
+      .eq("application_id", id)
+      .eq("user_id", user.id)
+      .limit(1)
       .maybeSingle(),
   ])
 
@@ -60,6 +72,7 @@ export default async function CvPreviewPage({
       skillsGap={cvData.skills_gap}
       jobTitle={job?.title ?? null}
       jobCompany={job?.company ?? null}
+      hasCoverLetter={Boolean(coverLetterExists)}
     />
   )
 }

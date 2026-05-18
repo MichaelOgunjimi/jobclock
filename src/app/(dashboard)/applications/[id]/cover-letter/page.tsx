@@ -22,7 +22,7 @@ export default async function CoverLetterPreviewPage({
   if (!user) redirect("/auth")
 
   // Fetch application (with job data), generated cover letter, user CV, and profile
-  const [{ data: app }, { data: profile }] = await Promise.all([
+  const [{ data: app }, { data: profile }, { data: cvExists }] = await Promise.all([
     supabase
       .from("applications")
       .select("*, jobs_cache(*)")
@@ -34,6 +34,13 @@ export default async function CoverLetterPreviewPage({
       .select("preferences")
       .eq("id", user.id)
       .single(),
+    supabase
+      .from("customized_cvs")
+      .select("id")
+      .eq("application_id", id)
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle(),
   ])
 
   if (!app) notFound()
@@ -95,6 +102,7 @@ export default async function CoverLetterPreviewPage({
       jobTitle={job?.title ?? null}
       jobCompany={job?.company ?? null}
       initialTemplate={initialTemplate}
+      hasCv={Boolean(cvExists)}
     />
   )
 }
