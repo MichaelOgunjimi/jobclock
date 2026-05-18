@@ -86,8 +86,9 @@ export function useGenerationJobs(userId: string) {
         },
         (payload) => {
           if (!mounted) return
-          const job = (payload.new ?? payload.old) as GenerationJobRow | undefined
-          if (job) handleUpdate(job)
+          const isDelete = payload.eventType === "DELETE"
+          const job = (isDelete ? payload.old : payload.new) as GenerationJobRow | undefined
+          if (job?.id) handleUpdate(job)
         }
       )
       .subscribe()
