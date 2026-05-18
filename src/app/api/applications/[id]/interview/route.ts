@@ -41,8 +41,9 @@ export async function GET(
   if (!appCheck) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
   const [prep] = await db.select().from(interviewPrep).where(eq(interviewPrep.applicationId, applicationId)).limit(1)
-  if (!prep) return NextResponse.json({ content: null, research: null, storyCount: null })
-  const saved = prep.suggestedAnswers as { raw?: string; storyCount?: number } | null
+  if (!prep) return NextResponse.json({ content: null, research: null, storyCount: null, questions: [], answers: {} })
+  const saved = prep.suggestedAnswers as { raw?: string; storyCount?: number; answers?: Record<string, string> } | null
   const raw = saved?.raw ?? null
-  return NextResponse.json({ content: raw, research: prep.researchContent ?? null, questions: prep.questions ?? [], storyCount: saved?.storyCount ?? null })
+  const answers = (saved?.answers as Record<string, string> | undefined) ?? {}
+  return NextResponse.json({ content: raw, research: prep.researchContent ?? null, questions: prep.questions ?? [], storyCount: saved?.storyCount ?? null, answers })
 }
