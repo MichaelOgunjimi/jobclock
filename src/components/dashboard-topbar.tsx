@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { useGenerationJobsContext } from "@/contexts/generation-jobs-context"
 import { markJobsSeen } from "@/app/(dashboard)/generation-actions"
+import { formatRelativeTime } from "@/lib/relative-time"
 import type { GenerationKind } from "@/lib/generation/jobs"
 
 function kindLabel(kind: GenerationKind): string {
@@ -36,7 +37,8 @@ function jobHref(kind: GenerationKind, applicationId: string | null): string {
 }
 
 function NotificationsDropdown() {
-  const { unseenJobs, unseenCount } = useGenerationJobsContext()
+  const { recentJobs, unseenJobs, unseenCount, getApplicationLabel } =
+    useGenerationJobsContext()
   const [open, setOpen] = useState(false)
   const [, startTransition] = useTransition()
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -85,34 +87,45 @@ function NotificationsDropdown() {
               Generations
             </p>
           </div>
-          {unseenJobs.length === 0 ? (
+          {recentJobs.length === 0 ? (
             <div className="px-4 py-6 text-center text-[13px] text-muted-foreground">
-              No new notifications
+              No notifications yet
             </div>
           ) : (
             <div className="max-h-72 overflow-y-auto py-1">
-              {unseenJobs.map((job) => (
-                <Link
-                  key={job.id}
-                  href={jobHref(job.kind, job.application_id)}
-                  onClick={() => setOpen(false)}
-                  className="flex items-start gap-3 px-4 py-3 text-[13px] transition-colors hover:bg-muted"
-                >
-                  <span
-                    className={
-                      job.status === "done"
-                        ? "mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground"
-                        : "mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-destructive"
-                    }
-                  />
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground">{kindLabel(job.kind)}</p>
-                    <p className="mt-0.5 text-muted-foreground">
-                      {job.status === "done" ? "Ready — reload to see result" : job.error ?? "Failed"}
-                    </p>
-                  </div>
-                </Link>
-              ))}
+              {recentJobs.map((job) => {
+                const label = getApplicationLabel(job.application_id)
+                const title = label
+                  ? `${kindLabel(job.kind)} · ${label.role} at ${label.company}`
+                  : kindLabel(job.kind)
+                return (
+                  <Link
+                    key={job.id}
+                    href={jobHref(job.kind, job.application_id)}
+                    onClick={() => setOpen(false)}
+                    className="flex items-start gap-3 px-4 py-3 text-[13px] transition-colors hover:bg-muted"
+                  >
+                    <span
+                      className={
+                        job.status === "done"
+                          ? "mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground"
+                          : "mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-destructive"
+                      }
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-foreground">{title}</p>
+                      <p className="mt-0.5 flex items-center justify-between gap-2 text-muted-foreground">
+                        <span className="min-w-0 truncate">
+                          {job.status === "done" ? "Ready" : job.error ?? "Failed"}
+                        </span>
+                        <span className="shrink-0 text-[11px] tabular-nums">
+                          {formatRelativeTime(job.updated_at)}
+                        </span>
+                      </p>
+                    </div>
+                  </Link>
+                )
+              })}
             </div>
           )}
         </div>
