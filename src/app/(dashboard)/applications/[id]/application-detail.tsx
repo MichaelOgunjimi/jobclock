@@ -810,6 +810,8 @@ function CoverLetterCard({
   const [savePending, startSaveTransition] = useTransition()
   const [genPending, startGenTransition] = useTransition()
   const [genError, setGenError] = useState<string | null>(null)
+  // TODO(module-4): replace with Realtime-driven state + toast
+  const [clGenPending, setClGenPending] = useState(false)
   const [copied, setCopied] = useState(false)
 
   const filenameBase = buildCoverLetterFilenameBase({ fullName: null, company: jobCompany, role: jobTitle })
@@ -844,9 +846,14 @@ function CoverLetterCard({
 
   function handleGenerate() {
     setGenError(null)
+    setClGenPending(false)
     startGenTransition(async () => {
       const result = await generateCoverLetter(applicationId)
-      if (result?.error) setGenError(result.error)
+      if (result?.error) {
+        setGenError(result.error)
+        return
+      }
+      setClGenPending(true)
     })
   }
 
@@ -957,6 +964,12 @@ function CoverLetterCard({
               </span>
             )}
           </div>
+
+          {clGenPending && (
+            <p className="text-[12px] text-muted-foreground">
+              Generating in the background — this can take a minute; reload to see it once it&apos;s ready.
+            </p>
+          )}
 
           {genError && (
             <p className="text-[12px] text-destructive">{genError}</p>
