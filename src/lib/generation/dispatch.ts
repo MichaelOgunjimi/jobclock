@@ -3,6 +3,10 @@ import { generationJobs } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { markRunning, markDone, markFailed, type GenerationJob } from "./jobs"
 import { getHandler } from "./handlers"
+// Side-effect: register all handlers. dispatch is the chokepoint both the
+// QStash callback route and the inline (no-QSTASH_TOKEN) path go through, so
+// registering here guarantees handlers exist regardless of entry point.
+import "./register"
 
 /**
  * Executes one generation job end-to-end. Used both by the QStash callback
