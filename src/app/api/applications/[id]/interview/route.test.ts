@@ -11,10 +11,13 @@ import { mockUser } from "@/test/supabase-mock"
 import { POST } from "./route"
 
 function createRequest(): NextRequest {
-  return new NextRequest("http://localhost/api/applications/app-1/cv/generate", { method: "POST" })
+  return new NextRequest(
+    "http://localhost/api/applications/app-1/interview",
+    { method: "POST" },
+  )
 }
 
-describe("POST /api/applications/[id]/cv/generate", () => {
+describe("POST /api/applications/[id]/interview", () => {
   let supabaseMock: ReturnType<typeof createMockSupabaseClient>
 
   beforeEach(() => {
@@ -34,12 +37,12 @@ describe("POST /api/applications/[id]/cv/generate", () => {
     expect(body).toEqual({ error: "Unauthorized" })
   })
 
-  it("enqueues cv_tailor job and returns 202 with jobId", async () => {
+  it("enqueues interview_prep job and returns 202 with jobId", async () => {
     const res = await POST(createRequest(), { params: Promise.resolve({ id: "app-1" }) })
     const body = await res.json()
 
     expect(enqueueGeneration).toHaveBeenCalledWith({
-      kind: "cv_tailor",
+      kind: "interview_prep",
       userId: mockUser.id,
       applicationId: "app-1",
     })

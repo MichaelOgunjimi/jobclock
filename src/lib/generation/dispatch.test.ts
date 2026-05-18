@@ -9,7 +9,10 @@ vi.mock("./jobs", () => ({
   markDone: vi.fn(),
   markFailed: vi.fn(),
 }))
-vi.mock("./handlers", () => ({ getHandler: vi.fn() }))
+vi.mock("./handlers", () => ({ getHandler: vi.fn(), registerHandler: vi.fn() }))
+// dispatch imports ./register for its side effect; stub it so this suite tests
+// runJob in isolation (registration has its own test in dispatch-registration).
+vi.mock("./register", () => ({}))
 
 import { markRunning, markDone, markFailed } from "./jobs"
 import { getHandler } from "./handlers"
