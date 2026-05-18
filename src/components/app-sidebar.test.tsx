@@ -31,20 +31,9 @@ describe("AppSidebar hydration", () => {
   it("hydrates without mismatch when persisted state is collapsed", async () => {
     localStorage.setItem("sidebar-collapsed", "true")
 
-    const originalWindow = globalThis.window
-    const originalLocalStorage = globalThis.localStorage
-
-    // @ts-expect-error test-only
-    globalThis.window = undefined
-    // @ts-expect-error test-only
-    globalThis.localStorage = undefined
-
     const serverHtml = renderToString(
       <AppSidebar isMobileOpen={false} onMobileOpenChange={() => {}} />
     )
-
-    globalThis.window = originalWindow
-    globalThis.localStorage = originalLocalStorage
 
     const container = document.createElement("div")
     container.innerHTML = serverHtml

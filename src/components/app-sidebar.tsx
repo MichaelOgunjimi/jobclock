@@ -1,6 +1,6 @@
 "use client"
 
-import { startTransition, useEffect, useState } from "react"
+import { useSyncExternalStore, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -32,6 +32,9 @@ const navItems = [
   { href: "/profile", label: "My CV", icon: FileText },
 ]
 
+const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed"
+const SIDEBAR_COLLAPSED_EVENT = "sidebar-collapsed-change"
+
 export function AppSidebar({
   isMobileOpen,
   onMobileOpenChange,
@@ -42,22 +45,25 @@ export function AppSidebar({
   const pathname = usePathname()
   const supabase = isSupabaseConfigured() ? createClient() : null
   const isPreviewPage = pathname.endsWith("/cv") || pathname.endsWith("/cover-letter")
-  const [userCollapsed, setUserCollapsed] = useState(false)
+  const userCollapsed = useSyncExternalStore(
+    (onStoreChange) => {
+      window.addEventListener("storage", onStoreChange)
+      window.addEventListener(SIDEBAR_COLLAPSED_EVENT, onStoreChange)
+      return () => {
+        window.removeEventListener("storage", onStoreChange)
+        window.removeEventListener(SIDEBAR_COLLAPSED_EVENT, onStoreChange)
+      }
+    },
+    () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true",
+    () => false
+  )
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
   const isCollapsed = isPreviewPage || userCollapsed
 
-  useEffect(() => {
-    startTransition(() => {
-      setUserCollapsed(localStorage.getItem("sidebar-collapsed") === "true")
-    })
-  }, [])
-
   function toggleCollapsed() {
-    setUserCollapsed((prev) => {
-      const next = !prev
-      localStorage.setItem("sidebar-collapsed", String(next))
-      return next
-    })
+    const next = !userCollapsed
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next))
+    window.dispatchEvent(new Event(SIDEBAR_COLLAPSED_EVENT))
   }
 
   async function confirmSignOut() {
