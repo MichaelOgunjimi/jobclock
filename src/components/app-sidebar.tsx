@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -42,12 +42,14 @@ export function AppSidebar({
   const pathname = usePathname()
   const supabase = isSupabaseConfigured() ? createClient() : null
   const isPreviewPage = pathname.endsWith("/cv") || pathname.endsWith("/cover-letter")
-  const [userCollapsed, setUserCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false
-    return localStorage.getItem("sidebar-collapsed") === "true"
-  })
+  const [userCollapsed, setUserCollapsed] = useState(false)
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
   const isCollapsed = isPreviewPage || userCollapsed
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setUserCollapsed(localStorage.getItem("sidebar-collapsed") === "true")
+  }, [])
 
   function toggleCollapsed() {
     setUserCollapsed((prev) => {
