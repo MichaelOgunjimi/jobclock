@@ -21,13 +21,19 @@ function GrillMe({
   questions: string[]
   suggestedAnswers: Record<string, string>
 }) {
+  const { getActiveJob } = useGenerationJobsContext()
   const [currentIdx, setCurrentIdx] = useState(0)
   const [answer, setAnswer] = useState("")
   const [feedback, setFeedback] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [answerPending, setAnswerPending] = useState(false)
   const [answerError, setAnswerError] = useState<string | null>(null)
+
+  // Any in-flight interview_answer job for this application blocks all suggestion
+  // buttons — the dedup key is (application_id, kind) so concurrent requests for
+  // different questions would silently collapse into the first job (issue #71).
+  const activeAnswerJob = getActiveJob(applicationId, "interview_answer")
+  const answerPending = !!activeAnswerJob
 
   const question = questions[currentIdx] ?? null
   const suggestedAnswer = question ? (suggestedAnswers[question] ?? null) : null
@@ -37,7 +43,6 @@ function GrillMe({
     setAnswer("")
     setFeedback(null)
     setError(null)
-    setAnswerPending(false)
     setAnswerError(null)
   }
 
@@ -46,7 +51,6 @@ function GrillMe({
     setAnswer("")
     setFeedback(null)
     setError(null)
-    setAnswerPending(false)
     setAnswerError(null)
   }
 
@@ -73,7 +77,6 @@ function GrillMe({
 
   async function handleGetSuggestion() {
     if (!question) return
-    setAnswerPending(true)
     setAnswerError(null)
     try {
       const res = await fetch(`/api/applications/${applicationId}/interview/answer`, {
@@ -84,12 +87,10 @@ function GrillMe({
       const data = await res.json() as { jobId?: string; error?: string }
       if (!res.ok) {
         setAnswerError(data.error ?? "Failed to start answer generation")
-        setAnswerPending(false)
       }
-      // pending stays true until Realtime notifies done and parent reloads
+      // answerPending derives from context — clears automatically when job completes
     } catch (err) {
       setAnswerError(err instanceof Error ? err.message : "Something went wrong")
-      setAnswerPending(false)
     }
   }
 
