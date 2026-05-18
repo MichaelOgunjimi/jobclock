@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Star } from "lucide-react"
 import type { CvData } from "@/lib/supabase/database.types"
 import { normalizeCvData } from "@/lib/cv-data"
+import { parseReviewFindings } from "@/lib/ai/cv-review-schemas"
+import { CvReviewFindings } from "@/components/cv/cv-review-findings"
 import { CvEditor } from "./cv-editor"
 import { setPrimaryCV as setPrimaryCVAction } from "../actions"
 
@@ -37,6 +39,11 @@ export default async function CvDetailPage({
   if (!cv) notFound()
 
   const cvData = normalizeCvData(cv.parsed_json as CvData | null)
+  // review_findings exists in the DB/Drizzle schema but is absent from the
+  // stale Supabase-generated Row type; read it through a narrow cast.
+  const findings = parseReviewFindings(
+    (cv as { review_findings?: unknown }).review_findings,
+  )
 
   return (
     <div className="page-shell max-w-4xl">
@@ -48,6 +55,11 @@ export default async function CvDetailPage({
               <Badge variant="secondary" className="text-[10px]">
                 <Star className="h-2.5 w-2.5 mr-1" />
                 Primary
+              </Badge>
+            )}
+            {findings.length > 0 && (
+              <Badge variant="destructive" className="text-[10px]">
+                {findings.length} {findings.length === 1 ? "issue" : "issues"}
               </Badge>
             )}
           </div>
@@ -62,6 +74,13 @@ export default async function CvDetailPage({
           </form>
         )}
       </div>
+
+      <section className="mb-8 space-y-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          Content review
+        </h2>
+        <CvReviewFindings findings={findings} />
+      </section>
 
       <CvEditor
         cvId={cv.id}
