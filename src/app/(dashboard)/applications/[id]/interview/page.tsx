@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { useParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, BookOpen, Building2, ChevronLeft, ChevronRight, Loader2, RefreshCw, AlertTriangle, Sparkles, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -206,7 +206,6 @@ function GrillMe({
 export default function InterviewPrepPage() {
   const params = useParams()
   const applicationId = params.id as string
-  const router = useRouter()
   const { getActiveJob } = useGenerationJobsContext()
 
   const [tab, setTab] = useState<Tab>("prep")
@@ -227,54 +226,55 @@ export default function InterviewPrepPage() {
   const prevResearchJobIdRef = useRef<string | undefined>(undefined)
   const prevAnswerJobIdRef = useRef<string | undefined>(undefined)
 
+  const loadSaved = useCallback(async () => {
+    setLoadingPrep(true)
+    try {
+      const [prepRes, researchRes] = await Promise.all([
+        fetch(`/api/applications/${applicationId}/interview`),
+        fetch(`/api/applications/${applicationId}/company-research`),
+      ])
+      const prepData = await prepRes.json() as { content: string | null; questions?: string[]; storyCount?: number; answers?: Record<string, string> }
+      const researchData = await researchRes.json() as { content: string | null }
+      if (prepData.content) setPrepContent(prepData.content)
+      if (prepData.questions) setQuestions(prepData.questions)
+      if (prepData.storyCount !== undefined) setStoryCount(prepData.storyCount)
+      if (prepData.answers) setAnswers(prepData.answers)
+      if (researchData.content) setResearchContent(researchData.content)
+    } finally {
+      setLoadingPrep(false)
+    }
+  }, [applicationId])
+
   useEffect(() => {
     if (prepJob) {
       prevPrepJobIdRef.current = prepJob.id
     } else if (prevPrepJobIdRef.current !== undefined) {
       prevPrepJobIdRef.current = undefined
-      router.refresh()
+      void loadSaved()
     }
-  }, [prepJob, router])
+  }, [prepJob, loadSaved])
 
   useEffect(() => {
     if (researchJob) {
       prevResearchJobIdRef.current = researchJob.id
     } else if (prevResearchJobIdRef.current !== undefined) {
       prevResearchJobIdRef.current = undefined
-      router.refresh()
+      void loadSaved()
     }
-  }, [researchJob, router])
+  }, [researchJob, loadSaved])
 
   useEffect(() => {
     if (answerJob) {
       prevAnswerJobIdRef.current = answerJob.id
     } else if (prevAnswerJobIdRef.current !== undefined) {
       prevAnswerJobIdRef.current = undefined
-      router.refresh()
+      void loadSaved()
     }
-  }, [answerJob, router])
+  }, [answerJob, loadSaved])
 
   useEffect(() => {
-    async function loadSaved() {
-      setLoadingPrep(true)
-      try {
-        const [prepRes, researchRes] = await Promise.all([
-          fetch(`/api/applications/${applicationId}/interview`),
-          fetch(`/api/applications/${applicationId}/company-research`),
-        ])
-        const prepData = await prepRes.json() as { content: string | null; questions?: string[]; storyCount?: number; answers?: Record<string, string> }
-        const researchData = await researchRes.json() as { content: string | null }
-        if (prepData.content) setPrepContent(prepData.content)
-        if (prepData.questions) setQuestions(prepData.questions)
-        if (prepData.storyCount !== undefined) setStoryCount(prepData.storyCount)
-        if (prepData.answers) setAnswers(prepData.answers)
-        if (researchData.content) setResearchContent(researchData.content)
-      } finally {
-        setLoadingPrep(false)
-      }
-    }
     void loadSaved()
-  }, [applicationId])
+  }, [loadSaved])
 
   async function generatePrep() {
     setLoadingPrep(true)
