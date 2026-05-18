@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import { useGenerationJobsContext } from "@/contexts/generation-jobs-context"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -611,13 +612,25 @@ function CvCard({
   tailoredCvs: TailoredCvRow[]
   hasDescription: boolean
 }) {
+  const { getActiveJob } = useGenerationJobsContext()
+  const router = useRouter()
   const primaryCv = cvs.find((cv) => cv.is_primary)
   const defaultValue = currentCvId ?? primaryCv?.id ?? ""
   const [savePending, startSaveTransition] = useTransition()
   const [generating, setGenerating] = useState(false)
-  // TODO(module-4): replace with Realtime-driven state + toast
-  const [cvGenPending, setCvGenPending] = useState(false)
   const [genError, setGenError] = useState<string | null>(null)
+
+  const activeJob = getActiveJob(applicationId, "cv_tailor")
+  const prevActiveJobIdRef = useRef<string | undefined>(undefined)
+
+  useEffect(() => {
+    if (activeJob) {
+      prevActiveJobIdRef.current = activeJob.id
+    } else if (prevActiveJobIdRef.current !== undefined) {
+      prevActiveJobIdRef.current = undefined
+      router.refresh()
+    }
+  }, [activeJob, router])
 
   function handleSaveSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -627,16 +640,13 @@ function CvCard({
 
   async function handleGenerate() {
     setGenError(null)
-    setCvGenPending(false)
     setGenerating(true)
     try {
       const res = await fetch(`/api/applications/${applicationId}/cv/generate`, { method: "POST" })
       const data = await res.json() as { jobId?: string; deduped?: boolean; error?: string }
       if (!res.ok) {
         setGenError(data.error ?? "Failed to start CV generation.")
-        return
       }
-      setCvGenPending(true)
     } catch {
       setGenError("Network error. Please try again.")
     } finally {
@@ -714,7 +724,7 @@ function CvCard({
             )}
           </div>
 
-          {cvGenPending && (
+          {activeJob && (
             <p className="text-[12px] text-muted-foreground">
               Generating in the background — this can take a minute; reload to see it once it&apos;s ready.
             </p>
@@ -724,7 +734,7 @@ function CvCard({
             <p className="text-[12px] text-destructive">{genError}</p>
           )}
 
-          {!generating && !cvGenPending && latest && (
+          {!generating && !activeJob && latest && (
             <div className="space-y-2">
               {latest.changes && (
                 <p className="text-[12px] text-muted-foreground leading-relaxed">
@@ -802,6 +812,8 @@ function CoverLetterCard({
   generatedCoverLetter: GeneratedCoverLetterRow | null
   hasDescription: boolean
 }) {
+  const { getActiveJob } = useGenerationJobsContext()
+  const router = useRouter()
   const defaultStructureId = currentStructureId ?? writingStyles.find((s) => s.is_built_in)?.id ?? ""
   const defaultToneForStructure = writingStyles.find((s) => s.id === defaultStructureId)?.default_tone ?? "professional"
   const [selectedStructureId, setSelectedStructureId] = useState(defaultStructureId)
@@ -810,9 +822,19 @@ function CoverLetterCard({
   const [savePending, startSaveTransition] = useTransition()
   const [genPending, startGenTransition] = useTransition()
   const [genError, setGenError] = useState<string | null>(null)
-  // TODO(module-4): replace with Realtime-driven state + toast
-  const [clGenPending, setClGenPending] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  const activeJob = getActiveJob(applicationId, "cover_letter")
+  const prevActiveJobIdRef = useRef<string | undefined>(undefined)
+
+  useEffect(() => {
+    if (activeJob) {
+      prevActiveJobIdRef.current = activeJob.id
+    } else if (prevActiveJobIdRef.current !== undefined) {
+      prevActiveJobIdRef.current = undefined
+      router.refresh()
+    }
+  }, [activeJob, router])
 
   const filenameBase = buildCoverLetterFilenameBase({ fullName: null, company: jobCompany, role: jobTitle })
   const { handleDownloadPdf, isDownloading: downloading } = useDownloadPdf({
@@ -846,14 +868,11 @@ function CoverLetterCard({
 
   function handleGenerate() {
     setGenError(null)
-    setClGenPending(false)
     startGenTransition(async () => {
       const result = await generateCoverLetter(applicationId)
       if (result?.error) {
         setGenError(result.error)
-        return
       }
-      setClGenPending(true)
     })
   }
 
@@ -965,7 +984,7 @@ function CoverLetterCard({
             )}
           </div>
 
-          {clGenPending && (
+          {activeJob && (
             <p className="text-[12px] text-muted-foreground">
               Generating in the background — this can take a minute; reload to see it once it&apos;s ready.
             </p>

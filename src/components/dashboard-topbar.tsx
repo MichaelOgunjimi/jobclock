@@ -1,15 +1,125 @@
 "use client"
 
 import Image from "next/image"
-import { useRef, useState, useCallback } from "react"
+import { useRef, useState, useCallback, useTransition } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ChevronRight, LogOut, PanelLeftOpen, Settings, UserCircle } from "lucide-react"
+import { Bell, ChevronRight, LogOut, PanelLeftOpen, Settings, UserCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useDismissibleLayer } from "@/hooks/use-dismissible-layer"
 import { createClient } from "@/lib/supabase/client"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
+import { useGenerationJobsContext } from "@/contexts/generation-jobs-context"
+import { markJobsSeen } from "@/app/(dashboard)/generation-actions"
+import type { GenerationKind } from "@/lib/generation/jobs"
+
+function kindLabel(kind: GenerationKind): string {
+  switch (kind) {
+    case "cover_letter": return "Cover letter"
+    case "company_research": return "Company research"
+    case "interview_prep": return "Interview prep"
+    case "cv_tailor": return "Tailored CV"
+    case "interview_answer": return "Interview answer"
+  }
+}
+
+function jobHref(kind: GenerationKind, applicationId: string | null): string {
+  if (!applicationId) return "/applications"
+  switch (kind) {
+    case "cv_tailor": return `/applications/${applicationId}`
+    case "cover_letter": return `/applications/${applicationId}`
+    case "interview_prep": return `/applications/${applicationId}/interview`
+    case "company_research": return `/applications/${applicationId}/interview`
+    case "interview_answer": return `/applications/${applicationId}/interview`
+  }
+}
+
+function NotificationsDropdown() {
+  const { unseenJobs, unseenCount } = useGenerationJobsContext()
+  const [open, setOpen] = useState(false)
+  const [, startTransition] = useTransition()
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useDismissibleLayer({
+    enabled: open,
+    onDismiss: () => setOpen(false),
+    refs: [triggerRef, panelRef],
+  })
+
+  function handleOpen() {
+    setOpen((v) => !v)
+    if (unseenJobs.length > 0) {
+      startTransition(() => {
+        void markJobsSeen(unseenJobs.map((j) => j.id))
+      })
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label="Notifications"
+        aria-expanded={open}
+        onClick={handleOpen}
+        className="relative flex h-8 w-8 shrink-0 items-center justify-center border bg-secondary text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30"
+      >
+        <Bell className="h-3.5 w-3.5" />
+        {unseenCount > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center bg-foreground text-[9px] font-bold text-background">
+            {unseenCount > 9 ? "9+" : unseenCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div
+          ref={panelRef}
+          className="absolute right-0 top-full z-50 mt-2 w-80 border bg-card shadow-lg"
+        >
+          <div className="border-b px-4 py-3">
+            <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              Generations
+            </p>
+          </div>
+          {unseenJobs.length === 0 ? (
+            <div className="px-4 py-6 text-center text-[13px] text-muted-foreground">
+              No new notifications
+            </div>
+          ) : (
+            <div className="max-h-72 overflow-y-auto py-1">
+              {unseenJobs.map((job) => (
+                <Link
+                  key={job.id}
+                  href={jobHref(job.kind, job.application_id)}
+                  onClick={() => setOpen(false)}
+                  className="flex items-start gap-3 px-4 py-3 text-[13px] transition-colors hover:bg-muted"
+                >
+                  <span
+                    className={
+                      job.status === "done"
+                        ? "mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground"
+                        : "mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-destructive"
+                    }
+                  />
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground">{kindLabel(job.kind)}</p>
+                    <p className="mt-0.5 text-muted-foreground">
+                      {job.status === "done" ? "Ready — reload to see result" : job.error ?? "Failed"}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const LABELS: Record<string, string> = {
   dashboard: "Dashboard",
@@ -233,6 +343,7 @@ export function DashboardTopbar({
 
         <div className="flex items-center gap-2 sm:gap-3">
           <ThemeToggle />
+          <NotificationsDropdown />
           <AvatarDropdown userProfile={userProfile} />
         </div>
       </div>

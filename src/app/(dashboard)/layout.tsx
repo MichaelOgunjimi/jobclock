@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { DashboardShell } from "@/components/dashboard-shell"
+import { GenerationJobsProvider } from "@/components/generation-jobs-provider"
 
 export default async function DashboardLayout({
   children,
@@ -26,14 +27,16 @@ export default async function DashboardLayout({
     .single()
 
   return (
-    <DashboardShell
-      userProfile={{
-        email: user.email ?? "",
-        fullName: profile?.full_name ?? null,
-        avatarUrl: profile?.avatar_url ?? null,
-      }}
-    >
-      {children}
-    </DashboardShell>
+    <GenerationJobsProvider userId={user.id}>
+      <DashboardShell
+        userProfile={{
+          email: user.email ?? "",
+          fullName: profile?.full_name ?? null,
+          avatarUrl: profile?.avatar_url ?? null,
+        }}
+      >
+        {children}
+      </DashboardShell>
+    </GenerationJobsProvider>
   )
 }

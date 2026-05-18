@@ -1,36 +1,44 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useState, useEffect, useRef } from "react"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, BookOpen, Building2, ChevronLeft, ChevronRight, Loader2, RefreshCw, AlertTriangle, Zap } from "lucide-react"
+import { ArrowLeft, BookOpen, Building2, ChevronLeft, ChevronRight, Loader2, RefreshCw, AlertTriangle, Sparkles, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { cn } from "@/lib/utils"
+import { useGenerationJobsContext } from "@/contexts/generation-jobs-context"
 
 type Tab = "prep" | "research" | "grill"
 
 function GrillMe({
   applicationId,
   questions,
+  suggestedAnswers,
 }: {
   applicationId: string
   questions: string[]
+  suggestedAnswers: Record<string, string>
 }) {
   const [currentIdx, setCurrentIdx] = useState(0)
   const [answer, setAnswer] = useState("")
   const [feedback, setFeedback] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [answerPending, setAnswerPending] = useState(false)
+  const [answerError, setAnswerError] = useState<string | null>(null)
 
   const question = questions[currentIdx] ?? null
+  const suggestedAnswer = question ? (suggestedAnswers[question] ?? null) : null
 
   function handleNext() {
     setCurrentIdx((i) => Math.min(i + 1, questions.length - 1))
     setAnswer("")
     setFeedback(null)
     setError(null)
+    setAnswerPending(false)
+    setAnswerError(null)
   }
 
   function handlePrev() {
@@ -38,6 +46,8 @@ function GrillMe({
     setAnswer("")
     setFeedback(null)
     setError(null)
+    setAnswerPending(false)
+    setAnswerError(null)
   }
 
   async function handleEvaluate() {
@@ -58,6 +68,28 @@ function GrillMe({
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleGetSuggestion() {
+    if (!question) return
+    setAnswerPending(true)
+    setAnswerError(null)
+    try {
+      const res = await fetch(`/api/applications/${applicationId}/interview/answer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionText: question }),
+      })
+      const data = await res.json() as { jobId?: string; error?: string }
+      if (!res.ok) {
+        setAnswerError(data.error ?? "Failed to start answer generation")
+        setAnswerPending(false)
+      }
+      // pending stays true until Realtime notifies done and parent reloads
+    } catch (err) {
+      setAnswerError(err instanceof Error ? err.message : "Something went wrong")
+      setAnswerPending(false)
     }
   }
 
@@ -101,6 +133,29 @@ function GrillMe({
         <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Question</p>
         <p className="font-medium leading-relaxed">{question?.replace(/^\*\*Q\d+\.\*\*\s*/, "")}</p>
       </div>
+
+      {/* AI suggested STAR answer */}
+      {suggestedAnswer ? (
+        <div className="border border-border bg-card p-5 space-y-2">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">AI STAR suggestion</p>
+          <MarkdownContent content={suggestedAnswer} />
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleGetSuggestion}
+            disabled={answerPending}
+          >
+            {answerPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            {answerPending ? "Generating suggestion…" : "Get AI STAR suggestion"}
+          </Button>
+          {answerError && (
+            <p className="text-xs text-destructive">{answerError}</p>
+          )}
+        </div>
+      )}
 
       {/* Answer area */}
       <div className="space-y-2">
@@ -150,20 +205,53 @@ function GrillMe({
 export default function InterviewPrepPage() {
   const params = useParams()
   const applicationId = params.id as string
+  const router = useRouter()
+  const { getActiveJob } = useGenerationJobsContext()
 
   const [tab, setTab] = useState<Tab>("prep")
   const [prepContent, setPrepContent] = useState<string | null>(null)
   const [researchContent, setResearchContent] = useState<string | null>(null)
   const [questions, setQuestions] = useState<string[]>([])
+  const [answers, setAnswers] = useState<Record<string, string>>({})
   const [loadingPrep, setLoadingPrep] = useState(false)
   const [loadingResearch, setLoadingResearch] = useState(false)
   const [prepError, setPrepError] = useState<string | null>(null)
   const [researchError, setResearchError] = useState<string | null>(null)
-  // TODO(module-4): replace with Realtime-driven state + toast
-  const [prepPending, setPrepPending] = useState(false)
-  // TODO(module-4): replace with Realtime-driven state + toast
-  const [researchPending, setResearchPending] = useState(false)
   const [storyCount, setStoryCount] = useState<number | null>(null)
+
+  const prepJob = getActiveJob(applicationId, "interview_prep")
+  const researchJob = getActiveJob(applicationId, "company_research")
+  const answerJob = getActiveJob(applicationId, "interview_answer")
+  const prevPrepJobIdRef = useRef<string | undefined>(undefined)
+  const prevResearchJobIdRef = useRef<string | undefined>(undefined)
+  const prevAnswerJobIdRef = useRef<string | undefined>(undefined)
+
+  useEffect(() => {
+    if (prepJob) {
+      prevPrepJobIdRef.current = prepJob.id
+    } else if (prevPrepJobIdRef.current !== undefined) {
+      prevPrepJobIdRef.current = undefined
+      router.refresh()
+    }
+  }, [prepJob, router])
+
+  useEffect(() => {
+    if (researchJob) {
+      prevResearchJobIdRef.current = researchJob.id
+    } else if (prevResearchJobIdRef.current !== undefined) {
+      prevResearchJobIdRef.current = undefined
+      router.refresh()
+    }
+  }, [researchJob, router])
+
+  useEffect(() => {
+    if (answerJob) {
+      prevAnswerJobIdRef.current = answerJob.id
+    } else if (prevAnswerJobIdRef.current !== undefined) {
+      prevAnswerJobIdRef.current = undefined
+      router.refresh()
+    }
+  }, [answerJob, router])
 
   useEffect(() => {
     async function loadSaved() {
@@ -173,11 +261,12 @@ export default function InterviewPrepPage() {
           fetch(`/api/applications/${applicationId}/interview`),
           fetch(`/api/applications/${applicationId}/company-research`),
         ])
-        const prepData = await prepRes.json() as { content: string | null; questions?: string[]; storyCount?: number }
+        const prepData = await prepRes.json() as { content: string | null; questions?: string[]; storyCount?: number; answers?: Record<string, string> }
         const researchData = await researchRes.json() as { content: string | null }
         if (prepData.content) setPrepContent(prepData.content)
         if (prepData.questions) setQuestions(prepData.questions)
         if (prepData.storyCount !== undefined) setStoryCount(prepData.storyCount)
+        if (prepData.answers) setAnswers(prepData.answers)
         if (researchData.content) setResearchContent(researchData.content)
       } finally {
         setLoadingPrep(false)
@@ -189,12 +278,10 @@ export default function InterviewPrepPage() {
   async function generatePrep() {
     setLoadingPrep(true)
     setPrepError(null)
-    setPrepPending(false)
     try {
       const res = await fetch(`/api/applications/${applicationId}/interview`, { method: "POST" })
       const data = await res.json() as { jobId?: string; deduped?: boolean; error?: string }
       if (!res.ok) throw new Error(data.error ?? "Failed to start interview prep generation")
-      setPrepPending(true)
     } catch (err) {
       setPrepError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
@@ -205,12 +292,10 @@ export default function InterviewPrepPage() {
   async function generateResearch() {
     setLoadingResearch(true)
     setResearchError(null)
-    setResearchPending(false)
     try {
       const res = await fetch(`/api/applications/${applicationId}/company-research`, { method: "POST" })
       const data = await res.json() as { jobId?: string; deduped?: boolean; error?: string }
       if (!res.ok) throw new Error(data.error ?? "Failed to start company research")
-      setResearchPending(true)
     } catch (err) {
       setResearchError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
@@ -283,7 +368,7 @@ export default function InterviewPrepPage() {
             </div>
           )}
 
-          {prepPending && (
+          {prepJob && (
             <div className="border border-border bg-secondary px-4 py-3 text-sm text-muted-foreground">
               Generating in the background — this can take a minute; reload to see it once it&apos;s ready.
             </div>
@@ -295,7 +380,7 @@ export default function InterviewPrepPage() {
             </div>
           )}
 
-          {!prepContent && !loadingPrep && !prepError && !prepPending && (
+          {!prepContent && !loadingPrep && !prepError && !prepJob && (
             <div className="border bg-secondary px-6 py-14 text-center text-muted-foreground">
               <BookOpen className="mx-auto mb-4 h-10 w-10 opacity-30" />
               <p className="font-medium text-foreground">No prep generated yet</p>
@@ -323,7 +408,7 @@ export default function InterviewPrepPage() {
             </div>
           )}
 
-          {researchPending && (
+          {researchJob && (
             <div className="border border-border bg-secondary px-4 py-3 text-sm text-muted-foreground">
               Generating in the background — this can take a minute; reload to see it once it&apos;s ready.
             </div>
@@ -335,7 +420,7 @@ export default function InterviewPrepPage() {
             </div>
           )}
 
-          {!researchContent && !loadingResearch && !researchError && !researchPending && (
+          {!researchContent && !loadingResearch && !researchError && !researchJob && (
             <div className="border bg-secondary px-6 py-14 text-center text-muted-foreground">
               <Building2 className="mx-auto mb-4 h-10 w-10 opacity-30" />
               <p className="font-medium text-foreground">No research yet</p>
@@ -348,7 +433,7 @@ export default function InterviewPrepPage() {
       )}
 
       {tab === "grill" && (
-        <GrillMe applicationId={applicationId} questions={questions} />
+        <GrillMe applicationId={applicationId} questions={questions} suggestedAnswers={answers} />
       )}
     </div>
   )
