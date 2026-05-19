@@ -213,7 +213,7 @@ export async function updateDescription(
 
 export async function generateCoverLetter(
   applicationId: string
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; jobId?: string }> {
   if (!isSupabaseConfigured()) return { error: "Supabase not configured." }
 
   const supabase = await createClient()
@@ -224,7 +224,7 @@ export async function generateCoverLetter(
 
   const result = await enqueueGeneration({ kind: "cover_letter", userId: user.id, applicationId })
   if ("error" in result) return { error: result.error }
-  return {}
+  return { jobId: result.jobId }
 }
 
 export async function updateFollowUp(applicationId: string, data: {
