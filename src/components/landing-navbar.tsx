@@ -103,8 +103,16 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
         <div className="border bg-background/94 shadow-[0_18px_48px_rgba(0,0,0,0.06)] backdrop-blur-xl">
           <div className="flex items-center justify-between gap-4 border-b px-4 py-4 md:grid md:grid-cols-[auto_1fr_auto] md:px-6">
             <Link href="/" className="flex min-w-0 items-center gap-3">
-              <div className="flex size-11 shrink-0 items-center justify-center border bg-primary text-primary-foreground">
-                <span className="text-[24px] font-semibold leading-none">J</span>
+              <div className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden border bg-primary">
+                <Image
+                  src="/logo-mark-light.svg"
+                  alt="Jobclock"
+                  width={44}
+                  height={44}
+                  priority
+                  unoptimized
+                  className="size-full object-contain"
+                />
               </div>
               <div className="min-w-0">
                 <p className="page-kicker">Job Assistant</p>
