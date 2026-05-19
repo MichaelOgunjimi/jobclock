@@ -54,28 +54,35 @@ function kindLabel(kind: GenerationKind): string {
   }
 }
 
+/**
+ * Supabase Realtime delivery for `generation_jobs` is unreliable in this
+ * deployment (INSERT/UPDATE events frequently never reach the client), which
+ * left the in-progress UI stuck until a manual reload. We poll the active set
+ * as a Realtime-independent fallback while any job is running.
+ */
+const ACTIVE_POLL_MS = 4000
+
 export function useGenerationJobs(userId: string) {
   const [jobs, setJobs] = useState<GenerationJobRow[]>([])
   const [appLabels, setAppLabels] = useState<Map<string, ApplicationLabel>>(
     new Map(),
   )
   const prevStatusRef = useRef<Map<string, GenerationStatus>>(new Map())
+  const jobsRef = useRef<GenerationJobRow[]>([])
 
-  const handleUpdate = useCallback((job: GenerationJobRow) => {
+  useEffect(() => {
+    jobsRef.current = jobs
+  }, [jobs])
+
+  // Toast once per status transition (done/failed). Mutates the ref only — no
+  // setState — so it is safe to call in a loop while merging a batch.
+  const notifyTransition = useCallback((job: GenerationJobRow) => {
     const prev = prevStatusRef.current.get(job.id)
     prevStatusRef.current.set(job.id, job.status)
 
-    setJobs((all) => {
-      const idx = all.findIndex((j) => j.id === job.id)
-      if (idx === -1) return [...all, job]
-      const next = [...all]
-      next[idx] = job
-      return next
-    })
-
     if (prev && prev !== "done" && job.status === "done") {
       toast.success(`${kindLabel(job.kind)} ready`, {
-        description: "Reload the page to see the result.",
+        description: "Your result is ready.",
       })
     } else if (prev && prev !== "failed" && job.status === "failed") {
       toast.error(`${kindLabel(job.kind)} failed`, {
@@ -83,6 +90,72 @@ export function useGenerationJobs(userId: string) {
       })
     }
   }, [])
+
+  const handleUpdate = useCallback(
+    (job: GenerationJobRow) => {
+      notifyTransition(job)
+      setJobs((all) => {
+        const idx = all.findIndex((j) => j.id === job.id)
+        if (idx === -1) return [...all, job]
+        const next = [...all]
+        next[idx] = job
+        return next
+      })
+    },
+    [notifyTransition],
+  )
+
+  // Reconcile a freshly-fetched batch in a single state update.
+  const mergeJobs = useCallback(
+    (rows: GenerationJobRow[]) => {
+      for (const r of rows) notifyTransition(r)
+      setJobs((all) => {
+        const byId = new Map(all.map((j) => [j.id, j]))
+        for (const r of rows) byId.set(r.id, r)
+        return Array.from(byId.values())
+      })
+    },
+    [notifyTransition],
+  )
+
+  const refetch = useCallback(async () => {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from("generation_jobs")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(100)
+    if (data) mergeJobs(data as unknown as GenerationJobRow[])
+  }, [userId, mergeJobs])
+
+  // Optimistically register a just-enqueued job so the in-progress UI appears
+  // immediately, without waiting on a Realtime INSERT that may never arrive.
+  const trackJob = useCallback(
+    (input: {
+      id: string
+      applicationId: string | null
+      kind: GenerationKind
+    }) => {
+      // A deduped enqueue returns an already-tracked job's id — never let the
+      // synthetic 'queued' row overwrite real status/timestamps.
+      if (jobsRef.current.some((j) => j.id === input.id)) return
+      const now = new Date().toISOString()
+      handleUpdate({
+        id: input.id,
+        user_id: userId,
+        application_id: input.applicationId,
+        kind: input.kind,
+        status: "queued",
+        result_ref: null,
+        error: null,
+        seen_at: null,
+        created_at: now,
+        updated_at: now,
+      })
+    },
+    [handleUpdate, userId],
+  )
 
   useEffect(() => {
     let mounted = true
@@ -127,6 +200,19 @@ export function useGenerationJobs(userId: string) {
       void supabase.removeChannel(channel)
     }
   }, [userId, handleUpdate])
+
+  // Realtime-independent fallback: while any job is active, re-fetch the set
+  // so completion is detected (and the page auto-refreshes) even when no
+  // Realtime UPDATE arrives. Idle when nothing is running, so it is cheap.
+  useEffect(() => {
+    const id = setInterval(() => {
+      const hasActive = jobsRef.current.some(
+        (j) => j.status === "queued" || j.status === "running",
+      )
+      if (hasActive) void refetch()
+    }, ACTIVE_POLL_MS)
+    return () => clearInterval(id)
+  }, [refetch])
 
   // Notification rows arrive as raw generation_jobs rows (including via
   // Realtime), so resolve role/company through a client-side application
@@ -183,6 +269,7 @@ export function useGenerationJobs(userId: string) {
     jobs,
     getActiveJob,
     getApplicationLabel,
+    trackJob,
     recentJobs,
     unseenJobs,
     unseenCount: unseenJobs.length,

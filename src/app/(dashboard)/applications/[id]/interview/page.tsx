@@ -22,7 +22,7 @@ function GrillMe({
   questions: string[]
   suggestedAnswers: Record<string, string>
 }) {
-  const { getActiveJob } = useGenerationJobsContext()
+  const { getActiveJob, trackJob } = useGenerationJobsContext()
   const [currentIdx, setCurrentIdx] = useState(0)
   const [answer, setAnswer] = useState("")
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -88,6 +88,8 @@ function GrillMe({
       const data = await res.json() as { jobId?: string; error?: string }
       if (!res.ok) {
         setAnswerError(data.error ?? "Failed to start answer generation")
+      } else if (data.jobId) {
+        trackJob({ id: data.jobId, applicationId, kind: "interview_answer" })
       }
       // answerPending derives from context — clears automatically when job completes
     } catch (err) {
@@ -228,7 +230,7 @@ function TabContentSkeleton() {
 export default function InterviewPrepPage() {
   const params = useParams()
   const applicationId = params.id as string
-  const { getActiveJob } = useGenerationJobsContext()
+  const { getActiveJob, trackJob } = useGenerationJobsContext()
 
   const [tab, setTab] = useState<Tab>("prep")
   const [prepContent, setPrepContent] = useState<string | null>(null)
@@ -308,6 +310,7 @@ export default function InterviewPrepPage() {
       const res = await fetch(`/api/applications/${applicationId}/interview`, { method: "POST" })
       const data = await res.json() as { jobId?: string; deduped?: boolean; error?: string }
       if (!res.ok) throw new Error(data.error ?? "Failed to start interview prep generation")
+      if (data.jobId) trackJob({ id: data.jobId, applicationId, kind: "interview_prep" })
     } catch (err) {
       setPrepError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
@@ -322,6 +325,7 @@ export default function InterviewPrepPage() {
       const res = await fetch(`/api/applications/${applicationId}/company-research`, { method: "POST" })
       const data = await res.json() as { jobId?: string; deduped?: boolean; error?: string }
       if (!res.ok) throw new Error(data.error ?? "Failed to start company research")
+      if (data.jobId) trackJob({ id: data.jobId, applicationId, kind: "company_research" })
     } catch (err) {
       setResearchError(err instanceof Error ? err.message : "Something went wrong")
     } finally {

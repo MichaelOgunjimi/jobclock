@@ -176,7 +176,7 @@ describe("application actions", () => {
       userId: mockUser.id,
       applicationId: "app-1",
     })
-    expect(result).toEqual({})
+    expect(result).toEqual({ jobId: "j-1" })
   })
 
   it("generateCoverLetter returns the enqueue error when rate-limited or otherwise rejected", async () => {
@@ -191,12 +191,12 @@ describe("application actions", () => {
     })
   })
 
-  it("generateCoverLetter returns {} (no error) when the job is deduped", async () => {
+  it("generateCoverLetter returns the existing job id when the job is deduped", async () => {
     vi.mocked(enqueueGeneration).mockResolvedValue({ jobId: "j-existing", deduped: true })
 
     const result = await generateCoverLetter("app-1")
 
-    expect(result).toEqual({})
+    expect(result).toEqual({ jobId: "j-existing" })
   })
 
   it("returns early for config and auth guards", async () => {

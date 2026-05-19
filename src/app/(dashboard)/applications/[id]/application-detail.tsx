@@ -613,7 +613,7 @@ function CvCard({
   tailoredCvs: TailoredCvRow[]
   hasDescription: boolean
 }) {
-  const { getActiveJob } = useGenerationJobsContext()
+  const { getActiveJob, trackJob } = useGenerationJobsContext()
   const router = useRouter()
   const primaryCv = cvs.find((cv) => cv.is_primary)
   const defaultValue = currentCvId ?? primaryCv?.id ?? ""
@@ -647,6 +647,8 @@ function CvCard({
       const data = await res.json() as { jobId?: string; deduped?: boolean; error?: string }
       if (!res.ok) {
         setGenError(data.error ?? "Failed to start CV generation.")
+      } else if (data.jobId) {
+        trackJob({ id: data.jobId, applicationId, kind: "cv_tailor" })
       }
     } catch {
       setGenError("Network error. Please try again.")
@@ -818,7 +820,7 @@ function CoverLetterCard({
   generatedCoverLetter: GeneratedCoverLetterRow | null
   hasDescription: boolean
 }) {
-  const { getActiveJob } = useGenerationJobsContext()
+  const { getActiveJob, trackJob } = useGenerationJobsContext()
   const router = useRouter()
   const defaultStructureId = currentStructureId ?? writingStyles.find((s) => s.is_built_in)?.id ?? ""
   const defaultToneForStructure = writingStyles.find((s) => s.id === defaultStructureId)?.default_tone ?? "professional"
@@ -878,6 +880,8 @@ function CoverLetterCard({
       const result = await generateCoverLetter(applicationId)
       if (result?.error) {
         setGenError(result.error)
+      } else if (result?.jobId) {
+        trackJob({ id: result.jobId, applicationId, kind: "cover_letter" })
       }
     })
   }
