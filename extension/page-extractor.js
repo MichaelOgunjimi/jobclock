@@ -1,10 +1,64 @@
 ;(function () {
+  // On LinkedIn's collections / search list views (e.g.
+  // `/jobs/collections/recommended/?currentJobId=…`), the page has both a
+  // recommendations sidebar AND a right-side pane showing the selected job.
+  // `document.querySelector` happily matches sidebar items first, which
+  // mashes other jobs' titles into the description and bloats `pageText`
+  // with the entire feed. Find the selected-job pane and run all extraction
+  // scoped to it; fall back to `document` so canonical job pages and
+  // non-LinkedIn sites are unchanged.
+  function findSelectedJobScope() {
+    const candidates = [
+      ".jobs-search__job-details",
+      ".jobs-search__job-details--wrapper",
+      ".jobs-search__job-details--container",
+      ".jobs-details",
+      ".jobs-details__main-content",
+      ".job-view-layout",
+      ".jobs-view-layout",
+      ".scaffold-layout__detail",
+    ]
+    for (const selector of candidates) {
+      const node = document.querySelector(selector)
+      if (node instanceof HTMLElement) return node
+    }
+    return document
+  }
+
+  const scope = findSelectedJobScope()
+
+  // Things we never want to read from, even when scope = document on
+  // a flat list view where the pane finder didn't match.
+  const EXCLUDED_CONTAINER_SELECTORS = [
+    ".jobs-search-results-list",
+    ".scaffold-layout__list",
+    ".jobs-search-results__list",
+    ".jobs-recommended-jobs",
+    "nav",
+    "header",
+    "footer",
+  ]
+
+  function isInsideExcluded(node) {
+    if (!(node instanceof HTMLElement)) return false
+    for (const selector of EXCLUDED_CONTAINER_SELECTORS) {
+      if (node.closest(selector)) return true
+    }
+    return false
+  }
+
   function text(selector) {
-    const node = document.querySelector(selector)
-    return node instanceof HTMLElement ? (node.innerText || node.textContent || "").trim() : ""
+    const nodes = scope.querySelectorAll(selector)
+    for (const node of nodes) {
+      if (node instanceof HTMLElement && !isInsideExcluded(node)) {
+        return (node.innerText || node.textContent || "").trim()
+      }
+    }
+    return ""
   }
 
   function attr(selector, name) {
+    // Meta tags etc. live in <head>, so attribute lookups stay document-wide.
     return document.querySelector(selector)?.getAttribute(name) || ""
   }
 
@@ -25,9 +79,18 @@
       .slice(0, 5)
   }
 
+  function scopeInnerText() {
+    if (scope instanceof HTMLElement) return scope.innerText || scope.textContent || ""
+    return document.body?.innerText || document.body?.textContent || ""
+  }
+
   function textNearHeading(headingPattern) {
-    const headings = Array.from(document.querySelectorAll("h1,h2,h3,h4,dt,strong,b,span,div"))
-    const heading = headings.find((node) => headingPattern.test(node.textContent || ""))
+    const root = scope instanceof HTMLElement ? scope : document
+    const headings = Array.from(root.querySelectorAll("h1,h2,h3,h4,dt,strong,b,span,div"))
+    const heading = headings.find(
+      (node) =>
+        !isInsideExcluded(node) && headingPattern.test(node.textContent || ""),
+    )
     if (!(heading instanceof HTMLElement)) return ""
 
     const candidates = [
@@ -38,7 +101,7 @@
     ]
 
     for (const candidate of candidates) {
-      if (candidate instanceof HTMLElement) {
+      if (candidate instanceof HTMLElement && !isInsideExcluded(candidate)) {
         const value = (candidate.innerText || candidate.textContent || "").replace(/\s+/g, " ").trim()
         if (value && !headingPattern.test(value)) return value
         const withoutHeading = value.replace(headingPattern, "").trim()
@@ -67,7 +130,7 @@
     const nearHeading = textNearHeading(/\bsalar(?:y|ies)\b/i)
     if (looksLikeSalary(nearHeading)) return nearHeading
 
-    const bodyMatch = (document.body?.innerText || document.body?.textContent || "").match(
+    const bodyMatch = scopeInnerText().match(
       /(?:£|\$|€|gbp|usd|eur)\s*\d[\d,.]*(?:\s*[kK])?(?:\s*(?:-|–|—|to)\s*(?:£|\$|€|gbp|usd|eur)?\s*\d[\d,.]*(?:\s*[kK])?)?(?:\s*\([^)]*\))?/i
     )
 
@@ -75,8 +138,9 @@
   }
 
   function relevantPageText(description) {
+    const root = scope instanceof HTMLElement ? scope : document
     const containers = Array.from(
-      document.querySelectorAll(
+      root.querySelectorAll(
         [
           "main",
           "article",
@@ -88,7 +152,7 @@
           '[id*="description" i]',
         ].join(",")
       )
-    )
+    ).filter((node) => !isInsideExcluded(node))
 
     const parts = []
     for (const container of containers) {
@@ -103,7 +167,7 @@
     const text = parts.join("\n\n").trim()
     if (text) return text.slice(0, 50000)
 
-    return (document.body?.innerText || document.body?.textContent || "").slice(0, 50000)
+    return scopeInnerText().slice(0, 50000)
   }
 
   globalThis.collectJobAssistantPageData = function collectJobAssistantPageData() {
