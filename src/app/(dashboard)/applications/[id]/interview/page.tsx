@@ -208,6 +208,23 @@ function GrillMe({
   )
 }
 
+function TabContentSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="h-9 w-44 animate-pulse bg-secondary" />
+        <div className="h-4 w-72 max-w-full animate-pulse bg-secondary" />
+      </div>
+      <div className="border bg-card p-6 space-y-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-4 w-full animate-pulse bg-secondary" />
+        ))}
+        <div className="h-4 w-2/3 animate-pulse bg-secondary" />
+      </div>
+    </div>
+  )
+}
+
 export default function InterviewPrepPage() {
   const params = useParams()
   const applicationId = params.id as string
@@ -218,6 +235,10 @@ export default function InterviewPrepPage() {
   const [researchContent, setResearchContent] = useState<string | null>(null)
   const [questions, setQuestions] = useState<string[]>([])
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  // Distinct from "generating": the one-time fetch of already-saved content
+  // on mount. While true the tab shows a skeleton, not a spinning generate
+  // button. Re-fetches on job completion don't flip it back on.
+  const [initialLoading, setInitialLoading] = useState(true)
   const [loadingPrep, setLoadingPrep] = useState(false)
   const [loadingResearch, setLoadingResearch] = useState(false)
   const [prepError, setPrepError] = useState<string | null>(null)
@@ -232,7 +253,6 @@ export default function InterviewPrepPage() {
   const prevAnswerJobIdRef = useRef<string | undefined>(undefined)
 
   const loadSaved = useCallback(async () => {
-    setLoadingPrep(true)
     try {
       const [prepRes, researchRes] = await Promise.all([
         fetch(`/api/applications/${applicationId}/interview`),
@@ -246,7 +266,7 @@ export default function InterviewPrepPage() {
       if (prepData.answers) setAnswers(prepData.answers)
       if (researchData.content) setResearchContent(researchData.content)
     } finally {
-      setLoadingPrep(false)
+      setInitialLoading(false)
     }
   }, [applicationId])
 
@@ -344,6 +364,9 @@ export default function InterviewPrepPage() {
       </div>
 
       {tab === "prep" && (
+        initialLoading ? (
+          <TabContentSkeleton />
+        ) : (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <Button onClick={() => void generatePrep()} disabled={loadingPrep || !!prepJob}>
@@ -392,9 +415,13 @@ export default function InterviewPrepPage() {
             </div>
           )}
         </div>
+        )
       )}
 
       {tab === "research" && (
+        initialLoading ? (
+          <TabContentSkeleton />
+        ) : (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <Button onClick={() => void generateResearch()} disabled={loadingResearch || !!researchJob}>
@@ -432,6 +459,7 @@ export default function InterviewPrepPage() {
             </div>
           )}
         </div>
+        )
       )}
 
       {tab === "grill" && (
