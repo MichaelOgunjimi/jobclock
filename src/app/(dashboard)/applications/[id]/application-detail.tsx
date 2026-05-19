@@ -700,25 +700,27 @@ function CvCard({
         {/* AI generation section */}
         <div className="border-t pt-4 space-y-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={!hasDescription || generating || !!activeJob}
-              onClick={handleGenerate}
-              className="w-full sm:w-auto"
-            >
-              {generating || activeJob ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Generating…
-                </>
-              ) : tailoredCvs.length > 0 ? (
-                "Regenerate"
-              ) : (
-                "Generate tailored CV"
-              )}
-            </Button>
+            {!activeJob && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!hasDescription || generating}
+                onClick={handleGenerate}
+                className="w-full sm:w-auto"
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Starting…
+                  </>
+                ) : tailoredCvs.length > 0 ? (
+                  "Regenerate"
+                ) : (
+                  "Generate tailored CV"
+                )}
+              </Button>
+            )}
             {tailoredCvs.length > 0 && (
               <Link
                 href={`/applications/${applicationId}/cv`}
@@ -960,25 +962,27 @@ function CoverLetterCard({
         {/* AI generation section */}
         <div className="border-t pt-4 space-y-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={genPending || !hasDescription || !!activeJob}
-              onClick={handleGenerate}
-              className="w-full sm:w-auto"
-            >
-              {genPending || activeJob ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Generating…
-                </>
-              ) : generatedCoverLetter ? (
-                "Regenerate cover letter"
-              ) : (
-                "Generate cover letter"
-              )}
-            </Button>
+            {!activeJob && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={genPending || !hasDescription}
+                onClick={handleGenerate}
+                className="w-full sm:w-auto"
+              >
+                {genPending ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Starting…
+                  </>
+                ) : generatedCoverLetter ? (
+                  "Regenerate cover letter"
+                ) : (
+                  "Generate cover letter"
+                )}
+              </Button>
+            )}
             {generatedCoverLetter && (
               <Link
                 href={`/applications/${applicationId}/cover-letter`}
