@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest"
-import { formatRelativeTime } from "@/lib/relative-time"
+import { formatRelativeTime, formatElapsed } from "@/lib/relative-time"
+
+describe("formatElapsed", () => {
+  it("formats sub-minute and multi-minute durations as m:ss", () => {
+    expect(formatElapsed(0)).toBe("0:00")
+    expect(formatElapsed(14_000)).toBe("0:14")
+    expect(formatElapsed(75_000)).toBe("1:15")
+    expect(formatElapsed(605_000)).toBe("10:05")
+  })
+
+  it("clamps negative and non-finite input to 0:00", () => {
+    expect(formatElapsed(-1000)).toBe("0:00")
+    expect(formatElapsed(NaN)).toBe("0:00")
+  })
+})
 
 const NOW = new Date("2026-05-19T12:00:00.000Z").getTime()
 

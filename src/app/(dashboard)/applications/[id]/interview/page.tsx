@@ -7,6 +7,7 @@ import { ArrowLeft, BookOpen, Building2, ChevronLeft, ChevronRight, Loader2, Ref
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { MarkdownContent } from "@/components/ui/markdown-content"
+import { GenerationProgress } from "@/components/generation-progress"
 import { cn } from "@/lib/utils"
 import { useGenerationJobsContext } from "@/contexts/generation-jobs-context"
 
@@ -156,6 +157,10 @@ function GrillMe({
             <p className="text-xs text-destructive">{answerError}</p>
           )}
         </div>
+      )}
+
+      {activeAnswerJob && !suggestedAnswer && (
+        <GenerationProgress label="STAR answer" startedAt={activeAnswerJob.created_at} />
       )}
 
       {/* Answer area */}
@@ -341,9 +346,9 @@ export default function InterviewPrepPage() {
       {tab === "prep" && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <Button onClick={() => void generatePrep()} disabled={loadingPrep}>
-              {loadingPrep ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              {prepContent ? "Regenerate" : "Generate Interview Prep"}
+            <Button onClick={() => void generatePrep()} disabled={loadingPrep || !!prepJob}>
+              {loadingPrep || prepJob ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {prepJob ? "Generating…" : prepContent ? "Regenerate" : "Generate Interview Prep"}
             </Button>
             <p className="text-sm text-muted-foreground">
               Uses the job description + your story bank. Saved automatically.
@@ -370,9 +375,7 @@ export default function InterviewPrepPage() {
           )}
 
           {prepJob && (
-            <div className="border border-border bg-secondary px-4 py-3 text-sm text-muted-foreground">
-              Generating in the background — this can take a minute; reload to see it once it&apos;s ready.
-            </div>
+            <GenerationProgress label="interview prep" startedAt={prepJob.created_at} />
           )}
 
           {prepContent && (
@@ -394,9 +397,9 @@ export default function InterviewPrepPage() {
       {tab === "research" && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <Button onClick={() => void generateResearch()} disabled={loadingResearch}>
-              {loadingResearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              {researchContent ? "Re-research" : "Research Company"}
+            <Button onClick={() => void generateResearch()} disabled={loadingResearch || !!researchJob}>
+              {loadingResearch || researchJob ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {researchJob ? "Generating…" : researchContent ? "Re-research" : "Research Company"}
             </Button>
             <p className="text-sm text-muted-foreground">
               6-axis company intelligence — uses Perplexity (live web) if configured, otherwise your AI model. Saved automatically.
@@ -410,9 +413,7 @@ export default function InterviewPrepPage() {
           )}
 
           {researchJob && (
-            <div className="border border-border bg-secondary px-4 py-3 text-sm text-muted-foreground">
-              Generating in the background — this can take a minute; reload to see it once it&apos;s ready.
-            </div>
+            <GenerationProgress label="company research" startedAt={researchJob.created_at} />
           )}
 
           {researchContent && (
