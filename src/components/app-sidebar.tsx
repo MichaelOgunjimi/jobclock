@@ -1,6 +1,7 @@
 "use client"
 
 import { useSyncExternalStore, useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -80,8 +81,16 @@ export function AppSidebar({
       <>
         <div className="flex h-[73px] items-center justify-between gap-3 border-b border-sidebar-border px-5">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-[8px] border border-white/10 bg-sidebar-primary text-sidebar-primary-foreground">
-              <span className="font-heading text-[24px] font-semibold leading-none">J</span>
+            <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-[8px] border border-white/10 bg-sidebar-primary">
+              <Image
+                src="/logo-mark-light.svg"
+                alt="Jobclock"
+                width={40}
+                height={40}
+                priority
+                unoptimized
+                className="size-full object-contain"
+              />
             </div>
             <div className={cn("min-w-0 transition-opacity", isCollapsed && "lg:hidden")}>
               <p className="section-label text-white/45">Job Assistant</p>
