@@ -57,7 +57,16 @@ async function extractCurrentPage(tabId) {
   }
 }
 
+// Preview can include a slow AI call; save is a quick DB write. Bound
+// both so the popup can never hang indefinitely on a stalled request.
+const PREVIEW_TIMEOUT_MS = 90_000
+const SAVE_TIMEOUT_MS = 15_000
+
 async function callImportApi(config, payload) {
+  const timeoutMs = payload.mode === "save" ? SAVE_TIMEOUT_MS : PREVIEW_TIMEOUT_MS
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
   let response
   try {
     response = await fetch(`${normalizeBaseUrl(config.appBaseUrl)}/api/jobs/import`, {
@@ -67,14 +76,24 @@ async function callImportApi(config, payload) {
         Authorization: `Bearer ${config.token}`,
       },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     })
-  } catch {
+  } catch (err) {
+    if (err && err.name === "AbortError") {
+      throw new Error(
+        payload.mode === "save"
+          ? "Saving timed out. Please try again."
+          : "Extraction timed out. Please try again."
+      )
+    }
     throw new Error(
       formatNetworkError(
         config,
         payload.mode === "save" ? "save the job" : "extract a preview"
       )
     )
+  } finally {
+    clearTimeout(timeoutId)
   }
 
   const body = await response.json().catch(() => ({}))
