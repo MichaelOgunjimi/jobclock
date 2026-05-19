@@ -13,7 +13,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { useGenerationJobsContext } from "@/contexts/generation-jobs-context"
 import { markJobsSeen } from "@/app/(dashboard)/generation-actions"
 import { formatRelativeTime } from "@/lib/relative-time"
-import type { GenerationKind } from "@/lib/generation/jobs"
+import type { GenerationKind, GenerationStatus } from "@/lib/generation/jobs"
 
 function kindLabel(kind: GenerationKind): string {
   switch (kind) {
@@ -25,14 +25,25 @@ function kindLabel(kind: GenerationKind): string {
   }
 }
 
-function jobHref(kind: GenerationKind, applicationId: string | null): string {
+function jobHref(
+  kind: GenerationKind,
+  applicationId: string | null,
+  status: GenerationStatus,
+): string {
   if (!applicationId) return "/applications"
+  const base = `/applications/${applicationId}`
   switch (kind) {
-    case "cv_tailor": return `/applications/${applicationId}`
-    case "cover_letter": return `/applications/${applicationId}`
-    case "interview_prep": return `/applications/${applicationId}/interview`
-    case "company_research": return `/applications/${applicationId}/interview`
-    case "interview_answer": return `/applications/${applicationId}/interview`
+    // Deep-link to the generated artifact on success. A failed cv_tailor /
+    // cover_letter has no row, so its preview page would notFound() — send
+    // those back to the application page to retry instead.
+    case "cv_tailor":
+      return status === "done" ? `${base}/cv` : base
+    case "cover_letter":
+      return status === "done" ? `${base}/cover-letter` : base
+    case "interview_prep":
+    case "company_research":
+    case "interview_answer":
+      return `${base}/interview`
   }
 }
 
@@ -101,7 +112,7 @@ function NotificationsDropdown() {
                 return (
                   <Link
                     key={job.id}
-                    href={jobHref(job.kind, job.application_id)}
+                    href={jobHref(job.kind, job.application_id, job.status)}
                     onClick={() => setOpen(false)}
                     className="flex items-start gap-3 px-4 py-3 text-[13px] transition-colors hover:bg-muted"
                   >
