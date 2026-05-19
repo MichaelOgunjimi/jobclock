@@ -71,13 +71,21 @@ export const jobImportHintsSchema = z.object({
 
 export type JobImportHints = z.infer<typeof jobImportHintsSchema>
 
-function sanitizePageText(pageText: string): string {
+function sanitizePageText(pageText: string, maxChars = 70_000): string {
   return pageText
     .replace(/\u0000/g, " ")
     .replace(/\s{3,}/g, "\n\n")
     .trim()
-    .slice(0, 70_000)
+    .slice(0, maxChars)
 }
+
+// When the extension's content script returned a real description hint
+// (e.g. LinkedIn's `.jobs-description__content`), it is the actual job
+// description verbatim. Send a small slice of pageText alongside for
+// scraps the hint might miss (badges, perks blocks) instead of feeding
+// the model 70k chars of noisy feed/sidebar content.
+const RELIABLE_HINT_MIN_CHARS = 400
+const PAGETEXT_CAP_WITH_RELIABLE_HINT = 4_000
 
 function cleanCandidateText(value: string | null | undefined): string | null {
   if (!value) return null
@@ -300,6 +308,12 @@ export async function parseImportedJobPreview(input: {
   const pageTitle = input.pageTitle?.trim() || "Untitled job page"
   const suggestedSource = detectSourceFromUrl(input.url)
 
+  const hintedDescriptionLength = input.pageHints?.description?.trim().length ?? 0
+  const pageTextCap =
+    hintedDescriptionLength >= RELIABLE_HINT_MIN_CHARS
+      ? PAGETEXT_CAP_WITH_RELIABLE_HINT
+      : 70_000
+
   const response = await generateText(
     settings,
     apiKey,
@@ -309,7 +323,7 @@ export async function parseImportedJobPreview(input: {
       pageTitle,
       suggestedSource,
       pageHints: input.pageHints,
-      pageText: sanitizePageText(input.pageText),
+      pageText: sanitizePageText(input.pageText, pageTextCap),
     }),
     4096
   )
