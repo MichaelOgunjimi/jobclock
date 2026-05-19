@@ -48,7 +48,7 @@ export default async function CoverLetterPreviewPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const typedApp = app as any as {
     selected_cv_id: string | null
-    jobs_cache: { title?: string; company?: string } | null
+    jobs_cache: { title?: string; company?: string; url?: string } | null
   }
 
   // Get the generated cover letter for this application
@@ -101,6 +101,7 @@ export default async function CoverLetterPreviewPage({
       senderCv={cvData}
       jobTitle={job?.title ?? null}
       jobCompany={job?.company ?? null}
+      jobUrl={job?.url ?? null}
       initialTemplate={initialTemplate}
       hasCv={Boolean(cvExists)}
     />
