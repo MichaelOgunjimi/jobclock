@@ -72,6 +72,7 @@ export default async function CvPreviewPage({
       skillsGap={cvData.skills_gap}
       jobTitle={job?.title ?? null}
       jobCompany={job?.company ?? null}
+      jobUrl={job?.url ?? null}
       hasCoverLetter={Boolean(coverLetterExists)}
     />
   )

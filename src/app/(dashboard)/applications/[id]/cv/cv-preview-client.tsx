@@ -1,12 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, ChevronDown, Download, FileText, Info, PenLine, Printer, Save } from "lucide-react"
+import { ArrowLeft, ChevronDown, Download, ExternalLink, FileText, Info, Loader2, PenLine, Printer, RefreshCw, Save } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { GenerationProgress } from "@/components/generation-progress"
+import { useGenerationJobsContext } from "@/contexts/generation-jobs-context"
 import { useDownloadPdf } from "@/hooks/use-download-pdf"
 import { buildCvFilenameBase } from "@/lib/document-filename"
 import { cn } from "@/lib/utils"
@@ -31,6 +33,7 @@ interface Props {
   skillsGap: unknown
   jobTitle: string | null
   jobCompany: string | null
+  jobUrl: string | null
   hasCoverLetter: boolean
 }
 
@@ -202,8 +205,49 @@ export function CvPreviewClient({
   skillsGap: rawSkillsGap,
   jobTitle,
   jobCompany,
+  jobUrl,
   hasCoverLetter,
 }: Props) {
+  const { getActiveJob, trackJob } = useGenerationJobsContext()
+  const activeJob = getActiveJob(applicationId, "cv_tailor")
+  const [regenError, setRegenError] = useState<string | null>(null)
+  const [regenStarting, setRegenStarting] = useState(false)
+  // Reload only when a regenerate started from THIS page finishes — the
+  // workspace seeds its editable state from server props once, so a fresh
+  // tailored CV is only visible after a full reload.
+  const reloadOnDoneRef = useRef(false)
+  const prevActiveJobIdRef = useRef<string | undefined>(undefined)
+
+  useEffect(() => {
+    if (activeJob) {
+      prevActiveJobIdRef.current = activeJob.id
+    } else if (prevActiveJobIdRef.current !== undefined) {
+      prevActiveJobIdRef.current = undefined
+      if (reloadOnDoneRef.current) window.location.reload()
+    }
+  }, [activeJob])
+
+  async function handleRegenerate() {
+    setRegenError(null)
+    setRegenStarting(true)
+    try {
+      const res = await fetch(
+        `/api/applications/${applicationId}/cv/generate`,
+        { method: "POST" },
+      )
+      const data = (await res.json()) as { jobId?: string; error?: string }
+      if (!res.ok) {
+        setRegenError(data.error ?? "Failed to start CV generation.")
+      } else if (data.jobId) {
+        reloadOnDoneRef.current = true
+        trackJob({ id: data.jobId, applicationId, kind: "cv_tailor" })
+      }
+    } catch {
+      setRegenError("Network error. Please try again.")
+    } finally {
+      setRegenStarting(false)
+    }
+  }
   const [data, setData] = useState<NormalizedCvData>(() => normalizeCvData(cvData))
   const [template, setTemplate] = useState<CvTemplateName>(initialTemplate)
   const [isSaving, setIsSaving] = useState(false)
@@ -290,6 +334,17 @@ export function CvPreviewClient({
                 View cover letter
               </Link>
             )}
+            {jobUrl && (
+              <a
+                href={jobUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                View posting
+              </a>
+            )}
           </div>
           <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             <span>{hasUnsavedChanges ? "Unsaved changes" : "Saved"}</span>
@@ -351,7 +406,22 @@ export function CvPreviewClient({
                 </div>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-[auto_auto_auto_auto_1fr] sm:items-center">
+              <div className="grid gap-2 sm:grid-cols-[auto_auto_auto_auto_auto_1fr] sm:items-center">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={regenStarting || !!activeJob}
+                  onClick={() => void handleRegenerate()}
+                  className="w-full sm:w-auto"
+                >
+                  {regenStarting || activeJob ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  {regenStarting || activeJob ? "Generating…" : "Regenerate"}
+                </Button>
                 <Button
                   type="button"
                   size="sm"
@@ -398,6 +468,13 @@ export function CvPreviewClient({
                   </span>
                 </div>
               </div>
+
+              {activeJob && (
+                <GenerationProgress label="tailored CV" startedAt={activeJob.created_at} />
+              )}
+              {regenError && (
+                <p className="text-[12px] text-destructive">{regenError}</p>
+              )}
 
               {isStatsOpen && (
                 <div className="border bg-secondary/40">
