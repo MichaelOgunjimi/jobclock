@@ -83,7 +83,7 @@ export function AppSidebar({
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-[8px] border border-white/10 bg-sidebar-primary">
               <Image
-                src="/logo-mark-light.svg"
+                src="/logo-mark-light-white.svg"
                 alt="Jobclock"
                 width={40}
                 height={40}

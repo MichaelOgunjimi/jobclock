@@ -105,7 +105,7 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
             <Link href="/" className="flex min-w-0 items-center gap-3">
               <div className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden border bg-primary">
                 <Image
-                  src="/logo-mark-light.svg"
+                  src="/logo-mark-light-white.svg"
                   alt="Jobclock"
                   width={44}
                   height={44}
