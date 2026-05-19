@@ -298,21 +298,23 @@ export function CoverLetterPreviewClient({
               </div>
 
               <div className="grid gap-2 sm:grid-cols-[auto_auto_auto_auto_auto_auto_1fr] sm:items-center">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={regenStarting || !!activeJob}
-                  onClick={() => void handleRegenerate()}
-                  className="w-full sm:w-auto"
-                >
-                  {regenStarting || activeJob ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  )}
-                  {regenStarting || activeJob ? "Generating…" : "Regenerate"}
-                </Button>
+                {!activeJob && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={regenStarting}
+                    onClick={() => void handleRegenerate()}
+                    className="w-full sm:w-auto"
+                  >
+                    {regenStarting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    )}
+                    {regenStarting ? "Starting…" : "Regenerate"}
+                  </Button>
+                )}
                 <Button
                   type="button"
                   size="sm"

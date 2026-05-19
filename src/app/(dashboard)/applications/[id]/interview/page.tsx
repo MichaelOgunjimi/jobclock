@@ -145,20 +145,21 @@ function GrillMe({
           <MarkdownContent content={suggestedAnswer} />
         </div>
       ) : (
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleGetSuggestion}
-            disabled={answerPending}
-          >
-            {answerPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            {answerPending ? "Generating suggestion…" : "Get AI STAR suggestion"}
-          </Button>
-          {answerError && (
-            <p className="text-xs text-destructive">{answerError}</p>
-          )}
-        </div>
+        !answerPending && (
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGetSuggestion}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Get AI STAR suggestion
+            </Button>
+            {answerError && (
+              <p className="text-xs text-destructive">{answerError}</p>
+            )}
+          </div>
+        )
       )}
 
       {activeAnswerJob && !suggestedAnswer && (
@@ -372,15 +373,17 @@ export default function InterviewPrepPage() {
           <TabContentSkeleton />
         ) : (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Button onClick={() => void generatePrep()} disabled={loadingPrep || !!prepJob}>
-              {loadingPrep || prepJob ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              {prepJob ? "Generating…" : prepContent ? "Regenerate" : "Generate Interview Prep"}
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              Uses the job description + your story bank. Saved automatically.
-            </p>
-          </div>
+          {!prepJob && (
+            <div className="flex items-center gap-3">
+              <Button onClick={() => void generatePrep()} disabled={loadingPrep}>
+                {loadingPrep ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                {loadingPrep ? "Starting…" : prepContent ? "Regenerate" : "Generate Interview Prep"}
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                Uses the job description + your story bank. Saved automatically.
+              </p>
+            </div>
+          )}
 
           {storyCount === 0 && (
             <div className="flex items-start gap-3 border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
@@ -427,15 +430,17 @@ export default function InterviewPrepPage() {
           <TabContentSkeleton />
         ) : (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Button onClick={() => void generateResearch()} disabled={loadingResearch || !!researchJob}>
-              {loadingResearch || researchJob ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              {researchJob ? "Generating…" : researchContent ? "Re-research" : "Research Company"}
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              6-axis company intelligence — uses Perplexity (live web) if configured, otherwise your AI model. Saved automatically.
-            </p>
-          </div>
+          {!researchJob && (
+            <div className="flex items-center gap-3">
+              <Button onClick={() => void generateResearch()} disabled={loadingResearch}>
+                {loadingResearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                {loadingResearch ? "Starting…" : researchContent ? "Re-research" : "Research Company"}
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                6-axis company intelligence — uses Perplexity (live web) if configured, otherwise your AI model. Saved automatically.
+              </p>
+            </div>
+          )}
 
           {researchError && (
             <div className="border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
