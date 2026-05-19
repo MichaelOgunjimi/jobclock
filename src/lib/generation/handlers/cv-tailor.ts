@@ -64,7 +64,8 @@ export async function cvTailorHandler(job: GenerationJob): Promise<string> {
   )
 
   const result = parseStage(
-    await generateText(settings, apiKey, STAGE_E_SYSTEM_PROMPT, buildStageEUserPrompt({ jobAnalysis, cvJson, tailoringPlan, title, company, location }), 16384),
+    // Stage E can stream up to ~16k tokens of tailored CV; allow more headroom than the default 60s cap.
+    await generateText(settings, apiKey, STAGE_E_SYSTEM_PROMPT, buildStageEUserPrompt({ jobAnalysis, cvJson, tailoringPlan, title, company, location }), 16384, { timeoutMs: 180_000 }),
     tailoredCvResultSchema,
     "Stage E",
   )

@@ -93,16 +93,34 @@ export function resolveAiConfig(preferences: UserPreferences | null): {
   return { settings, apiKey }
 }
 
+export interface GenerateTextOptions {
+  /** Per-request timeout in milliseconds. Defaults to 60_000 (60s). */
+  timeoutMs?: number
+  /** Max retries inside the SDK. Defaults to 1 — both SDK defaults of 2
+   *  silently triple the latency of any slow request. */
+  maxRetries?: number
+}
+
+// Defaults chosen to bound worst-case latency. Both SDKs default to
+// maxRetries=2 + ~10-minute timeouts, which silently turns one tail-latency
+// spike into a multi-minute hang (seen in the extension preview path).
+const DEFAULT_TIMEOUT_MS = 60_000
+const DEFAULT_MAX_RETRIES = 1
+
 export async function generateText(
   settings: AiSettings,
   apiKey: string,
   system: string,
   user: string,
-  maxTokens?: number
+  maxTokens?: number,
+  options?: GenerateTextOptions,
 ): Promise<string> {
+  const timeout = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS
+  const maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES
+
   if (settings.provider === "anthropic") {
     const { default: Anthropic } = await import("@anthropic-ai/sdk")
-    const client = new Anthropic({ apiKey })
+    const client = new Anthropic({ apiKey, timeout, maxRetries })
     const message = await client.messages.create({
       model: settings.model,
       max_tokens: maxTokens ?? 4096,
@@ -114,7 +132,7 @@ export async function generateText(
     return block.text
   } else {
     const { default: OpenAI } = await import("openai")
-    const client = new OpenAI({ apiKey })
+    const client = new OpenAI({ apiKey, timeout, maxRetries })
     const completion = await client.chat.completions.create({
       model: settings.model,
       messages: [
