@@ -19,6 +19,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { MarkdownContent } from "@/components/ui/markdown-content"
+import { GenerationProgress } from "@/components/generation-progress"
 import { cn } from "@/lib/utils"
 import {
   updateStatus,
@@ -697,19 +698,26 @@ function CvCard({
         {/* AI generation section */}
         <div className="border-t pt-4 space-y-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
-            {!generating && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!hasDescription}
-                onClick={handleGenerate}
-                className="w-full sm:w-auto"
-              >
-                {tailoredCvs.length > 0 ? "Regenerate" : "Generate tailored CV"}
-              </Button>
-            )}
-            {tailoredCvs.length > 0 && !generating && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!hasDescription || generating || !!activeJob}
+              onClick={handleGenerate}
+              className="w-full sm:w-auto"
+            >
+              {generating || activeJob ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Generating…
+                </>
+              ) : tailoredCvs.length > 0 ? (
+                "Regenerate"
+              ) : (
+                "Generate tailored CV"
+              )}
+            </Button>
+            {tailoredCvs.length > 0 && (
               <Link
                 href={`/applications/${applicationId}/cv`}
                 className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full justify-center sm:w-auto")}
@@ -717,7 +725,7 @@ function CvCard({
                 Preview &amp; Download CV
               </Link>
             )}
-            {!hasDescription && !generating && (
+            {!hasDescription && !activeJob && (
               <span className="text-[12px] text-muted-foreground">
                 Add a job description first
               </span>
@@ -725,16 +733,14 @@ function CvCard({
           </div>
 
           {activeJob && (
-            <p className="text-[12px] text-muted-foreground">
-              Generating in the background — this can take a minute; reload to see it once it&apos;s ready.
-            </p>
+            <GenerationProgress label="tailored CV" startedAt={activeJob.created_at} />
           )}
 
           {genError && (
             <p className="text-[12px] text-destructive">{genError}</p>
           )}
 
-          {!generating && !activeJob && latest && (
+          {latest && (
             <div className="space-y-2">
               {latest.changes && (
                 <p className="text-[12px] text-muted-foreground leading-relaxed">
@@ -954,11 +960,11 @@ function CoverLetterCard({
               type="button"
               size="sm"
               variant="outline"
-              disabled={genPending || !hasDescription}
+              disabled={genPending || !hasDescription || !!activeJob}
               onClick={handleGenerate}
               className="w-full sm:w-auto"
             >
-              {genPending ? (
+              {genPending || activeJob ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   Generating…
@@ -985,9 +991,7 @@ function CoverLetterCard({
           </div>
 
           {activeJob && (
-            <p className="text-[12px] text-muted-foreground">
-              Generating in the background — this can take a minute; reload to see it once it&apos;s ready.
-            </p>
+            <GenerationProgress label="cover letter" startedAt={activeJob.created_at} />
           )}
 
           {genError && (

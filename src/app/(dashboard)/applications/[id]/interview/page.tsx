@@ -7,6 +7,7 @@ import { ArrowLeft, BookOpen, Building2, ChevronLeft, ChevronRight, Loader2, Ref
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { MarkdownContent } from "@/components/ui/markdown-content"
+import { GenerationProgress } from "@/components/generation-progress"
 import { cn } from "@/lib/utils"
 import { useGenerationJobsContext } from "@/contexts/generation-jobs-context"
 
@@ -158,6 +159,10 @@ function GrillMe({
         </div>
       )}
 
+      {activeAnswerJob && !suggestedAnswer && (
+        <GenerationProgress label="STAR answer" startedAt={activeAnswerJob.created_at} />
+      )}
+
       {/* Answer area */}
       <div className="space-y-2">
         <label className="text-sm font-medium">Your answer</label>
@@ -203,6 +208,23 @@ function GrillMe({
   )
 }
 
+function TabContentSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="h-9 w-44 animate-pulse bg-secondary" />
+        <div className="h-4 w-72 max-w-full animate-pulse bg-secondary" />
+      </div>
+      <div className="border bg-card p-6 space-y-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-4 w-full animate-pulse bg-secondary" />
+        ))}
+        <div className="h-4 w-2/3 animate-pulse bg-secondary" />
+      </div>
+    </div>
+  )
+}
+
 export default function InterviewPrepPage() {
   const params = useParams()
   const applicationId = params.id as string
@@ -213,6 +235,10 @@ export default function InterviewPrepPage() {
   const [researchContent, setResearchContent] = useState<string | null>(null)
   const [questions, setQuestions] = useState<string[]>([])
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  // Distinct from "generating": the one-time fetch of already-saved content
+  // on mount. While true the tab shows a skeleton, not a spinning generate
+  // button. Re-fetches on job completion don't flip it back on.
+  const [initialLoading, setInitialLoading] = useState(true)
   const [loadingPrep, setLoadingPrep] = useState(false)
   const [loadingResearch, setLoadingResearch] = useState(false)
   const [prepError, setPrepError] = useState<string | null>(null)
@@ -227,7 +253,6 @@ export default function InterviewPrepPage() {
   const prevAnswerJobIdRef = useRef<string | undefined>(undefined)
 
   const loadSaved = useCallback(async () => {
-    setLoadingPrep(true)
     try {
       const [prepRes, researchRes] = await Promise.all([
         fetch(`/api/applications/${applicationId}/interview`),
@@ -241,7 +266,7 @@ export default function InterviewPrepPage() {
       if (prepData.answers) setAnswers(prepData.answers)
       if (researchData.content) setResearchContent(researchData.content)
     } finally {
-      setLoadingPrep(false)
+      setInitialLoading(false)
     }
   }, [applicationId])
 
@@ -339,11 +364,14 @@ export default function InterviewPrepPage() {
       </div>
 
       {tab === "prep" && (
+        initialLoading ? (
+          <TabContentSkeleton />
+        ) : (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <Button onClick={() => void generatePrep()} disabled={loadingPrep}>
-              {loadingPrep ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              {prepContent ? "Regenerate" : "Generate Interview Prep"}
+            <Button onClick={() => void generatePrep()} disabled={loadingPrep || !!prepJob}>
+              {loadingPrep || prepJob ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {prepJob ? "Generating…" : prepContent ? "Regenerate" : "Generate Interview Prep"}
             </Button>
             <p className="text-sm text-muted-foreground">
               Uses the job description + your story bank. Saved automatically.
@@ -370,9 +398,7 @@ export default function InterviewPrepPage() {
           )}
 
           {prepJob && (
-            <div className="border border-border bg-secondary px-4 py-3 text-sm text-muted-foreground">
-              Generating in the background — this can take a minute; reload to see it once it&apos;s ready.
-            </div>
+            <GenerationProgress label="interview prep" startedAt={prepJob.created_at} />
           )}
 
           {prepContent && (
@@ -389,14 +415,18 @@ export default function InterviewPrepPage() {
             </div>
           )}
         </div>
+        )
       )}
 
       {tab === "research" && (
+        initialLoading ? (
+          <TabContentSkeleton />
+        ) : (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <Button onClick={() => void generateResearch()} disabled={loadingResearch}>
-              {loadingResearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              {researchContent ? "Re-research" : "Research Company"}
+            <Button onClick={() => void generateResearch()} disabled={loadingResearch || !!researchJob}>
+              {loadingResearch || researchJob ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {researchJob ? "Generating…" : researchContent ? "Re-research" : "Research Company"}
             </Button>
             <p className="text-sm text-muted-foreground">
               6-axis company intelligence — uses Perplexity (live web) if configured, otherwise your AI model. Saved automatically.
@@ -410,9 +440,7 @@ export default function InterviewPrepPage() {
           )}
 
           {researchJob && (
-            <div className="border border-border bg-secondary px-4 py-3 text-sm text-muted-foreground">
-              Generating in the background — this can take a minute; reload to see it once it&apos;s ready.
-            </div>
+            <GenerationProgress label="company research" startedAt={researchJob.created_at} />
           )}
 
           {researchContent && (
@@ -431,6 +459,7 @@ export default function InterviewPrepPage() {
             </div>
           )}
         </div>
+        )
       )}
 
       {tab === "grill" && (
