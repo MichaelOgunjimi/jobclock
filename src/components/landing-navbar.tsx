@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react"
 import { useDismissibleLayer } from "@/hooks/use-dismissible-layer"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useTheme } from "@/components/theme-provider"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { LandingAnchorLink } from "@/components/landing-anchor-link"
 import { cn } from "@/lib/utils"
@@ -44,6 +45,12 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null)
+  // bg-primary flips with the theme (dark in light mode, cream in dark
+  // mode), so pick the contrasting mark accordingly. resolvedTheme is
+  // hydration-safe because initialTheme is passed in from the server.
+  const { resolvedTheme } = useTheme()
+  const markSrc =
+    resolvedTheme === "dark" ? "/logo-mark-light.svg" : "/logo-mark-light-white.svg"
 
   useEffect(() => {
     const sectionElements = sections
@@ -104,25 +111,14 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
           <div className="flex items-center justify-between gap-4 border-b px-4 py-4 md:grid md:grid-cols-[auto_1fr_auto] md:px-6">
             <Link href="/" className="flex min-w-0 items-center gap-3">
               <div className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden border bg-primary">
-                {/* bg-primary is dark (#0a0a0a) in light mode and cream
-                    (#f3f1ed) in dark mode — swap the mark accordingly. */}
                 <Image
-                  src="/logo-mark-light-white.svg"
+                  src={markSrc}
                   alt="Jobclock"
                   width={44}
                   height={44}
                   priority
                   unoptimized
-                  className="size-full object-contain dark:hidden"
-                />
-                <Image
-                  src="/logo-mark-light.svg"
-                  alt="Jobclock"
-                  width={44}
-                  height={44}
-                  priority
-                  unoptimized
-                  className="hidden size-full object-contain dark:block"
+                  className="size-full object-contain"
                 />
               </div>
               <div className="min-w-0">
