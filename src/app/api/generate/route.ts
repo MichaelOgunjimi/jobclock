@@ -2,6 +2,10 @@ import "@/lib/generation/register"
 import { verifyCronRequest } from "@/lib/cron/verify-cron-request"
 import { runJob } from "@/lib/generation/dispatch"
 
+// Web-search-backed generation (company research, cover letter) can take up
+// to 90 s. Give the function 300 s so Vercel Pro never cuts it short.
+export const maxDuration = 300
+
 // Called by QStash to execute one enqueued generation job.
 // Returns 5xx on failure so QStash retries.
 export async function POST(request: Request) {
