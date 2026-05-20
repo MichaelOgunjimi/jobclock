@@ -3,7 +3,8 @@ export const JOB_IMPORT_SYSTEM_PROMPT = `You extract structured job posting data
 Return JSON only.
 Do not include markdown fences.
 Infer fields conservatively and prefer null when a field is not clearly present.
-Preserve the fullest job description available from the page.
+Preserve the fullest job description available from the page — never summarise, compress, or skip sections.
+Format the description as clean markdown: keep every sentence, but convert bullet markers (•, *, -, ◦) to proper markdown lists, turn obvious section labels (e.g. "Responsibilities", "Requirements", "About us", "What you'll do", "Benefits") into ## headings, and use blank lines between paragraphs.
 Normalize salary numbers to plain numeric values without currency symbols or commas.`
 
 export function buildJobImportUserPrompt(input: {
@@ -42,8 +43,9 @@ Rules:
 - isEasyApply should be true only when the page clearly suggests an easy/quick apply flow
 - when structured hints are present, prefer them over noisy body text
 - if salary is only present as text, infer salaryMin/salaryMax when obvious; otherwise leave them null
-- description should be the full job description where possible, not a brief summary
-- do not rewrite or compress the description when a full description block is already present in the structured hints
+- description must contain every section and sentence from the source — preserve length, only the formatting changes
+- format description as markdown: ## headings for section labels, - lists for bullets, blank lines between paragraphs
+- when the structured hint already contains a full description, keep the same content but reformat it as markdown
 
 URL: ${input.url}
 Page title: ${input.pageTitle}

@@ -139,15 +139,27 @@ export function isSubstantialDescription(value: string | null | undefined): valu
 }
 
 export function chooseDescription(parsedDescription: string | null, hintedDescription: string | null): string | null {
+  // Prefer the AI-formatted markdown version when the model returned
+  // something substantial. The raw DOM hint is unstructured innerText
+  // (no paragraph breaks, no headings) — the AI reformats it into
+  // markdown while preserving content, so users get a readable result.
+  //
+  // Compression guard: if the AI's output is dramatically shorter than
+  // the raw hint, the model likely summarised against instructions —
+  // fall back to the raw hint so we never lose content.
+  if (parsedDescription && isSubstantialDescription(parsedDescription)) {
+    const parsedLen = parsedDescription.trim().length
+    const hintedLen = hintedDescription?.trim().length ?? 0
+    if (hintedLen === 0 || parsedLen >= hintedLen * 0.6) {
+      return parsedDescription
+    }
+  }
+
   if (isSubstantialDescription(hintedDescription)) {
     return hintedDescription
   }
 
-  if (parsedDescription) {
-    return parsedDescription
-  }
-
-  return hintedDescription
+  return parsedDescription ?? hintedDescription
 }
 
 function parseSalaryValue(value: string): number | null {
