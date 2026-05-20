@@ -1,8 +1,16 @@
+import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { GenerationJobsProvider } from "@/components/generation-jobs-provider"
+
+// Every page under (dashboard) is behind auth. Tell crawlers not to
+// index them so accidental URL leaks (shared links, referer headers)
+// can't pollute search results with login walls.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 export default async function DashboardLayout({
   children,

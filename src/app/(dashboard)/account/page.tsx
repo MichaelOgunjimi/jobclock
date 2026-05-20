@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { Code2, ExternalLink, Globe, Link2, Mail, Phone } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
@@ -5,6 +6,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AccountForm } from "./account-form"
 import { toExternalProfileHref } from "./account-link-utils"
+
+export const metadata: Metadata = { title: "Account" }
 
 export default async function AccountPage() {
   if (!isSupabaseConfigured()) redirect("/auth")

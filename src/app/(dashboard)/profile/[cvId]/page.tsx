@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect, notFound } from "next/navigation"
@@ -8,6 +9,25 @@ import type { CvData } from "@/lib/supabase/database.types"
 import { normalizeCvData } from "@/lib/cv-data"
 import { parseReviewFindings } from "@/lib/ai/cv-review-schemas"
 import { CvReviewFindings } from "@/components/cv/cv-review-findings"
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ cvId: string }>
+}): Promise<Metadata> {
+  const { cvId } = await params
+  if (!isSupabaseConfigured()) return { title: "CV" }
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { title: "CV" }
+  const { data } = await supabase
+    .from("user_cvs")
+    .select("name")
+    .eq("id", cvId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  return { title: data?.name ?? "CV" }
+}
 import { CvEditor } from "./cv-editor"
 import { setPrimaryCV as setPrimaryCVAction } from "../actions"
 

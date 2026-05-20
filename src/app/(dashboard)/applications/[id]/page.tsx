@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
@@ -6,6 +7,30 @@ import { db } from "@/lib/db"
 import { applications } from "@/lib/db/schema"
 import type { Database } from "@/lib/supabase/database.types"
 import { ApplicationDetail } from "./application-detail"
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  if (!isSupabaseConfigured()) return { title: "Application" }
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { title: "Application" }
+  const { data } = await supabase
+    .from("applications")
+    .select("jobs_cache(title, company)")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  const job = (data as { jobs_cache: { title?: string; company?: string } | null } | null)?.jobs_cache
+  const title = job?.title && job?.company
+    ? `${job.title} · ${job.company}`
+    : job?.title ?? "Application"
+  return { title }
+}
+
 
 type ApplicationRow = Database["public"]["Tables"]["applications"]["Row"]
 type JobsCacheRow = Database["public"]["Tables"]["jobs_cache"]["Row"]
