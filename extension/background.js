@@ -37,9 +37,12 @@ async function extractCurrentPage(tabId) {
     files: ["page-extractor.js"],
   })
 
+  // collectJobAssistantPageData is async (it polls for LinkedIn's lazy-
+  // loaded description). chrome.scripting.executeScript awaits a Promise
+  // returned from the injected function in MV3 ≥ Chrome 100.
   const [{ result }] = await chrome.scripting.executeScript({
     target: { tabId },
-    func: () => globalThis.collectJobAssistantPageData(),
+    func: async () => await globalThis.collectJobAssistantPageData(),
   })
   console.info(`[jobclock] DOM extract took ${Date.now() - t0}ms`)
 

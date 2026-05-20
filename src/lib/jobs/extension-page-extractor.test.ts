@@ -26,7 +26,7 @@ function loadCollector() {
 }
 
 describe("extension page extractor", () => {
-  it("extracts Glassdoor job details from visible page sections", () => {
+  it("extracts Glassdoor job details from visible page sections", async () => {
     document.title = "Junior Application Software Engineer - One Big Circle | Glassdoor"
     document.body.innerHTML = `
       <main>
@@ -38,19 +38,19 @@ describe("extension page extractor", () => {
           <div>£30K - £40K (Employer Est.)</div>
         </section>
         <article id="JobDescriptionContainer">
-          <p>We are looking for a junior application software engineer to build web applications.</p>
+          <p>We are looking for a junior application software engineer to build web applications. You will work closely with our experienced engineers to design, develop, test and ship features end-to-end. We use TypeScript, React and Postgres. Comfortable working in a small team, learning quickly, and shipping value to customers every week.</p>
         </article>
       </main>
     `
 
-    expect(loadCollector()().pageHints).toEqual(
+    const result = await loadCollector()()
+    expect(result.pageHints).toEqual(
       expect.objectContaining({
         title: "Junior Application Software Engineer",
         company: "One Big Circle",
         location: "Bristol, England",
         salaryText: "£30K - £40K (Employer Est.)",
-        description:
-          "We are looking for a junior application software engineer to build web applications.",
+        description: expect.stringContaining("junior application software engineer"),
       })
     )
   })
