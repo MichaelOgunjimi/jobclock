@@ -86,7 +86,18 @@
   function isInsideExcluded(node) {
     if (!(node instanceof HTMLElement)) return false
     for (const selector of EXCLUDED_CONTAINER_SELECTORS) {
-      if (node.closest(selector)) return true
+      const match = node.closest(selector)
+      if (!match) continue
+      // Ignore matches that are the scope itself OR an ancestor of the
+      // scope. LinkedIn's <body> has a marketing class like
+      // "payment-failure-global-alert-lix-enabled-class" which collides
+      // with [class*='alert' i] — treating that as an "excluded container"
+      // would filter out the entire page. We only care about noise
+      // containers that sit *inside* the job pane, not above it.
+      if (scope instanceof HTMLElement) {
+        if (match === scope || match.contains(scope)) continue
+      }
+      return true
     }
     return false
   }
