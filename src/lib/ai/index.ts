@@ -115,8 +115,9 @@ export async function generateTextWithWebSearch(
   maxTokens?: number,
   options?: GenerateTextOptions,
 ): Promise<string> {
-  // Web search calls are slower — default to 90s so we don't prematurely abort.
-  const timeout = options?.timeoutMs ?? 90_000
+  // Web search calls are slow (search + synthesis). 240 s gives headroom
+  // inside the 300 s Vercel maxDuration on the generate route.
+  const timeout = options?.timeoutMs ?? 240_000
   const maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES
 
   try {
