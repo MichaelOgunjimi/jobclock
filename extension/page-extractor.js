@@ -152,6 +152,26 @@
     return bodyMatch?.[0] || ""
   }
 
+  // Safety net for when LinkedIn renames the description block again:
+  // pick the single largest text block inside scope whose length falls
+  // in the description-shaped window. Excludes anything sitting inside
+  // sidebar/nav containers via the same filter the rest of the file uses.
+  function largestTextBlockIn(root, minChars, maxChars) {
+    if (!(root instanceof HTMLElement)) return ""
+    let best = ""
+    let bestLen = 0
+    for (const el of root.querySelectorAll("div, article, section")) {
+      if (!(el instanceof HTMLElement)) continue
+      if (isInsideExcluded(el)) continue
+      const t = (el.innerText || el.textContent || "").trim()
+      if (t.length > bestLen && t.length >= minChars && t.length <= maxChars) {
+        bestLen = t.length
+        best = t
+      }
+    }
+    return best
+  }
+
   function relevantPageText(description) {
     // When scope is the whole document (we couldn't pin down a job pane),
     // the [class*="job" i] / [class*="description" i] sweep matches
@@ -220,11 +240,17 @@
 
     const linkedinDescription =
       firstText([
+        // Current LinkedIn logged-in DOM (verified live via Playwright on
+        // /jobs/collections/recommended/?currentJobId=…): the description
+        // block was renamed away from `.jobs-description__content`.
+        ".job-details-about-the-job-module__description",
+        ".job-details-module",
         ".jobs-description__content",
         ".jobs-box__html-content",
+        // Public guest view (works without login on /jobs/view/<id>/).
         ".show-more-less-html__markup",
         ".description__text",
-      ])
+      ]) || largestTextBlockIn(scope, 800, 20000)
 
     const glassdoorTitle = firstText([
       '[data-test="job-title"]',
