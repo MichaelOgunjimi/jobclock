@@ -28,6 +28,7 @@ const nodes = {
   loadingMessage: document.getElementById("loading-message"),
   errorMessage: document.getElementById("error-message"),
   retryButton: document.getElementById("retry-button"),
+  loadingRetryButton: document.getElementById("loading-retry-button"),
   editSettingsButton: document.getElementById("edit-settings-button"),
   previewSettingsButton: document.getElementById("preview-settings-button"),
   footerSettingsButton: document.getElementById("footer-settings-button"),
@@ -436,6 +437,11 @@ nodes.setupForm.addEventListener("submit", async (event) => {
 })
 
 nodes.retryButton.addEventListener("click", () => {
+  sendMessage({ type: "clear-state" }).catch(() => {})
+  initialize()
+})
+
+nodes.loadingRetryButton.addEventListener("click", () => {
   sendMessage({ type: "clear-state" }).catch(() => {})
   initialize()
 })
