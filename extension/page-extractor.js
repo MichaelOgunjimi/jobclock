@@ -50,10 +50,38 @@
     ".scaffold-layout__list",
     ".jobs-search-results__list",
     ".jobs-recommended-jobs",
+    "[aria-modal='true']",
+    "[role='banner']",
+    "[role='navigation']",
+    "[role='contentinfo']",
+    "[role='dialog']",
+    "[class*='alert' i]",
+    "[class*='banner' i]",
+    "[class*='breadcrumb' i]",
+    "[class*='cookie' i]",
+    "[class*='drawer' i]",
+    "[class*='modal' i]",
+    "[class*='popup' i]",
+    "[class*='recommended' i]",
+    "[class*='related' i]",
+    "[class*='search-results' i]",
+    "[class*='similar' i]",
+    "[id*='cookie' i]",
+    "[id*='modal' i]",
+    "[id*='recommended' i]",
+    "[id*='related' i]",
+    "[id*='search-results' i]",
+    "[id*='similar' i]",
+    "aside",
+    "form",
     "nav",
     "header",
     "footer",
   ]
+
+  const MAX_RELEVANT_PAGE_TEXT_CHARS = 20_000
+  const MAX_DESCRIPTION_HINT_CHARS = 20_000
+  const MAX_READABLE_BLOCK_CHARS = 4_000
 
   function isInsideExcluded(node) {
     if (!(node instanceof HTMLElement)) return false
@@ -61,6 +89,25 @@
       if (node.closest(selector)) return true
     }
     return false
+  }
+
+  function normalizeText(value) {
+    return (value || "")
+      .replace(/\u0000/g, " ")
+      .replace(/\u00a0/g, " ")
+      .replace(/[ \t\r\f\v]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  }
+
+  function rootElement() {
+    if (scope instanceof HTMLElement) return scope
+    return document.body || document.documentElement
+  }
+
+  function readableText(node) {
+    if (!(node instanceof HTMLElement)) return ""
+    return normalizeText(node.innerText || node.textContent || "")
   }
 
   function text(selector) {
@@ -96,8 +143,7 @@
   }
 
   function scopeInnerText() {
-    if (scope instanceof HTMLElement) return scope.innerText || scope.textContent || ""
-    return document.body?.innerText || document.body?.textContent || ""
+    return readableText(rootElement())
   }
 
   function textNearHeading(headingPattern) {
@@ -164,13 +210,141 @@
     for (const el of root.querySelectorAll("div, article, section")) {
       if (!(el instanceof HTMLElement)) continue
       if (isInsideExcluded(el)) continue
-      const t = (el.innerText || el.textContent || "").trim()
+      const t = collectReadableText(el, maxChars)
       if (t.length > bestLen && t.length >= minChars && t.length <= maxChars) {
         bestLen = t.length
         best = t
       }
     }
     return best
+  }
+
+  function textScore(value) {
+    const textValue = normalizeText(value).toLowerCase()
+    if (!textValue) return 0
+
+    const keywordMatches = textValue.match(
+      /\b(about the role|about this role|responsibilities|requirements|qualifications|what you'?ll do|what you will do|skills|benefits|salary|location|job description|position|role|team)\b/g
+    ) || []
+    const lengthScore = Math.min(textValue.length, 6000) / 80
+    const tooLongPenalty = Math.max(0, textValue.length - 30_000) / 200
+
+    return lengthScore + keywordMatches.length * 18 - tooLongPenalty
+  }
+
+  function nodeBonus(node) {
+    const tag = node.tagName.toLowerCase()
+    const marker = `${node.id || ""} ${node.className || ""} ${node.getAttribute("role") || ""} ${node.getAttribute("itemtype") || ""}`.toLowerCase()
+
+    let bonus = 0
+    if (tag === "main") bonus += 35
+    if (tag === "article") bonus += 45
+    if (node.getAttribute("role") === "main") bonus += 35
+    if (/job|career|posting|position|description|vacanc|opening/.test(marker)) bonus += 35
+    if (/main|content/.test(marker)) bonus += 15
+    return bonus
+  }
+
+  function findContentRoots() {
+    const root = rootElement()
+    if (!(root instanceof HTMLElement)) return []
+
+    const selector = [
+      "main",
+      "article",
+      "[role='main']",
+      "[itemtype*='JobPosting' i]",
+      "[itemprop='description']",
+      "[data-automation-id*='job' i]",
+      "[data-testid*='job' i]",
+      "[data-test*='job' i]",
+      "[data-test-id*='job' i]",
+      "[class*='career' i]",
+      "[class*='description' i]",
+      "[class*='job' i]",
+      "[class*='opening' i]",
+      "[class*='posting' i]",
+      "[class*='position' i]",
+      "[id*='career' i]",
+      "[id*='description' i]",
+      "[id*='job' i]",
+      "[id*='opening' i]",
+      "[id*='posting' i]",
+      "[id*='position' i]",
+    ].join(",")
+
+    const candidates = Array.from(root.querySelectorAll(selector))
+      .filter((node) => node instanceof HTMLElement && !isInsideExcluded(node))
+      .map((node) => {
+        const textValue = readableText(node)
+        return {
+          node,
+          textLength: textValue.length,
+          score: textScore(textValue) + nodeBonus(node),
+        }
+      })
+      .filter((candidate) => candidate.textLength >= 120)
+      .sort((a, b) => b.score - a.score)
+
+    const roots = []
+    for (const candidate of candidates) {
+      if (roots.some((existing) => existing.contains(candidate.node))) continue
+      roots.push(candidate.node)
+      if (roots.length >= 3) break
+    }
+
+    return roots.length ? roots : [root]
+  }
+
+  function collectReadableText(root, maxChars = MAX_RELEVANT_PAGE_TEXT_CHARS) {
+    if (!(root instanceof HTMLElement)) return ""
+
+    const blockSelector = [
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "p",
+      "li",
+      "dt",
+      "dd",
+      "[role='listitem']",
+      "[itemprop='title']",
+      "[itemprop='description']",
+    ].join(",")
+    const blocks = Array.from(root.querySelectorAll(blockSelector))
+    const seen = new Set()
+    const parts = []
+
+    for (const block of blocks) {
+      if (!(block instanceof HTMLElement)) continue
+      if (isInsideExcluded(block)) continue
+
+      const value = readableText(block).slice(0, MAX_READABLE_BLOCK_CHARS)
+      if (!value || value.length < 2) continue
+
+      const key = value.toLowerCase()
+      if (seen.has(key)) continue
+      if (parts.some((part) => part.includes(value) || value.includes(part))) continue
+
+      seen.add(key)
+      parts.push(value)
+      if (parts.join("\n").length >= maxChars) break
+    }
+
+    const text = parts.join("\n").trim()
+    if (text.length >= 250 || blocks.length > 0) return text.slice(0, maxChars)
+
+    return readableText(root).slice(0, maxChars)
+  }
+
+  function genericDescriptionText() {
+    for (const root of findContentRoots()) {
+      const textValue = collectReadableText(root, MAX_DESCRIPTION_HINT_CHARS)
+      if (textValue.length >= 300) return textValue
+    }
+
+    return largestTextBlockIn(rootElement(), 300, MAX_DESCRIPTION_HINT_CHARS)
   }
 
   function relevantPageText(description) {
@@ -180,39 +354,24 @@
     // On external ATS pages (Workday, Greenhouse, etc.) the whole page IS
     // the job posting, so let the normal container scan run.
     if (scopeIsDocument && /(?:^|\.)linkedin\.com$/i.test(location.hostname)) {
-      return (description || "").slice(0, 50000)
+      return (description || "").slice(0, MAX_RELEVANT_PAGE_TEXT_CHARS)
     }
-
-    const root = scope instanceof HTMLElement ? scope : document
-    const containers = Array.from(
-      root.querySelectorAll(
-        [
-          "main",
-          "article",
-          '[role="main"]',
-          '[data-test*="job" i]',
-          '[id*="job" i]',
-          '[class*="job" i]',
-          '[class*="description" i]',
-          '[id*="description" i]',
-        ].join(",")
-      )
-    ).filter((node) => !isInsideExcluded(node))
 
     const parts = []
-    for (const container of containers) {
-      if (container instanceof HTMLElement) {
-        const value = (container.innerText || container.textContent || "").replace(/\s+/g, " ").trim()
-        if (value && !parts.includes(value)) parts.push(value)
-      }
-    }
-
     if (description) parts.unshift(description)
 
-    const text = parts.join("\n\n").trim()
-    if (text) return text.slice(0, 50000)
+    for (const contentRoot of findContentRoots()) {
+      const value = collectReadableText(contentRoot, MAX_RELEVANT_PAGE_TEXT_CHARS)
+      if (value && !parts.some((part) => part.includes(value) || value.includes(part))) {
+        parts.push(value)
+      }
+      if (parts.join("\n\n").length >= MAX_RELEVANT_PAGE_TEXT_CHARS) break
+    }
 
-    return scopeInnerText().slice(0, 50000)
+    const text = parts.join("\n\n").trim()
+    if (text) return text.slice(0, MAX_RELEVANT_PAGE_TEXT_CHARS)
+
+    return collectReadableText(rootElement(), MAX_RELEVANT_PAGE_TEXT_CHARS)
   }
 
   // LinkedIn lazy-renders the description block ~200-1500ms after a job
@@ -381,19 +540,32 @@
       return raw.replace(/^locations?\s*/i, "").trim()
     })()
 
+    const genericLocation =
+      firstText([
+        '[itemprop="jobLocation"]',
+        '[itemprop="addressLocality"]',
+        '[data-test*="location" i]',
+        '[data-testid*="location" i]',
+        '[data-test-id*="location" i]',
+        '[class*="location" i]',
+        '[id*="location" i]',
+      ]) || textNearHeading(/\blocation\b/i)
+
     const metaBits = [
       attr('meta[property="og:title"]', "content"),
       attr('meta[property="og:description"]', "content"),
       attr('meta[name="description"]', "content"),
     ].filter(Boolean)
 
-    const description =
+    const description = normalizeText(
       linkedinDescription ||
-      glassdoorDescription ||
-      workdayDescription ||
-      attr('meta[property="og:description"]', "content") ||
-      attr('meta[name="description"]', "content") ||
-      ""
+        glassdoorDescription ||
+        workdayDescription ||
+        genericDescriptionText() ||
+        attr('meta[property="og:description"]', "content") ||
+        attr('meta[name="description"]', "content") ||
+        ""
+    ).slice(0, MAX_DESCRIPTION_HINT_CHARS)
 
     const pageText = relevantPageText(description)
 
@@ -424,7 +596,7 @@
           glassdoorCompany ||
           attr('meta[property="og:site_name"]', "content") ||
           "",
-        location: linkedinLocation || glassdoorLocation || workdayLocation || "",
+        location: linkedinLocation || glassdoorLocation || workdayLocation || genericLocation || "",
         description,
         salaryText: findSalaryText(),
         metadata: [

@@ -53,7 +53,7 @@ async function extractCurrentPage(tabId) {
       title: cleanText(result?.pageHints?.title, 240),
       company: cleanText(result?.pageHints?.company, 240),
       location: cleanText(result?.pageHints?.location, 240),
-      description: cleanText(result?.pageHints?.description, 60000),
+      description: cleanText(result?.pageHints?.description, 20000),
       salaryText: cleanText(result?.pageHints?.salaryText, 240),
       metadata: Array.isArray(result?.pageHints?.metadata)
         ? result.pageHints.metadata.map((entry) => cleanText(entry, 2000)).filter(Boolean)
