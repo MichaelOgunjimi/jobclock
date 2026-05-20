@@ -17,6 +17,8 @@ vi.mock("next/link", () => ({
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "app-123" }),
+  useRouter: () => ({ replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 vi.mock("@/contexts/generation-jobs-context", () => ({
@@ -33,7 +35,7 @@ describe("InterviewPrepPage job completion refresh", () => {
     mockState.activeJobsByKind = {}
   })
 
-  it.each(["interview_prep", "company_research", "interview_answer"] as const)(
+  it.each(["interview_prep", "company_research", "cover_letter", "interview_answer"] as const)(
     "re-fetches saved content when %s finishes",
     async (kind) => {
       const fetchMock = vi.fn(async (input: string | URL | Request) => {
