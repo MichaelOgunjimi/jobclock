@@ -107,6 +107,55 @@ export interface GenerateTextOptions {
 const DEFAULT_TIMEOUT_MS = 60_000
 const DEFAULT_MAX_RETRIES = 1
 
+export async function generateTextWithWebSearch(
+  settings: AiSettings,
+  apiKey: string,
+  system: string,
+  user: string,
+  maxTokens?: number,
+  options?: GenerateTextOptions,
+): Promise<string> {
+  // Web search calls are slower — default to 90s so we don't prematurely abort.
+  const timeout = options?.timeoutMs ?? 90_000
+  const maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES
+
+  try {
+    if (settings.provider === "anthropic") {
+      const { default: Anthropic } = await import("@anthropic-ai/sdk")
+      const client = new Anthropic({ apiKey, timeout, maxRetries })
+      const message = await client.messages.create(
+        {
+          model: settings.model,
+          max_tokens: maxTokens ?? 4096,
+          system,
+          messages: [{ role: "user", content: user }],
+          tools: [{ type: "web_search_20250305", name: "web_search" }],
+        },
+        { headers: { "anthropic-beta": "web-search-2025-03-05" } },
+      )
+      // Response may include server_tool_use blocks alongside text blocks — extract text only.
+      return message.content
+        .filter((b) => b.type === "text")
+        .map((b) => (b as { type: "text"; text: string }).text)
+        .join("\n")
+    } else {
+      const { default: OpenAI } = await import("openai")
+      const client = new OpenAI({ apiKey, timeout, maxRetries })
+      const response = await client.responses.create({
+        model: settings.model,
+        instructions: system,
+        input: user,
+        tools: [{ type: "web_search_preview" }],
+        ...(maxTokens != null ? { max_output_tokens: maxTokens } : {}),
+      })
+      return response.output_text
+    }
+  } catch {
+    // Web search not supported by this model or API error — fall back to plain generation.
+    return generateText(settings, apiKey, system, user, maxTokens, options)
+  }
+}
+
 export async function generateText(
   settings: AiSettings,
   apiKey: string,
