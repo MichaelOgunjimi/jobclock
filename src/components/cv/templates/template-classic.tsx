@@ -219,9 +219,9 @@ export function TemplateClassic({ cv }: CvTemplateProps) {
       {cv.skills && cv.skills.length > 0 && (
         <>
           <SectionHeading>Skills</SectionHeading>
-          <ul style={{ margin: 0, paddingLeft: 18, columns: 2, columnGap: 24 }}>
+          <ul style={{ margin: "5px 0 0", paddingLeft: 18 }}>
             {cv.skills.map((skill, i) => (
-              <li key={i} style={{ fontSize: 12, lineHeight: 1.6, color: "#1a1a1a", marginBottom: 1, breakInside: "avoid" }}>
+              <li key={i} style={{ fontSize: 12, lineHeight: 1.5, color: "#1a1a1a", marginBottom: 1 }}>
                 {skill}
               </li>
             ))}
