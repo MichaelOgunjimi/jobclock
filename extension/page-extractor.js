@@ -214,7 +214,82 @@
     return scopeInnerText().slice(0, 50000)
   }
 
-  globalThis.collectJobAssistantPageData = function collectJobAssistantPageData() {
+  // LinkedIn lazy-renders the description block ~200-1500ms after a job
+  // is clicked in the right pane. If the user hits the extension button
+  // before that finishes, every description selector returns "" and the
+  // server falls back to the noisy pageText path. Poll for ANY known
+  // description selector to have meaningful content before extracting.
+  const DESCRIPTION_POLL_TIMEOUT_MS = 2500
+  const DESCRIPTION_POLL_INTERVAL_MS = 100
+  // Wait threshold is intentionally lower than the server's hint-trust
+  // threshold (400 chars) — the wait only asks "has LinkedIn rendered
+  // SOMETHING into the description block yet?". A 200-char stub still
+  // indicates the block is populated and not mid-load.
+  const DESCRIPTION_READY_MIN_CHARS = 200
+
+  const DESCRIPTION_SELECTORS = [
+    ".job-details-about-the-job-module__description",
+    ".job-details-module",
+    ".jobs-description__content",
+    ".jobs-box__html-content",
+    ".show-more-less-html__markup",
+    ".description__text",
+  ]
+
+  function descriptionReadyText() {
+    for (const sel of DESCRIPTION_SELECTORS) {
+      const n = scope.querySelector ? scope.querySelector(sel) : document.querySelector(sel)
+      if (n instanceof HTMLElement) {
+        const t = (n.innerText || n.textContent || "").trim()
+        if (t.length >= DESCRIPTION_READY_MIN_CHARS) return t
+      }
+    }
+    return ""
+  }
+
+  function waitForDescription() {
+    // The lazy-load problem is LinkedIn-specific. Glassdoor, Indeed and
+    // company ATS pages all server-render the description, so polling
+    // wastes 2.5s for nothing — short-circuit on non-LinkedIn hosts.
+    if (!/(^|\.)linkedin\.com$/i.test(location.hostname)) {
+      return Promise.resolve()
+    }
+    return new Promise((resolve) => {
+      const start = Date.now()
+      const first = descriptionReadyText()
+      if (first) {
+        if (typeof console !== "undefined" && console.info) {
+          console.info("[jobclock] description ready immediately")
+        }
+        return resolve()
+      }
+      const tick = () => {
+        if (descriptionReadyText()) {
+          if (typeof console !== "undefined" && console.info) {
+            console.info(`[jobclock] description ready after ${Date.now() - start}ms`)
+          }
+          return resolve()
+        }
+        if (Date.now() - start >= DESCRIPTION_POLL_TIMEOUT_MS) {
+          if (typeof console !== "undefined" && console.warn) {
+            console.warn(
+              `[jobclock] description did not reach ${DESCRIPTION_READY_MIN_CHARS} chars within ${DESCRIPTION_POLL_TIMEOUT_MS}ms — extracting whatever's present`,
+            )
+          }
+          return resolve()
+        }
+        setTimeout(tick, DESCRIPTION_POLL_INTERVAL_MS)
+      }
+      setTimeout(tick, DESCRIPTION_POLL_INTERVAL_MS)
+    })
+  }
+
+  globalThis.collectJobAssistantPageData = async function collectJobAssistantPageData() {
+    await waitForDescription()
+    return collectJobAssistantPageDataSync()
+  }
+
+  function collectJobAssistantPageDataSync() {
     const linkedinTitle =
       firstText([
         ".job-details-jobs-unified-top-card__job-title",
