@@ -104,6 +104,8 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
           <div className="flex items-center justify-between gap-4 border-b px-4 py-4 md:grid md:grid-cols-[auto_1fr_auto] md:px-6">
             <Link href="/" className="flex min-w-0 items-center gap-3">
               <div className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden border bg-primary">
+                {/* bg-primary is dark (#0a0a0a) in light mode and cream
+                    (#f3f1ed) in dark mode — swap the mark accordingly. */}
                 <Image
                   src="/logo-mark-light-white.svg"
                   alt="Jobclock"
@@ -111,7 +113,16 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
                   height={44}
                   priority
                   unoptimized
-                  className="size-full object-contain"
+                  className="size-full object-contain dark:hidden"
+                />
+                <Image
+                  src="/logo-mark-light.svg"
+                  alt="Jobclock"
+                  width={44}
+                  height={44}
+                  priority
+                  unoptimized
+                  className="hidden size-full object-contain dark:block"
                 />
               </div>
               <div className="min-w-0">
