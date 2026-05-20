@@ -19,6 +19,7 @@
       ".jobs-view-layout",
       ".scaffold-layout__detail",
       "[data-job-id]", // wrapper around the selected job on some LinkedIn views
+      '[data-automation-id="jobPostingPage"]', // Workday ATS (*.myworkdayjobs.com)
     ]
     for (const selector of candidates) {
       const node = document.querySelector(selector)
@@ -32,8 +33,8 @@
     if (typeof console !== "undefined" && console.warn) {
       console.warn(
         "[jobclock] no scope candidate matched — falling back to document. " +
-          "pageText will be limited to the description hint to avoid sending " +
-          "the whole page to the AI.",
+          "On LinkedIn this limits pageText to the description hint; on other " +
+          "hosts the full page is scanned normally.",
       )
     }
     return document
@@ -173,16 +174,16 @@
   }
 
   function relevantPageText(description) {
-    // When scope is the whole document (we couldn't pin down a job pane),
-    // the [class*="job" i] / [class*="description" i] sweep matches
-    // hundreds of nodes across LinkedIn's feed and dumps the entire
-    // recommendation list into pageText. Refuse to do that — just return
-    // the description hint so the AI receives a small, on-topic prompt.
-    if (scopeIsDocument) {
+    // The sidebar-flood problem only exists on LinkedIn: when scope falls
+    // back to document there, the [class*="job" i] sweep matches hundreds
+    // of feed items and dumps the entire recommendation list into pageText.
+    // On external ATS pages (Workday, Greenhouse, etc.) the whole page IS
+    // the job posting, so let the normal container scan run.
+    if (scopeIsDocument && /(?:^|\.)linkedin\.com$/i.test(location.hostname)) {
       return (description || "").slice(0, 50000)
     }
 
-    const root = scope
+    const root = scope instanceof HTMLElement ? scope : document
     const containers = Array.from(
       root.querySelectorAll(
         [
@@ -366,6 +367,20 @@
       '[class*="description" i]',
     ])
 
+    const workdayTitle = firstText([
+      '[data-automation-id="jobPostingHeader"]',
+    ])
+
+    const workdayDescription = firstText([
+      '[data-automation-id="jobPostingDescription"]',
+    ])
+
+    const workdayLocation = (() => {
+      const raw = text('[data-automation-id="locations"]')
+      // Strip the "locations" label Workday prepends to the location values
+      return raw.replace(/^locations?\s*/i, "").trim()
+    })()
+
     const metaBits = [
       attr('meta[property="og:title"]', "content"),
       attr('meta[property="og:description"]', "content"),
@@ -375,6 +390,7 @@
     const description =
       linkedinDescription ||
       glassdoorDescription ||
+      workdayDescription ||
       attr('meta[property="og:description"]', "content") ||
       attr('meta[name="description"]', "content") ||
       ""
@@ -399,6 +415,7 @@
         title:
           linkedinTitle ||
           glassdoorTitle ||
+          workdayTitle ||
           text("h1") ||
           attr('meta[property="og:title"]', "content") ||
           "",
@@ -407,7 +424,7 @@
           glassdoorCompany ||
           attr('meta[property="og:site_name"]', "content") ||
           "",
-        location: linkedinLocation || glassdoorLocation || "",
+        location: linkedinLocation || glassdoorLocation || workdayLocation || "",
         description,
         salaryText: findSalaryText(),
         metadata: [
