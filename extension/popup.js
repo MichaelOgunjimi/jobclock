@@ -367,6 +367,11 @@ async function restoreRuntimeState(tab) {
     return true
   }
 
+  if (runtimeState.view === "preview" && runtimeState.preview) {
+    renderPreview({ preview: runtimeState.preview }, true)
+    return true
+  }
+
   if (runtimeState.view === "success" && runtimeState.result) {
     renderSuccess(runtimeState.result, true)
     return true
