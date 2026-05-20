@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, BookOpen, Building2, ChevronLeft, ChevronRight, Loader2, RefreshCw, AlertTriangle, Sparkles, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -232,8 +232,20 @@ export default function InterviewPrepPage() {
   const params = useParams()
   const applicationId = params.id as string
   const { getActiveJob, trackJob } = useGenerationJobsContext()
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
-  const [tab, setTab] = useState<Tab>("prep")
+  const rawTab = searchParams.get("tab")
+  const [tab, setTab] = useState<Tab>(
+    rawTab === "research" || rawTab === "grill" ? rawTab : "prep"
+  )
+
+  function changeTab(t: Tab) {
+    setTab(t)
+    const p = new URLSearchParams(searchParams.toString())
+    p.set("tab", t)
+    router.replace(`?${p.toString()}`, { scroll: false })
+  }
   const [prepContent, setPrepContent] = useState<string | null>(null)
   const [researchContent, setResearchContent] = useState<string | null>(null)
   const [questions, setQuestions] = useState<string[]>([])
@@ -365,7 +377,7 @@ export default function InterviewPrepPage() {
           <button
             key={t}
             type="button"
-            onClick={() => setTab(t)}
+            onClick={() => changeTab(t)}
             className={cn(
               "flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
               tab === t
