@@ -233,12 +233,12 @@ export function TemplateCompact({ cv }: CvTemplateProps) {
         </div>
 
         <div style={{ width: "35%" }}>
-          {cv.education && cv.education.length > 0 && (
+          {cv.summary && (
             <>
-              <SectionHeading>Education</SectionHeading>
-              {cv.education.map((education, index) => (
-                <EducationEntry key={index} entry={education} />
-              ))}
+              <SectionHeading>Summary</SectionHeading>
+              <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5, color: "#1a1a1a" }}>
+                {cv.summary}
+              </p>
             </>
           )}
 
@@ -248,6 +248,15 @@ export function TemplateCompact({ cv }: CvTemplateProps) {
               <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5, color: "#1a1a1a" }}>
                 {cv.skills.join(", ")}
               </p>
+            </>
+          )}
+
+          {cv.education && cv.education.length > 0 && (
+            <>
+              <SectionHeading>Education</SectionHeading>
+              {cv.education.map((education, index) => (
+                <EducationEntry key={index} entry={education} />
+              ))}
             </>
           )}
 
@@ -265,15 +274,6 @@ export function TemplateCompact({ cv }: CvTemplateProps) {
               <SectionHeading>Languages</SectionHeading>
               <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5, color: "#1a1a1a" }}>
                 {cv.languages.join(", ")}
-              </p>
-            </>
-          )}
-
-          {cv.summary && (
-            <>
-              <SectionHeading>Summary</SectionHeading>
-              <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5, color: "#1a1a1a" }}>
-                {cv.summary}
               </p>
             </>
           )}

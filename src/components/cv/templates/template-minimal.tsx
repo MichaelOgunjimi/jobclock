@@ -230,12 +230,12 @@ export function TemplateMinimal({ cv }: CvTemplateProps) {
         </>
       )}
 
-      {cv.education && cv.education.length > 0 && (
+      {cv.skills && cv.skills.length > 0 && (
         <>
-          <SectionHeading>Education</SectionHeading>
-          {cv.education.map((edu, index) => (
-            <EducationEntry key={index} entry={edu} />
-          ))}
+          <SectionHeading>Skills</SectionHeading>
+          <p style={{ fontSize: 12, lineHeight: 1.5, color: "#333", margin: 0 }}>
+            {cv.skills.join(", ")}
+          </p>
         </>
       )}
 
@@ -257,21 +257,21 @@ export function TemplateMinimal({ cv }: CvTemplateProps) {
         </>
       )}
 
+      {cv.education && cv.education.length > 0 && (
+        <>
+          <SectionHeading>Education</SectionHeading>
+          {cv.education.map((edu, index) => (
+            <EducationEntry key={index} entry={edu} />
+          ))}
+        </>
+      )}
+
       {cv.activities && cv.activities.length > 0 && (
         <>
           <SectionHeading>Activities</SectionHeading>
           {cv.activities.map((activity, index) => (
             <ExperienceEntry key={index} entry={activity} />
           ))}
-        </>
-      )}
-
-      {cv.skills && cv.skills.length > 0 && (
-        <>
-          <SectionHeading>Skills</SectionHeading>
-          <p style={{ fontSize: 12, lineHeight: 1.5, color: "#333", margin: 0 }}>
-            {cv.skills.join(", ")}
-          </p>
         </>
       )}
 

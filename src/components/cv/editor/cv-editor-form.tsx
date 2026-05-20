@@ -524,6 +524,31 @@ export function CvEditorForm({
         </SectionCard>
 
         <SectionCard
+          kicker="Abilities"
+          title="Skills"
+          icon={<Award className="h-4 w-4" />}
+        >
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Skills</Label>
+              <TagInput
+                value={value.skills}
+                onChange={(nextValue) => set("skills", nextValue)}
+                placeholder="Add a skill"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Certifications</Label>
+              <TagInput
+                value={value.certifications ?? []}
+                onChange={(nextValue) => set("certifications", nextValue)}
+                placeholder="Add a certification"
+              />
+            </div>
+          </div>
+        </SectionCard>
+
+        <SectionCard
           kicker="Work history"
           title="Experience"
           icon={<Briefcase className="h-4 w-4" />}
@@ -562,6 +587,49 @@ export function CvEditorForm({
             >
               <Plus className="h-4 w-4" />
               Add Experience
+            </Button>
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          kicker="Portfolio"
+          title="Projects"
+          icon={<FolderKanban className="h-4 w-4" />}
+        >
+          <div className="space-y-3">
+            {value.projects.map((entry, index) => (
+              <ProjectEntryForm
+                key={index}
+                entry={entry}
+                index={index}
+                onChange={updateProject}
+                onRemove={(removeIndex) =>
+                  set("projects", value.projects.filter((_, entryIndex) => entryIndex !== removeIndex))
+                }
+              />
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() =>
+                set("projects", [
+                  ...value.projects,
+                  {
+                    name: "",
+                    description: "",
+                    technologies: [],
+                    highlights: [],
+                    url: "",
+                    code_url: "",
+                    start_date: "",
+                    end_date: "",
+                  },
+                ])
+              }
+            >
+              <Plus className="h-4 w-4" />
+              Add Project
             </Button>
           </div>
         </SectionCard>
@@ -612,49 +680,6 @@ export function CvEditorForm({
         </SectionCard>
 
         <SectionCard
-          kicker="Portfolio"
-          title="Projects"
-          icon={<FolderKanban className="h-4 w-4" />}
-        >
-          <div className="space-y-3">
-            {value.projects.map((entry, index) => (
-              <ProjectEntryForm
-                key={index}
-                entry={entry}
-                index={index}
-                onChange={updateProject}
-                onRemove={(removeIndex) =>
-                  set("projects", value.projects.filter((_, entryIndex) => entryIndex !== removeIndex))
-                }
-              />
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() =>
-                set("projects", [
-                  ...value.projects,
-                  {
-                    name: "",
-                    description: "",
-                    technologies: [],
-                    highlights: [],
-                    url: "",
-                    code_url: "",
-                    start_date: "",
-                    end_date: "",
-                  },
-                ])
-              }
-            >
-              <Plus className="h-4 w-4" />
-              Add Project
-            </Button>
-          </div>
-        </SectionCard>
-
-        <SectionCard
           kicker="Activities"
           title="Leadership & Activities"
           icon={<Rocket className="h-4 w-4" />}
@@ -694,31 +719,6 @@ export function CvEditorForm({
               <Plus className="h-4 w-4" />
               Add Activity
             </Button>
-          </div>
-        </SectionCard>
-
-        <SectionCard
-          kicker="Abilities"
-          title="Skills"
-          icon={<Award className="h-4 w-4" />}
-        >
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Skills</Label>
-              <TagInput
-                value={value.skills}
-                onChange={(nextValue) => set("skills", nextValue)}
-                placeholder="Add a skill"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Certifications</Label>
-              <TagInput
-                value={value.certifications ?? []}
-                onChange={(nextValue) => set("certifications", nextValue)}
-                placeholder="Add a certification"
-              />
-            </div>
           </div>
         </SectionCard>
 

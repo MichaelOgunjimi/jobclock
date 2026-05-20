@@ -200,13 +200,13 @@ export function TemplateModern({ cv }: CvTemplateProps) {
         </>
       )}
 
-      {/* Education */}
-      {cv.education && cv.education.length > 0 && (
+      {/* Skills */}
+      {cv.skills && cv.skills.length > 0 && (
         <>
-          <SectionHeading>Education</SectionHeading>
-          {cv.education.map((edu, i) => (
-            <EducationEntry key={i} entry={edu} />
-          ))}
+          <SectionHeading>Skills &amp; Technologies</SectionHeading>
+          <p style={{ fontSize: 12, lineHeight: 1.55, color: "#1a1a1a", margin: 0 }}>
+            {cv.skills.join(", ")}
+          </p>
         </>
       )}
 
@@ -230,6 +230,16 @@ export function TemplateModern({ cv }: CvTemplateProps) {
         </>
       )}
 
+      {/* Education */}
+      {cv.education && cv.education.length > 0 && (
+        <>
+          <SectionHeading>Education</SectionHeading>
+          {cv.education.map((edu, i) => (
+            <EducationEntry key={i} entry={edu} />
+          ))}
+        </>
+      )}
+
       {/* Activities */}
       {cv.activities && cv.activities.length > 0 && (
         <>
@@ -237,16 +247,6 @@ export function TemplateModern({ cv }: CvTemplateProps) {
           {cv.activities.map((act, i) => (
             <ExperienceEntry key={i} entry={act} />
           ))}
-        </>
-      )}
-
-      {/* Skills */}
-      {cv.skills && cv.skills.length > 0 && (
-        <>
-          <SectionHeading>Skills &amp; Technologies</SectionHeading>
-          <p style={{ fontSize: 12, lineHeight: 1.55, color: "#1a1a1a", margin: 0 }}>
-            {cv.skills.join(", ")}
-          </p>
         </>
       )}
 
