@@ -39,6 +39,9 @@ export async function enqueueGeneration(input: EnqueueInput): Promise<EnqueueRes
     await client.publishJSON({
       url: `${APP_URL}/api/generate`,
       body: { jobId: job.id },
+      // Give the receiver the full 300 s that the Vercel function allows.
+      // Default QStash receiver timeout is 30 s — too short for web-search jobs.
+      timeout: 300,
     })
   } else {
     // Dev parity: no public callback URL, run inline without blocking the caller.

@@ -9,7 +9,7 @@ const { db } = vi.hoisted(() => ({
 }))
 vi.mock("@/lib/db", () => ({ db }))
 vi.mock("./company-research-context", () => ({ loadCompanyResearchContext: vi.fn() }))
-vi.mock("@/lib/ai", () => ({ resolveAiConfig: vi.fn(), generateText: vi.fn() }))
+vi.mock("@/lib/ai", () => ({ resolveAiConfig: vi.fn(), generateText: vi.fn(), generateTextWithWebSearch: vi.fn() }))
 vi.mock("@/lib/ai/perplexity", () => ({ callPerplexity: vi.fn() }))
 vi.mock("@/lib/crypto", () => ({ decrypt: vi.fn((v: string) => v + "-decrypted") }))
 vi.mock("@/lib/cv/normalize", () => ({ normalizeAiMarkdown: (s: string) => s.trim() }))
@@ -19,7 +19,7 @@ vi.mock("@/lib/prompts/company-research", () => ({
 }))
 
 import { loadCompanyResearchContext } from "./company-research-context"
-import { resolveAiConfig, generateText } from "@/lib/ai"
+import { resolveAiConfig, generateTextWithWebSearch } from "@/lib/ai"
 import { callPerplexity } from "@/lib/ai/perplexity"
 import { companyResearchHandler } from "./company-research"
 
@@ -47,7 +47,7 @@ describe("companyResearchHandler", () => {
       settings: { provider: "openai", model: "gpt-4.1" },
       apiKey: "k",
     } as never)
-    vi.mocked(generateText).mockResolvedValue("  research content  ")
+    vi.mocked(generateTextWithWebSearch).mockResolvedValue("  research content  ")
   })
 
   it("generates content, inserts new interview_prep row when none exists, returns id", async () => {
@@ -57,7 +57,7 @@ describe("companyResearchHandler", () => {
 
     const resultRef = await companyResearchHandler(JOB)
 
-    expect(generateText).toHaveBeenCalled()
+    expect(generateTextWithWebSearch).toHaveBeenCalled()
     expect(db.insert).toHaveBeenCalled()
     expect(resultRef).toBe("prep-1")
   })
@@ -87,11 +87,11 @@ describe("companyResearchHandler", () => {
     await companyResearchHandler(JOB)
 
     expect(callPerplexity).toHaveBeenCalled()
-    expect(generateText).not.toHaveBeenCalled()
+    expect(generateTextWithWebSearch).not.toHaveBeenCalled()
   })
 
   it("throws on LLM failure so the dispatcher can mark the job failed", async () => {
-    vi.mocked(generateText).mockRejectedValue(new Error("LLM timeout"))
+    vi.mocked(generateTextWithWebSearch).mockRejectedValue(new Error("LLM timeout"))
     db.select.mockReturnValue({ from: () => ({ where: () => ({ limit: vi.fn().mockResolvedValue([]) }) }) })
 
     await expect(companyResearchHandler(JOB)).rejects.toThrow("LLM timeout")

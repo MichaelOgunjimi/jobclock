@@ -164,7 +164,6 @@ export function TemplateProfessional({ cv }: CvTemplateProps) {
   if (cv.email) headerContactParts.push(cv.email)
 
   const hasAdditionalSection =
-    (cv.skills && cv.skills.length > 0) ||
     (cv.certifications && cv.certifications.length > 0) ||
     (cv.languages && cv.languages.length > 0)
 
@@ -230,12 +229,12 @@ export function TemplateProfessional({ cv }: CvTemplateProps) {
         </p>
       )}
 
-      {cv.education && cv.education.length > 0 && (
+      {cv.skills && cv.skills.length > 0 && (
         <>
-          <SectionHeading>Education</SectionHeading>
-          {cv.education.map((entry, index) => (
-            <EducationEntry key={index} entry={entry} />
-          ))}
+          <SectionHeading>Technical Skills</SectionHeading>
+          <div style={{ fontSize: 11, lineHeight: 1.6, color: "#1a1a1a" }}>
+            {cv.skills.join(", ")}
+          </div>
         </>
       )}
 
@@ -257,6 +256,15 @@ export function TemplateProfessional({ cv }: CvTemplateProps) {
         </>
       )}
 
+      {cv.education && cv.education.length > 0 && (
+        <>
+          <SectionHeading>Education</SectionHeading>
+          {cv.education.map((entry, index) => (
+            <EducationEntry key={index} entry={entry} />
+          ))}
+        </>
+      )}
+
       {cv.activities && cv.activities.length > 0 && (
         <>
           <SectionHeading>Activities</SectionHeading>
@@ -270,11 +278,6 @@ export function TemplateProfessional({ cv }: CvTemplateProps) {
         <>
           <SectionHeading>Additional</SectionHeading>
           <div style={{ fontSize: 11, lineHeight: 1.6, color: "#1a1a1a" }}>
-            {cv.skills && cv.skills.length > 0 && (
-              <div>
-                <span style={{ fontWeight: 700 }}>Technical Skills:</span> {cv.skills.join(", ")}
-              </div>
-            )}
             {cv.certifications && cv.certifications.length > 0 && (
               <div>
                 <span style={{ fontWeight: 700 }}>Certifications &amp; Training:</span> {cv.certifications.join(", ")}

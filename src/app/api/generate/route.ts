@@ -2,10 +2,8 @@ import "@/lib/generation/register"
 import { verifyCronRequest } from "@/lib/cron/verify-cron-request"
 import { runJob } from "@/lib/generation/dispatch"
 
-// Cover-letter generation runs two sequential AI calls (company research +
-// the letter itself), which routinely exceeds Vercel's default 60s ceiling
-// and surfaces to the user as "request timeout". 300s covers the worst-case
-// chain on Pro plans (max allowed is 300 on Pro, up to 800 on Enterprise).
+// Web-search-backed generation (company research, cover letter) can take up
+// to 90 s. Give the function 300 s so Vercel Pro never cuts it short.
 export const maxDuration = 300
 
 // Called by QStash to execute one enqueued generation job.

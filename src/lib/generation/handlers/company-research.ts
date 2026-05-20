@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { interviewPrep } from "@/lib/db/schema"
-import { resolveAiConfig, generateText } from "@/lib/ai"
+import { resolveAiConfig, generateTextWithWebSearch } from "@/lib/ai"
 import { callPerplexity } from "@/lib/ai/perplexity"
 import { decrypt } from "@/lib/crypto"
 import { normalizeAiMarkdown } from "@/lib/cv/normalize"
@@ -29,7 +29,7 @@ async function generateContent(ctx: CompanyResearchContext): Promise<string> {
   }
 
   const { settings, apiKey } = resolveAiConfig(ctx.preferences)
-  return generateText(settings, apiKey, systemPrompt, userPrompt, 3500)
+  return generateTextWithWebSearch(settings, apiKey, systemPrompt, userPrompt, 3500)
 }
 
 async function persistContent(applicationId: string, content: string): Promise<string> {

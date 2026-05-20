@@ -308,16 +308,6 @@ export function TemplateSidebar({ cv }: CvTemplateProps) {
           </>
         )}
 
-        {/* Education */}
-        {cv.education && cv.education.length > 0 && (
-          <>
-            <MainSectionHeading>Education</MainSectionHeading>
-            {cv.education.map((edu, i) => (
-              <EducationEntry key={i} entry={edu} />
-            ))}
-          </>
-        )}
-
         {/* Experience */}
         {cv.experience && cv.experience.length > 0 && (
           <>
@@ -334,6 +324,16 @@ export function TemplateSidebar({ cv }: CvTemplateProps) {
             <MainSectionHeading>Projects</MainSectionHeading>
             {cv.projects.map((proj, i) => (
               <ProjectEntry key={i} entry={proj} />
+            ))}
+          </>
+        )}
+
+        {/* Education */}
+        {cv.education && cv.education.length > 0 && (
+          <>
+            <MainSectionHeading>Education</MainSectionHeading>
+            {cv.education.map((edu, i) => (
+              <EducationEntry key={i} entry={edu} />
             ))}
           </>
         )}
