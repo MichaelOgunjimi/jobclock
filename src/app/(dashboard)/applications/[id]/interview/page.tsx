@@ -250,9 +250,11 @@ export default function InterviewPrepPage() {
 
   const prepJob = getActiveJob(applicationId, "interview_prep")
   const researchJob = getActiveJob(applicationId, "company_research")
+  const coverLetterJob = getActiveJob(applicationId, "cover_letter")
   const answerJob = getActiveJob(applicationId, "interview_answer")
   const prevPrepJobIdRef = useRef<string | undefined>(undefined)
   const prevResearchJobIdRef = useRef<string | undefined>(undefined)
+  const prevCoverLetterJobIdRef = useRef<string | undefined>(undefined)
   const prevAnswerJobIdRef = useRef<string | undefined>(undefined)
 
   const loadSaved = useCallback(async () => {
@@ -290,6 +292,17 @@ export default function InterviewPrepPage() {
       void loadSaved()
     }
   }, [researchJob, loadSaved])
+
+  // Cover letter auto-generates research — reload when it finishes so the
+  // research tab shows the new content without a manual refresh.
+  useEffect(() => {
+    if (coverLetterJob) {
+      prevCoverLetterJobIdRef.current = coverLetterJob.id
+    } else if (prevCoverLetterJobIdRef.current !== undefined) {
+      prevCoverLetterJobIdRef.current = undefined
+      void loadSaved()
+    }
+  }, [coverLetterJob, loadSaved])
 
   useEffect(() => {
     if (answerJob) {
@@ -430,7 +443,7 @@ export default function InterviewPrepPage() {
           <TabContentSkeleton />
         ) : (
         <div className="space-y-4">
-          {!researchJob && (
+          {!researchJob && !coverLetterJob && (
             <div className="flex items-center gap-3">
               <Button onClick={() => void generateResearch()} disabled={loadingResearch}>
                 {loadingResearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -439,6 +452,13 @@ export default function InterviewPrepPage() {
               <p className="text-sm text-muted-foreground">
                 6-axis company intelligence — uses Perplexity (live web) if configured, otherwise your AI model. Saved automatically.
               </p>
+            </div>
+          )}
+
+          {coverLetterJob && !researchJob && (
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Company research is being generated as part of the cover letter — it&apos;ll be ready when the cover letter finishes.</span>
             </div>
           )}
 
@@ -458,7 +478,7 @@ export default function InterviewPrepPage() {
             </div>
           )}
 
-          {!researchContent && !loadingResearch && !researchError && !researchJob && (
+          {!researchContent && !loadingResearch && !researchError && !researchJob && !coverLetterJob && (
             <div className="border bg-secondary px-6 py-14 text-center text-muted-foreground">
               <Building2 className="mx-auto mb-4 h-10 w-10 opacity-30" />
               <p className="font-medium text-foreground">No research yet</p>
