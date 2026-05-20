@@ -34,6 +34,7 @@ export async function callPerplexity(
       max_tokens: maxTokens,
       temperature,
     }),
+    signal: AbortSignal.timeout(90_000),
     next: { revalidate: 0 },
   })
 

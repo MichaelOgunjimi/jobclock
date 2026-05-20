@@ -19,8 +19,9 @@ import { composeResearch } from "./company-research"
 export async function coverLetterHandler(job: GenerationJob): Promise<string> {
   const ctx = await loadCoverLetterContext(job)
 
-  // Auto-research composition: generate and persist research when absent
-  const companyResearch = ctx.companyResearch ?? (await composeResearch(job))
+  // Auto-research composition: generate and persist research when absent.
+  // Research failure must not block letter generation — it's supplementary context.
+  const companyResearch = ctx.companyResearch ?? await composeResearch(job).catch(() => undefined)
 
   const { settings, apiKey } = resolveAiConfig(ctx.preferences)
   const systemPrompt = buildCoverLetterSystemPrompt(`Write in a ${ctx.tone} tone.`)
