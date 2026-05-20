@@ -162,66 +162,111 @@ async function updateRecentStatus(config, applicationId, status) {
   return body.recentApplications || []
 }
 
+// Coalesce concurrent preview requests for the same page so a second
+// click on the extension while extraction is in flight piggybacks on
+// the existing promise instead of starting a duplicate extraction.
+const inflightPreviews = new Map()
+
 async function previewJob({ config, tab }) {
-  await setRuntimeState({
-    view: "loading",
-    tabId: tab.id,
-    tabUrl: tab.url,
-    tabTitle: tab.title || "",
-    loadingTitle: "Extracting job details",
-    loadingMessage: "Reading the current page and asking the app for a preview.",
-  })
+  const key = `${tab.id}::${tab.url}`
+  const existing = inflightPreviews.get(key)
+  if (existing) return existing
 
-  const extracted = await extractCurrentPage(tab.id)
-  if (!extracted.pageText.trim()) {
-    throw new Error("This page did not expose readable text for extraction.")
+  const job = (async () => {
+    await setRuntimeState({
+      view: "loading",
+      tabId: tab.id,
+      tabUrl: tab.url,
+      tabTitle: tab.title || "",
+      loadingTitle: "Extracting job details",
+      loadingMessage: "Reading the current page and asking the app for a preview.",
+    })
+
+    const extracted = await extractCurrentPage(tab.id)
+    const hasReadable =
+      extracted.pageText.trim() || extracted.pageHints?.description?.trim()
+    if (!hasReadable) {
+      throw new Error(
+        /linkedin\.com$/i.test(new URL(tab.url).hostname)
+          ? "LinkedIn hasn't finished loading the job. Click the job in the list, wait until the description appears, then try again."
+          : "This page did not expose readable text for extraction."
+      )
+    }
+
+    // If the structured pageText path returned nothing but we have a
+    // description hint, fall back to that so the AI still gets content.
+    const pageText = extracted.pageText.trim()
+      ? extracted.pageText
+      : extracted.pageHints.description || ""
+
+    const preview = await callImportApi(config, {
+      mode: "preview",
+      url: tab.url,
+      pageTitle: extracted.pageTitle || tab.title || "",
+      pageHints: extracted.pageHints,
+      pageText,
+    })
+
+    await setRuntimeState({
+      view: "preview",
+      tabId: tab.id,
+      tabUrl: tab.url,
+      tabTitle: tab.title || extracted.pageTitle || "",
+      preview,
+    })
+
+    return preview
+  })()
+
+  inflightPreviews.set(key, job)
+  try {
+    return await job
+  } finally {
+    inflightPreviews.delete(key)
   }
-
-  const preview = await callImportApi(config, {
-    mode: "preview",
-    url: tab.url,
-    pageTitle: extracted.pageTitle || tab.title || "",
-    pageHints: extracted.pageHints,
-    pageText: extracted.pageText,
-  })
-
-  await setRuntimeState({
-    view: "preview",
-    tabId: tab.id,
-    tabUrl: tab.url,
-    tabTitle: tab.title || extracted.pageTitle || "",
-    preview,
-  })
-
-  return preview
 }
 
+const inflightSaves = new Map()
+
 async function savePreview({ config, preview, tab }) {
-  await setRuntimeState({
-    view: "loading",
-    tabId: tab.id,
-    tabUrl: tab.url,
-    tabTitle: tab.title || "",
-    loadingTitle: "Saving to applications",
-    loadingMessage: "Saving the job into your applications.",
-    preview,
-  })
+  const key = `${tab.id}::${tab.url}`
+  const existing = inflightSaves.get(key)
+  if (existing) return existing
 
-  const result = await callImportApi(config, {
-    mode: "save",
-    preview,
-  })
+  const job = (async () => {
+    await setRuntimeState({
+      view: "loading",
+      tabId: tab.id,
+      tabUrl: tab.url,
+      tabTitle: tab.title || "",
+      loadingTitle: "Saving to applications",
+      loadingMessage: "Saving the job into your applications.",
+      preview,
+    })
 
-  await setRuntimeState({
-    view: "success",
-    tabId: tab.id,
-    tabUrl: tab.url,
-    tabTitle: tab.title || preview.title || "",
-    preview,
-    result,
-  })
+    const result = await callImportApi(config, {
+      mode: "save",
+      preview,
+    })
 
-  return result
+    await setRuntimeState({
+      view: "success",
+      tabId: tab.id,
+      tabUrl: tab.url,
+      tabTitle: tab.title || preview.title || "",
+      preview,
+      result,
+    })
+
+    return result
+  })()
+
+  inflightSaves.set(key, job)
+  try {
+    return await job
+  } finally {
+    inflightSaves.delete(key)
+  }
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

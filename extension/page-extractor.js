@@ -379,13 +379,15 @@
   // before that finishes, every description selector returns "" and the
   // server falls back to the noisy pageText path. Poll for ANY known
   // description selector to have meaningful content before extracting.
-  const DESCRIPTION_POLL_TIMEOUT_MS = 2500
+  const DESCRIPTION_POLL_TIMEOUT_MS = 6000
   const DESCRIPTION_POLL_INTERVAL_MS = 100
   // Wait threshold is intentionally lower than the server's hint-trust
   // threshold (400 chars) — the wait only asks "has LinkedIn rendered
-  // SOMETHING into the description block yet?". A 200-char stub still
-  // indicates the block is populated and not mid-load.
-  const DESCRIPTION_READY_MIN_CHARS = 200
+  // SOMETHING into the description block yet?". A 400-char stub still
+  // indicates the block is populated and not mid-load. We previously
+  // tripped at 200 chars which sometimes caught a half-rendered title
+  // block — bump to 400 so partial extractions get one more poll cycle.
+  const DESCRIPTION_READY_MIN_CHARS = 400
 
   const DESCRIPTION_SELECTORS = [
     ".job-details-about-the-job-module__description",
