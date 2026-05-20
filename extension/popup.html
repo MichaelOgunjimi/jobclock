@@ -48,6 +48,10 @@
           </div>
         </div>
         <p class="status-note">This state is restored if the popup closes while the request is running.</p>
+        <div class="actions">
+          <p class="status-note">Couldn't extract? On LinkedIn, make sure a job is open first.</p>
+          <button id="loading-retry-button" type="button" class="button secondary">Try again</button>
+        </div>
       </section>
 
       <section id="error-state" class="panel hidden">
@@ -89,6 +93,7 @@
         </article>
         <div class="actions">
           <button id="save-button" type="button" class="button primary">Save to applications</button>
+          <button id="reextract-button" type="button" class="button secondary">Re-extract</button>
           <button id="preview-settings-button" type="button" class="button secondary">Edit settings</button>
         </div>
       </section>

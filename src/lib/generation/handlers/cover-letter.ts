@@ -34,7 +34,12 @@ export async function coverLetterHandler(job: GenerationJob): Promise<string> {
     companyResearch,
   })
 
-  const content = await generateText(settings, apiKey, systemPrompt, userPrompt)
+  // Cover letters can be 400-600 words with detailed reasoning; the 60s
+  // default sometimes trips on Anthropic tail latency. Bump to 120s to
+  // give the model headroom without letting it hang forever.
+  const content = await generateText(settings, apiKey, systemPrompt, userPrompt, undefined, {
+    timeoutMs: 120_000,
+  })
 
   const [inserted] = await db
     .insert(coverLetters)

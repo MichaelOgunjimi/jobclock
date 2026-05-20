@@ -19,6 +19,7 @@
       ".jobs-view-layout",
       ".scaffold-layout__detail",
       "[data-job-id]", // wrapper around the selected job on some LinkedIn views
+      '[data-automation-id="jobPostingPage"]', // Workday ATS (*.myworkdayjobs.com)
     ]
     for (const selector of candidates) {
       const node = document.querySelector(selector)
@@ -32,8 +33,8 @@
     if (typeof console !== "undefined" && console.warn) {
       console.warn(
         "[jobclock] no scope candidate matched — falling back to document. " +
-          "pageText will be limited to the description hint to avoid sending " +
-          "the whole page to the AI.",
+          "On LinkedIn this limits pageText to the description hint; on other " +
+          "hosts the full page is scanned normally.",
       )
     }
     return document
@@ -49,17 +50,75 @@
     ".scaffold-layout__list",
     ".jobs-search-results__list",
     ".jobs-recommended-jobs",
+    "[aria-modal='true']",
+    "[role='banner']",
+    "[role='navigation']",
+    "[role='contentinfo']",
+    "[role='dialog']",
+    "[class*='alert' i]",
+    "[class*='banner' i]",
+    "[class*='breadcrumb' i]",
+    "[class*='cookie' i]",
+    "[class*='drawer' i]",
+    "[class*='modal' i]",
+    "[class*='popup' i]",
+    "[class*='recommended' i]",
+    "[class*='related' i]",
+    "[class*='search-results' i]",
+    "[class*='similar' i]",
+    "[id*='cookie' i]",
+    "[id*='modal' i]",
+    "[id*='recommended' i]",
+    "[id*='related' i]",
+    "[id*='search-results' i]",
+    "[id*='similar' i]",
+    "aside",
+    "form",
     "nav",
     "header",
     "footer",
   ]
 
+  const MAX_RELEVANT_PAGE_TEXT_CHARS = 20_000
+  const MAX_DESCRIPTION_HINT_CHARS = 20_000
+  const MAX_READABLE_BLOCK_CHARS = 4_000
+
   function isInsideExcluded(node) {
     if (!(node instanceof HTMLElement)) return false
     for (const selector of EXCLUDED_CONTAINER_SELECTORS) {
-      if (node.closest(selector)) return true
+      const match = node.closest(selector)
+      if (!match) continue
+      // Ignore matches that are the scope itself OR an ancestor of the
+      // scope. LinkedIn's <body> has a marketing class like
+      // "payment-failure-global-alert-lix-enabled-class" which collides
+      // with [class*='alert' i] — treating that as an "excluded container"
+      // would filter out the entire page. We only care about noise
+      // containers that sit *inside* the job pane, not above it.
+      if (scope instanceof HTMLElement) {
+        if (match === scope || match.contains(scope)) continue
+      }
+      return true
     }
     return false
+  }
+
+  function normalizeText(value) {
+    return (value || "")
+      .replace(/\u0000/g, " ")
+      .replace(/\u00a0/g, " ")
+      .replace(/[ \t\r\f\v]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  }
+
+  function rootElement() {
+    if (scope instanceof HTMLElement) return scope
+    return document.body || document.documentElement
+  }
+
+  function readableText(node) {
+    if (!(node instanceof HTMLElement)) return ""
+    return normalizeText(node.innerText || node.textContent || "")
   }
 
   function text(selector) {
@@ -95,8 +154,7 @@
   }
 
   function scopeInnerText() {
-    if (scope instanceof HTMLElement) return scope.innerText || scope.textContent || ""
-    return document.body?.innerText || document.body?.textContent || ""
+    return readableText(rootElement())
   }
 
   function textNearHeading(headingPattern) {
@@ -163,7 +221,7 @@
     for (const el of root.querySelectorAll("div, article, section")) {
       if (!(el instanceof HTMLElement)) continue
       if (isInsideExcluded(el)) continue
-      const t = (el.innerText || el.textContent || "").trim()
+      const t = collectReadableText(el, maxChars)
       if (t.length > bestLen && t.length >= minChars && t.length <= maxChars) {
         bestLen = t.length
         best = t
@@ -172,46 +230,159 @@
     return best
   }
 
-  function relevantPageText(description) {
-    // When scope is the whole document (we couldn't pin down a job pane),
-    // the [class*="job" i] / [class*="description" i] sweep matches
-    // hundreds of nodes across LinkedIn's feed and dumps the entire
-    // recommendation list into pageText. Refuse to do that — just return
-    // the description hint so the AI receives a small, on-topic prompt.
-    if (scopeIsDocument) {
-      return (description || "").slice(0, 50000)
+  function textScore(value) {
+    const textValue = normalizeText(value).toLowerCase()
+    if (!textValue) return 0
+
+    const keywordMatches = textValue.match(
+      /\b(about the role|about this role|responsibilities|requirements|qualifications|what you'?ll do|what you will do|skills|benefits|salary|location|job description|position|role|team)\b/g
+    ) || []
+    const lengthScore = Math.min(textValue.length, 6000) / 80
+    const tooLongPenalty = Math.max(0, textValue.length - 30_000) / 200
+
+    return lengthScore + keywordMatches.length * 18 - tooLongPenalty
+  }
+
+  function nodeBonus(node) {
+    const tag = node.tagName.toLowerCase()
+    const marker = `${node.id || ""} ${node.className || ""} ${node.getAttribute("role") || ""} ${node.getAttribute("itemtype") || ""}`.toLowerCase()
+
+    let bonus = 0
+    if (tag === "main") bonus += 35
+    if (tag === "article") bonus += 45
+    if (node.getAttribute("role") === "main") bonus += 35
+    if (/job|career|posting|position|description|vacanc|opening/.test(marker)) bonus += 35
+    if (/main|content/.test(marker)) bonus += 15
+    return bonus
+  }
+
+  function findContentRoots() {
+    const root = rootElement()
+    if (!(root instanceof HTMLElement)) return []
+
+    const selector = [
+      "main",
+      "article",
+      "[role='main']",
+      "[itemtype*='JobPosting' i]",
+      "[itemprop='description']",
+      "[data-automation-id*='job' i]",
+      "[data-testid*='job' i]",
+      "[data-test*='job' i]",
+      "[data-test-id*='job' i]",
+      "[class*='career' i]",
+      "[class*='description' i]",
+      "[class*='job' i]",
+      "[class*='opening' i]",
+      "[class*='posting' i]",
+      "[class*='position' i]",
+      "[id*='career' i]",
+      "[id*='description' i]",
+      "[id*='job' i]",
+      "[id*='opening' i]",
+      "[id*='posting' i]",
+      "[id*='position' i]",
+    ].join(",")
+
+    const candidates = Array.from(root.querySelectorAll(selector))
+      .filter((node) => node instanceof HTMLElement && !isInsideExcluded(node))
+      .map((node) => {
+        const textValue = readableText(node)
+        return {
+          node,
+          textLength: textValue.length,
+          score: textScore(textValue) + nodeBonus(node),
+        }
+      })
+      .filter((candidate) => candidate.textLength >= 120)
+      .sort((a, b) => b.score - a.score)
+
+    const roots = []
+    for (const candidate of candidates) {
+      if (roots.some((existing) => existing.contains(candidate.node))) continue
+      roots.push(candidate.node)
+      if (roots.length >= 3) break
     }
 
-    const root = scope
-    const containers = Array.from(
-      root.querySelectorAll(
-        [
-          "main",
-          "article",
-          '[role="main"]',
-          '[data-test*="job" i]',
-          '[id*="job" i]',
-          '[class*="job" i]',
-          '[class*="description" i]',
-          '[id*="description" i]',
-        ].join(",")
-      )
-    ).filter((node) => !isInsideExcluded(node))
+    return roots.length ? roots : [root]
+  }
+
+  function collectReadableText(root, maxChars = MAX_RELEVANT_PAGE_TEXT_CHARS) {
+    if (!(root instanceof HTMLElement)) return ""
+
+    const blockSelector = [
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "p",
+      "li",
+      "dt",
+      "dd",
+      "[role='listitem']",
+      "[itemprop='title']",
+      "[itemprop='description']",
+    ].join(",")
+    const blocks = Array.from(root.querySelectorAll(blockSelector))
+    const seen = new Set()
+    const parts = []
+
+    for (const block of blocks) {
+      if (!(block instanceof HTMLElement)) continue
+      if (isInsideExcluded(block)) continue
+
+      const value = readableText(block).slice(0, MAX_READABLE_BLOCK_CHARS)
+      if (!value || value.length < 2) continue
+
+      const key = value.toLowerCase()
+      if (seen.has(key)) continue
+      if (parts.some((part) => part.includes(value) || value.includes(part))) continue
+
+      seen.add(key)
+      parts.push(value)
+      if (parts.join("\n").length >= maxChars) break
+    }
+
+    const text = parts.join("\n").trim()
+    if (text.length >= 250 || blocks.length > 0) return text.slice(0, maxChars)
+
+    return readableText(root).slice(0, maxChars)
+  }
+
+  function genericDescriptionText() {
+    for (const root of findContentRoots()) {
+      const textValue = collectReadableText(root, MAX_DESCRIPTION_HINT_CHARS)
+      if (textValue.length >= 300) return textValue
+    }
+
+    return largestTextBlockIn(rootElement(), 300, MAX_DESCRIPTION_HINT_CHARS)
+  }
+
+  function relevantPageText(description) {
+    // The sidebar-flood problem only exists on LinkedIn: when scope falls
+    // back to document there, the [class*="job" i] sweep matches hundreds
+    // of feed items and dumps the entire recommendation list into pageText.
+    // On external ATS pages (Workday, Greenhouse, etc.) the whole page IS
+    // the job posting, so let the normal container scan run.
+    if (scopeIsDocument && /(?:^|\.)linkedin\.com$/i.test(location.hostname)) {
+      return (description || "").slice(0, MAX_RELEVANT_PAGE_TEXT_CHARS)
+    }
 
     const parts = []
-    for (const container of containers) {
-      if (container instanceof HTMLElement) {
-        const value = (container.innerText || container.textContent || "").replace(/\s+/g, " ").trim()
-        if (value && !parts.includes(value)) parts.push(value)
-      }
-    }
-
     if (description) parts.unshift(description)
 
-    const text = parts.join("\n\n").trim()
-    if (text) return text.slice(0, 50000)
+    for (const contentRoot of findContentRoots()) {
+      const value = collectReadableText(contentRoot, MAX_RELEVANT_PAGE_TEXT_CHARS)
+      if (value && !parts.some((part) => part.includes(value) || value.includes(part))) {
+        parts.push(value)
+      }
+      if (parts.join("\n\n").length >= MAX_RELEVANT_PAGE_TEXT_CHARS) break
+    }
 
-    return scopeInnerText().slice(0, 50000)
+    const text = parts.join("\n\n").trim()
+    if (text) return text.slice(0, MAX_RELEVANT_PAGE_TEXT_CHARS)
+
+    return collectReadableText(rootElement(), MAX_RELEVANT_PAGE_TEXT_CHARS)
   }
 
   // LinkedIn lazy-renders the description block ~200-1500ms after a job
@@ -219,13 +390,15 @@
   // before that finishes, every description selector returns "" and the
   // server falls back to the noisy pageText path. Poll for ANY known
   // description selector to have meaningful content before extracting.
-  const DESCRIPTION_POLL_TIMEOUT_MS = 2500
+  const DESCRIPTION_POLL_TIMEOUT_MS = 6000
   const DESCRIPTION_POLL_INTERVAL_MS = 100
   // Wait threshold is intentionally lower than the server's hint-trust
   // threshold (400 chars) — the wait only asks "has LinkedIn rendered
-  // SOMETHING into the description block yet?". A 200-char stub still
-  // indicates the block is populated and not mid-load.
-  const DESCRIPTION_READY_MIN_CHARS = 200
+  // SOMETHING into the description block yet?". A 400-char stub still
+  // indicates the block is populated and not mid-load. We previously
+  // tripped at 200 chars which sometimes caught a half-rendered title
+  // block — bump to 400 so partial extractions get one more poll cycle.
+  const DESCRIPTION_READY_MIN_CHARS = 400
 
   const DESCRIPTION_SELECTORS = [
     ".job-details-about-the-job-module__description",
@@ -366,18 +539,46 @@
       '[class*="description" i]',
     ])
 
+    const workdayTitle = firstText([
+      '[data-automation-id="jobPostingHeader"]',
+    ])
+
+    const workdayDescription = firstText([
+      '[data-automation-id="jobPostingDescription"]',
+    ])
+
+    const workdayLocation = (() => {
+      const raw = text('[data-automation-id="locations"]')
+      // Strip the "locations" label Workday prepends to the location values
+      return raw.replace(/^locations?\s*/i, "").trim()
+    })()
+
+    const genericLocation =
+      firstText([
+        '[itemprop="jobLocation"]',
+        '[itemprop="addressLocality"]',
+        '[data-test*="location" i]',
+        '[data-testid*="location" i]',
+        '[data-test-id*="location" i]',
+        '[class*="location" i]',
+        '[id*="location" i]',
+      ]) || textNearHeading(/\blocation\b/i)
+
     const metaBits = [
       attr('meta[property="og:title"]', "content"),
       attr('meta[property="og:description"]', "content"),
       attr('meta[name="description"]', "content"),
     ].filter(Boolean)
 
-    const description =
+    const description = normalizeText(
       linkedinDescription ||
-      glassdoorDescription ||
-      attr('meta[property="og:description"]', "content") ||
-      attr('meta[name="description"]', "content") ||
-      ""
+        glassdoorDescription ||
+        workdayDescription ||
+        genericDescriptionText() ||
+        attr('meta[property="og:description"]', "content") ||
+        attr('meta[name="description"]', "content") ||
+        ""
+    ).slice(0, MAX_DESCRIPTION_HINT_CHARS)
 
     const pageText = relevantPageText(description)
 
@@ -399,6 +600,7 @@
         title:
           linkedinTitle ||
           glassdoorTitle ||
+          workdayTitle ||
           text("h1") ||
           attr('meta[property="og:title"]', "content") ||
           "",
@@ -407,7 +609,7 @@
           glassdoorCompany ||
           attr('meta[property="og:site_name"]', "content") ||
           "",
-        location: linkedinLocation || glassdoorLocation || "",
+        location: linkedinLocation || glassdoorLocation || workdayLocation || genericLocation || "",
         description,
         salaryText: findSalaryText(),
         metadata: [

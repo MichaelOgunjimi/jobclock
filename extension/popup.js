@@ -28,10 +28,12 @@ const nodes = {
   loadingMessage: document.getElementById("loading-message"),
   errorMessage: document.getElementById("error-message"),
   retryButton: document.getElementById("retry-button"),
+  loadingRetryButton: document.getElementById("loading-retry-button"),
   editSettingsButton: document.getElementById("edit-settings-button"),
   previewSettingsButton: document.getElementById("preview-settings-button"),
   footerSettingsButton: document.getElementById("footer-settings-button"),
   saveButton: document.getElementById("save-button"),
+  reextractButton: document.getElementById("reextract-button"),
   viewLink: document.getElementById("view-link"),
   successMessage: document.getElementById("success-message"),
   saveAnotherButton: document.getElementById("save-another-button"),
@@ -366,6 +368,22 @@ async function restoreRuntimeState(tab) {
     return true
   }
 
+  if (runtimeState.view === "preview" && runtimeState.preview) {
+    const p = runtimeState.preview
+    const hasContent =
+      (p.title && p.title.trim()) ||
+      (p.company && p.company.trim()) ||
+      (p.description && p.description.trim())
+    if (hasContent) {
+      renderPreview({ preview: p }, true)
+      return true
+    }
+    // Stale empty preview (e.g. cached from a broken extraction before
+    // a fix landed). Drop it and let the caller re-extract fresh.
+    await sendMessage({ type: "clear-state" }).catch(() => {})
+    return false
+  }
+
   if (runtimeState.view === "success" && runtimeState.result) {
     renderSuccess(runtimeState.result, true)
     return true
@@ -440,12 +458,23 @@ nodes.retryButton.addEventListener("click", () => {
   initialize()
 })
 
+nodes.loadingRetryButton.addEventListener("click", () => {
+  sendMessage({ type: "clear-state" }).catch(() => {})
+  initialize()
+})
+
 nodes.saveButton.addEventListener("click", async () => {
   try {
     await savePreview()
   } catch (error) {
     showError(error instanceof Error ? error.message : "The save request failed.")
   }
+})
+
+nodes.reextractButton.addEventListener("click", () => {
+  state.preview = null
+  sendMessage({ type: "clear-state" }).catch(() => {})
+  initialize()
 })
 
 nodes.saveAnotherButton.addEventListener("click", () => {
