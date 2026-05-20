@@ -5,7 +5,28 @@ import type { CvData } from "@/lib/supabase/database.types"
 import type { Metadata } from "next"
 import { CoverLetterPreviewClient } from "./cover-letter-preview-client"
 
-export const metadata: Metadata = { title: "Cover Letter Preview" }
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  if (!isSupabaseConfigured()) return { title: "Cover Letter" }
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { title: "Cover Letter" }
+  const { data } = await supabase
+    .from("applications")
+    .select("jobs_cache(title, company)")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  const job = (data as { jobs_cache: { title?: string; company?: string } | null } | null)?.jobs_cache
+  const suffix = job?.title && job?.company
+    ? `${job.title} · ${job.company}`
+    : job?.title ?? null
+  return { title: suffix ? `Cover Letter — ${suffix}` : "Cover Letter" }
+}
 
 export default async function CoverLetterPreviewPage({
   params,
