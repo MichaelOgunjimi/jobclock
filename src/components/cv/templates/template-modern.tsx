@@ -204,9 +204,13 @@ export function TemplateModern({ cv }: CvTemplateProps) {
       {cv.skills && cv.skills.length > 0 && (
         <>
           <SectionHeading>Skills &amp; Technologies</SectionHeading>
-          <p style={{ fontSize: 12, lineHeight: 1.55, color: "#1a1a1a", margin: 0 }}>
-            {cv.skills.join(", ")}
-          </p>
+          <ul style={{ margin: 0, paddingLeft: 18, columns: 2, columnGap: 24 }}>
+            {cv.skills.map((skill, i) => (
+              <li key={i} style={{ fontSize: 12, lineHeight: 1.6, color: "#1a1a1a", marginBottom: 1, breakInside: "avoid" }}>
+                {skill}
+              </li>
+            ))}
+          </ul>
         </>
       )}
 
