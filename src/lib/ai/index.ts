@@ -9,10 +9,9 @@ export const PROVIDER_MODELS: Record<AiProvider, { id: string; label: string }[]
     { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5 (Fastest)" },
   ],
   openai: [
-    { id: "gpt-4.5-preview", label: "GPT-4.5 Preview (Best quality)" },
+    { id: "gpt-4.1", label: "GPT-4.1 (Recommended)" },
     { id: "o3", label: "o3 (Best reasoning)" },
     { id: "o4-mini", label: "o4-mini (Fast reasoning)" },
-    { id: "gpt-4.1", label: "GPT-4.1 (Recommended)" },
     { id: "gpt-4.1-mini", label: "GPT-4.1 Mini (Fast & affordable)" },
     { id: "gpt-4o", label: "GPT-4o" },
     { id: "gpt-4o-mini", label: "GPT-4o Mini" },
@@ -183,13 +182,18 @@ export async function generateText(
   } else {
     const { default: OpenAI } = await import("openai")
     const client = new OpenAI({ apiKey, timeout, maxRetries })
+    // o3/o4-mini use max_completion_tokens; other models use max_tokens.
+    const isReasoning = settings.model.startsWith("o3") || settings.model.startsWith("o4")
+    const tokenParam = maxTokens != null
+      ? (isReasoning ? { max_completion_tokens: maxTokens } : { max_tokens: maxTokens })
+      : {}
     const completion = await client.chat.completions.create({
       model: settings.model,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
-      ...(maxTokens != null ? { max_tokens: maxTokens } : {}),
+      ...tokenParam,
     })
     return completion.choices[0]?.message?.content ?? ""
   }

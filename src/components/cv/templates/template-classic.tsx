@@ -47,7 +47,7 @@ function ExperienceEntry({ entry }: { entry: CvExperience }) {
         )}
       </div>
       {entry.highlights && entry.highlights.length > 0 && (
-        <ul style={{ margin: "5px 0 0", paddingLeft: 18 }}>
+        <ul style={{ margin: "5px 0 0", paddingLeft: 18, listStyleType: "disc" }}>
           {entry.highlights.map((h, i) => (
             <li key={i} style={{ fontSize: 12, lineHeight: 1.5, color: "#1a1a1a", marginBottom: 1 }}>
               {h}
@@ -115,7 +115,7 @@ function ProjectEntry({ entry }: { entry: CvProject }) {
         )}
       </div>
       {entry.highlights && entry.highlights.length > 0 && (
-        <ul style={{ margin: "5px 0 0", paddingLeft: 18 }}>
+        <ul style={{ margin: "5px 0 0", paddingLeft: 18, listStyleType: "disc" }}>
           {entry.highlights.map((h, i) => (
             <li key={i} style={{ fontSize: 12, lineHeight: 1.5, color: "#1a1a1a", marginBottom: 1 }}>
               {h}
@@ -219,13 +219,9 @@ export function TemplateClassic({ cv }: CvTemplateProps) {
       {cv.skills && cv.skills.length > 0 && (
         <>
           <SectionHeading>Skills</SectionHeading>
-          <ul style={{ margin: 0, paddingLeft: 18, columns: 2, columnGap: 24 }}>
-            {cv.skills.map((skill, i) => (
-              <li key={i} style={{ fontSize: 12, lineHeight: 1.6, color: "#1a1a1a", marginBottom: 1, breakInside: "avoid" }}>
-                {skill}
-              </li>
-            ))}
-          </ul>
+          <p style={{ fontSize: 12, lineHeight: 1.55, color: "#1a1a1a", margin: 0 }}>
+            {cv.skills.join(", ")}
+          </p>
         </>
       )}
 
