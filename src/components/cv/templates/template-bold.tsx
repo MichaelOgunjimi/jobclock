@@ -227,13 +227,26 @@ export function TemplateBold({ cv }: CvTemplateProps) {
           </>
         )}
 
-        {/* Education */}
-        {cv.education && cv.education.length > 0 && (
+        {/* Skills */}
+        {cv.skills && cv.skills.length > 0 && (
           <>
-            <SectionHeading>Education</SectionHeading>
-            {cv.education.map((edu, i) => (
-              <EducationEntry key={i} entry={edu} />
-            ))}
+            <SectionHeading>Skills</SectionHeading>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+              {cv.skills.map((skill, i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: "#f1f5f9",
+                    color: "#334155",
+                    padding: "2px 8px",
+                    fontSize: 11,
+                    borderRadius: 3,
+                  }}
+                >
+                  {skill}
+                </div>
+              ))}
+            </div>
           </>
         )}
 
@@ -257,6 +270,16 @@ export function TemplateBold({ cv }: CvTemplateProps) {
           </>
         )}
 
+        {/* Education */}
+        {cv.education && cv.education.length > 0 && (
+          <>
+            <SectionHeading>Education</SectionHeading>
+            {cv.education.map((edu, i) => (
+              <EducationEntry key={i} entry={edu} />
+            ))}
+          </>
+        )}
+
         {/* Activities */}
         {cv.activities && cv.activities.length > 0 && (
           <>
@@ -264,29 +287,6 @@ export function TemplateBold({ cv }: CvTemplateProps) {
             {cv.activities.map((act, i) => (
               <ExperienceEntry key={i} entry={act} />
             ))}
-          </>
-        )}
-
-        {/* Skills */}
-        {cv.skills && cv.skills.length > 0 && (
-          <>
-            <SectionHeading>Skills</SectionHeading>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-              {cv.skills.map((skill, i) => (
-                <div
-                  key={i}
-                  style={{
-                    background: "#f1f5f9",
-                    color: "#334155",
-                    padding: "2px 8px",
-                    fontSize: 11,
-                    borderRadius: 3,
-                  }}
-                >
-                  {skill}
-                </div>
-              ))}
-            </div>
           </>
         )}
 

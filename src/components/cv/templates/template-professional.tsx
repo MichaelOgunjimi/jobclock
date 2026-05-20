@@ -230,15 +230,6 @@ export function TemplateProfessional({ cv }: CvTemplateProps) {
         </p>
       )}
 
-      {cv.education && cv.education.length > 0 && (
-        <>
-          <SectionHeading>Education</SectionHeading>
-          {cv.education.map((entry, index) => (
-            <EducationEntry key={index} entry={entry} />
-          ))}
-        </>
-      )}
-
       {cv.experience && cv.experience.length > 0 && (
         <>
           <SectionHeading>Work Experience</SectionHeading>
@@ -253,6 +244,15 @@ export function TemplateProfessional({ cv }: CvTemplateProps) {
           <SectionHeading>University Projects</SectionHeading>
           {cv.projects.map((entry, index) => (
             <ProjectEntry key={index} entry={entry} />
+          ))}
+        </>
+      )}
+
+      {cv.education && cv.education.length > 0 && (
+        <>
+          <SectionHeading>Education</SectionHeading>
+          {cv.education.map((entry, index) => (
+            <EducationEntry key={index} entry={entry} />
           ))}
         </>
       )}
