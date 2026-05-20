@@ -31,6 +31,7 @@ function cleanText(value, maxLength = 4000) {
 }
 
 async function extractCurrentPage(tabId) {
+  const t0 = Date.now()
   await chrome.scripting.executeScript({
     target: { tabId },
     files: ["page-extractor.js"],
@@ -40,6 +41,7 @@ async function extractCurrentPage(tabId) {
     target: { tabId },
     func: () => globalThis.collectJobAssistantPageData(),
   })
+  console.info(`[jobclock] DOM extract took ${Date.now() - t0}ms`)
 
   return {
     pageTitle: result?.pageTitle || "",
@@ -66,6 +68,7 @@ async function callImportApi(config, payload) {
   const timeoutMs = payload.mode === "save" ? SAVE_TIMEOUT_MS : PREVIEW_TIMEOUT_MS
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  const t0 = Date.now()
 
   let response
   try {
@@ -78,6 +81,7 @@ async function callImportApi(config, payload) {
       body: JSON.stringify(payload),
       signal: controller.signal,
     })
+    console.info(`[jobclock] ${payload.mode} fetch took ${Date.now() - t0}ms (status ${response.status})`)
   } catch (err) {
     if (err && err.name === "AbortError") {
       throw new Error(

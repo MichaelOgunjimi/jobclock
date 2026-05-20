@@ -9,6 +9,7 @@
   // non-LinkedIn sites are unchanged.
   function findSelectedJobScope() {
     const candidates = [
+      ".jobs-search-two-pane__details-wrapper", // current LinkedIn two-pane (collections, search)
       ".jobs-search__job-details",
       ".jobs-search__job-details--wrapper",
       ".jobs-search__job-details--container",
@@ -17,15 +18,29 @@
       ".job-view-layout",
       ".jobs-view-layout",
       ".scaffold-layout__detail",
+      "[data-job-id]", // wrapper around the selected job on some LinkedIn views
     ]
     for (const selector of candidates) {
       const node = document.querySelector(selector)
-      if (node instanceof HTMLElement) return node
+      if (node instanceof HTMLElement) {
+        if (typeof console !== "undefined" && console.info) {
+          console.info("[jobclock] scope matched:", selector)
+        }
+        return node
+      }
+    }
+    if (typeof console !== "undefined" && console.warn) {
+      console.warn(
+        "[jobclock] no scope candidate matched — falling back to document. " +
+          "pageText will be limited to the description hint to avoid sending " +
+          "the whole page to the AI.",
+      )
     }
     return document
   }
 
   const scope = findSelectedJobScope()
+  const scopeIsDocument = !(scope instanceof HTMLElement)
 
   // Things we never want to read from, even when scope = document on
   // a flat list view where the pane finder didn't match.
@@ -138,7 +153,16 @@
   }
 
   function relevantPageText(description) {
-    const root = scope instanceof HTMLElement ? scope : document
+    // When scope is the whole document (we couldn't pin down a job pane),
+    // the [class*="job" i] / [class*="description" i] sweep matches
+    // hundreds of nodes across LinkedIn's feed and dumps the entire
+    // recommendation list into pageText. Refuse to do that — just return
+    // the description hint so the AI receives a small, on-topic prompt.
+    if (scopeIsDocument) {
+      return (description || "").slice(0, 50000)
+    }
+
+    const root = scope
     const containers = Array.from(
       root.querySelectorAll(
         [
@@ -254,9 +278,22 @@
       attr('meta[name="description"]', "content") ||
       ""
 
+    const pageText = relevantPageText(description)
+
+    if (typeof console !== "undefined" && console.info) {
+      console.info("[jobclock] extraction summary:", {
+        url: location.href,
+        scopeIsDocument,
+        descriptionChars: description.length,
+        pageTextChars: pageText.length,
+        linkedinTitle: linkedinTitle.slice(0, 80),
+        linkedinCompany: linkedinCompany.slice(0, 80),
+      })
+    }
+
     return {
       pageTitle: document.title || "",
-      pageText: relevantPageText(description),
+      pageText,
       pageHints: {
         title:
           linkedinTitle ||
