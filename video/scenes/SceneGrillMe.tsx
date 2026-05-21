@@ -3,7 +3,7 @@ import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
 import { AppFrame } from "../components/AppFrame";
 import { CaptionBar } from "../components/CaptionBar";
 import { Tabs } from "../components/Tabs";
-import { captions, grillMe, interviewQuestions, role } from "../data";
+import { captions, grillMe, interviewQuestions } from "../data";
 import { stagger } from "../timing";
 import { theme } from "../theme";
 
@@ -23,7 +23,7 @@ export const SceneGrillMe = () => {
         padding: "70px 96px 150px",
       }}
     >
-      <AppFrame active="Applications" kicker={role.company} title="Application Prep">
+      <AppFrame active="Interview Prep" kicker="Mock interview" title="Grill Me">
         <div
           style={{
             backgroundColor: theme.color.white,
@@ -137,6 +137,19 @@ export const SceneGrillMe = () => {
                 }}
               >
                 Evaluate my answer
+              </div>
+              <div
+                style={{
+                  backgroundColor: "rgba(107,45,60,0.08)",
+                  border: `1px solid rgba(107,45,60,0.22)`,
+                  color: theme.color.accent,
+                  fontSize: 24,
+                  fontWeight: 750,
+                  lineHeight: 1.28,
+                  padding: "16px 18px",
+                }}
+              >
+                {grillMe.feedback}
               </div>
             </section>
           </div>
