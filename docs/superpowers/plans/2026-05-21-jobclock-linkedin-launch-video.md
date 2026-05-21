@@ -105,7 +105,7 @@ Add these scripts without removing existing scripts:
 ```json
 {
   "video:studio": "remotion studio video/index.ts",
-  "video:still": "remotion still video/index.ts JobClockLaunchVideo --frame=90 --scale=0.5",
+  "video:still": "remotion still video/index.ts JobClockLaunchVideo out/jobclock-launch-still.png --frame=90 --scale=0.5",
   "video:render": "remotion render video/index.ts JobClockLaunchVideo out/jobclock-linkedin-launch.mp4"
 }
 ```
