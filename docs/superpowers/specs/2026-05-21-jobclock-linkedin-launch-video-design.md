@@ -19,7 +19,7 @@ The video should feel calm, capable, and deliberate. It should avoid hype, exagg
 ## Format
 
 - Aspect ratio: 16:9 landscape.
-- Length: approximately 45 to 55 seconds.
+- Length: flexible. Prioritize a complete, readable workflow over hitting a fixed duration.
 - Audio: silent-first. The video must work without voiceover.
 - Text: use readable on-screen captions and short UI labels.
 - Platform fit: optimized for a LinkedIn feed post, but reusable on other social networks.
