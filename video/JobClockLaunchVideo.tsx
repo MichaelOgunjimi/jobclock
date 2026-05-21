@@ -1,96 +1,60 @@
-import { AbsoluteFill } from "remotion";
-import { BookOpen, Building2, Zap } from "lucide-react";
-import { AppFrame } from "./components/AppFrame";
-import { CaptionBar } from "./components/CaptionBar";
-import { DocumentPanel } from "./components/DocumentPanel";
-import { GenerationProgress } from "./components/GenerationProgress";
-import { PipelineStepper } from "./components/PipelineStepper";
-import { Tabs } from "./components/Tabs";
-import { baseCv, captions, role, tailoringSteps } from "./data";
+import { AbsoluteFill, Series } from "remotion";
+import { sceneDurations, fps } from "./data";
+import { SceneApplicationWorkspace } from "./scenes/SceneApplicationWorkspace";
+import { SceneBaseCv } from "./scenes/SceneBaseCv";
+import { SceneBrowserExtension } from "./scenes/SceneBrowserExtension";
+import { SceneCvTailoring } from "./scenes/SceneCvTailoring";
+import { SceneEndCard } from "./scenes/SceneEndCard";
+import { SceneGrillMe } from "./scenes/SceneGrillMe";
+import { SceneInterviewPrep } from "./scenes/SceneInterviewPrep";
+import { ScenePipeline } from "./scenes/ScenePipeline";
+import { SceneResearch } from "./scenes/SceneResearch";
+import { SceneStoryBank } from "./scenes/SceneStoryBank";
 import { theme } from "./theme";
+
+const frames = (seconds: number) => seconds * fps;
 
 export const JobClockLaunchVideo = () => {
   return (
     <AbsoluteFill
       style={{
-        alignItems: "center",
         backgroundColor: theme.color.background,
         color: theme.color.foreground,
-        display: "flex",
         fontFamily: theme.font.sans,
-        justifyContent: "center",
-        padding: "70px 96px 150px",
       }}
     >
-      <AppFrame
-        active="Applications"
-        kicker={`${role.company} / ${role.location}`}
-        title={role.title}
-      >
-        <div
-          style={{
-            display: "grid",
-            gap: 24,
-            gridTemplateColumns: "minmax(0, 1fr) 420px",
-            height: "100%",
-            minWidth: 0,
-          }}
-        >
-          <DocumentPanel
-            title={baseCv.name}
-            subtitle={`${baseCv.status} / ${baseCv.updated}`}
-            sections={[
-              {
-                heading: "Profile",
-                bullets: [
-                  "Platform-minded software engineer focused on practical automation.",
-                  "Turns repeated operational work into reliable internal tooling.",
-                ],
-              },
-              {
-                heading: "Relevant experience",
-                bullets: [
-                  "Improved reporting workflows and reduced manual handoff time.",
-                  "Built data quality checks around operational dashboards.",
-                  "Partnered with product teams to ship dependable tooling.",
-                ],
-              },
-            ]}
-            items={baseCv.sections}
-          />
-          <div
-            style={{
-              display: "grid",
-              gap: 22,
-              gridTemplateRows: "auto auto 1fr",
-            }}
-          >
-            <Tabs
-              active="prep"
-              tabs={[
-                {
-                  value: "prep",
-                  label: "Interview Prep",
-                  icon: <BookOpen size={18} strokeWidth={1.8} />,
-                },
-                {
-                  value: "research",
-                  label: "Research",
-                  icon: <Building2 size={18} strokeWidth={1.8} />,
-                },
-                {
-                  value: "grill",
-                  label: "Grill Me",
-                  icon: <Zap size={18} strokeWidth={1.8} />,
-                },
-              ]}
-            />
-            <GenerationProgress rows={tailoringSteps} startFrame={12} />
-            <PipelineStepper progress={0.25} />
-          </div>
-        </div>
-      </AppFrame>
-      <CaptionBar text={captions.applicationWorkspace} />
+      <Series>
+        <Series.Sequence durationInFrames={frames(sceneDurations.baseCv)}>
+          <SceneBaseCv />
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={frames(sceneDurations.browserExtension)}>
+          <SceneBrowserExtension />
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={frames(sceneDurations.applicationWorkspace)}>
+          <SceneApplicationWorkspace />
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={frames(sceneDurations.research)}>
+          <SceneResearch />
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={frames(sceneDurations.cvTailoring)}>
+          <SceneCvTailoring />
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={frames(sceneDurations.storyBank)}>
+          <SceneStoryBank />
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={frames(sceneDurations.interviewPrep)}>
+          <SceneInterviewPrep />
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={frames(sceneDurations.grillMe)}>
+          <SceneGrillMe />
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={frames(sceneDurations.pipeline)}>
+          <ScenePipeline />
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={frames(sceneDurations.endCard)}>
+          <SceneEndCard />
+        </Series.Sequence>
+      </Series>
     </AbsoluteFill>
   );
 };

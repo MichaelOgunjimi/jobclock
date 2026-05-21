@@ -33,7 +33,7 @@ export const PipelineStepper = ({
       style={{
         backgroundColor: theme.color.white,
         border: `1px solid ${theme.color.border}`,
-        padding: 24,
+        padding: 26,
       }}
     >
       <div
@@ -75,7 +75,7 @@ export const PipelineStepper = ({
                 alignItems: "center",
                 display: "flex",
                 flexDirection: "column",
-                gap: 11,
+                gap: 14,
                 minWidth: 0,
                 position: "relative",
               }}
@@ -93,22 +93,23 @@ export const PipelineStepper = ({
                     : theme.color.mutedForeground,
                   display: "flex",
                   fontFamily: theme.font.mono,
-                  fontSize: 14,
+                  fontSize: 24,
                   fontWeight: 800,
-                  height: 46,
+                  height: 50,
                   justifyContent: "center",
-                  width: 46,
+                  width: 50,
                 }}
               >
-                {isComplete ? <Check size={21} strokeWidth={2.3} /> : index + 1}
+                {isComplete ? <Check size={24} strokeWidth={2.3} /> : index + 1}
               </div>
               <span
                 style={{
                   color: isComplete || isCurrent
                     ? theme.color.foreground
                     : theme.color.mutedForeground,
-                  fontSize: 13,
+                  fontSize: 24,
                   fontWeight: isCurrent ? 750 : 650,
+                  lineHeight: 1.15,
                   textAlign: "center",
                 }}
               >

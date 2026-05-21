@@ -38,8 +38,8 @@ export const GenerationProgress = ({
         backgroundColor: theme.color.white,
         border: `1px solid ${theme.color.border}`,
         display: "grid",
-        gap: 12,
-        padding: 22,
+        gap: 14,
+        padding: 20,
       }}
     >
       {labels.map((label, index) => {
@@ -74,10 +74,10 @@ export const GenerationProgress = ({
               }`,
               display: "grid",
               gap: 14,
-              gridTemplateColumns: "30px 1fr 72px",
-              minHeight: 58,
+              gridTemplateColumns: "42px minmax(0, 1fr) 116px",
+              minHeight: 74,
               overflow: "hidden",
-              padding: "12px 14px",
+              padding: "13px 14px",
               position: "relative",
             }}
           >
@@ -97,23 +97,24 @@ export const GenerationProgress = ({
                 backgroundColor: isCompleted ? theme.color.accent : theme.color.muted,
                 color: isCompleted ? theme.color.white : theme.color.accent,
                 display: "flex",
-                height: 34,
+                height: 42,
                 justifyContent: "center",
                 position: "relative",
-                width: 34,
+                width: 42,
               }}
             >
               {isCompleted ? (
-                <Check size={18} strokeWidth={2.2} />
+                <Check size={24} strokeWidth={2.2} />
               ) : (
-                <LoaderCircle size={18} strokeWidth={2} />
+                <LoaderCircle size={24} strokeWidth={2} />
               )}
             </div>
             <span
               style={{
                 color: theme.color.foreground,
-                fontSize: 18,
+                fontSize: 24,
                 fontWeight: 650,
+                lineHeight: 1.2,
                 position: "relative",
               }}
             >
@@ -125,8 +126,9 @@ export const GenerationProgress = ({
                   ? theme.color.accent
                   : theme.color.mutedForeground,
                 fontFamily: theme.font.mono,
-                fontSize: 13,
+                fontSize: 24,
                 fontWeight: 700,
+                lineHeight: 1,
                 position: "relative",
                 textAlign: "right",
                 textTransform: "uppercase",
