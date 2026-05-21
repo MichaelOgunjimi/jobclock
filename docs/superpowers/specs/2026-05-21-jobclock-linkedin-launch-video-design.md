@@ -48,9 +48,11 @@ The story should show:
 5. JobClock shows role and company research.
 6. JobClock compares the role against the uploaded base CV.
 7. JobClock creates a tailored CV with short progress states and small generated excerpts.
-8. JobClock generates interview preparation material as the supporting next step.
-9. The application moves through the pipeline.
-10. The video ends with an understated product card.
+8. JobClock connects the role to the user's interview story bank.
+9. JobClock generates role-specific interview preparation.
+10. The Grill Me tab lets the user practice a question, request an AI STAR suggestion, and evaluate an answer.
+11. The application moves through the pipeline.
+12. The video ends with an understated product card.
 
 ## Scene Outline
 
@@ -102,19 +104,35 @@ Example excerpt: "Improved internal reporting workflows and reduced manual hando
 
 Caption: "Tailor the CV from your source material."
 
-### Scene 6: Supporting Materials
+### Scene 6: Interview Story Bank
 
-Show interview preparation as the supporting next step. Use a concise question bank and company-specific prep notes so the beat stays distinct from CV tailoring.
+Show the global `/interview` page as the user's STAR story bank. Include the page title "Story bank.", a short list of saved stories, competency tags, and one expanded STAR card with Situation, Task, Action, and Result sections.
 
-Caption: "Prepare the next application step."
+Caption: "Keep interview stories ready."
 
-### Scene 7: Pipeline
+### Scene 7: Role-Specific Interview Prep
+
+Show the per-application interview workspace with the tabs visible: "Interview Prep", "Company Research", and "Grill Me".
+
+Start on the Interview Prep tab. Show the "Generate Interview Prep" action, then the generated result with likely questions, best story matches, and a technical prep checklist. The copy should make it clear that prep uses the job description and the story bank.
+
+Caption: "Generate prep from the role and your stories."
+
+### Scene 8: Grill Me Practice
+
+Switch to the Grill Me tab. Show a question navigator, one role-specific question, the "Get AI STAR suggestion" action, a short suggested STAR answer preview, the user's answer text area, and the "Evaluate my answer" action.
+
+Keep this beat concise. The goal is to show the practice loop, not a full answer evaluation.
+
+Caption: "Practice before the interview."
+
+### Scene 9: Pipeline
 
 Show the application moving from "Saved" to "Applied" in the pipeline with visible statuses.
 
 Caption: "Track every application deliberately."
 
-### Scene 8: End Card
+### Scene 10: End Card
 
 Show the JobClock brand and an understated statement:
 
@@ -132,6 +150,7 @@ Built by Michael Ogunjimi
 - Use motion to guide focus rather than decorate.
 - Prefer direct product interactions: upload, save, analyze, generate, track.
 - Avoid showing the in-app job search as the primary flow because it is not currently the strongest workflow.
+- Include both interview surfaces accurately: the global `/interview` story bank and the per-application Grill Me tab.
 
 ## Implementation Notes
 
@@ -147,4 +166,5 @@ Built by Michael Ogunjimi
 - The fictional role remains consistent across scenes.
 - The browser extension is a clear early highlight.
 - The base CV setup is visible before the AI tailoring beat.
+- The interview section shows the Story Bank, Interview Prep tab, and Grill Me practice loop as distinct parts of the workflow.
 - The final video feels appropriate for a professional LinkedIn post aimed at software engineering employers.
