@@ -53,6 +53,22 @@ describe("interviewPrepHandler", () => {
     expect(resultRef).toBe("prep-1")
   })
 
+  it("uses a single extended AI timeout for queued interview prep", async () => {
+    db.select.mockReturnValue({ from: () => ({ where: () => ({ limit: vi.fn().mockResolvedValue([]) }) }) })
+    db.insert.mockReturnValue({ values: () => ({ returning: vi.fn().mockResolvedValue([{ id: "prep-1" }]) }) })
+
+    await interviewPrepHandler(JOB)
+
+    expect(generateText).toHaveBeenCalledWith(
+      { provider: "openai", model: "gpt-4.1" },
+      "k",
+      "sys",
+      "usr",
+      3000,
+      { timeoutMs: 180_000, maxRetries: 0 },
+    )
+  })
+
   it("updates existing interview_prep row and returns its id", async () => {
     db.select.mockReturnValue({
       from: () => ({ where: () => ({ limit: vi.fn().mockResolvedValue([{ id: "prep-existing" }]) }) }),

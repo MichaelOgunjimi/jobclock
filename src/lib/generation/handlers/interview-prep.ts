@@ -46,7 +46,10 @@ export async function interviewPrepHandler(job: GenerationJob): Promise<string> 
     )
   } else {
     const { settings, apiKey } = resolveAiConfig(ctx.preferences)
-    content = await generateText(settings, apiKey, systemPrompt, userPrompt, 3000)
+    content = await generateText(settings, apiKey, systemPrompt, userPrompt, 3000, {
+      timeoutMs: 180_000,
+      maxRetries: 0,
+    })
   }
 
   const normalized = normalizeAiMarkdown(content)
