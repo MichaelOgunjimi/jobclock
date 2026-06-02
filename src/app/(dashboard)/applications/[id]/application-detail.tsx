@@ -9,8 +9,10 @@ import {
   BookOpen,
   ExternalLink,
   Loader2,
+  Maximize2,
   Send,
   Trash2,
+  X,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -453,10 +455,92 @@ function DescriptionCard({
 
 type ChatMessage = { role: "user" | "assistant"; content: string }
 
+interface ApplicationChatPanelProps {
+  messages: ChatMessage[]
+  input: string
+  isLoading: boolean
+  messagesContainerRef: React.RefObject<HTMLDivElement | null>
+  messagesEndRef: React.RefObject<HTMLDivElement | null>
+  onInputChange: (value: string) => void
+  onMessagesScroll: () => void
+  onSubmit: (e: React.FormEvent) => void
+}
+
+function ApplicationChatPanel({
+  messages,
+  input,
+  isLoading,
+  messagesContainerRef,
+  messagesEndRef,
+  onInputChange,
+  onMessagesScroll,
+  onSubmit,
+}: ApplicationChatPanelProps) {
+  return (
+    <>
+      <div
+        ref={messagesContainerRef}
+        onScroll={onMessagesScroll}
+        className="min-h-0 flex-1 space-y-4 overflow-y-auto py-4"
+        aria-live="polite"
+        aria-atomic="false"
+      >
+        {messages.length === 0 ? (
+          <p className="py-10 text-center text-sm text-muted-foreground">
+            No messages yet. Ask anything about this role.
+          </p>
+        ) : (
+          messages.map((msg, i) => (
+            <div
+              key={i}
+              className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
+            >
+              <div
+                className={cn(
+                  "max-w-[85%] px-3 py-2 text-sm leading-relaxed",
+                  msg.role === "user"
+                    ? "bg-foreground text-background whitespace-pre-wrap"
+                    : "border bg-secondary text-foreground"
+                )}
+              >
+                {msg.role === "assistant" && msg.content ? (
+                  <MarkdownContent content={msg.content} />
+                ) : msg.content ? (
+                  msg.content
+                ) : isLoading && i === messages.length - 1 ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin opacity-50" />
+                ) : null}
+              </div>
+            </div>
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+      <form onSubmit={onSubmit} className="flex gap-2 border-t pt-4">
+        <Input
+          value={input}
+          onChange={(e) => onInputChange(e.target.value)}
+          placeholder="Ask about the company, role, or application…"
+          aria-label="Message"
+          className="flex-1"
+        />
+        <Button type="submit" size="default" disabled={isLoading || !input.trim()}>
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
+        </Button>
+      </form>
+    </>
+  )
+}
+
 function ApplicationChat({ applicationId }: { applicationId: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const shouldStickToBottomRef = useRef(true)
@@ -550,72 +634,86 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
   }
 
   return (
-    <Card>
-      <CardHeader className="border-b">
-        <div>
-          <CardTitle>Ask AI</CardTitle>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Ask about the company, tailor your CV, or get help with application questions.
-          </p>
-        </div>
-      </CardHeader>
-      <CardContent className="flex h-[480px] flex-col pt-0">
-        <div
-          ref={messagesContainerRef}
-          onScroll={handleMessagesScroll}
-          className="min-h-0 flex-1 space-y-4 overflow-y-auto py-4"
-          aria-live="polite"
-          aria-atomic="false"
-        >
-          {messages.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              No messages yet. Ask anything about this role.
+    <>
+      <Card>
+        <CardHeader className="border-b">
+          <div>
+            <CardTitle>Ask AI</CardTitle>
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              Ask about the company, tailor your CV, or get help with application questions.
             </p>
-          ) : (
-            messages.map((msg, i) => (
-              <div
-                key={i}
-                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
-              >
-                <div
-                  className={cn(
-                    "max-w-[85%] px-3 py-2 text-sm leading-relaxed",
-                    msg.role === "user"
-                      ? "bg-foreground text-background whitespace-pre-wrap"
-                      : "border bg-secondary text-foreground"
-                  )}
-                >
-                  {msg.role === "assistant" && msg.content ? (
-                    <MarkdownContent content={msg.content} />
-                  ) : msg.content ? (
-                    msg.content
-                  ) : isLoading && i === messages.length - 1 ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin opacity-50" />
-                  ) : null}
-                </div>
-              </div>
-            ))
+          </div>
+          <CardAction>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsExpanded(true)}
+              aria-label="Open expanded chat"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="flex h-[560px] flex-col pt-0 md:h-[640px]">
+          {!isExpanded && (
+            <ApplicationChatPanel
+              messages={messages}
+              input={input}
+              isLoading={isLoading}
+              messagesContainerRef={messagesContainerRef}
+              messagesEndRef={messagesEndRef}
+              onInputChange={setInput}
+              onMessagesScroll={handleMessagesScroll}
+              onSubmit={sendMessage}
+            />
           )}
-          <div ref={messagesEndRef} />
+        </CardContent>
+      </Card>
+
+      {isExpanded && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="expanded-application-chat-title"
+            className="flex h-[85vh] w-full max-w-5xl flex-col border border-border bg-background shadow-lg"
+          >
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <div>
+                <h2 id="expanded-application-chat-title" className="text-sm font-medium">
+                  Expanded application chat
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Ask about the company, role, CV, or application.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpanded(false)}
+                aria-label="Close expanded chat"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col px-5 pt-0 pb-5">
+              <ApplicationChatPanel
+                messages={messages}
+                input={input}
+                isLoading={isLoading}
+                messagesContainerRef={messagesContainerRef}
+                messagesEndRef={messagesEndRef}
+                onInputChange={setInput}
+                onMessagesScroll={handleMessagesScroll}
+                onSubmit={sendMessage}
+              />
+            </div>
+          </div>
         </div>
-        <form onSubmit={sendMessage} className="flex gap-2 border-t pt-4">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about the company, role, or application…"
-            aria-label="Message"
-            className="flex-1"
-          />
-          <Button type="submit" size="default" disabled={isLoading || !input.trim()}>
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+      )}
+    </>
   )
 }
 
