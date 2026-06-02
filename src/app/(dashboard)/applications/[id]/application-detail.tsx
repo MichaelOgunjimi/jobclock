@@ -457,7 +457,9 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const shouldStickToBottomRef = useRef(true)
   const abortControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -466,6 +468,19 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
     }
   }, [])
 
+  function handleMessagesScroll() {
+    const container = messagesContainerRef.current
+    if (!container) return
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+    shouldStickToBottomRef.current = distanceFromBottom < 48
+  }
+
+  function scrollToLatestMessage() {
+    if (shouldStickToBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
+  }
+
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault()
     const text = input.trim()
@@ -473,6 +488,7 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
 
     const userMsg: ChatMessage = { role: "user", content: text }
     const nextMessages = [...messages, userMsg]
+    shouldStickToBottomRef.current = true
     setMessages([...nextMessages, { role: "assistant", content: "" }])
     setInput("")
     setIsLoading(true)
@@ -516,7 +532,7 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
           updated[updated.length - 1] = { role: "assistant", content: streamed }
           return updated
         })
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+        scrollToLatestMessage()
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return
@@ -544,7 +560,13 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
         </div>
       </CardHeader>
       <CardContent className="flex h-[480px] flex-col pt-0">
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-4" aria-live="polite" aria-atomic="false">
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleMessagesScroll}
+          className="min-h-0 flex-1 space-y-4 overflow-y-auto py-4"
+          aria-live="polite"
+          aria-atomic="false"
+        >
           {messages.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
               No messages yet. Ask anything about this role.
@@ -582,7 +604,6 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about the company, role, or application…"
             aria-label="Message"
-            disabled={isLoading}
             className="flex-1"
           />
           <Button type="submit" size="default" disabled={isLoading || !input.trim()}>
