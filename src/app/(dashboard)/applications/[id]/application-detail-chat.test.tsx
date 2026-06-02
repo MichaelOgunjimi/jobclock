@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }))
@@ -134,6 +134,66 @@ describe("ApplicationDetail chat", () => {
 
     await screen.findByText("Streaming answer")
     expect(scrollIntoView).not.toHaveBeenCalled()
+
+    chat.close()
+  })
+
+  it("opens an expanded chat dialog with the existing conversation", async () => {
+    const chat = mockStreamingChat()
+    renderApplicationDetail()
+
+    const input = screen.getByLabelText("Message")
+    fireEvent.change(input, { target: { value: "How should I position myself?" } })
+    fireEvent.submit(input.closest("form")!)
+    await waitFor(() => expect(chat.fetchMock).toHaveBeenCalled())
+
+    await act(async () => {
+      chat.enqueue("Lead with the platform work.")
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Open expanded chat" }))
+
+    const dialog = screen.getByRole("dialog", { name: "Expanded application chat" })
+    expect(within(dialog).getByText("How should I position myself?")).toBeInTheDocument()
+    expect(within(dialog).getByText("Lead with the platform work.")).toBeInTheDocument()
+
+    chat.close()
+  })
+
+  it("shares draft input between embedded and expanded chat views", () => {
+    renderApplicationDetail()
+
+    const input = screen.getByLabelText("Message")
+    fireEvent.change(input, { target: { value: "done" } })
+    fireEvent.click(screen.getByRole("button", { name: "Open expanded chat" }))
+
+    const dialog = screen.getByRole("dialog", { name: "Expanded application chat" })
+    const dialogInput = within(dialog).getByLabelText("Message")
+    expect(dialogInput).toHaveValue("done")
+
+    fireEvent.change(dialogInput, { target: { value: "follow up on metrics" } })
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close expanded chat" }))
+
+    expect(screen.getByLabelText("Message")).toHaveValue("follow up on metrics")
+  })
+
+  it("shows streamed assistant content in the expanded chat while generation is active", async () => {
+    const chat = mockStreamingChat()
+    renderApplicationDetail()
+
+    const input = screen.getByLabelText("Message")
+    fireEvent.change(input, { target: { value: "Draft a recruiter reply" } })
+    fireEvent.submit(input.closest("form")!)
+    await waitFor(() => expect(chat.fetchMock).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByRole("button", { name: "Open expanded chat" }))
+    const dialog = screen.getByRole("dialog", { name: "Expanded application chat" })
+
+    await act(async () => {
+      chat.enqueue("Thanks for reaching out")
+    })
+
+    expect(await within(dialog).findByText("Thanks for reaching out")).toBeInTheDocument()
 
     chat.close()
   })
