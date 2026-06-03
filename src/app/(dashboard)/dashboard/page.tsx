@@ -119,6 +119,7 @@ export default async function DashboardPage() {
     offer: { label: "Offer", color: "border-border bg-secondary text-foreground" },
     rejected: { label: "Rejected", color: "border-destructive/20 bg-destructive/10 text-destructive" },
     withdrawn: { label: "Withdrawn", color: "border-border bg-secondary text-muted-foreground" },
+    ghosted: { label: "Ghosted", color: "border-fuchsia-500/25 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300" },
   }
 
   return (

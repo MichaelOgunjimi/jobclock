@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { applications, jobsCache } from "@/lib/db/schema"
+import { applicationStatusEvents, applications, jobsCache } from "@/lib/db/schema"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
 
 export interface PersistedJobInput {
@@ -129,6 +129,7 @@ const VALID_STATUSES = new Set<ApplicationStatus>([
   "offer",
   "rejected",
   "withdrawn",
+  "ghosted",
 ])
 
 export async function updateApplicationStatusForUser(
@@ -138,27 +139,38 @@ export async function updateApplicationStatusForUser(
 ): Promise<boolean> {
   if (!VALID_STATUSES.has(status)) return false
 
-  const [current] = await db
-    .select({
-      id: applications.id,
-      appliedAt: applications.appliedAt,
+  return db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({
+        id: applications.id,
+        status: applications.status,
+        appliedAt: applications.appliedAt,
+      })
+      .from(applications)
+      .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)))
+      .limit(1)
+
+    if (!current) return false
+    if (current.status === status) return true
+
+    await tx
+      .update(applications)
+      .set({
+        status,
+        lastStatusUpdate: new Date(),
+        ...(status === "applied" && !current.appliedAt ? { appliedAt: new Date() } : {}),
+      })
+      .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)))
+
+    await tx.insert(applicationStatusEvents).values({
+      userId,
+      applicationId,
+      fromStatus: current.status,
+      toStatus: status,
     })
-    .from(applications)
-    .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)))
-    .limit(1)
 
-  if (!current) return false
-
-  await db
-    .update(applications)
-    .set({
-      status,
-      lastStatusUpdate: new Date(),
-      ...(status === "applied" && !current.appliedAt ? { appliedAt: new Date() } : {}),
-    })
-    .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)))
-
-  return true
+    return true
+  })
 }
 
 export async function persistJobForUser(

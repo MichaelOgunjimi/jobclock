@@ -6,6 +6,10 @@ import type { ChangeEvent } from "react"
 import { Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
+import {
+  APPLICATIONS_FILTER_STATE_COOKIE,
+  serializeApplicationsFilterState,
+} from "./applications-filter-state"
 
 const SORT_OPTIONS = [
   { value: "saved_desc", label: "Newest saved" },
@@ -23,6 +27,7 @@ const STATUS_PILLS: { value: ApplicationStatus | "all"; label: string; dot: stri
   { value: "offer", label: "Offer", dot: "bg-emerald-500" },
   { value: "rejected", label: "Rejected", dot: "bg-rose-500" },
   { value: "withdrawn", label: "Withdrawn", dot: "bg-muted-foreground/70" },
+  { value: "ghosted", label: "Ghosted", dot: "bg-fuchsia-500" },
 ]
 
 interface Props {
@@ -39,6 +44,16 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
   const [searchInput, setSearchInput] = useState(activeSearch)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  useEffect(() => {
+    writeApplicationsFilterCookie(
+      serializeApplicationsFilterState({
+        status: activeStatus,
+        sort: activeSort,
+        q: activeSearch,
+      })
+    )
+  }, [activeSearch, activeSort, activeStatus])
+
   // Sync if the URL param changes externally (e.g. browser back)
   useEffect(() => { setSearchInput(activeSearch) }, [activeSearch])
 
@@ -50,7 +65,9 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
     setSearchInput(value)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
-      router.push(buildUrl({ q: value.trim() || null, page: null }))
+      const href = buildUrl({ q: value.trim() || null, page: null })
+      persistFilterHref(href)
+      router.push(href)
     }, 350)
   }
 
@@ -69,7 +86,9 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
   }
 
   function handleSortChange(e: ChangeEvent<HTMLSelectElement>) {
-    router.push(buildUrl({ sort: e.target.value === "saved_desc" ? null : e.target.value }))
+    const href = buildUrl({ sort: e.target.value === "saved_desc" ? null : e.target.value })
+    persistFilterHref(href)
+    router.push(href)
   }
 
   return (
@@ -94,10 +113,12 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
           {STATUS_PILLS.map((pill) => {
             const count = pill.value === "all" ? total : (counts[pill.value] ?? 0)
             const isActive = activeStatus === pill.value || (pill.value === "all" && activeStatus === "all")
+            const href = buildUrl({ status: pill.value === "all" ? null : pill.value })
             return (
               <a
                 key={pill.value}
-                href={buildUrl({ status: pill.value === "all" ? null : pill.value })}
+                href={href}
+                onClick={() => persistFilterHref(href)}
                 className={cn(
                   "inline-flex items-center gap-1.5 border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.10em] transition-colors",
                   isActive
@@ -133,4 +154,26 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
       </div>
     </div>
   )
+}
+
+function persistFilterHref(href: string) {
+  const query = href.split("?")[1] ?? ""
+  const params = new URLSearchParams(query)
+
+  writeApplicationsFilterCookie(
+    serializeApplicationsFilterState({
+      status: params.get("status") ?? "all",
+      sort: params.get("sort") ?? "saved_desc",
+      q: params.get("q") ?? "",
+    })
+  )
+}
+
+function writeApplicationsFilterCookie(value: string | null) {
+  if (value) {
+    document.cookie = `${APPLICATIONS_FILTER_STATE_COOKIE}=${encodeURIComponent(value)}; Max-Age=7776000; Path=/; SameSite=Lax`
+    return
+  }
+
+  document.cookie = `${APPLICATIONS_FILTER_STATE_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax`
 }

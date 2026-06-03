@@ -8,12 +8,16 @@ vi.mock("next/navigation", () => ({ redirect: vi.fn() }))
 vi.mock("@/lib/generation/enqueue", () => ({
   enqueueGeneration: vi.fn(),
 }))
+vi.mock("@/lib/jobs/persist-job", () => ({
+  updateApplicationStatusForUser: vi.fn(),
+}))
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { enqueueGeneration } from "@/lib/generation/enqueue"
+import { updateApplicationStatusForUser } from "@/lib/jobs/persist-job"
 import {
   deleteApplication,
   generateCoverLetter,
@@ -44,33 +48,18 @@ describe("application actions", () => {
     vi.mocked(enqueueGeneration).mockResolvedValue({ jobId: "j-default", deduped: false })
   })
 
-  it("updateStatus updates and sets applied_at on first applied transition", async () => {
-    supabaseMock.setQueryResult("applications.select.single", { data: { applied_at: null } })
-
+  it("updateStatus delegates status changes to the transition recorder", async () => {
     await updateStatus(makeFormData({ applicationId: "app-1", status: "applied" }))
 
-    const updateCall = supabaseMock
-      .getQueryCalls()
-      .find((call) => call.table === "applications" && call.operation === "update")
-
-    expect(updateCall?.payload).toMatchObject({ status: "applied" })
-    expect(updateCall?.payload).toHaveProperty("applied_at")
+    expect(updateApplicationStatusForUser).toHaveBeenCalledWith(mockUser.id, "app-1", "applied")
     expect(revalidatePath).toHaveBeenCalledWith("/applications/app-1")
     expect(revalidatePath).toHaveBeenCalledWith("/applications")
   })
 
-  it("updateStatus does not reset applied_at if already applied", async () => {
-    supabaseMock.setQueryResult("applications.select.single", {
-      data: { applied_at: "2026-01-01T00:00:00.000Z" },
-    })
+  it("updateStatus accepts ghosted as a closed outcome", async () => {
+    await updateStatus(makeFormData({ applicationId: "app-1", status: "ghosted" }))
 
-    await updateStatus(makeFormData({ applicationId: "app-1", status: "applied" }))
-
-    const updateCall = supabaseMock
-      .getQueryCalls()
-      .find((call) => call.table === "applications" && call.operation === "update")
-    expect(updateCall?.payload).toMatchObject({ status: "applied" })
-    expect(updateCall?.payload).not.toHaveProperty("applied_at")
+    expect(updateApplicationStatusForUser).toHaveBeenCalledWith(mockUser.id, "app-1", "ghosted")
   })
 
   it("updateStatus ignores invalid status", async () => {
@@ -81,6 +70,7 @@ describe("application actions", () => {
         .getQueryCalls()
         .some((call) => call.table === "applications" && call.operation === "update")
     ).toBe(false)
+    expect(updateApplicationStatusForUser).not.toHaveBeenCalled()
     expect(revalidatePath).not.toHaveBeenCalled()
   })
 

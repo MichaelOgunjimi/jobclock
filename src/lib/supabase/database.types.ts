@@ -252,6 +252,33 @@ export type Database = {
 				};
 				Relationships: [];
 			};
+			application_status_events: {
+				Row: {
+					id: string;
+					user_id: string;
+					application_id: string;
+					from_status: ApplicationStatus | null;
+					to_status: ApplicationStatus;
+					created_at: string;
+				};
+				Insert: {
+					id?: string;
+					user_id: string;
+					application_id: string;
+					from_status?: ApplicationStatus | null;
+					to_status: ApplicationStatus;
+					created_at?: string;
+				};
+				Update: {
+					id?: string;
+					user_id?: string;
+					application_id?: string;
+					from_status?: ApplicationStatus | null;
+					to_status?: ApplicationStatus;
+					created_at?: string;
+				};
+				Relationships: [];
+			};
 			cover_letters: {
 				Row: {
 					id: string;
@@ -420,7 +447,8 @@ export type ApplicationStatus =
 	| "interview"
 	| "offer"
 	| "rejected"
-	| "withdrawn";
+	| "withdrawn"
+	| "ghosted";
 
 export type CoverLetterTone = Database["public"]["Tables"]["cover_letters"]["Row"]["tone"];
 
