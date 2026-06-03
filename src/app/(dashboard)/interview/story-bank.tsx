@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { TagInput } from "@/components/ui/tag-input"
 import { toast } from "sonner"
-import { BookOpen, ChevronDown, ChevronUp, Download, Plus, Trash2 } from "lucide-react"
+import { BookOpen, ChevronDown, ChevronUp, Download, Plus, Sparkles, Trash2 } from "lucide-react"
 import { createStory, updateStory, deleteStory, importSampleStories, type StoryEntry } from "./actions"
 
 function Textarea({
@@ -29,7 +30,7 @@ function Textarea({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       rows={rows}
-      className="w-full resize-none border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      className="min-h-24 w-full resize-none border border-border bg-background/70 px-3 py-2 text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
     />
   )
 }
@@ -165,7 +166,13 @@ function StoryCard({ story, onDeleted }: { story: StoryEntry; onDeleted: (id: st
   )
 }
 
-function AddStoryForm({ onAdded }: { onAdded: (story: StoryEntry) => void }) {
+function AddStoryForm({
+  importControl,
+  onAdded,
+}: {
+  importControl: ReactNode
+  onAdded: (story: StoryEntry) => void
+}) {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [situation, setSituation] = useState("")
@@ -206,47 +213,110 @@ function AddStoryForm({ onAdded }: { onAdded: (story: StoryEntry) => void }) {
 
   if (!open) {
     return (
-      <Button variant="outline" onClick={() => setOpen(true)}>
-        <Plus className="mr-1.5 h-4 w-4" />
-        Add story
-      </Button>
+      <div className="border border-border bg-card px-5 py-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center border border-border bg-secondary/60 text-muted-foreground">
+              <BookOpen className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">Story workspace</p>
+              <p className="text-xs text-muted-foreground">
+                Capture one STAR story at a time, then tag it for interview practice.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {importControl}
+            <Button onClick={() => setOpen(true)}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              Add story
+            </Button>
+          </div>
+        </div>
+      </div>
     )
   }
 
   return (
-    <div className="border border-dashed border-border p-5 space-y-4">
-      <p className="text-xs uppercase tracking-wider text-muted-foreground">New story</p>
-      <div className="space-y-1.5">
-        <Label>Title *</Label>
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Resolved production incident under pressure" />
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label>Situation</Label>
-          <Textarea value={situation} onChange={setSituation} placeholder="Context and background…" />
+    <div className="border border-border bg-card">
+      <div className="flex flex-col gap-4 border-b border-border px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 gap-3">
+          <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center border border-border bg-secondary/60 text-muted-foreground">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">New story</p>
+            <h2 className="text-lg font-semibold leading-tight">Draft a STAR story</h2>
+            <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+              Keep it specific enough to reuse in interview prep: context, ownership, action, and evidence.
+            </p>
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label>Task</Label>
-          <Textarea value={task} onChange={setTask} placeholder="Your specific responsibility…" />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Action</Label>
-          <Textarea value={action} onChange={setAction} placeholder="What you did, step by step…" />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Result</Label>
-          <Textarea value={result} onChange={setResult} placeholder="Measurable outcome…" />
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {importControl}
+          <Button variant="outline" onClick={reset}>Cancel</Button>
         </div>
       </div>
-      <div className="space-y-1.5">
-        <Label>Tags / competencies</Label>
-        <TagInput value={tags} onChange={setTags} placeholder="e.g. leadership, problem-solving…" />
+
+      <div className="space-y-5 p-5">
+        <div className="space-y-1.5">
+          <Label>Story title *</Label>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Resolved a production incident under pressure"
+          />
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="border border-border bg-background/35 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <Label>Situation</Label>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Context</span>
+            </div>
+            <Textarea value={situation} onChange={setSituation} placeholder="What was happening, and why did it matter?" rows={4} />
+          </div>
+          <div className="border border-border bg-background/35 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <Label>Task</Label>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Ownership</span>
+            </div>
+            <Textarea value={task} onChange={setTask} placeholder="What were you responsible for?" rows={4} />
+          </div>
+          <div className="border border-border bg-background/35 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <Label>Action</Label>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Decisions</span>
+            </div>
+            <Textarea value={action} onChange={setAction} placeholder="What did you do, step by step?" rows={4} />
+          </div>
+          <div className="border border-border bg-background/35 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <Label>Result</Label>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Evidence</span>
+            </div>
+            <Textarea value={result} onChange={setResult} placeholder="What changed? Add numbers where you can." rows={4} />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Tags / competencies</Label>
+          <TagInput value={tags} onChange={setTags} placeholder="e.g. leadership, problem-solving, incident management…" />
+          <p className="text-xs text-muted-foreground">Press Enter or comma to add each tag.</p>
+        </div>
       </div>
-      <div className="flex gap-2">
-        <Button onClick={handleCreate} disabled={isPending || !title.trim()}>
-          {isPending ? "Adding…" : "Add story"}
-        </Button>
-        <Button variant="outline" onClick={reset}>Cancel</Button>
+
+      <div className="flex flex-col gap-3 border-t border-border bg-secondary/25 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-muted-foreground">
+          Save it as a reusable story, then edit the wording as your interview prep gets sharper.
+        </p>
+        <div className="flex gap-2">
+          <Button onClick={handleCreate} disabled={isPending || !title.trim()}>
+            {isPending ? "Adding…" : "Add story"}
+          </Button>
+          <Button variant="outline" onClick={reset}>Cancel</Button>
+        </div>
       </div>
     </div>
   )
@@ -279,13 +349,15 @@ export function StoryBank({ initial }: { initial: StoryEntry[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <AddStoryForm onAdded={handleAdded} />
-        <Button variant="ghost" size="sm" onClick={handleImport} disabled={importing} className="text-muted-foreground">
+      <AddStoryForm
+        importControl={
+          <Button variant="outline" size="sm" onClick={handleImport} disabled={importing}>
           <Download className="mr-1.5 h-4 w-4" />
           {importing ? "Loading…" : "Load examples"}
         </Button>
-      </div>
+        }
+        onAdded={handleAdded}
+      />
 
       {stories.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
