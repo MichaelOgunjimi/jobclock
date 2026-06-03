@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import type { ChangeEvent } from "react"
 import { Search } from "lucide-react"
@@ -67,7 +68,7 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
     debounceRef.current = setTimeout(() => {
       const href = buildUrl({ q: value.trim() || null, page: null })
       persistFilterHref(href)
-      router.push(href)
+      router.replace(href, { scroll: false })
     }, 350)
   }
 
@@ -88,7 +89,7 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
   function handleSortChange(e: ChangeEvent<HTMLSelectElement>) {
     const href = buildUrl({ sort: e.target.value === "saved_desc" ? null : e.target.value })
     persistFilterHref(href)
-    router.push(href)
+    router.push(href, { scroll: false })
   }
 
   return (
@@ -115,9 +116,10 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
             const isActive = activeStatus === pill.value || (pill.value === "all" && activeStatus === "all")
             const href = buildUrl({ status: pill.value === "all" ? null : pill.value })
             return (
-              <a
+              <Link
                 key={pill.value}
                 href={href}
+                scroll={false}
                 onClick={() => persistFilterHref(href)}
                 className={cn(
                   "inline-flex items-center gap-1.5 border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.10em] transition-colors",
@@ -131,7 +133,7 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
                 <span className={cn("ml-0.5 tabular-nums", isActive ? "text-foreground/70" : "text-muted-foreground/70")}>
                   {count}
                 </span>
-              </a>
+              </Link>
             )
           })}
         </div>
