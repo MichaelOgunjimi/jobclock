@@ -1,9 +1,11 @@
 import type { Metadata } from "next"
 import { cookies } from "next/headers"
 import { Geist_Mono, IBM_Plex_Sans, IBM_Plex_Serif } from "next/font/google"
+import { Suspense } from "react"
 import "./globals.css"
 import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "@/components/theme-provider"
+import { NavigationScrollRestoration } from "@/components/navigation-scroll-restoration"
 import { Analytics } from "@vercel/analytics/next"
 
 const uiSans = IBM_Plex_Sans({
@@ -94,6 +96,9 @@ export default async function RootLayout({
         suppressHydrationWarning
       >
         <ThemeProvider initialTheme={initialTheme}>
+          <Suspense fallback={null}>
+            <NavigationScrollRestoration />
+          </Suspense>
           {children}
           <Toaster />
         </ThemeProvider>
