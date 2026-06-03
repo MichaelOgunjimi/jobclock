@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { revalidatePath } from "next/cache"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import {
   Briefcase,
   Search,
+  ArrowRight,
   CalendarDays,
   ChevronDown,
   CircleDot,
@@ -21,7 +23,14 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button-styles"
 import type { ApplicationStatus, Database } from "@/lib/supabase/database.types"
+import { updateApplicationStatusForUser } from "@/lib/jobs/persist-job"
 import { ApplicationsFilterBar } from "./applications-filter-bar"
+import {
+  APPLICATIONS_FILTER_STATE_COOKIE,
+  getPersistedApplicationsFilterHref,
+  hasApplicationsListParams,
+} from "./applications-filter-state"
+import { APPLICATION_STATUS_OPTIONS } from "./pipeline-metrics"
 
 export const metadata: Metadata = {
   title: "Applications",
@@ -42,6 +51,7 @@ const VALID_APPLICATION_STATUSES = new Set<ApplicationStatus>([
   "offer",
   "rejected",
   "withdrawn",
+  "ghosted",
 ])
 
 const APPLICATIONS_PER_PAGE = 8
@@ -56,6 +66,14 @@ export default async function ApplicationsPage({
   }
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined
+  if (!hasApplicationsListParams(resolvedSearchParams)) {
+    const cookieStore = await cookies()
+    const persistedHref = getPersistedApplicationsFilterHref(
+      cookieStore.get(APPLICATIONS_FILTER_STATE_COOKIE)?.value
+    )
+    if (persistedHref) redirect(persistedHref)
+  }
+
   const currentPage = Math.max(1, Number(resolvedSearchParams?.page ?? "1") || 1)
 
   // Filter param — validate against known statuses
@@ -164,55 +182,8 @@ export default async function ApplicationsPage({
     redirect(buildApplicationsPageHref(safeCurrentPage, activeStatus, activeSort, activeSearch))
   }
 
-  const statusOptions: {
-    value: ApplicationStatus
-    label: string
-    color: string
-    dot: string
-  }[] = [
-    {
-      value: "saved",
-      label: "Saved",
-      color: "border-border bg-secondary/70 text-foreground",
-      dot: "bg-foreground/55",
-    },
-    {
-      value: "applied",
-      label: "Applied",
-      color: "border-sky-200/80 bg-sky-50/70 text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/20 dark:text-sky-200",
-      dot: "bg-sky-500 dark:bg-sky-400",
-    },
-    {
-      value: "screening",
-      label: "Screening",
-      color: "border-amber-200/80 bg-amber-50/70 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200",
-      dot: "bg-amber-500 dark:bg-amber-400",
-    },
-    {
-      value: "interview",
-      label: "Interview",
-      color: "border-violet-200/80 bg-violet-50/70 text-violet-800 dark:border-violet-900/60 dark:bg-violet-950/20 dark:text-violet-200",
-      dot: "bg-violet-500 dark:bg-violet-400",
-    },
-    {
-      value: "offer",
-      label: "Offer",
-      color: "border-emerald-200/80 bg-emerald-50/70 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-200",
-      dot: "bg-emerald-500 dark:bg-emerald-400",
-    },
-    {
-      value: "rejected",
-      label: "Rejected",
-      color: "border-rose-200/80 bg-rose-50/70 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-200",
-      dot: "bg-rose-500 dark:bg-rose-400",
-    },
-    {
-      value: "withdrawn",
-      label: "Withdrawn",
-      color: "border-border bg-muted/70 text-muted-foreground",
-      dot: "bg-muted-foreground/70",
-    },
-  ]
+  const statusOptions = APPLICATION_STATUS_OPTIONS
+  const totalPipelineApplications = (applicationStatuses ?? []).length
 
   const statusCounts = (applicationStatuses ?? []).reduce(
     (acc, app) => {
@@ -241,37 +212,70 @@ export default async function ApplicationsPage({
       </div>
 
       <div className="space-y-4">
-        <div className="section-label">Pipeline overview</div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="section-label">Pipeline overview</div>
+          <Link
+            href="/analytics"
+            className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Open analytics
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
-          {statusOptions.map((opt, index) => (
-            <Card key={opt.value} className="bg-card py-4">
+          <Link
+            href="/analytics"
+            className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+          >
+            <Card className="h-full bg-card py-4 transition-[border-color,box-shadow] group-hover:border-foreground/20 group-hover:shadow-[0_18px_34px_-30px_rgba(10,10,10,0.4)]">
               <CardContent className="space-y-4 pt-1">
                 <div className="flex items-center justify-between">
-                  <span className="metric-label">{String(index + 1).padStart(2, "0")}</span>
-                  <Badge className={cn("h-8 gap-2 px-3 text-[10px] tracking-[0.12em]", opt.color)}>
-                    <span className={cn("size-1.5 rounded-full", opt.dot)} />
-                    {opt.label}
+                  <span className="metric-label">00</span>
+                  <Badge className="h-8 gap-2 border-border bg-secondary/70 px-3 text-[10px] tracking-[0.12em] text-foreground">
+                    Total
                   </Badge>
                 </div>
                 <div className="space-y-2">
                   <div className="font-heading text-[2.2rem] leading-none tracking-[-0.05em] text-foreground">
-                    {statusCounts[opt.value] ?? 0}
+                    {totalPipelineApplications}
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-medium tracking-[0.02em]">{opt.label}</p>
+                    <p className="text-sm font-medium tracking-[0.02em]">Total applications</p>
                     <p className="text-[13px] text-muted-foreground">
-                      {opt.value === "saved" && "Roles you want to revisit and tailor."}
-                      {opt.value === "applied" && "Applications already sent and awaiting movement."}
-                      {opt.value === "screening" && "Initial recruiter or hiring-team conversations."}
-                      {opt.value === "interview" && "Live interview stages now in progress."}
-                      {opt.value === "offer" && "Offers that need review or response."}
-                      {opt.value === "rejected" && "Closed outcomes for record-keeping."}
-                      {opt.value === "withdrawn" && "Roles you intentionally stepped away from."}
+                      Every tracked role across the full pipeline.
                     </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
+          </Link>
+          {statusOptions.map((opt, index) => (
+            <Link
+              key={opt.value}
+              href={`/analytics?status=${opt.value}`}
+              className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+            >
+              <Card className="h-full bg-card py-4 transition-[border-color,box-shadow] group-hover:border-foreground/20 group-hover:shadow-[0_18px_34px_-30px_rgba(10,10,10,0.4)]">
+                <CardContent className="space-y-4 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="metric-label">{String(index + 1).padStart(2, "0")}</span>
+                    <Badge className={cn("h-8 gap-2 px-3 text-[10px] tracking-[0.12em]", opt.color)}>
+                      <span className={cn("size-1.5 rounded-full", opt.dot)} />
+                      {opt.label}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="font-heading text-[2.2rem] leading-none tracking-[-0.05em] text-foreground">
+                      {statusCounts[opt.value] ?? 0}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium tracking-[0.02em]">{opt.label}</p>
+                      <p className="text-[13px] text-muted-foreground">{opt.description}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       </div>
@@ -559,7 +563,7 @@ function ApplicationStatusForm({
           Application status
         </Label>
         <p className="text-sm text-muted-foreground">
-          Move this role to its next stage and keep the pipeline current.
+          Move this role forward or back and keep the pipeline current.
         </p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -610,20 +614,7 @@ async function updateApplicationStatus(formData: FormData) {
     return
   }
 
-  const updates: Database["public"]["Tables"]["applications"]["Update"] = {
-    status: status as ApplicationStatus,
-    last_status_update: new Date().toISOString(),
-  }
-
-  if (status === "applied" && !updates.applied_at) {
-    updates.applied_at = new Date().toISOString()
-  }
-
-  await supabase
-    .from("applications")
-    .update(updates)
-    .eq("id", applicationId)
-    .eq("user_id", user.id)
+  await updateApplicationStatusForUser(user.id, applicationId, status as ApplicationStatus)
 
   revalidatePath("/applications")
   revalidatePath(`/applications/${applicationId}`)

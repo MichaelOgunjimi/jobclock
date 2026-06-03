@@ -120,6 +120,20 @@
       "when": 1778914931047,
       "tag": "0016_giant_wolfpack",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1780310622870,
+      "tag": "0017_chunky_warstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1780344188345,
+      "tag": "0018_normalize_pipeline_backfill",
+      "breakpoints": true
     }
   ]
 }

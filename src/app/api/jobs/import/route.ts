@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
 
 const updateStatusSchema = z.object({
   applicationId: z.string().uuid(),
-  status: z.enum(["saved", "applied", "screening", "interview", "offer", "rejected", "withdrawn"]),
+  status: z.enum(["saved", "applied", "screening", "interview", "offer", "rejected", "withdrawn", "ghosted"]),
 })
 
 export async function PATCH(request: NextRequest) {

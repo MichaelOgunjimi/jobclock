@@ -30,7 +30,7 @@ export default async function JobsPage() {
       .from("applications")
       .select("jobs_cache(url)")
       .eq("user_id", user.id)
-      .not("status", "in", '("rejected","withdrawn")'),
+      .not("status", "in", '("rejected","withdrawn","ghosted")'),
   ])
 
   const prefs = (profile?.preferences ?? {}) as UserPreferences

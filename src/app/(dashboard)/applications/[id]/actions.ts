@@ -9,6 +9,7 @@ import { db } from "@/lib/db"
 import { applications } from "@/lib/db/schema"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
 import { enqueueGeneration } from "@/lib/generation/enqueue"
+import { updateApplicationStatusForUser } from "@/lib/jobs/persist-job"
 
 const VALID_STATUSES = new Set<ApplicationStatus>([
   "saved",
@@ -18,6 +19,7 @@ const VALID_STATUSES = new Set<ApplicationStatus>([
   "offer",
   "rejected",
   "withdrawn",
+  "ghosted",
 ])
 
 export async function updateStatus(formData: FormData) {
@@ -34,34 +36,7 @@ export async function updateStatus(formData: FormData) {
 
   if (!applicationId || !VALID_STATUSES.has(status as ApplicationStatus)) return
 
-  const updates: {
-    status: ApplicationStatus
-    last_status_update: string
-    applied_at?: string
-  } = {
-    status: status as ApplicationStatus,
-    last_status_update: new Date().toISOString(),
-  }
-
-  // Only set applied_at on the transition to "applied" — fetch current status first
-  if (status === "applied") {
-    const { data: current } = await supabase
-      .from("applications")
-      .select("applied_at")
-      .eq("id", applicationId)
-      .eq("user_id", user.id)
-      .single()
-
-    if (current && !current.applied_at) {
-      updates.applied_at = new Date().toISOString()
-    }
-  }
-
-  await supabase
-    .from("applications")
-    .update(updates)
-    .eq("id", applicationId)
-    .eq("user_id", user.id)
+  await updateApplicationStatusForUser(user.id, applicationId, status as ApplicationStatus)
 
   revalidatePath(`/applications/${applicationId}`)
   revalidatePath("/applications")

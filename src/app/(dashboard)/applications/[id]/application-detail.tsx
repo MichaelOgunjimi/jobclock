@@ -93,6 +93,8 @@ function getStatusBadgeClass(status: ApplicationStatus): string {
       return "border-destructive/20 bg-destructive/10 text-destructive"
     case "withdrawn":
       return "border-border bg-secondary text-muted-foreground opacity-70"
+    case "ghosted":
+      return "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-800 dark:bg-fuchsia-950 dark:text-fuchsia-300"
     default:
       return "border-border bg-secondary text-foreground"
   }
@@ -114,6 +116,8 @@ function getStatusLabel(status: ApplicationStatus): string {
       return "Rejected"
     case "withdrawn":
       return "Withdrawn"
+    case "ghosted":
+      return "Ghosted"
     default:
       return status
   }
@@ -151,7 +155,7 @@ function StatusStepper({
 }) {
   const [pending, startTransition] = useTransition()
   const isTerminal =
-    currentStatus === "rejected" || currentStatus === "withdrawn"
+    currentStatus === "rejected" || currentStatus === "withdrawn" || currentStatus === "ghosted"
   const currentIndex = STATUS_STEPS.findIndex((s) => s.value === currentStatus)
   function handleStatusClick(status: ApplicationStatus) {
     if (status === currentStatus || pending) return
@@ -163,6 +167,9 @@ function StatusStepper({
 
   return (
     <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Click any stage to move this application forward or back. Outcomes stay available below.
+      </p>
       <div className="grid gap-2 sm:hidden">
         {STATUS_STEPS.map((step, index) => {
           const isPast = !isTerminal && index < currentIndex
@@ -266,6 +273,20 @@ function StatusStepper({
         >
           Withdrawn
         </button>
+        <button
+          type="button"
+          onClick={() => handleStatusClick("ghosted")}
+          disabled={pending}
+          className={cn(
+            "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
+            currentStatus === "ghosted"
+              ? "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300"
+              : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
+            pending && "cursor-wait opacity-60"
+          )}
+        >
+          Ghosted
+        </button>
       </div>
 
       <div className="hidden gap-2 mt-2 sm:flex">
@@ -296,6 +317,20 @@ function StatusStepper({
           )}
         >
           Withdrawn
+        </button>
+        <button
+          type="button"
+          onClick={() => handleStatusClick("ghosted")}
+          disabled={pending}
+          className={cn(
+            "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
+            currentStatus === "ghosted"
+              ? "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300"
+              : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
+            pending && "cursor-wait opacity-60"
+          )}
+        >
+          Ghosted
         </button>
       </div>
     </div>

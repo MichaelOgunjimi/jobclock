@@ -4,13 +4,14 @@ const { db } = vi.hoisted(() => ({
   db: {
     insert: vi.fn(),
     select: vi.fn(),
+    update: vi.fn(),
     transaction: vi.fn(),
   },
 }))
 
 vi.mock("@/lib/db", () => ({ db }))
 
-import { persistJobForUser } from "./persist-job"
+import { persistJobForUser, updateApplicationStatusForUser } from "./persist-job"
 
 describe("persistJobForUser", () => {
   beforeEach(() => {
@@ -86,5 +87,77 @@ describe("persistJobForUser", () => {
       status: "saved",
     }))
     expect(onConflictDoNothing).toHaveBeenCalled()
+  })
+
+  it("records a transition event when application status changes", async () => {
+    db.select.mockImplementationOnce(() => ({
+      from: () => ({
+        where: () => ({
+          limit: vi.fn().mockResolvedValue([{ id: "app-1", status: "applied", appliedAt: null }]),
+        }),
+      }),
+    }))
+
+    const updateWhere = vi.fn().mockResolvedValue(undefined)
+    const set = vi.fn(() => ({ where: updateWhere }))
+    db.update.mockImplementationOnce(() => ({ set }))
+
+    const values = vi.fn().mockResolvedValue(undefined)
+    db.insert.mockImplementationOnce(() => ({ values }))
+
+    const result = await updateApplicationStatusForUser("user-1", "app-1", "interview")
+
+    expect(result).toBe(true)
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ status: "interview" }))
+    expect(values).toHaveBeenCalledWith(expect.objectContaining({
+      userId: "user-1",
+      applicationId: "app-1",
+      fromStatus: "applied",
+      toStatus: "interview",
+    }))
+  })
+
+  it("records a backward transition event when an application moves to a previous stage", async () => {
+    db.select.mockImplementationOnce(() => ({
+      from: () => ({
+        where: () => ({
+          limit: vi.fn().mockResolvedValue([{ id: "app-1", status: "interview", appliedAt: new Date() }]),
+        }),
+      }),
+    }))
+
+    const updateWhere = vi.fn().mockResolvedValue(undefined)
+    const set = vi.fn(() => ({ where: updateWhere }))
+    db.update.mockImplementationOnce(() => ({ set }))
+
+    const values = vi.fn().mockResolvedValue(undefined)
+    db.insert.mockImplementationOnce(() => ({ values }))
+
+    const result = await updateApplicationStatusForUser("user-1", "app-1", "screening")
+
+    expect(result).toBe(true)
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ status: "screening" }))
+    expect(values).toHaveBeenCalledWith(expect.objectContaining({
+      userId: "user-1",
+      applicationId: "app-1",
+      fromStatus: "interview",
+      toStatus: "screening",
+    }))
+  })
+
+  it("does not record a transition event when status is unchanged", async () => {
+    db.select.mockImplementationOnce(() => ({
+      from: () => ({
+        where: () => ({
+          limit: vi.fn().mockResolvedValue([{ id: "app-1", status: "applied", appliedAt: null }]),
+        }),
+      }),
+    }))
+
+    const result = await updateApplicationStatusForUser("user-1", "app-1", "applied")
+
+    expect(result).toBe(true)
+    expect(db.update).not.toHaveBeenCalled()
+    expect(db.insert).not.toHaveBeenCalled()
   })
 })

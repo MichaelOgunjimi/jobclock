@@ -10,6 +10,7 @@ import {
   integer,
   date,
   uniqueIndex,
+  index,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
@@ -26,6 +27,7 @@ export const applicationStatusEnum = pgEnum("application_status", [
   "offer",
   "rejected",
   "withdrawn",
+  "ghosted",
 ])
 
 // ============================================================
@@ -156,6 +158,24 @@ export const applications = pgTable(
   },
   (table) => [
     uniqueIndex("applications_user_id_job_id_unique").on(table.userId, table.jobId),
+  ]
+)
+
+export const applicationStatusEvents = pgTable(
+  "application_status_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    applicationId: uuid("application_id")
+      .notNull()
+      .references((): AnyPgColumn => applications.id, { onDelete: "cascade" }),
+    fromStatus: applicationStatusEnum("from_status"),
+    toStatus: applicationStatusEnum("to_status").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("application_status_events_application_id_idx").on(table.applicationId),
+    index("application_status_events_user_id_created_at_idx").on(table.userId, table.createdAt),
   ]
 )
 
