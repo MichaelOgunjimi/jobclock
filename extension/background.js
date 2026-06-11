@@ -1,3 +1,6 @@
+importScripts("runtime-state.js")
+
+const runtimeState = globalThis.JobClockRuntimeState
 const STATE_KEY = "jobAssistantRuntimeState"
 const STATUS_OPTIONS = ["saved", "applied", "screening", "interview", "offer", "rejected", "withdrawn"]
 
@@ -168,18 +171,20 @@ async function updateRecentStatus(config, applicationId, status) {
 const inflightPreviews = new Map()
 
 async function previewJob({ config, tab }) {
-  const key = `${tab.id}::${tab.url}`
+  const key = runtimeState.operationKey(tab)
   const existing = inflightPreviews.get(key)
   if (existing) return existing
 
   const job = (async () => {
     await setRuntimeState({
       view: "loading",
+      operation: "preview",
+      operationKey: key,
       tabId: tab.id,
       tabUrl: tab.url,
       tabTitle: tab.title || "",
       loadingTitle: "Extracting job details",
-      loadingMessage: "Reading the current page and asking the app for a preview.",
+      loadingMessage: "Reading the current page and asking JobClock for a preview.",
     })
 
     const extracted = await extractCurrentPage(tab.id)
@@ -209,6 +214,7 @@ async function previewJob({ config, tab }) {
 
     await setRuntimeState({
       view: "preview",
+      operation: null,
       tabId: tab.id,
       tabUrl: tab.url,
       tabTitle: tab.title || extracted.pageTitle || "",
@@ -229,13 +235,15 @@ async function previewJob({ config, tab }) {
 const inflightSaves = new Map()
 
 async function savePreview({ config, preview, tab }) {
-  const key = `${tab.id}::${tab.url}`
+  const key = runtimeState.operationKey(tab)
   const existing = inflightSaves.get(key)
   if (existing) return existing
 
   const job = (async () => {
     await setRuntimeState({
       view: "loading",
+      operation: "save",
+      operationKey: key,
       tabId: tab.id,
       tabUrl: tab.url,
       tabTitle: tab.title || "",
@@ -251,6 +259,7 @@ async function savePreview({ config, preview, tab }) {
 
     await setRuntimeState({
       view: "success",
+      operation: null,
       tabId: tab.id,
       tabUrl: tab.url,
       tabTitle: tab.title || preview.title || "",
@@ -269,13 +278,36 @@ async function savePreview({ config, preview, tab }) {
   }
 }
 
+function activeOperationKeys() {
+  return [...inflightPreviews.keys(), ...inflightSaves.keys()]
+}
+
+async function getRuntimeStateForTab(tab) {
+  const storedState = await getRuntimeState()
+  const decision = runtimeState.resolveStoredState({
+    storedState,
+    tab,
+    activeOperationKeys: activeOperationKeys(),
+  })
+
+  if (decision.action === "start") return null
+  if (decision.action === "replace") {
+    await setRuntimeState(decision.state)
+    return decision.state
+  }
+  return decision.state
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!message || typeof message !== "object") return
 
   ;(async () => {
     try {
       if (message.type === "get-state") {
-        sendResponse({ ok: true, state: await getRuntimeState() })
+        sendResponse({
+          ok: true,
+          state: await getRuntimeStateForTab(message.payload.tab),
+        })
         return
       }
 
@@ -311,7 +343,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       }
 
       if (message.type === "set-error-state") {
-        await setRuntimeState(message.payload)
+        await setRuntimeState({
+          ...message.payload,
+          operation: null,
+        })
         sendResponse({ ok: true })
         return
       }
@@ -325,9 +360,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       sendResponse({ ok: false, error: "Unknown message type" })
     } catch (error) {
       const messageText = error instanceof Error ? error.message : "Unexpected extension error."
-      if (message?.payload?.tab?.id && message?.payload?.tab?.url) {
+      if (
+        typeof message?.payload?.tab?.id === "number" &&
+        typeof message?.payload?.tab?.url === "string"
+      ) {
         await setRuntimeState({
           view: "error",
+          operation: null,
           tabId: message.payload.tab.id,
           tabUrl: message.payload.tab.url,
           tabTitle: message.payload.tab.title || "",
