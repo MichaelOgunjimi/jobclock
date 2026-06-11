@@ -304,9 +304,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   ;(async () => {
     try {
       if (message.type === "get-state") {
+        const tab = message.payload?.tab
+        const hasValidTab =
+          typeof tab?.id === "number" && typeof tab?.url === "string"
         sendResponse({
           ok: true,
-          state: await getRuntimeStateForTab(message.payload.tab),
+          state: hasValidTab
+            ? await getRuntimeStateForTab(tab)
+            : await getRuntimeState(),
         })
         return
       }

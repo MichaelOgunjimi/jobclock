@@ -269,6 +269,29 @@ describe("extension background runtime state", () => {
     )
   })
 
+  it("returns raw stored state for the legacy get-state message", async () => {
+    const storedState = {
+      view: "preview",
+      operation: null,
+      tabId: 11,
+      tabUrl: "https://jobs.example.com/roles/11",
+      preview: {
+        title: "Backend Engineer",
+        company: "Acme",
+      },
+    }
+    const harness = await loadBackgroundHarness({
+      initialState: storedState,
+    })
+
+    const response = await harness.send({ type: "get-state" })
+
+    expect(response).toEqual({
+      ok: true,
+      state: storedState,
+    })
+  })
+
   it("persists an interrupted error for matching orphaned loading", async () => {
     const tab = {
       id: 12,
