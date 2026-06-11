@@ -228,6 +228,7 @@ describe("extension background runtime state", () => {
       type: "get-state",
       payload: { tab },
     })
+    const legacyRestored = await harness.send({ type: "get-state" })
 
     expect(harness.importedScripts()).toEqual(["runtime-state.js"])
     expect(loading).toEqual(
@@ -245,6 +246,7 @@ describe("extension background runtime state", () => {
         operationKey: `${tab.id}::${tab.url}`,
       })
     )
+    expect(legacyRestored.state).toEqual(restored.state)
     expect(harness.executeScriptCalls()).toBe(2)
     expect(harness.fetchCalls()).toBe(1)
 
@@ -271,14 +273,9 @@ describe("extension background runtime state", () => {
 
   it("returns raw stored state for the legacy get-state message", async () => {
     const storedState = {
-      view: "preview",
+      view: "error",
       operation: null,
-      tabId: 11,
-      tabUrl: "https://jobs.example.com/roles/11",
-      preview: {
-        title: "Backend Engineer",
-        company: "Acme",
-      },
+      message: "Legacy state without tab identity.",
     }
     const harness = await loadBackgroundHarness({
       initialState: storedState,
@@ -290,6 +287,33 @@ describe("extension background runtime state", () => {
       ok: true,
       state: storedState,
     })
+  })
+
+  it("reconciles orphaned loading for the legacy get-state message", async () => {
+    const storedState = {
+      view: "loading",
+      operation: "preview",
+      operationKey: "13::https://jobs.example.com/roles/13",
+      tabId: 13,
+      tabUrl: "https://jobs.example.com/roles/13",
+    }
+    const harness = await loadBackgroundHarness({
+      initialState: storedState,
+    })
+
+    const response = await harness.send({ type: "get-state" })
+
+    expect(response).toEqual({
+      ok: true,
+      state: expect.objectContaining({
+        view: "error",
+        operation: null,
+        tabId: storedState.tabId,
+        tabUrl: storedState.tabUrl,
+        message: expect.stringContaining("interrupted"),
+      }),
+    })
+    expect(await harness.storedState()).toEqual(response.state)
   })
 
   it("persists an interrupted error for matching orphaned loading", async () => {

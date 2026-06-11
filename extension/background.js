@@ -282,8 +282,7 @@ function activeOperationKeys() {
   return [...inflightPreviews.keys(), ...inflightSaves.keys()]
 }
 
-async function getRuntimeStateForTab(tab) {
-  const storedState = await getRuntimeState()
+async function reconcileRuntimeStateForTab(storedState, tab) {
   const decision = runtimeState.resolveStoredState({
     storedState,
     tab,
@@ -296,6 +295,24 @@ async function getRuntimeStateForTab(tab) {
     return decision.state
   }
   return decision.state
+}
+
+async function getRuntimeStateForTab(tab) {
+  return reconcileRuntimeStateForTab(await getRuntimeState(), tab)
+}
+
+async function getLegacyRuntimeState() {
+  const storedState = await getRuntimeState()
+  const hasStoredTab =
+    typeof storedState?.tabId === "number" &&
+    typeof storedState?.tabUrl === "string"
+
+  if (!hasStoredTab) return storedState
+
+  return reconcileRuntimeStateForTab(storedState, {
+    id: storedState.tabId,
+    url: storedState.tabUrl,
+  })
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -311,7 +328,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           ok: true,
           state: hasValidTab
             ? await getRuntimeStateForTab(tab)
-            : await getRuntimeState(),
+            : await getLegacyRuntimeState(),
         })
         return
       }
