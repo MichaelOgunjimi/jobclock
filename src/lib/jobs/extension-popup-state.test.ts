@@ -66,6 +66,21 @@ const loadingFixture: RuntimeState = {
   loadingMessage: "Reading the current page.",
 }
 
+const recentApplicationFixture = {
+  applicationId: "application-123",
+  title: "Platform Engineer",
+  company: "Acme",
+  location: "Remote",
+  status: "saved",
+  createdAt: "2026-06-11T10:00:00.000Z",
+  applicationUrl: "https://jobclock.example/applications/application-123",
+}
+
+const saveResultFixture = {
+  applicationUrl: recentApplicationFixture.applicationUrl,
+  alreadySaved: false,
+}
+
 function deferred<T>() {
   let resolvePromise!: (value: T) => void
   const promise = new Promise<T>((resolvePromiseValue) => {
@@ -203,9 +218,39 @@ async function loadPopupHarness({
           return
         }
 
+        if (message.type === "save-preview") {
+          queueMicrotask(() =>
+            callback({
+              ok: true,
+              result: structuredClone(saveResultFixture),
+            })
+          )
+          return
+        }
+
         if (message.type === "get-recent-applications") {
           queueMicrotask(() =>
-            callback({ ok: true, recentApplications: [] })
+            callback({
+              ok: true,
+              recentApplications: [
+                structuredClone(recentApplicationFixture),
+              ],
+            })
+          )
+          return
+        }
+
+        if (message.type === "update-recent-status") {
+          queueMicrotask(() =>
+            callback({
+              ok: true,
+              recentApplications: [
+                {
+                  ...structuredClone(recentApplicationFixture),
+                  status: message.payload?.status,
+                },
+              ],
+            })
           )
           return
         }
@@ -356,7 +401,7 @@ describe("extension popup runtime state", () => {
     expect(harness.messagesOfType("preview-job")).toHaveLength(0)
   })
 
-  it("renders loading, success, and error runtime state transitions", async () => {
+  it("renders loading to success without starting another preview", async () => {
     const harness = await loadPopupHarness({
       runtimeState: loadingFixture,
     })
@@ -374,6 +419,16 @@ describe("extension popup runtime state", () => {
       },
     })
     expect(harness.visibleState()).toBe("success-state")
+    expect(harness.messagesOfType("preview-job")).toHaveLength(0)
+  })
+
+  it("renders loading to error without starting another preview", async () => {
+    const harness = await loadPopupHarness({
+      runtimeState: loadingFixture,
+    })
+
+    await harness.ready()
+    expect(harness.visibleState()).toBe("loading-state")
 
     harness.emitRuntimeState({
       view: "error",
@@ -385,6 +440,7 @@ describe("extension popup runtime state", () => {
     expect(document.getElementById("error-message")?.textContent).toBe(
       "Extraction failed."
     )
+    expect(harness.messagesOfType("preview-job")).toHaveLength(0)
   })
 
   it("ignores storage changes for other tabs, URLs, keys, and areas", async () => {
@@ -429,6 +485,88 @@ describe("extension popup runtime state", () => {
       expect(harness.visibleState()).toBe("preview-state")
     })
     expect(harness.previewTitle()).toBe(previewFixture.title)
+    expect(harness.messagesOfType("preview-job")).toHaveLength(0)
+  })
+
+  it("saves a restored preview without starting another extraction", async () => {
+    const harness = await loadPopupHarness({
+      runtimeState: previewStateFixture,
+    })
+
+    await harness.ready()
+    document.getElementById("save-button")?.click()
+
+    expect(harness.visibleState()).toBe("loading-state")
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("success-state")
+    })
+    expect(document.getElementById("view-link")?.getAttribute("href")).toBe(
+      saveResultFixture.applicationUrl
+    )
+
+    expect(harness.messagesOfType("save-preview")).toEqual([
+      {
+        type: "save-preview",
+        payload: {
+          config: {
+            appBaseUrl: "https://jobclock.example",
+            token: "ja_ext_test",
+          },
+          preview: previewFixture,
+          tab: activeTab,
+        },
+      },
+    ])
+    expect(harness.messagesOfType("preview-job")).toHaveLength(0)
+  })
+
+  it("loads recent applications and updates one stage", async () => {
+    const harness = await loadPopupHarness({
+      runtimeState: previewStateFixture,
+    })
+
+    await harness.ready()
+    document.getElementById("recent-tab")?.click()
+
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("recent-state")
+      expect(document.querySelector(".recent-card h3")?.textContent).toBe(
+        recentApplicationFixture.title
+      )
+    })
+
+    const statusSelect = document.querySelector<HTMLSelectElement>(
+      ".recent-card .status-select"
+    )
+    const originalCard = document.querySelector(".recent-card")
+    statusSelect!.value = "interview"
+    document
+      .querySelector<HTMLButtonElement>(".recent-card .button.primary")
+      ?.click()
+
+    await waitFor(() => {
+      expect(document.querySelector(".recent-card")).not.toBe(originalCard)
+      expect(
+        document.querySelector<HTMLSelectElement>(
+          ".recent-card .status-select"
+        )?.value
+      ).toBe("interview")
+    })
+
+    expect(harness.messagesOfType("update-recent-status")).toEqual([
+      {
+        type: "update-recent-status",
+        payload: {
+          config: {
+            appBaseUrl: "https://jobclock.example",
+            token: "ja_ext_test",
+          },
+          applicationId: recentApplicationFixture.applicationId,
+          status: "interview",
+        },
+      },
+    ])
+    expect(harness.messagesOfType("get-recent-applications")).toHaveLength(1)
     expect(harness.messagesOfType("preview-job")).toHaveLength(0)
   })
 
