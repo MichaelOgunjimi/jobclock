@@ -65,7 +65,8 @@ export function ExtensionSettingsCard({
         <p className="section-label">Extension</p>
         <CardTitle>Browser Extension Access</CardTitle>
         <CardDescription>
-          Generate a personal token for the Chrome extension, then paste that token into the extension popup along with the app URL you want it to call.
+          Generate a personal token for the JobClock Chrome extension. The extension
+          connects to the production JobClock site automatically.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
@@ -75,7 +76,7 @@ export function ExtensionSettingsCard({
               {tokenMetadata ? "Active token" : "No active token"}
             </Badge>
             <p className="text-xs text-muted-foreground">
-              Use your deployed site URL, or `http://localhost:3000` for local development.
+              The token is stored locally by Chrome and can be revoked here at any time.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -130,10 +131,10 @@ export function ExtensionSettingsCard({
         <div className="space-y-2 border p-4">
           <p className="text-sm font-medium text-foreground">Extension setup</p>
           <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-            <li>Load the Chrome extension from the local `extension/` directory.</li>
-            <li>Paste your app URL into the extension popup.</li>
-            <li>Paste the token from this page into the extension popup.</li>
-            <li>Open any job page and click the extension icon to preview and save it.</li>
+            <li>Install JobClock from the Chrome Web Store.</li>
+            <li>For development, load the unpacked local `extension/` directory instead.</li>
+            <li>Open the extension popup and paste the token shown after generation.</li>
+            <li>Open a job page and click JobClock to preview and save the role.</li>
           </ol>
         </div>
       </CardContent>

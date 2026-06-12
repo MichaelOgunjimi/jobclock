@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Job Assistant Saver",
-  "description": "Preview and save jobs from any job page into Job Assistant.",
-  "version": "0.1.0",
+  "name": "JobClock: Job Application Tracker",
+  "short_name": "JobClock",
+  "description": "Preview and save job listings from any website directly into your JobClock pipeline.",
+  "version": "0.2.0",
   "permissions": ["activeTab", "scripting", "storage"],
-  "host_permissions": ["http://*/*", "https://*/*"],
+  "host_permissions": ["https://jobclock.michaelogunjimi.com/*"],
   "background": {
     "service_worker": "background.js"
   },
@@ -15,7 +16,7 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_title": "Save job to Job Assistant",
+    "default_title": "Save job to JobClock",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",

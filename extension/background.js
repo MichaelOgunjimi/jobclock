@@ -1,16 +1,20 @@
+if (typeof chrome.runtime.getManifest === "function") {
+  importScripts("config.js")
+} else {
+  globalThis.JobClockConfig = Object.freeze({
+    APP_BASE_URL: "https://jobclock.michaelogunjimi.com",
+    RUNTIME_STATE_KEY: "jobAssistantRuntimeState",
+  })
+}
 importScripts("runtime-state.js")
 
+const extensionConfig = globalThis.JobClockConfig
 const runtimeState = globalThis.JobClockRuntimeState
-const STATE_KEY = "jobAssistantRuntimeState"
+const STATE_KEY = extensionConfig.RUNTIME_STATE_KEY
 const STATUS_OPTIONS = ["saved", "applied", "screening", "interview", "offer", "rejected", "withdrawn"]
 
-function normalizeBaseUrl(value) {
-  return value.replace(/\/+$/, "")
-}
-
-function formatNetworkError(config, action) {
-  const baseUrl = normalizeBaseUrl(config.appBaseUrl)
-  return `Could not reach ${baseUrl} while trying to ${action}. Check that the app URL is correct and the app is running.`
+function formatNetworkError(action) {
+  return `Could not reach JobClock while trying to ${action}. Check your connection and try again.`
 }
 
 async function getRuntimeState() {
@@ -78,7 +82,7 @@ async function callImportApi(config, payload) {
 
   let response
   try {
-    response = await fetch(`${normalizeBaseUrl(config.appBaseUrl)}/api/jobs/import`, {
+    response = await fetch(`${extensionConfig.APP_BASE_URL}/api/jobs/import`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -97,10 +101,7 @@ async function callImportApi(config, payload) {
       )
     }
     throw new Error(
-      formatNetworkError(
-        config,
-        payload.mode === "save" ? "save the job" : "extract a preview"
-      )
+      formatNetworkError(payload.mode === "save" ? "save the job" : "extract a preview")
     )
   } finally {
     clearTimeout(timeoutId)
@@ -118,7 +119,7 @@ async function fetchRecentApplications(config, limit = 5) {
   let response
   try {
     response = await fetch(
-      `${normalizeBaseUrl(config.appBaseUrl)}/api/jobs/import?limit=${limit}`,
+      `${extensionConfig.APP_BASE_URL}/api/jobs/import?limit=${limit}`,
       {
         method: "GET",
         headers: {
@@ -127,7 +128,7 @@ async function fetchRecentApplications(config, limit = 5) {
       }
     )
   } catch {
-    throw new Error(formatNetworkError(config, "load recent applications"))
+    throw new Error(formatNetworkError("load recent applications"))
   }
 
   const body = await response.json().catch(() => ({}))
@@ -145,7 +146,7 @@ async function updateRecentStatus(config, applicationId, status) {
 
   let response
   try {
-    response = await fetch(`${normalizeBaseUrl(config.appBaseUrl)}/api/jobs/import`, {
+    response = await fetch(`${extensionConfig.APP_BASE_URL}/api/jobs/import`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -154,7 +155,7 @@ async function updateRecentStatus(config, applicationId, status) {
       body: JSON.stringify({ applicationId, status }),
     })
   } catch {
-    throw new Error(formatNetworkError(config, "update the application stage"))
+    throw new Error(formatNetworkError("update the application stage"))
   }
 
   const body = await response.json().catch(() => ({}))

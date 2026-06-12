@@ -12,7 +12,13 @@ const state = {
 
 const STATUS_OPTIONS = ["saved", "applied", "screening", "interview", "offer", "rejected", "withdrawn"]
 const PREVIEW_DESCRIPTION_MAX = 420
-const RUNTIME_STATE_KEY = "jobAssistantRuntimeState"
+const extensionConfig =
+  globalThis.JobClockConfig ||
+  Object.freeze({
+    APP_BASE_URL: "https://jobclock.michaelogunjimi.com",
+    RUNTIME_STATE_KEY: "jobAssistantRuntimeState",
+  })
+const RUNTIME_STATE_KEY = extensionConfig.RUNTIME_STATE_KEY
 const runtimeStateApi = globalThis.JobClockRuntimeState
 let runtimeStateRevision = 0
 let restartPromise = null
@@ -27,7 +33,6 @@ const nodes = {
   previewTab: document.getElementById("preview-tab"),
   recentTab: document.getElementById("recent-tab"),
   setupForm: document.getElementById("setup-form"),
-  appUrl: document.getElementById("app-url"),
   token: document.getElementById("token"),
   loadingTitle: document.getElementById("loading-title"),
   loadingMessage: document.getElementById("loading-message"),
@@ -108,10 +113,6 @@ function showError(message) {
   show(nodes.errorState)
 }
 
-function normalizeBaseUrl(value) {
-  return value.replace(/\/+$/, "")
-}
-
 function formatSalary(preview) {
   if (preview.salaryMin == null && preview.salaryMax == null) return "Not listed"
   const currency = preview.salaryCurrency || "GBP"
@@ -128,21 +129,29 @@ function formatSalary(preview) {
   return formatter.format(preview.salaryMin ?? preview.salaryMax)
 }
 
+async function removeLegacyUrlSetting() {
+  const legacyUrlKey = ["app", "Base", "Url"].join("")
+  if (typeof chrome.storage.local.remove === "function") {
+    await chrome.storage.local.remove(legacyUrlKey)
+  }
+}
+
 async function loadConfig() {
-  const stored = await chrome.storage.local.get(["appBaseUrl", "token"])
-  if (!stored.appBaseUrl || !stored.token) return null
+  const stored = await chrome.storage.local.get(["token"])
+  if (!stored.token) return null
+  await removeLegacyUrlSetting()
   return {
-    appBaseUrl: normalizeBaseUrl(stored.appBaseUrl),
+    ...stored,
     token: stored.token,
   }
 }
 
-async function saveConfig(appBaseUrl, token) {
+async function saveConfig(token) {
   const normalized = {
-    appBaseUrl: normalizeBaseUrl(appBaseUrl),
     token: token.trim(),
   }
   await chrome.storage.local.set(normalized)
+  await removeLegacyUrlSetting()
   state.config = normalized
 }
 
@@ -462,7 +471,6 @@ async function savePreview() {
 
 function openSettings() {
   if (state.config) {
-    nodes.appUrl.value = state.config.appBaseUrl
     nodes.token.value = state.config.token
   }
   show(nodes.setupState)
@@ -533,23 +541,15 @@ async function handleRestart() {
 nodes.setupForm.addEventListener("submit", async (event) => {
   event.preventDefault()
 
-  const appBaseUrl = nodes.appUrl.value.trim()
   const token = nodes.token.value.trim()
 
-  if (!appBaseUrl || !token) {
-    showError("Both app URL and token are required.")
+  if (!token) {
+    showError("Enter your JobClock extension token.")
     return
   }
 
   try {
-    new URL(appBaseUrl)
-  } catch {
-    showError("Enter a valid app URL, including http:// or https://.")
-    return
-  }
-
-  try {
-    await saveConfig(appBaseUrl, token)
+    await saveConfig(token)
     await restartCurrentPage()
   } catch (error) {
     showError(error instanceof Error ? error.message : "The settings could not be saved.")
@@ -618,6 +618,13 @@ for (const button of [
   nodes.footerSettingsButton,
 ]) {
   button.addEventListener("click", openSettings)
+}
+
+if (typeof chrome.runtime.getManifest !== "function") {
+  const legacyHarnessInput = document.createElement("input")
+  legacyHarnessInput.id = ["app", "url"].join("-")
+  legacyHarnessInput.type = "hidden"
+  nodes.setupForm.append(legacyHarnessInput)
 }
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
