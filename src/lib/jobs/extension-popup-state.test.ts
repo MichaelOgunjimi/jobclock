@@ -111,11 +111,22 @@ async function loadPopupHarness({
   runtimeState = null,
   deferInitialState = false,
   deferClearState = false,
+  deferSave = false,
+  deferRecent = false,
+  initialConfig = {
+    appBaseUrl: "https://jobclock.example",
+    token: "ja_ext_test",
+  },
+  configSetError = null,
 }: {
   tab?: Tab
   runtimeState?: RuntimeState | null
   deferInitialState?: boolean
   deferClearState?: boolean
+  deferSave?: boolean
+  deferRecent?: boolean
+  initialConfig?: { appBaseUrl: string; token: string } | null
+  configSetError?: string | null
 } = {}) {
   const popupHtml = readFileSync(
     resolve(process.cwd(), "extension/popup.html"),
@@ -133,28 +144,51 @@ async function loadPopupHarness({
   const storageListeners = new Set<StorageListener>()
   const initialStateResponse = deferred<RuntimeState | null>()
   const clearStateResponse = deferred<void>()
+  const saveResponse = deferred<void>()
+  const recentResponse = deferred<void>()
   let currentRuntimeState = runtimeState
+  let currentTab = structuredClone(tab)
+  let storedConfig = initialConfig ? structuredClone(initialConfig) : null
   let initialStateRequested = false
 
   document.open()
   document.write(popupHtml)
   document.close()
 
+  function emitRuntimeState(
+    nextState: RuntimeState | null,
+    areaName = "local"
+  ) {
+    const oldValue = currentRuntimeState
+    currentRuntimeState = nextState
+    for (const listener of storageListeners) {
+      listener(
+        {
+          [STATE_KEY]: {
+            oldValue,
+            newValue: nextState ? structuredClone(nextState) : undefined,
+          },
+        },
+        areaName
+      )
+    }
+  }
+
   const chromeApi = {
     tabs: {
       async query() {
-        return [structuredClone(tab)]
+        return [structuredClone(currentTab)]
       },
     },
     storage: {
       local: {
         async get() {
-          return {
-            appBaseUrl: "https://jobclock.example",
-            token: "ja_ext_test",
-          }
+          return storedConfig ? structuredClone(storedConfig) : {}
         },
-        async set() {},
+        async set(values: { appBaseUrl: string; token: string }) {
+          if (configSetError) throw new Error(configSetError)
+          storedConfig = structuredClone(values)
+        },
       },
       onChanged: {
         addListener(listener: StorageListener) {
@@ -183,12 +217,18 @@ async function loadPopupHarness({
           }
 
           initialStateRequested = true
+          const requestedTab = message.payload?.tab
+          const matchingState =
+            currentRuntimeState &&
+            requestedTab &&
+            currentRuntimeState.tabId === requestedTab.id &&
+            currentRuntimeState.tabUrl === requestedTab.url
+              ? currentRuntimeState
+              : null
           queueMicrotask(() =>
             callback({
               ok: true,
-              state: currentRuntimeState
-                ? structuredClone(currentRuntimeState)
-                : null,
+              state: matchingState ? structuredClone(matchingState) : null,
             })
           )
           return
@@ -196,7 +236,7 @@ async function loadPopupHarness({
 
         if (message.type === "clear-state") {
           const finishClear = () => {
-            currentRuntimeState = null
+            emitRuntimeState(null)
             callback({ ok: true })
           }
 
@@ -209,34 +249,87 @@ async function loadPopupHarness({
         }
 
         if (message.type === "preview-job") {
-          queueMicrotask(() =>
+          const previewTab = message.payload?.tab as Tab
+          const preview = {
+            ...structuredClone(previewFixture),
+            url: previewTab.url,
+          }
+          queueMicrotask(() => {
+            emitRuntimeState({
+              view: "loading",
+              operation: "preview",
+              operationKey: `${previewTab.id}::${previewTab.url}`,
+              tabId: previewTab.id,
+              tabUrl: previewTab.url,
+              loadingTitle: "Extracting job details",
+              loadingMessage: "Reading the current page.",
+            })
+            emitRuntimeState({
+              view: "preview",
+              tabId: previewTab.id,
+              tabUrl: previewTab.url,
+              preview,
+            })
             callback({
               ok: true,
-              preview: { preview: structuredClone(previewFixture) },
+              preview: { preview },
             })
-          )
+          })
           return
         }
 
         if (message.type === "save-preview") {
-          queueMicrotask(() =>
+          const saveTab = message.payload?.tab as Tab
+          const preview = message.payload?.preview
+          const finishSave = () => {
+            emitRuntimeState({
+              view: "success",
+              operation: null,
+              tabId: saveTab.id,
+              tabUrl: saveTab.url,
+              preview,
+              result: structuredClone(saveResultFixture),
+            })
             callback({
               ok: true,
               result: structuredClone(saveResultFixture),
             })
-          )
+          }
+
+          queueMicrotask(() => {
+            emitRuntimeState({
+              view: "loading",
+              operation: "save",
+              operationKey: `${saveTab.id}::${saveTab.url}`,
+              tabId: saveTab.id,
+              tabUrl: saveTab.url,
+              loadingTitle: "Saving to applications",
+              loadingMessage: "Saving the job into your applications.",
+              preview,
+            })
+            if (deferSave) {
+              void saveResponse.promise.then(finishSave)
+            } else {
+              finishSave()
+            }
+          })
           return
         }
 
         if (message.type === "get-recent-applications") {
-          queueMicrotask(() =>
+          const finishRecent = () =>
             callback({
               ok: true,
               recentApplications: [
                 structuredClone(recentApplicationFixture),
               ],
             })
-          )
+
+          if (deferRecent) {
+            void recentResponse.promise.then(finishRecent)
+          } else {
+            queueMicrotask(finishRecent)
+          }
           return
         }
 
@@ -297,19 +390,7 @@ async function loadPopupHarness({
       })
     },
     emitRuntimeState(nextState: RuntimeState, areaName = "local") {
-      const oldValue = currentRuntimeState
-      currentRuntimeState = nextState
-      for (const listener of storageListeners) {
-        listener(
-          {
-            [STATE_KEY]: {
-              oldValue,
-              newValue: structuredClone(nextState),
-            },
-          },
-          areaName
-        )
-      }
+      emitRuntimeState(nextState, areaName)
     },
     emitUnrelatedStorageChange(nextState: RuntimeState) {
       for (const listener of storageListeners) {
@@ -339,6 +420,15 @@ async function loadPopupHarness({
     },
     resolveInitialState(state: RuntimeState | null) {
       initialStateResponse.resolve(state)
+    },
+    resolveRecent() {
+      recentResponse.resolve()
+    },
+    resolveSave() {
+      saveResponse.resolve()
+    },
+    setActiveTab(nextTab: Tab) {
+      currentTab = structuredClone(nextTab)
     },
     storageListenerCount() {
       return storageListeners.size
@@ -491,12 +581,16 @@ describe("extension popup runtime state", () => {
   it("saves a restored preview without starting another extraction", async () => {
     const harness = await loadPopupHarness({
       runtimeState: previewStateFixture,
+      deferSave: true,
     })
 
     await harness.ready()
     document.getElementById("save-button")?.click()
 
-    expect(harness.visibleState()).toBe("loading-state")
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("loading-state")
+    })
+    harness.resolveSave()
     await waitFor(() => {
       expect(harness.visibleState()).toBe("success-state")
     })
@@ -517,6 +611,62 @@ describe("extension popup runtime state", () => {
         },
       },
     ])
+    expect(harness.messagesOfType("preview-job")).toHaveLength(0)
+  })
+
+  it("restarts on the current page instead of saving a stale restored preview", async () => {
+    const nextTab = {
+      id: activeTab.id,
+      url: "https://jobs.example.com/roles/8",
+      title: "A different role",
+    }
+    const harness = await loadPopupHarness({
+      runtimeState: previewStateFixture,
+    })
+
+    await harness.ready()
+    harness.setActiveTab(nextTab)
+    document.getElementById("save-button")?.click()
+
+    await waitFor(() => {
+      expect(harness.messagesOfType("preview-job")).toHaveLength(1)
+    })
+
+    expect(harness.messagesOfType("save-preview")).toHaveLength(0)
+    expect(harness.messagesOfType("clear-state")).toHaveLength(1)
+    expect(harness.messagesOfType("preview-job")[0]?.payload?.tab).toEqual(
+      nextTab
+    )
+  })
+
+  it("does not allow retry to race an active save", async () => {
+    const harness = await loadPopupHarness({
+      runtimeState: previewStateFixture,
+      deferSave: true,
+    })
+
+    await harness.ready()
+    document.getElementById("save-button")?.click()
+
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("loading-state")
+      expect(harness.messagesOfType("save-preview")).toHaveLength(1)
+    })
+
+    const retryButton = document.getElementById(
+      "loading-retry-button"
+    ) as HTMLButtonElement
+    expect(retryButton.disabled || retryButton.classList.contains("hidden")).toBe(
+      true
+    )
+    retryButton.click()
+    expect(harness.messagesOfType("clear-state")).toHaveLength(0)
+    expect(harness.messagesOfType("preview-job")).toHaveLength(0)
+
+    harness.resolveSave()
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("success-state")
+    })
     expect(harness.messagesOfType("preview-job")).toHaveLength(0)
   })
 
@@ -568,6 +718,99 @@ describe("extension popup runtime state", () => {
     ])
     expect(harness.messagesOfType("get-recent-applications")).toHaveLength(1)
     expect(harness.messagesOfType("preview-job")).toHaveLength(0)
+  })
+
+  it.each([
+    [
+      "preview",
+      {
+        ...previewStateFixture,
+        preview: {
+          ...previewFixture,
+          title: "Storage preview",
+        },
+      },
+    ],
+    [
+      "success",
+      {
+        view: "success",
+        tabId: activeTab.id,
+        tabUrl: activeTab.url,
+        result: saveResultFixture,
+      },
+    ],
+  ])(
+    "keeps Recent active when matching storage changes to %s",
+    async (_view, nextState) => {
+      const harness = await loadPopupHarness({
+        runtimeState: previewStateFixture,
+        deferRecent: true,
+      })
+
+      await harness.ready()
+      document.getElementById("recent-tab")?.click()
+      harness.emitRuntimeState(nextState as RuntimeState)
+
+      expect(document.getElementById("recent-tab")?.classList).toContain(
+        "active"
+      )
+      expect(document.getElementById("preview-tab")?.classList).not.toContain(
+        "active"
+      )
+
+      harness.resolveRecent()
+      await waitFor(() => {
+        expect(harness.visibleState()).toBe("recent-state")
+      })
+      expect(document.getElementById("recent-tab")?.classList).toContain(
+        "active"
+      )
+    }
+  )
+
+  it("re-extracts a matching malformed cached preview", async () => {
+    const harness = await loadPopupHarness({
+      runtimeState: {
+        view: "preview",
+        tabId: activeTab.id,
+        tabUrl: activeTab.url,
+        preview: {},
+      },
+    })
+
+    await harness.ready()
+    await waitFor(() => {
+      expect(harness.messagesOfType("preview-job")).toHaveLength(1)
+    })
+
+    expect(harness.visibleState()).toBe("preview-state")
+    expect(harness.previewTitle()).toBe(previewFixture.title)
+  })
+
+  it("shows setup storage failures to the user", async () => {
+    const harness = await loadPopupHarness({
+      initialConfig: null,
+      configSetError: "Token storage is unavailable.",
+    })
+
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("setup-state")
+    })
+    const appUrl = document.getElementById("app-url") as HTMLInputElement
+    const token = document.getElementById("token") as HTMLInputElement
+    appUrl.value = "https://jobclock.example"
+    token.value = "ja_ext_test"
+    document
+      .getElementById("setup-form")
+      ?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }))
+
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("error-state")
+    })
+    expect(document.getElementById("error-message")?.textContent).toBe(
+      "Token storage is unavailable."
+    )
   })
 
   it("awaits manual reset before starting one re-extraction", async () => {

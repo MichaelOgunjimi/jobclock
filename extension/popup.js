@@ -5,6 +5,7 @@ const state = {
   tabUrl: null,
   tabTitle: null,
   activeTab: "preview",
+  operation: null,
   recentApplications: [],
 }
 
@@ -101,6 +102,7 @@ function show(view) {
 }
 
 function showError(message) {
+  state.operation = null
   nodes.errorMessage.textContent = message
   show(nodes.errorState)
 }
@@ -143,7 +145,7 @@ async function saveConfig(appBaseUrl, token) {
   state.config = normalized
 }
 
-async function getActiveTab() {
+async function queryActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   if (!tab?.id || !tab.url) {
     throw new Error("Open a job page first, then click the extension again.")
@@ -153,6 +155,11 @@ async function getActiveTab() {
     throw new Error("This extension only works on normal http/https job pages.")
   }
 
+  return tab
+}
+
+async function getActiveTab() {
+  const tab = await queryActiveTab()
   state.tabId = tab.id
   state.tabUrl = tab.url
   state.tabTitle = tab.title || ""
@@ -160,6 +167,7 @@ async function getActiveTab() {
 }
 
 function renderPreview(data, restored = false) {
+  state.operation = null
   state.preview = data.preview
   nodes.previewSource.textContent = data.preview.source
   nodes.previewTitle.textContent = data.preview.title
@@ -178,6 +186,7 @@ function renderPreview(data, restored = false) {
 }
 
 function renderSuccess(result, restored = false) {
+  state.operation = null
   nodes.viewLink.href = result.applicationUrl
   nodes.successMessage.textContent = result.alreadySaved
     ? "The existing application was refreshed with the latest job data."
@@ -188,23 +197,44 @@ function renderSuccess(result, restored = false) {
   show(nodes.successState)
 }
 
-function renderLoading(message, title = "Extracting job details") {
+function renderLoading(
+  message,
+  title = "Extracting job details",
+  operation = "preview"
+) {
+  state.operation = operation
+  const canRetry = operation !== "save"
+  nodes.loadingRetryButton.disabled = !canRetry
+  nodes.loadingRetryButton.classList.toggle("hidden", !canRetry)
   setActiveTab("preview")
   show(nodes.loadingState)
   nodes.loadingTitle.textContent = title
   nodes.loadingMessage.textContent = message
 }
 
+function hasPreviewContent(preview) {
+  return Boolean(
+    preview &&
+      [preview.title, preview.company, preview.description].some(
+        (value) => typeof value === "string" && value.trim()
+      )
+  )
+}
+
 function renderRuntimeState(runtimeState, restored = false) {
   if (runtimeState.view === "loading") {
     renderLoading(
       runtimeState.loadingMessage || "Continuing the last request for this page.",
-      runtimeState.loadingTitle || "Extracting job details"
+      runtimeState.loadingTitle || "Extracting job details",
+      runtimeState.operation || "preview"
     )
     return true
   }
 
-  if (runtimeState.view === "preview" && runtimeState.preview) {
+  if (
+    runtimeState.view === "preview" &&
+    hasPreviewContent(runtimeState.preview)
+  ) {
     renderPreview({ preview: runtimeState.preview }, restored)
     return true
   }
@@ -347,11 +377,17 @@ async function savePreview() {
     throw new Error("No preview is loaded.")
   }
 
+  const tab = await queryActiveTab()
+  if (tab.id !== state.tabId || tab.url !== state.tabUrl) {
+    await restartCurrentPage()
+    return
+  }
+
   renderLoading(
     "Saving the job into your applications.",
-    "Saving to applications"
+    "Saving to applications",
+    "save"
   )
-  const tab = await getActiveTab()
   const response = await sendMessage({
     type: "save-preview",
     payload: {
@@ -420,6 +456,7 @@ async function initialize() {
 }
 
 async function restartCurrentPage() {
+  if (state.operation === "save") return
   if (restartPromise) return restartPromise
 
   restartPromise = (async () => {
@@ -461,8 +498,12 @@ nodes.setupForm.addEventListener("submit", async (event) => {
     return
   }
 
-  await saveConfig(appBaseUrl, token)
-  await restartCurrentPage()
+  try {
+    await saveConfig(appBaseUrl, token)
+    await restartCurrentPage()
+  } catch (error) {
+    showError(error instanceof Error ? error.message : "The settings could not be saved.")
+  }
 })
 
 nodes.retryButton.addEventListener("click", handleRestart)
@@ -525,6 +566,7 @@ for (const button of [
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local") return
+  if (state.activeTab !== "preview") return
 
   const nextState = changes[RUNTIME_STATE_KEY]?.newValue
   if (!nextState || state.tabId == null || !state.tabUrl) return
