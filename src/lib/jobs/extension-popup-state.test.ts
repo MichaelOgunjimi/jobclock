@@ -578,6 +578,42 @@ describe("extension popup runtime state", () => {
     expect(harness.messagesOfType("preview-job")).toHaveLength(0)
   })
 
+  it.each([
+    ["preview", previewStateFixture, "preview-state"],
+    ["loading", loadingFixture, "loading-state"],
+  ])(
+    "keeps Recent active when deferred get-state resolves to %s",
+    async (_view, runtimeState, expectedPreviewState) => {
+      const harness = await loadPopupHarness({
+        runtimeState,
+        deferInitialState: true,
+      })
+
+      await harness.ready()
+      document.getElementById("recent-tab")?.click()
+      await waitFor(() => {
+        expect(harness.visibleState()).toBe("recent-state")
+      })
+
+      harness.resolveInitialState(runtimeState)
+      await new Promise((resolveTick) => setTimeout(resolveTick, 0))
+
+      expect(harness.visibleState()).toBe("recent-state")
+      expect(document.getElementById("recent-tab")?.classList).toContain(
+        "active"
+      )
+      expect(document.getElementById("preview-tab")?.classList).not.toContain(
+        "active"
+      )
+
+      document.getElementById("preview-tab")?.click()
+      await waitFor(() => {
+        expect(harness.visibleState()).toBe(expectedPreviewState)
+      })
+      expect(harness.messagesOfType("preview-job")).toHaveLength(0)
+    }
+  )
+
   it("saves a restored preview without starting another extraction", async () => {
     const harness = await loadPopupHarness({
       runtimeState: previewStateFixture,
@@ -611,6 +647,45 @@ describe("extension popup runtime state", () => {
         },
       },
     ])
+    expect(harness.messagesOfType("preview-job")).toHaveLength(0)
+  })
+
+  it("keeps Recent active when a deferred save callback completes", async () => {
+    const harness = await loadPopupHarness({
+      runtimeState: previewStateFixture,
+      deferSave: true,
+    })
+
+    await harness.ready()
+    document.getElementById("save-button")?.click()
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("loading-state")
+    })
+
+    document.getElementById("recent-tab")?.click()
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("recent-state")
+    })
+
+    harness.resolveSave()
+    await new Promise((resolveTick) => setTimeout(resolveTick, 0))
+    await new Promise((resolveTick) => setTimeout(resolveTick, 0))
+
+    expect(harness.visibleState()).toBe("recent-state")
+    expect(document.getElementById("recent-tab")?.classList).toContain(
+      "active"
+    )
+    expect(document.getElementById("preview-tab")?.classList).not.toContain(
+      "active"
+    )
+
+    document.getElementById("preview-tab")?.click()
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("success-state")
+    })
+    expect(document.getElementById("view-link")?.getAttribute("href")).toBe(
+      saveResultFixture.applicationUrl
+    )
     expect(harness.messagesOfType("preview-job")).toHaveLength(0)
   })
 

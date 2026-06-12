@@ -6,6 +6,7 @@ const state = {
   tabTitle: null,
   activeTab: "preview",
   operation: null,
+  runtimeState: null,
   recentApplications: [],
 }
 
@@ -222,6 +223,8 @@ function hasPreviewContent(preview) {
 }
 
 function renderRuntimeState(runtimeState, restored = false) {
+  state.runtimeState = runtimeState
+
   if (runtimeState.view === "loading") {
     renderLoading(
       runtimeState.loadingMessage || "Continuing the last request for this page.",
@@ -369,7 +372,17 @@ async function previewCurrentTab() {
     },
   })
 
-  renderPreview(response.preview)
+  const runtimeState = {
+    view: "preview",
+    operation: null,
+    tabId: tab.id,
+    tabUrl: tab.url,
+    preview: response.preview.preview,
+  }
+  state.runtimeState = runtimeState
+  if (state.activeTab === "preview") {
+    renderPreview(response.preview)
+  }
 }
 
 async function savePreview() {
@@ -398,7 +411,18 @@ async function savePreview() {
   })
 
   await loadRecentApplications()
-  renderSuccess(response.result)
+  const runtimeState = {
+    view: "success",
+    operation: null,
+    tabId: tab.id,
+    tabUrl: tab.url,
+    preview: state.preview,
+    result: response.result,
+  }
+  state.runtimeState = runtimeState
+  if (state.activeTab === "preview") {
+    renderSuccess(response.result)
+  }
 }
 
 function openSettings() {
@@ -418,6 +442,8 @@ async function restoreRuntimeState(tab) {
 
   if (runtimeStateRevision !== revisionAtRequest) return true
   if (!response.state) return false
+  state.runtimeState = response.state
+  if (state.activeTab !== "preview") return true
   return renderRuntimeState(response.state, true)
 }
 
@@ -461,6 +487,7 @@ async function restartCurrentPage() {
 
   restartPromise = (async () => {
     state.preview = null
+    state.runtimeState = null
     await sendMessage({ type: "clear-state" })
     await initialize()
   })()
@@ -524,6 +551,10 @@ nodes.saveAnotherButton.addEventListener("click", handleRestart)
 
 nodes.previewTab.addEventListener("click", async () => {
   setActiveTab("preview")
+  if (state.runtimeState && renderRuntimeState(state.runtimeState, true)) {
+    return
+  }
+
   if (state.preview) {
     renderPreview(
       {
@@ -566,7 +597,6 @@ for (const button of [
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local") return
-  if (state.activeTab !== "preview") return
 
   const nextState = changes[RUNTIME_STATE_KEY]?.newValue
   if (!nextState || state.tabId == null || !state.tabUrl) return
@@ -579,9 +609,10 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     return
   }
 
-  if (renderRuntimeState(nextState, true)) {
-    runtimeStateRevision += 1
-  }
+  state.runtimeState = nextState
+  runtimeStateRevision += 1
+  if (state.activeTab !== "preview") return
+  renderRuntimeState(nextState, true)
 })
 
 initialize()
