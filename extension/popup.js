@@ -255,6 +255,36 @@ function renderRuntimeState(runtimeState, restored = false) {
   return false
 }
 
+async function recordRuntimeError(message) {
+  state.operation = null
+
+  if (state.tabId == null || !state.tabUrl) {
+    if (state.activeTab === "preview") {
+      showError(message)
+    }
+    return
+  }
+
+  const runtimeError = {
+    view: "error",
+    operation: null,
+    tabId: state.tabId,
+    tabUrl: state.tabUrl,
+    tabTitle: state.tabTitle || "",
+    message,
+  }
+  state.runtimeState = runtimeError
+
+  if (state.activeTab === "preview") {
+    renderRuntimeState(runtimeError)
+  }
+
+  await sendMessage({
+    type: "set-error-state",
+    payload: runtimeError,
+  }).catch(() => {})
+}
+
 function createRecentCard(item) {
   const card = document.createElement("article")
   card.className = "recent-card"
@@ -410,7 +440,6 @@ async function savePreview() {
     },
   })
 
-  await loadRecentApplications()
   const runtimeState = {
     view: "success",
     operation: null,
@@ -422,6 +451,12 @@ async function savePreview() {
   state.runtimeState = runtimeState
   if (state.activeTab === "preview") {
     renderSuccess(response.result)
+  }
+
+  try {
+    await loadRecentApplications()
+  } catch (error) {
+    console.warn("Recent applications failed to refresh after save:", error)
   }
 }
 
@@ -465,19 +500,7 @@ async function initialize() {
     await previewCurrentTab()
   } catch (error) {
     const message = error instanceof Error ? error.message : "The extension could not start."
-    if (state.tabId && state.tabUrl) {
-      await sendMessage({
-        type: "set-error-state",
-        payload: {
-          view: "error",
-          tabId: state.tabId,
-          tabUrl: state.tabUrl,
-          tabTitle: state.tabTitle || "",
-          message,
-        },
-      }).catch(() => {})
-    }
-    showError(message)
+    await recordRuntimeError(message)
   }
 }
 
@@ -541,7 +564,9 @@ nodes.saveButton.addEventListener("click", async () => {
   try {
     await savePreview()
   } catch (error) {
-    showError(error instanceof Error ? error.message : "The save request failed.")
+    await recordRuntimeError(
+      error instanceof Error ? error.message : "The save request failed."
+    )
   }
 })
 

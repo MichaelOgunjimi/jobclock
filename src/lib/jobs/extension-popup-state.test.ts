@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 const STATE_KEY = "jobAssistantRuntimeState"
 
@@ -113,6 +113,7 @@ async function loadPopupHarness({
   deferClearState = false,
   deferSave = false,
   deferRecent = false,
+  recentError = null,
   initialConfig = {
     appBaseUrl: "https://jobclock.example",
     token: "ja_ext_test",
@@ -125,6 +126,7 @@ async function loadPopupHarness({
   deferClearState?: boolean
   deferSave?: boolean
   deferRecent?: boolean
+  recentError?: string | null
   initialConfig?: { appBaseUrl: string; token: string } | null
   configSetError?: string | null
 } = {}) {
@@ -142,9 +144,12 @@ async function loadPopupHarness({
   )
   const messages: RuntimeMessage[] = []
   const storageListeners = new Set<StorageListener>()
-  const initialStateResponse = deferred<RuntimeState | null>()
+  const initialStateResponse = deferred<{
+    state?: RuntimeState | null
+    error?: string
+  }>()
   const clearStateResponse = deferred<void>()
-  const saveResponse = deferred<void>()
+  const saveResponse = deferred<{ error?: string }>()
   const recentResponse = deferred<void>()
   let currentRuntimeState = runtimeState
   let currentTab = structuredClone(tab)
@@ -210,8 +215,12 @@ async function loadPopupHarness({
         if (message.type === "get-state") {
           if (!initialStateRequested && deferInitialState) {
             initialStateRequested = true
-            void initialStateResponse.promise.then((state) => {
-              callback({ ok: true, state })
+            void initialStateResponse.promise.then((outcome) => {
+              if (outcome.error) {
+                callback({ ok: false, error: outcome.error })
+                return
+              }
+              callback({ ok: true, state: outcome.state ?? null })
             })
             return
           }
@@ -281,7 +290,19 @@ async function loadPopupHarness({
         if (message.type === "save-preview") {
           const saveTab = message.payload?.tab as Tab
           const preview = message.payload?.preview
-          const finishSave = () => {
+          const finishSave = (outcome: { error?: string } = {}) => {
+            if (outcome.error) {
+              emitRuntimeState({
+                view: "error",
+                operation: null,
+                tabId: saveTab.id,
+                tabUrl: saveTab.url,
+                message: outcome.error,
+              })
+              callback({ ok: false, error: outcome.error })
+              return
+            }
+
             emitRuntimeState({
               view: "success",
               operation: null,
@@ -318,12 +339,14 @@ async function loadPopupHarness({
 
         if (message.type === "get-recent-applications") {
           const finishRecent = () =>
-            callback({
-              ok: true,
-              recentApplications: [
-                structuredClone(recentApplicationFixture),
-              ],
-            })
+            recentError
+              ? callback({ ok: false, error: recentError })
+              : callback({
+                  ok: true,
+                  recentApplications: [
+                    structuredClone(recentApplicationFixture),
+                  ],
+                })
 
           if (deferRecent) {
             void recentResponse.promise.then(finishRecent)
@@ -419,13 +442,19 @@ async function loadPopupHarness({
       clearStateResponse.resolve()
     },
     resolveInitialState(state: RuntimeState | null) {
-      initialStateResponse.resolve(state)
+      initialStateResponse.resolve({ state })
+    },
+    rejectInitialState(error: string) {
+      initialStateResponse.resolve({ error })
     },
     resolveRecent() {
       recentResponse.resolve()
     },
     resolveSave() {
-      saveResponse.resolve()
+      saveResponse.resolve({})
+    },
+    rejectSave(error: string) {
+      saveResponse.resolve({ error })
     },
     setActiveTab(nextTab: Tab) {
       currentTab = structuredClone(nextTab)
@@ -442,6 +471,7 @@ afterEach(() => {
     globalThis as typeof globalThis & { JobClockRuntimeState?: unknown }
   ).JobClockRuntimeState
   document.body.innerHTML = ""
+  vi.restoreAllMocks()
 })
 
 describe("extension popup runtime state", () => {
@@ -614,6 +644,34 @@ describe("extension popup runtime state", () => {
     }
   )
 
+  it("keeps a deferred get-state error for Preview while Recent remains active", async () => {
+    const harness = await loadPopupHarness({
+      runtimeState: previewStateFixture,
+      deferInitialState: true,
+    })
+
+    await harness.ready()
+    document.getElementById("recent-tab")?.click()
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("recent-state")
+    })
+
+    harness.rejectInitialState("State restoration failed.")
+    await new Promise((resolveTick) => setTimeout(resolveTick, 0))
+
+    expect(harness.visibleState()).toBe("recent-state")
+    expect(document.getElementById("recent-tab")?.classList).toContain("active")
+
+    document.getElementById("preview-tab")?.click()
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("error-state")
+    })
+    expect(document.getElementById("error-message")?.textContent).toBe(
+      "State restoration failed."
+    )
+    expect(harness.messagesOfType("preview-job")).toHaveLength(0)
+  })
+
   it("saves a restored preview without starting another extraction", async () => {
     const harness = await loadPopupHarness({
       runtimeState: previewStateFixture,
@@ -686,6 +744,67 @@ describe("extension popup runtime state", () => {
     expect(document.getElementById("view-link")?.getAttribute("href")).toBe(
       saveResultFixture.applicationUrl
     )
+    expect(harness.messagesOfType("preview-job")).toHaveLength(0)
+  })
+
+  it("keeps a deferred save error for Preview while Recent remains active", async () => {
+    const harness = await loadPopupHarness({
+      runtimeState: previewStateFixture,
+      deferSave: true,
+    })
+
+    await harness.ready()
+    document.getElementById("save-button")?.click()
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("loading-state")
+    })
+
+    document.getElementById("recent-tab")?.click()
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("recent-state")
+    })
+
+    harness.rejectSave("Saving was rejected.")
+    await new Promise((resolveTick) => setTimeout(resolveTick, 0))
+    await new Promise((resolveTick) => setTimeout(resolveTick, 0))
+
+    expect(harness.visibleState()).toBe("recent-state")
+    expect(document.getElementById("recent-tab")?.classList).toContain("active")
+
+    document.getElementById("preview-tab")?.click()
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("error-state")
+    })
+    expect(document.getElementById("error-message")?.textContent).toBe(
+      "Saving was rejected."
+    )
+    expect(harness.messagesOfType("preview-job")).toHaveLength(0)
+  })
+
+  it("keeps save success when refreshing recent applications fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const harness = await loadPopupHarness({
+      runtimeState: previewStateFixture,
+      deferSave: true,
+      recentError: "Recent refresh failed.",
+    })
+
+    await harness.ready()
+    document.getElementById("save-button")?.click()
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("loading-state")
+    })
+
+    harness.resolveSave()
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("success-state")
+      expect(warn).toHaveBeenCalled()
+    })
+
+    expect(document.getElementById("view-link")?.getAttribute("href")).toBe(
+      saveResultFixture.applicationUrl
+    )
+    expect(harness.messagesOfType("set-error-state")).toHaveLength(0)
     expect(harness.messagesOfType("preview-job")).toHaveLength(0)
   })
 
