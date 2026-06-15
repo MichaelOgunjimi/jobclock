@@ -64,7 +64,7 @@ const CANONICAL_FACT_CATEGORIES = new Set<ProfileFactCategory>([
   "language",
 ])
 
-export const VALID_INTERVIEW_FACT_CATEGORIES = new Set<string>([
+const VALID_INTERVIEW_FACT_CATEGORIES = new Set<string>([
   ...CANONICAL_FACT_CATEGORIES,
   "achievement",
   "strengths",
