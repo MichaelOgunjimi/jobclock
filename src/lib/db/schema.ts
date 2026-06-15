@@ -303,15 +303,101 @@ export const ignoredJobs = pgTable("ignored_jobs", {
 // STORY BANK (STAR-format interview stories)
 // ============================================================
 
-export const storyBank = pgTable("story_bank", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
-  title: text("title").notNull(),
-  situation: text("situation"),
-  task: text("task"),
-  action: text("action"),
-  result: text("result"),
-  tags: text("tags").array(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-})
+export const storyBank = pgTable(
+  "story_bank",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    title: text("title").notNull(),
+    situation: text("situation"),
+    task: text("task"),
+    action: text("action"),
+    result: text("result"),
+    tags: text("tags").array(),
+    sourceType: text("source_type").notNull().default("manual"),
+    sourceRef: text("source_ref"),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("story_bank_user_source_unique")
+      .on(table.userId, table.sourceType, table.sourceRef)
+      .where(sql`${table.sourceRef} is not null`),
+  ],
+)
+
+export const interviewProfileFacts = pgTable(
+  "interview_profile_facts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    category: text("category").notNull(),
+    label: text("label").notNull(),
+    detail: text("detail").notNull(),
+    sourceType: text("source_type").notNull(),
+    sourceRef: text("source_ref"),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("interview_profile_facts_user_id_idx").on(table.userId),
+    uniqueIndex("interview_profile_facts_user_source_unique")
+      .on(table.userId, table.sourceType, table.sourceRef),
+  ],
+)
+
+export const interviewQuestions = pgTable(
+  "interview_questions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    applicationId: uuid("application_id").references(
+      (): AnyPgColumn => applications.id,
+      { onDelete: "cascade" },
+    ),
+    text: text("text").notNull(),
+    category: text("category").notNull(),
+    sourceType: text("source_type").notNull(),
+    sourceRef: text("source_ref"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("interview_questions_user_id_idx").on(table.userId),
+    index("interview_questions_application_id_idx").on(table.applicationId),
+    uniqueIndex("interview_questions_user_source_unique")
+      .on(table.userId, table.sourceType, table.sourceRef)
+      .where(sql`${table.sourceRef} is not null`),
+  ],
+)
+
+export const interviewAnswers = pgTable(
+  "interview_answers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    questionId: uuid("question_id")
+      .notNull()
+      .references(() => interviewQuestions.id, { onDelete: "cascade" }),
+    applicationId: uuid("application_id").references(
+      (): AnyPgColumn => applications.id,
+      { onDelete: "cascade" },
+    ),
+    content: text("content").notNull(),
+    evidenceSnapshot: jsonb("evidence_snapshot").notNull().default({}),
+    status: text("status").notNull().default("draft"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("interview_answers_user_id_idx").on(table.userId),
+    uniqueIndex("interview_answers_saved_general_unique")
+      .on(table.userId, table.questionId)
+      .where(sql`${table.applicationId} is null and ${table.status} = 'saved'`),
+    uniqueIndex("interview_answers_saved_tailored_unique")
+      .on(table.userId, table.questionId, table.applicationId)
+      .where(sql`${table.applicationId} is not null and ${table.status} = 'saved'`),
+  ],
+)
