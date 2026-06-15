@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 vi.mock("./actions", () => ({
@@ -47,5 +47,63 @@ describe("InterviewWorkspace", () => {
     expect(screen.getByRole("tab", { name: "Story Bank" })).toBeInTheDocument()
     expect(screen.getByRole("tab", { name: "About Me" })).toBeInTheDocument()
     expect(screen.getAllByText("Tell me about yourself.")).toHaveLength(2)
+  })
+
+  it("lets the user search application versions by job or company", () => {
+    render(
+      <InterviewWorkspace
+        initial={{
+          questions: [
+            {
+              id: "question-1",
+              key: "greatest-strengths",
+              text: "What are your greatest strengths?",
+              category: "strengths",
+              sourceType: "built_in",
+              sourceRef: "greatest-strengths",
+              applicationId: null,
+              requiresStory: false,
+              evidenceTags: ["skill"],
+              createdAt: null,
+              updatedAt: null,
+            },
+          ],
+          answers: [],
+          facts: [],
+          stories: [],
+          applications: [
+            {
+              id: "app-1",
+              title: "Junior Software Engineer",
+              company: "OneFamily",
+            },
+            {
+              id: "app-2",
+              title: "Graduate Platform Engineer",
+              company: "LiveFlow",
+            },
+          ],
+          cvFactDrafts: [],
+        }}
+      />,
+    )
+
+    const picker = screen.getByRole("combobox", {
+      name: "Version",
+    })
+    fireEvent.focus(picker)
+    fireEvent.change(picker, { target: { value: "one" } })
+
+    expect(screen.getByText("Junior Software Engineer")).toBeInTheDocument()
+    expect(screen.getByText("OneFamily")).toBeInTheDocument()
+    expect(
+      screen.queryByText("Graduate Platform Engineer"),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText("Junior Software Engineer"))
+
+    expect(
+      screen.getByText("Junior Software Engineer at OneFamily"),
+    ).toBeInTheDocument()
   })
 })
