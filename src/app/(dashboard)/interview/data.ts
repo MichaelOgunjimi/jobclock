@@ -138,6 +138,7 @@ interface PersistedApplicationRow {
   id: string
   title: string | null
   company: string | null
+  description: string | null
   createdAt: unknown
 }
 
@@ -428,6 +429,7 @@ export async function loadInterviewApplicationById(userId: string, applicationId
       applications.id,
       COALESCE(jobs_cache.title, 'Untitled role') AS title,
       COALESCE(jobs_cache.company, 'Unknown company') AS company,
+      COALESCE(applications.custom_description, jobs_cache.description, '') AS description,
       applications.created_at AS "createdAt"
     FROM applications
     LEFT JOIN jobs_cache ON applications.job_id = jobs_cache.id
@@ -565,6 +567,7 @@ export async function loadInterviewWorkspace(userId: string): Promise<InterviewW
         applications.id,
         COALESCE(jobs_cache.title, 'Untitled role') AS title,
         COALESCE(jobs_cache.company, 'Unknown company') AS company,
+        COALESCE(applications.custom_description, jobs_cache.description, '') AS description,
         applications.created_at AS "createdAt"
       FROM applications
       LEFT JOIN jobs_cache ON applications.job_id = jobs_cache.id
@@ -633,6 +636,7 @@ export async function loadInterviewApplicationMap(userId: string): Promise<Map<s
       applications.id,
       COALESCE(jobs_cache.title, 'Untitled role') AS title,
       COALESCE(jobs_cache.company, 'Unknown company') AS company,
+      COALESCE(applications.custom_description, jobs_cache.description, '') AS description,
       applications.created_at AS "createdAt"
     FROM applications
     LEFT JOIN jobs_cache ON applications.job_id = jobs_cache.id

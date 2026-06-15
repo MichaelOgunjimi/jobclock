@@ -454,6 +454,50 @@ export async function confirmProfileFacts(
   return { inserted }
 }
 
+export async function createProfileFact(input: {
+  category: string
+  label: string
+  detail: string
+}): Promise<{ id: string } | { error: string }> {
+  const auth = await requireAuthenticatedUserId()
+  if (typeof auth !== "string") return auth
+
+  const category = trim(input.category)
+  if (!isAllowedFactCategory(category)) return { error: "Category is invalid" }
+  const label = normalizeText("Label", input.label, MAX_FACT_LABEL_LENGTH)
+  if ("error" in label) return { error: label.error as string }
+  const detail = normalizeText("Detail", input.detail, MAX_FACT_DETAIL_LENGTH)
+  if ("error" in detail) return { error: detail.error as string }
+
+  const rows = await executeRows<{ id: string }>(db, sql`
+    INSERT INTO interview_profile_facts (
+      user_id,
+      category,
+      label,
+      detail,
+      source_type,
+      confirmed_at,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      ${auth},
+      ${category},
+      ${label.value},
+      ${detail.value},
+      'manual',
+      NOW(),
+      NOW(),
+      NOW()
+    )
+    RETURNING id
+  `)
+
+  if (!rows[0]) return { error: "Failed to save fact" }
+  revalidatePath("/interview")
+  return { id: rows[0].id }
+}
+
 export async function updateProfileFact(
   id: string,
   input: { category: string; label: string; detail: string },
@@ -690,6 +734,7 @@ export async function updateStory(
       updatedAt: new Date(),
     })
     .where(and(eq(storyBank.id, id), eq(storyBank.userId, auth)))
+    .returning({ id: storyBank.id })
 
   if (!rows[0]) return { error: "Story not found" }
   revalidatePath("/interview")

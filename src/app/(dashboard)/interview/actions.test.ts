@@ -519,9 +519,11 @@ describe("interview actions", () => {
   it("trims and validates story updates before persisting them", async () => {
     const updateChain = {
       set: vi.fn(),
-      where: vi.fn().mockResolvedValue([{ id: "story-1" }]),
+      where: vi.fn(),
+      returning: vi.fn().mockResolvedValue([{ id: "story-1" }]),
     }
     updateChain.set.mockReturnValue(updateChain)
+    updateChain.where.mockReturnValue(updateChain)
     db.update.mockReturnValue(updateChain as never)
 
     await expect(
