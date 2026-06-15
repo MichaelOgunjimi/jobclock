@@ -419,6 +419,7 @@ describe("interview actions", () => {
           parsedJson: cv,
         },
       ])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: "fact-1" }])
       .mockResolvedValueOnce([
         {
@@ -427,6 +428,7 @@ describe("interview actions", () => {
           parsedJson: cv,
         },
       ])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
 
     await expect(confirmProfileFacts([{ sourceRef: draft.sourceRef }, { sourceRef: "tampered" }])).resolves.toEqual({
@@ -437,6 +439,61 @@ describe("interview actions", () => {
     const insertCall = db.execute.mock.calls.find(([query]) => sqlText(query).includes("INSERT INTO interview_profile_facts"))
     expect(sqlText(insertCall?.[0])).toContain("INSERT INTO interview_profile_facts")
     expect(sqlValues(insertCall?.[0])).toEqual(expect.arrayContaining([draft.category, draft.label, draft.detail, draft.sourceRef, "cv"]))
+  })
+
+  it("confirms selected tailored CV facts for an application", async () => {
+    const tailoredCv = {
+      summary: "Tailored towards backend TypeScript roles.",
+      education: [],
+      experience: [
+        {
+          company: "JobClock",
+          title: "Full-stack Developer",
+          start_date: "2026",
+          end_date: "Present",
+          description: "Built job-search tooling.",
+          highlights: ["Integrated tailored CVs"],
+        },
+      ],
+      projects: [],
+      skills: [],
+      languages: [],
+      certifications: [],
+      activities: [],
+    }
+    const draft = extractProfileFactDrafts(tailoredCv as never).find((item) =>
+      item.label.includes("Full-stack Developer"),
+    )
+    const sourceRef = `application-cv:app-1:${draft?.sourceRef}`
+
+    db.execute
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "tailored-cv-1",
+          applicationId: "app-1",
+          cvJson: tailoredCv,
+          createdAt: "2026-06-15T10:00:00.000Z",
+        },
+      ])
+      .mockResolvedValueOnce([{ id: "fact-1" }])
+
+    await expect(confirmProfileFacts([{ sourceRef }])).resolves.toEqual({
+      inserted: 1,
+    })
+
+    const insertCall = db.execute.mock.calls.find(([query]) =>
+      sqlText(query).includes("INSERT INTO interview_profile_facts"),
+    )
+    expect(sqlValues(insertCall?.[0])).toEqual(
+      expect.arrayContaining([
+        draft?.category,
+        draft?.label,
+        draft?.detail,
+        sourceRef,
+        "cv",
+      ]),
+    )
   })
 
   it("updates and deletes interview profile facts with user ownership", async () => {

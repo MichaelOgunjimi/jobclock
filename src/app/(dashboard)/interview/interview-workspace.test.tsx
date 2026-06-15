@@ -37,6 +37,7 @@ describe("InterviewWorkspace", () => {
           facts: [],
           stories: [],
           applications: [],
+          applicationCvFactDrafts: [],
           cvFactDrafts: [],
         }}
       />,
@@ -83,6 +84,7 @@ describe("InterviewWorkspace", () => {
               company: "LiveFlow",
             },
           ],
+          applicationCvFactDrafts: [],
           cvFactDrafts: [],
         }}
       />,
@@ -104,6 +106,73 @@ describe("InterviewWorkspace", () => {
 
     expect(
       screen.getByText("Junior Software Engineer at OneFamily"),
+    ).toBeInTheDocument()
+  })
+
+  it("shows tailored CV facts for the selected job so they can be confirmed", () => {
+    render(
+      <InterviewWorkspace
+        initial={{
+          questions: [
+            {
+              id: "question-1",
+              key: "greatest-strengths",
+              text: "What are your greatest strengths?",
+              category: "strengths",
+              sourceType: "built_in",
+              sourceRef: "greatest-strengths",
+              applicationId: null,
+              requiresStory: false,
+              evidenceTags: ["skill"],
+              createdAt: null,
+              updatedAt: null,
+            },
+          ],
+          answers: [],
+          facts: [],
+          stories: [],
+          applications: [
+            {
+              id: "app-1",
+              title: "Junior Software Engineer",
+              company: "OneFamily",
+            },
+          ],
+          applicationCvFactDrafts: [
+            {
+              applicationId: "app-1",
+              customizedCvId: "tailored-cv-1",
+              generatedAt: "2026-06-15T10:00:00.000Z",
+              facts: [
+                {
+                  category: "skill",
+                  label: "TypeScript",
+                  detail: "TypeScript",
+                  sourceType: "cv",
+                  logicalSourceRef: "application-cv:app-1:cv:skill:typescript",
+                  contentDigest: "digest",
+                  sourceRef: "application-cv:app-1:cv:skill:typescript:digest",
+                  confirmedAt: null,
+                },
+              ],
+            },
+          ],
+          cvFactDrafts: [],
+        }}
+      />,
+    )
+
+    const picker = screen.getByRole("combobox", {
+      name: "Version",
+    })
+    fireEvent.focus(picker)
+    fireEvent.change(picker, { target: { value: "one" } })
+    fireEvent.click(screen.getByText("Junior Software Engineer"))
+
+    expect(screen.getByText("Suggested from this tailored CV")).toBeInTheDocument()
+    expect(screen.getAllByText("TypeScript").length).toBeGreaterThan(0)
+    expect(
+      screen.getByRole("button", { name: "Confirm selected facts" }),
     ).toBeInTheDocument()
   })
 })

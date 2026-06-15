@@ -19,7 +19,7 @@ import {
   loadInterviewFacts,
   loadInterviewQuestionById,
   loadInterviewStories,
-  loadPrimaryInterviewCvDrafts,
+  loadAllInterviewCvFactDrafts,
 } from "@/app/(dashboard)/interview/data"
 
 export const maxDuration = 180
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
   const [factRows, storyRows, currentCvDrafts] = await Promise.all([
     loadInterviewFacts(user.id),
     loadInterviewStories(user.id),
-    loadPrimaryInterviewCvDrafts(user.id),
+    loadAllInterviewCvFactDrafts(user.id),
   ])
 
   const currentCvRefs = new Set(currentCvDrafts.map((draft) => draft.sourceRef))

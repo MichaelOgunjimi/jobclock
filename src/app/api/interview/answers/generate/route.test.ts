@@ -13,7 +13,7 @@ vi.mock("@/app/(dashboard)/interview/data", () => ({
   loadInterviewApplicationById: vi.fn(),
   loadInterviewFacts: vi.fn(),
   loadInterviewStories: vi.fn(),
-  loadPrimaryInterviewCvDrafts: vi.fn(),
+  loadAllInterviewCvFactDrafts: vi.fn(),
 }))
 
 import { createClient } from "@/lib/supabase/server"
@@ -21,10 +21,10 @@ import { aiGenerateRateLimit } from "@/lib/rate-limit"
 import { generateText, resolveAiConfig } from "@/lib/ai"
 import {
   loadInterviewApplicationById,
+  loadAllInterviewCvFactDrafts,
   loadInterviewFacts,
   loadInterviewQuestionById,
   loadInterviewStories,
-  loadPrimaryInterviewCvDrafts,
 } from "@/app/(dashboard)/interview/data"
 import { POST } from "./route"
 
@@ -80,7 +80,7 @@ function mockOpeningEvidence() {
     },
   ] as never)
   vi.mocked(loadInterviewStories).mockResolvedValue([])
-  vi.mocked(loadPrimaryInterviewCvDrafts).mockResolvedValue([])
+  vi.mocked(loadAllInterviewCvFactDrafts).mockResolvedValue([])
 }
 
 describe("POST /api/interview/answers/generate", () => {

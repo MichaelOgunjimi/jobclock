@@ -12,7 +12,7 @@ import {
   loadInterviewQuestionById,
   loadInterviewStories,
   loadInterviewWorkspace,
-  loadPrimaryInterviewCvDrafts,
+  loadAllInterviewCvFactDrafts,
   type EvidenceSnapshot,
   type InterviewQuestionCategory,
   type InterviewQuestionSourceType,
@@ -407,7 +407,7 @@ export async function confirmProfileFacts(
   const auth = await requireAuthenticatedUserId()
   if (typeof auth !== "string") return auth
 
-  const drafts = await loadPrimaryInterviewCvDrafts(auth)
+  const drafts = await loadAllInterviewCvFactDrafts(auth)
   if (drafts.length === 0) return { inserted: 0 }
 
   const selectedRefs = new Set(

@@ -1,15 +1,18 @@
 "use client"
 
 import { useEffect, useMemo, useState, useTransition } from "react"
-import { Loader2, Save, Search, Sparkles, X } from "lucide-react"
+import { Check, Loader2, Save, Search, Sparkles, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { createQuestion, saveAnswer } from "./actions"
+import { confirmProfileFacts, createQuestion, saveAnswer } from "./actions"
 import { EvidenceDiscovery } from "./evidence-discovery"
 import type {
+  ApplicationCvFactDraftGroup,
   EvidenceSnapshot,
   InterviewAnswerView,
+  InterviewProfileFactView,
   InterviewQuestionView,
+  ProfileFactDraft,
 } from "./data"
 
 type InterviewApplicationOption = {
@@ -141,15 +144,123 @@ function ApplicationVersionPicker({
   )
 }
 
+function TailoredCvFactSuggestions({
+  applicationId,
+  facts,
+  groups,
+}: {
+  applicationId: string
+  facts: InterviewProfileFactView[]
+  groups: ApplicationCvFactDraftGroup[]
+}) {
+  const group = groups.find((item) => item.applicationId === applicationId)
+  const confirmedSourceRefs = new Set(
+    facts.map((fact) => fact.sourceRef).filter(Boolean),
+  )
+  const suggestions =
+    group?.facts.filter((draft) => !confirmedSourceRefs.has(draft.sourceRef)) ??
+    []
+  const [selectedRefs, setSelectedRefs] = useState<Set<string>>(
+    () => new Set(suggestions.map((draft) => draft.sourceRef)),
+  )
+  const [error, setError] = useState("")
+  const [pending, startTransition] = useTransition()
+
+  if (!group || suggestions.length === 0) return null
+
+  function toggle(draft: ProfileFactDraft) {
+    setSelectedRefs((current) => {
+      const next = new Set(current)
+      if (next.has(draft.sourceRef)) {
+        next.delete(draft.sourceRef)
+      } else {
+        next.add(draft.sourceRef)
+      }
+      return next
+    })
+  }
+
+  function confirmSelected() {
+    startTransition(async () => {
+      setError("")
+      const result = await confirmProfileFacts(
+        [...selectedRefs].map((sourceRef) => ({ sourceRef })),
+      )
+      if ("error" in result) {
+        setError(result.error)
+        return
+      }
+      window.location.reload()
+    })
+  }
+
+  return (
+    <div className="border border-border bg-secondary/25 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold">Suggested from this tailored CV</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Confirm only the points that are accurate. Confirmed facts can be
+            used when generating this job version.
+          </p>
+        </div>
+        <Badge variant="ghost">
+          {new Date(group.generatedAt).toLocaleDateString("en-GB")}
+        </Badge>
+      </div>
+      <div className="mt-4 space-y-2">
+        {suggestions.slice(0, 8).map((draft) => (
+          <label
+            key={draft.sourceRef}
+            className="flex cursor-pointer gap-3 border border-border bg-background/70 p-3"
+          >
+            <input
+              type="checkbox"
+              checked={selectedRefs.has(draft.sourceRef)}
+              onChange={() => toggle(draft)}
+              className="mt-1 size-4"
+            />
+            <span className="min-w-0">
+              <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                {draft.category}
+              </span>
+              <span className="mt-0.5 block text-sm font-medium">
+                {draft.label}
+              </span>
+              <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                {draft.detail}
+              </span>
+            </span>
+          </label>
+        ))}
+      </div>
+      {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+      <Button
+        className="mt-4"
+        size="sm"
+        onClick={confirmSelected}
+        disabled={pending || selectedRefs.size === 0}
+      >
+        <Check className="mr-1.5 size-4" />
+        {pending ? "Confirming..." : "Confirm selected facts"}
+      </Button>
+    </div>
+  )
+}
+
 export function AnswerComposer({
   question,
   answers,
   applications,
+  facts,
+  applicationCvFactDrafts,
   onQuestionPersisted,
 }: {
   question: InterviewQuestionView
   answers: InterviewAnswerView[]
   applications: Array<{ id: string; title: string; company: string }>
+  facts: InterviewProfileFactView[]
+  applicationCvFactDrafts: ApplicationCvFactDraftGroup[]
   onQuestionPersisted: (key: string, id: string) => void
 }) {
   const [applicationId, setApplicationId] = useState("")
@@ -296,6 +407,15 @@ export function AnswerComposer({
             Job versions are saved separately from your reusable general answer.
           </p>
         </div>
+
+        {applicationId && (
+          <TailoredCvFactSuggestions
+            key={applicationId}
+            applicationId={applicationId}
+            facts={facts}
+            groups={applicationCvFactDrafts}
+          />
+        )}
 
         {discovery ? (
           <EvidenceDiscovery

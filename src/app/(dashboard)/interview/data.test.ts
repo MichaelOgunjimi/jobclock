@@ -73,6 +73,7 @@ describe("loadInterviewWorkspace", () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
 
     const workspace = await loadInterviewWorkspace("user-1")
     const canonical = COMMON_INTERVIEW_QUESTIONS_BY_KEY.get("proudest-achievement")
@@ -172,6 +173,7 @@ describe("loadInterviewWorkspace", () => {
           },
         },
       ])
+      .mockResolvedValueOnce([])
 
     const workspace = await loadInterviewWorkspace("user-1")
 
@@ -306,6 +308,7 @@ describe("loadInterviewWorkspace", () => {
           },
         },
       ])
+      .mockResolvedValueOnce([])
 
     const workspace = await loadInterviewWorkspace("user-1")
 
@@ -325,6 +328,70 @@ describe("loadInterviewWorkspace", () => {
     })
     expect(workspace.facts.map((fact) => fact.id)).toEqual(["fact-b", "fact-a"])
     expect(workspace.applications.map((application) => application.id)).toEqual(["app-b", "app-a"])
+  })
+
+  it("extracts reviewable facts from the latest tailored CV for each application", async () => {
+    const tailoredCv = {
+      summary: "Tailored towards backend TypeScript roles.",
+      education: [],
+      experience: [
+        {
+          company: "JobClock",
+          title: "Full-stack Developer",
+          start_date: "2026",
+          end_date: "Present",
+          description: "Built job-search tooling.",
+          highlights: ["Integrated application tracking with tailored CVs"],
+        },
+      ],
+      projects: [],
+      skills: ["TypeScript"],
+      languages: [],
+      certifications: [],
+      activities: [],
+    }
+
+    db.execute
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "app-1",
+          title: "Junior Software Engineer",
+          company: "OneFamily",
+          createdAt: "2026-06-15T08:00:00.000Z",
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "tailored-cv-1",
+          applicationId: "app-1",
+          cvJson: tailoredCv,
+          createdAt: "2026-06-15T10:00:00.000Z",
+        },
+      ])
+
+    const workspace = await loadInterviewWorkspace("user-1")
+
+    expect(workspace.applicationCvFactDrafts).toEqual([
+      expect.objectContaining({
+        applicationId: "app-1",
+        customizedCvId: "tailored-cv-1",
+        facts: expect.arrayContaining([
+          expect.objectContaining({
+            label: "Full-stack Developer at JobClock",
+            sourceRef: expect.stringContaining("application-cv:app-1:"),
+          }),
+          expect.objectContaining({
+            label: "TypeScript",
+            sourceRef: expect.stringContaining("application-cv:app-1:"),
+          }),
+        ]),
+      }),
+    ])
   })
 })
 

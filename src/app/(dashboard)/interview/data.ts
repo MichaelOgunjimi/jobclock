@@ -82,6 +82,14 @@ export interface InterviewWorkspaceData {
   stories: StoryEntry[]
   applications: Array<{ id: string; title: string; company: string }>
   cvFactDrafts: ProfileFactDraft[]
+  applicationCvFactDrafts: ApplicationCvFactDraftGroup[]
+}
+
+export interface ApplicationCvFactDraftGroup {
+  applicationId: string
+  customizedCvId: string
+  generatedAt: string
+  facts: ProfileFactDraft[]
 }
 
 interface PersistedQuestionRow {
@@ -145,6 +153,13 @@ interface PersistedApplicationRow {
 interface PersistedCvRow {
   id: string
   parsedJson: unknown
+}
+
+interface PersistedApplicationCvRow {
+  id: string
+  applicationId: string
+  cvJson: unknown
+  createdAt: unknown
 }
 
 function trim(value: unknown): string {
@@ -388,6 +403,56 @@ async function loadPrimaryCvDrafts(userId: string): Promise<{ row: PersistedCvRo
   }
 }
 
+function applicationCvDraft(applicationId: string, draft: ProfileFactDraft): ProfileFactDraft {
+  return {
+    ...draft,
+    logicalSourceRef: `application-cv:${applicationId}:${draft.logicalSourceRef}`,
+    sourceRef: `application-cv:${applicationId}:${draft.sourceRef}`,
+  }
+}
+
+export async function loadApplicationInterviewCvDrafts(userId: string): Promise<ApplicationCvFactDraftGroup[]> {
+  const rows = await queryRows<PersistedApplicationCvRow>(sql`
+    SELECT DISTINCT ON (application_id)
+      id,
+      application_id AS "applicationId",
+      cv_json AS "cvJson",
+      created_at AS "createdAt"
+    FROM customized_cvs
+    WHERE user_id = ${userId} AND application_id IS NOT NULL
+    ORDER BY application_id, created_at DESC, id DESC
+  `)
+
+  return rows.flatMap((row) => {
+    const parsed = parseMaybeJson(row.cvJson) as Parameters<typeof canonicalExtractProfileFactDrafts>[0]
+    const facts = canonicalExtractProfileFactDrafts(parsed ?? null).map((draft) =>
+      applicationCvDraft(row.applicationId, draft),
+    )
+    if (facts.length === 0) return []
+
+    return [
+      {
+        applicationId: row.applicationId,
+        customizedCvId: row.id,
+        generatedAt: toIso(row.createdAt) ?? new Date(0).toISOString(),
+        facts,
+      },
+    ]
+  })
+}
+
+export async function loadAllInterviewCvFactDrafts(userId: string): Promise<ProfileFactDraft[]> {
+  const [primary, applicationGroups] = await Promise.all([
+    loadPrimaryCvDrafts(userId),
+    loadApplicationInterviewCvDrafts(userId),
+  ])
+
+  return [
+    ...primary.drafts,
+    ...applicationGroups.flatMap((group) => group.facts),
+  ]
+}
+
 export async function loadInterviewQuestionRows(userId: string): Promise<PersistedQuestionRow[]> {
   return queryRows<PersistedQuestionRow>(sql`
     SELECT
@@ -557,7 +622,7 @@ export async function loadInterviewAnswerById(userId: string, id: string): Promi
 }
 
 export async function loadInterviewWorkspace(userId: string): Promise<InterviewWorkspaceData> {
-  const [questionRows, answerRows, factRows, storyRows, applicationRows, cvResult] = await Promise.all([
+  const [questionRows, answerRows, factRows, storyRows, applicationRows, cvResult, applicationCvFactDrafts] = await Promise.all([
     loadInterviewQuestionRows(userId),
     loadInterviewAnswers(userId),
     loadInterviewFacts(userId),
@@ -575,10 +640,14 @@ export async function loadInterviewWorkspace(userId: string): Promise<InterviewW
       ORDER BY applications.created_at DESC, applications.id DESC
     `),
     loadPrimaryCvDrafts(userId),
+    loadApplicationInterviewCvDrafts(userId),
   ])
 
   const cvFactDrafts = cvResult.drafts
-  const currentCvRefs = new Set(cvFactDrafts.map((draft) => draft.sourceRef))
+  const currentCvRefs = new Set([
+    ...cvFactDrafts.map((draft) => draft.sourceRef),
+    ...applicationCvFactDrafts.flatMap((group) => group.facts.map((draft) => draft.sourceRef)),
+  ])
 
   const facts = factRows.map((row) => buildFactView(row, currentCvRefs))
   const factById = new Map(facts.map((fact) => [fact.id, fact] as const))
@@ -622,6 +691,7 @@ export async function loadInterviewWorkspace(userId: string): Promise<InterviewW
     stories,
     applications,
     cvFactDrafts,
+    applicationCvFactDrafts,
   }
 }
 

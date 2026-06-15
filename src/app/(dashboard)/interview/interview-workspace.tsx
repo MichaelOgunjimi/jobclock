@@ -60,6 +60,8 @@ export function InterviewWorkspace({
               question={selected}
               answers={initial.answers}
               applications={initial.applications}
+              facts={initial.facts}
+              applicationCvFactDrafts={initial.applicationCvFactDrafts}
               onQuestionPersisted={persistQuestion}
             />
           ) : (
