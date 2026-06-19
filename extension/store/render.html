@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JobClock Chrome Web Store artwork</title>
+    <link rel="stylesheet" href="../popup.css" />
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        min-height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        background: #f5f5f5;
+      }
+
+      #root {
+        width: 100%;
+        height: 100%;
+      }
+
+      .artboard {
+        width: 100vw;
+        height: 100vh;
+        padding: clamp(28px, 5vw, 72px);
+        background:
+          linear-gradient(rgba(10, 10, 10, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(10, 10, 10, 0.035) 1px, transparent 1px),
+          #f5f5f5;
+        background-size: 32px 32px;
+      }
+
+      .showcase {
+        display: grid;
+        width: 100%;
+        height: 100%;
+        grid-template-columns: minmax(0, 1fr) 440px;
+        align-items: center;
+        gap: clamp(48px, 8vw, 108px);
+        max-width: 1120px;
+        margin: 0 auto;
+      }
+
+      .story {
+        max-width: 590px;
+      }
+
+      .store-kicker {
+        margin: 0 0 20px;
+        color: #6b2d3c;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .store-title {
+        max-width: 10ch;
+        margin: 0;
+        font-family: "IBM Plex Serif", Georgia, serif;
+        font-size: clamp(52px, 6vw, 82px);
+        font-weight: 500;
+        letter-spacing: -0.055em;
+        line-height: 0.94;
+      }
+
+      .store-copy {
+        max-width: 48ch;
+        margin: 26px 0 0;
+        color: #5d5d5d;
+        font-size: 17px;
+        line-height: 1.65;
+      }
+
+      .store-rule {
+        width: 64px;
+        height: 4px;
+        margin-top: 34px;
+        background: #6b2d3c;
+      }
+
+      .popup-frame {
+        width: 440px;
+        max-height: 680px;
+        overflow: hidden;
+        border: 1px solid #d9d9d9;
+        background: #ffffff;
+        box-shadow: 22px 26px 0 rgba(107, 45, 60, 0.12);
+      }
+
+      .popup-frame .shell {
+        width: 100%;
+        min-height: auto;
+      }
+
+      .popup-frame .header {
+        gap: 14px;
+      }
+
+      .popup-frame .header-copy {
+        gap: 5px;
+      }
+
+      .popup-frame .header h1 {
+        font-size: 27px;
+      }
+
+      .popup-frame .panel {
+        padding: 16px;
+      }
+
+      .popup-frame .footer {
+        margin-bottom: 0;
+      }
+
+      .preview-card .description {
+        -webkit-line-clamp: 4;
+      }
+
+      .saved-grid {
+        display: grid;
+        gap: 10px;
+      }
+
+      .saved-banner {
+        border-left: 3px solid #6b2d3c;
+        background: #fafafa;
+        padding: 14px;
+      }
+
+      .saved-banner h2 {
+        margin: 0;
+        font-family: "IBM Plex Serif", Georgia, serif;
+        font-size: 24px;
+        font-weight: 500;
+        letter-spacing: -0.035em;
+      }
+
+      .saved-banner p {
+        margin: 5px 0 0;
+        color: #777777;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .promo {
+        position: relative;
+        display: grid;
+        width: 100%;
+        height: 100%;
+        grid-template-columns: 108px minmax(0, 1fr);
+        align-items: center;
+        gap: 22px;
+        padding: 34px;
+        overflow: hidden;
+        background: #0a0a0a;
+        color: #ffffff;
+      }
+
+      .promo::after {
+        position: absolute;
+        inset: 0 0 0 auto;
+        width: 8px;
+        background: #6b2d3c;
+        content: "";
+      }
+
+      .promo-mark {
+        width: 108px;
+        height: 108px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+      }
+
+      .promo h1 {
+        margin: 0;
+        font-family: "IBM Plex Serif", Georgia, serif;
+        font-size: 46px;
+        font-weight: 500;
+        letter-spacing: -0.045em;
+        line-height: 0.95;
+      }
+
+      .promo p {
+        margin: 13px 0 0;
+        color: rgba(255, 255, 255, 0.65);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .marquee {
+        position: relative;
+        display: grid;
+        width: 100%;
+        height: 100%;
+        grid-template-columns: minmax(0, 1fr) 440px;
+        align-items: center;
+        gap: 72px;
+        padding: 62px 92px;
+        overflow: hidden;
+        background: #0a0a0a;
+        color: #ffffff;
+      }
+
+      .marquee::before {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+        background-size: 40px 40px;
+        content: "";
+      }
+
+      .marquee-copy,
+      .marquee-card {
+        position: relative;
+      }
+
+      .marquee-brand {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 26px;
+      }
+
+      .marquee-brand img {
+        width: 74px;
+        height: 74px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+      }
+
+      .marquee-brand span {
+        font-family: "IBM Plex Serif", Georgia, serif;
+        font-size: 28px;
+      }
+
+      .marquee-copy h1 {
+        max-width: 13ch;
+        margin: 0;
+        font-family: "IBM Plex Serif", Georgia, serif;
+        font-size: 56px;
+        font-weight: 500;
+        letter-spacing: -0.055em;
+        line-height: 0.94;
+      }
+
+      .marquee-copy > p {
+        max-width: 48ch;
+        margin: 18px 0 0;
+        color: rgba(255, 255, 255, 0.62);
+        font-size: 17px;
+        line-height: 1.6;
+      }
+
+      .marquee-card {
+        width: 440px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: #ffffff;
+        color: #0a0a0a;
+        box-shadow: 24px 24px 0 #6b2d3c;
+        transform: scale(0.82);
+        transform-origin: center;
+      }
+
+      .marquee-card .shell {
+        min-height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="root"></main>
+    <script>
+      const root = document.getElementById("root")
+      const state = new URLSearchParams(location.search).get("state") || "preview"
+
+      const brand = `
+        <div class="brand">
+          <img class="brand-mark" src="../icons/icon-48.png" alt="" width="36" height="36" />
+          <div>
+            <p class="eyebrow">Job application tracker</p>
+            <p class="brand-name">JobClock</p>
+          </div>
+        </div>
+      `
+
+      const tabs = `
+        <nav class="tabs" aria-label="Extension views">
+          <button type="button" class="tab active">Preview</button>
+          <button type="button" class="tab">Recent</button>
+        </nav>
+      `
+
+      function popup(content, options = {}) {
+        return `
+          <div class="${options.marquee ? "marquee-card" : "popup-frame"}">
+            <div class="shell">
+              <header class="header">
+                ${brand}
+                <div class="header-copy">
+                  <h1>Save this job</h1>
+                  <p class="lede">Review the listing on this page, then add it directly to your application pipeline.</p>
+                </div>
+              </header>
+              ${tabs}
+              ${content}
+              <footer class="footer">
+                <span>Connected to JobClock</span>
+                <button type="button" class="text-button">Settings</button>
+              </footer>
+            </div>
+          </div>
+        `
+      }
+
+      function setupPanel() {
+        return `
+          <section class="panel">
+            <div class="panel-copy">
+              <p class="eyebrow">One-time setup</p>
+              <h2>Connect to JobClock</h2>
+              <p>Paste the personal extension token generated in your JobClock settings.</p>
+            </div>
+            <div class="form">
+              <label class="field">
+                <span>Extension token</span>
+                <input type="password" value="ja_ext_••••••••••••••••" readonly />
+              </label>
+              <button type="button" class="button primary">Connect extension</button>
+            </div>
+            <div class="trust-note">
+              <p><strong>Private by default.</strong> Your token stays in Chrome's local extension storage.</p>
+              <p>JobClock reads a page only after you click the extension.</p>
+            </div>
+          </section>
+        `
+      }
+
+      function previewPanel() {
+        return `
+          <section class="panel">
+            <div class="panel-copy">
+              <p class="eyebrow">Ready to review</p>
+              <h2>Job preview</h2>
+              <p>Confirm the details before adding this role to your pipeline.</p>
+            </div>
+            <article class="preview-card">
+              <p class="chip">linkedin</p>
+              <h3>Senior Product Engineer</h3>
+              <p class="subtle">Northstar Labs</p>
+              <dl class="details">
+                <div><dt>Location</dt><dd>London · Hybrid</dd></div>
+                <div><dt>Salary</dt><dd>£85,000 – £105,000</dd></div>
+                <div><dt>Apply flow</dt><dd>Easy apply</dd></div>
+              </dl>
+              <p class="description">Lead product-focused engineering across a growing platform team. Partner with design and product to ship thoughtful customer experiences.</p>
+            </article>
+            <div class="actions">
+              <button type="button" class="button primary">Save to applications</button>
+              <button type="button" class="button secondary">Re-extract</button>
+            </div>
+          </section>
+        `
+      }
+
+      function savedPanel() {
+        return `
+          <section class="panel saved-grid">
+            <div class="saved-banner">
+              <p class="eyebrow">All done</p>
+              <h2>Saved to JobClock</h2>
+              <p>The job was added to your applications.</p>
+            </div>
+            <article class="recent-card">
+              <div class="recent-head">
+                <div class="recent-meta">
+                  <h3>Senior Product Engineer</h3>
+                  <p class="recent-company">Northstar Labs</p>
+                </div>
+                <a class="button secondary">Open application</a>
+              </div>
+              <div class="recent-row">
+                <span class="recent-pill">London · Hybrid</span>
+                <span class="recent-pill">Saved today</span>
+              </div>
+              <div class="recent-actions">
+                <select class="status-select">
+                  <option>Saved</option>
+                  <option selected>Applied</option>
+                  <option>Interview</option>
+                </select>
+                <button type="button" class="button primary">Update stage</button>
+              </div>
+            </article>
+          </section>
+        `
+      }
+
+      function screenshot(title, copy, content) {
+        return `
+          <div class="artboard">
+            <div class="showcase">
+              <section class="story">
+                <p class="store-kicker">JobClock for Chrome</p>
+                <h1 class="store-title">${title}</h1>
+                <p class="store-copy">${copy}</p>
+                <div class="store-rule"></div>
+              </section>
+              ${popup(content)}
+            </div>
+          </div>
+        `
+      }
+
+      const states = {
+        connect: () => screenshot(
+          "Connect once. Capture jobs anywhere.",
+          "Use your private JobClock token to connect the extension directly to your application pipeline.",
+          setupPanel()
+        ),
+        preview: () => screenshot(
+          "Review every role before you save it.",
+          "JobClock structures the active job page into a clear preview, so your pipeline starts with accurate details.",
+          previewPanel()
+        ),
+        saved: () => screenshot(
+          "Keep the next step visible.",
+          "Save a role, reopen completed work without duplicate extraction, and update your application stage from the popup.",
+          savedPanel()
+        ),
+        promo: () => `
+          <div class="promo">
+            <img class="promo-mark" src="../icons/icon-128.png" alt="" />
+            <div>
+              <h1>JobClock</h1>
+              <p>Save jobs from any site.<br />Track every next step.</p>
+            </div>
+          </div>
+        `,
+        marquee: () => `
+          <div class="marquee">
+            <section class="marquee-copy">
+              <div class="marquee-brand">
+                <img src="../icons/icon-128.png" alt="" />
+                <span>JobClock</span>
+              </div>
+              <h1>Turn job pages into a deliberate pipeline.</h1>
+              <p>Preview the active listing, save it to JobClock, and return to the same result even after the popup closes.</p>
+            </section>
+            ${popup(previewPanel(), { marquee: true })}
+          </div>
+        `,
+      }
+
+      root.innerHTML = (states[state] || states.preview)()
+    </script>
+  </body>
+</html>

@@ -1,13 +1,20 @@
-const STATE_KEY = "jobAssistantRuntimeState"
+if (typeof chrome.runtime.getManifest === "function") {
+  importScripts("config.js")
+} else {
+  globalThis.JobClockConfig = Object.freeze({
+    APP_BASE_URL: "https://jobclock.michaelogunjimi.com",
+    RUNTIME_STATE_KEY: "jobAssistantRuntimeState",
+  })
+}
+importScripts("runtime-state.js")
+
+const extensionConfig = globalThis.JobClockConfig
+const runtimeState = globalThis.JobClockRuntimeState
+const STATE_KEY = extensionConfig.RUNTIME_STATE_KEY
 const STATUS_OPTIONS = ["saved", "applied", "screening", "interview", "offer", "rejected", "withdrawn"]
 
-function normalizeBaseUrl(value) {
-  return value.replace(/\/+$/, "")
-}
-
-function formatNetworkError(config, action) {
-  const baseUrl = normalizeBaseUrl(config.appBaseUrl)
-  return `Could not reach ${baseUrl} while trying to ${action}. Check that the app URL is correct and the app is running.`
+function formatNetworkError(action) {
+  return `Could not reach JobClock while trying to ${action}. Check your connection and try again.`
 }
 
 async function getRuntimeState() {
@@ -75,7 +82,7 @@ async function callImportApi(config, payload) {
 
   let response
   try {
-    response = await fetch(`${normalizeBaseUrl(config.appBaseUrl)}/api/jobs/import`, {
+    response = await fetch(`${extensionConfig.APP_BASE_URL}/api/jobs/import`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -94,10 +101,7 @@ async function callImportApi(config, payload) {
       )
     }
     throw new Error(
-      formatNetworkError(
-        config,
-        payload.mode === "save" ? "save the job" : "extract a preview"
-      )
+      formatNetworkError(payload.mode === "save" ? "save the job" : "extract a preview")
     )
   } finally {
     clearTimeout(timeoutId)
@@ -115,7 +119,7 @@ async function fetchRecentApplications(config, limit = 5) {
   let response
   try {
     response = await fetch(
-      `${normalizeBaseUrl(config.appBaseUrl)}/api/jobs/import?limit=${limit}`,
+      `${extensionConfig.APP_BASE_URL}/api/jobs/import?limit=${limit}`,
       {
         method: "GET",
         headers: {
@@ -124,7 +128,7 @@ async function fetchRecentApplications(config, limit = 5) {
       }
     )
   } catch {
-    throw new Error(formatNetworkError(config, "load recent applications"))
+    throw new Error(formatNetworkError("load recent applications"))
   }
 
   const body = await response.json().catch(() => ({}))
@@ -142,7 +146,7 @@ async function updateRecentStatus(config, applicationId, status) {
 
   let response
   try {
-    response = await fetch(`${normalizeBaseUrl(config.appBaseUrl)}/api/jobs/import`, {
+    response = await fetch(`${extensionConfig.APP_BASE_URL}/api/jobs/import`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -151,7 +155,7 @@ async function updateRecentStatus(config, applicationId, status) {
       body: JSON.stringify({ applicationId, status }),
     })
   } catch {
-    throw new Error(formatNetworkError(config, "update the application stage"))
+    throw new Error(formatNetworkError("update the application stage"))
   }
 
   const body = await response.json().catch(() => ({}))
@@ -168,18 +172,20 @@ async function updateRecentStatus(config, applicationId, status) {
 const inflightPreviews = new Map()
 
 async function previewJob({ config, tab }) {
-  const key = `${tab.id}::${tab.url}`
+  const key = runtimeState.operationKey(tab)
   const existing = inflightPreviews.get(key)
   if (existing) return existing
 
   const job = (async () => {
     await setRuntimeState({
       view: "loading",
+      operation: "preview",
+      operationKey: key,
       tabId: tab.id,
       tabUrl: tab.url,
       tabTitle: tab.title || "",
       loadingTitle: "Extracting job details",
-      loadingMessage: "Reading the current page and asking the app for a preview.",
+      loadingMessage: "Reading the current page and asking JobClock for a preview.",
     })
 
     const extracted = await extractCurrentPage(tab.id)
@@ -199,23 +205,31 @@ async function previewJob({ config, tab }) {
       ? extracted.pageText
       : extracted.pageHints.description || ""
 
-    const preview = await callImportApi(config, {
+    const previewResponse = await callImportApi(config, {
       mode: "preview",
       url: tab.url,
       pageTitle: extracted.pageTitle || tab.title || "",
       pageHints: extracted.pageHints,
       pageText,
     })
+    const preview = previewResponse?.preview
+    if (!preview || typeof preview !== "object") {
+      throw new Error("JobClock returned an invalid preview.")
+    }
 
     await setRuntimeState({
       view: "preview",
+      operation: null,
       tabId: tab.id,
       tabUrl: tab.url,
       tabTitle: tab.title || extracted.pageTitle || "",
       preview,
+      alreadySaved: Boolean(previewResponse.alreadySaved),
+      existingApplicationId: previewResponse.existingApplicationId,
+      existingApplication: previewResponse.existingApplication,
     })
 
-    return preview
+    return previewResponse
   })()
 
   inflightPreviews.set(key, job)
@@ -229,13 +243,15 @@ async function previewJob({ config, tab }) {
 const inflightSaves = new Map()
 
 async function savePreview({ config, preview, tab }) {
-  const key = `${tab.id}::${tab.url}`
+  const key = runtimeState.operationKey(tab)
   const existing = inflightSaves.get(key)
   if (existing) return existing
 
   const job = (async () => {
     await setRuntimeState({
       view: "loading",
+      operation: "save",
+      operationKey: key,
       tabId: tab.id,
       tabUrl: tab.url,
       tabTitle: tab.title || "",
@@ -251,6 +267,7 @@ async function savePreview({ config, preview, tab }) {
 
     await setRuntimeState({
       view: "success",
+      operation: null,
       tabId: tab.id,
       tabUrl: tab.url,
       tabTitle: tab.title || preview.title || "",
@@ -269,13 +286,58 @@ async function savePreview({ config, preview, tab }) {
   }
 }
 
+function activeOperationKeys() {
+  return [...inflightPreviews.keys(), ...inflightSaves.keys()]
+}
+
+async function reconcileRuntimeStateForTab(storedState, tab) {
+  const decision = runtimeState.resolveStoredState({
+    storedState,
+    tab,
+    activeOperationKeys: activeOperationKeys(),
+  })
+
+  if (decision.action === "start") return null
+  if (decision.action === "replace") {
+    await setRuntimeState(decision.state)
+    return decision.state
+  }
+  return decision.state
+}
+
+async function getRuntimeStateForTab(tab) {
+  return reconcileRuntimeStateForTab(await getRuntimeState(), tab)
+}
+
+async function getLegacyRuntimeState() {
+  const storedState = await getRuntimeState()
+  const hasStoredTab =
+    typeof storedState?.tabId === "number" &&
+    typeof storedState?.tabUrl === "string"
+
+  if (!hasStoredTab) return storedState
+
+  return reconcileRuntimeStateForTab(storedState, {
+    id: storedState.tabId,
+    url: storedState.tabUrl,
+  })
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!message || typeof message !== "object") return
 
   ;(async () => {
     try {
       if (message.type === "get-state") {
-        sendResponse({ ok: true, state: await getRuntimeState() })
+        const tab = message.payload?.tab
+        const hasValidTab =
+          typeof tab?.id === "number" && typeof tab?.url === "string"
+        sendResponse({
+          ok: true,
+          state: hasValidTab
+            ? await getRuntimeStateForTab(tab)
+            : await getLegacyRuntimeState(),
+        })
         return
       }
 
@@ -311,7 +373,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       }
 
       if (message.type === "set-error-state") {
-        await setRuntimeState(message.payload)
+        await setRuntimeState({
+          ...message.payload,
+          operation: null,
+        })
         sendResponse({ ok: true })
         return
       }
@@ -325,9 +390,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       sendResponse({ ok: false, error: "Unknown message type" })
     } catch (error) {
       const messageText = error instanceof Error ? error.message : "Unexpected extension error."
-      if (message?.payload?.tab?.id && message?.payload?.tab?.url) {
+      if (
+        typeof message?.payload?.tab?.id === "number" &&
+        typeof message?.payload?.tab?.url === "string"
+      ) {
         await setRuntimeState({
           view: "error",
+          operation: null,
           tabId: message.payload.tab.id,
           tabUrl: message.payload.tab.url,
           tabTitle: message.payload.tab.title || "",

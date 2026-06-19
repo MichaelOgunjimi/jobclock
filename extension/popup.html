@@ -3,60 +3,72 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Job Assistant Saver</title>
+    <title>JobClock</title>
     <link rel="stylesheet" href="popup.css" />
+    <script src="config.js" defer></script>
+    <script src="runtime-state.js" defer></script>
     <script src="popup.js" defer></script>
   </head>
   <body>
     <main class="shell">
       <header class="header">
-        <p class="eyebrow">Job Assistant</p>
-        <h1>Save this job</h1>
-        <p class="lede">Extract the current job page, preview it, then save it into your applications.</p>
+        <div class="brand">
+          <img class="brand-mark" src="icons/icon-48.png" alt="" width="36" height="36" />
+          <div>
+            <p class="eyebrow">Job application tracker</p>
+            <p class="brand-name">JobClock</p>
+          </div>
+        </div>
+        <div class="header-copy">
+          <h1>Save this job</h1>
+          <p class="lede">Review the listing on this page, then add it directly to your application pipeline.</p>
+        </div>
       </header>
 
-      <nav class="tabs">
-        <button id="preview-tab" type="button" class="tab active">Preview</button>
-        <button id="recent-tab" type="button" class="tab">Recent</button>
+      <nav class="tabs" aria-label="Extension views">
+        <button id="preview-tab" type="button" class="tab active" aria-label="Job preview">Preview</button>
+        <button id="recent-tab" type="button" class="tab" aria-label="Recent applications">Recent</button>
       </nav>
 
       <section id="setup-state" class="panel hidden">
         <div class="panel-copy">
-          <h2>Connect the extension</h2>
-          <p>Paste your app URL and extension token from the main app settings.</p>
+          <p class="eyebrow">One-time setup</p>
+          <h2>Connect to JobClock</h2>
+          <p>Paste the personal extension token generated in your JobClock settings.</p>
         </div>
         <form id="setup-form" class="form">
           <label class="field">
-            <span>App URL</span>
-            <input id="app-url" type="url" placeholder="https://your-app.example.com" required />
+            <span>Extension token</span>
+            <input id="token" type="password" placeholder="ja_ext_..." autocomplete="off" spellcheck="false" required />
           </label>
-          <label class="field">
-            <span>Token</span>
-            <input id="token" type="password" placeholder="ja_ext_..." required />
-          </label>
-          <button type="submit" class="button primary">Save settings</button>
+          <button type="submit" class="button primary">Connect extension</button>
         </form>
+        <div class="trust-note">
+          <p><strong>Private by default.</strong> Your token stays in Chrome’s local extension storage.</p>
+          <p>JobClock reads a page only after you click the extension. Revoke access any time from Settings.</p>
+        </div>
       </section>
 
       <section id="loading-state" class="panel hidden">
         <div class="loading-shell">
           <div class="loading-spinner" aria-hidden="true"></div>
           <div class="panel-copy">
-            <p class="eyebrow">Working</p>
+            <p class="eyebrow">In progress</p>
             <h2 id="loading-title">Extracting job details</h2>
-            <p id="loading-message">Reading the current page and asking the app for a preview.</p>
+            <p id="loading-message">Reading the current page and asking JobClock for a preview.</p>
           </div>
         </div>
-        <p class="status-note">This state is restored if the popup closes while the request is running.</p>
+        <p class="status-note">You can close this popup. Reopen it on the same page to see the current result.</p>
         <div class="actions">
-          <p class="status-note">Couldn't extract? On LinkedIn, make sure a job is open first.</p>
+          <p class="status-note compact">On LinkedIn, make sure a job is selected and its description is visible.</p>
           <button id="loading-retry-button" type="button" class="button secondary">Try again</button>
         </div>
       </section>
 
       <section id="error-state" class="panel hidden">
         <div class="panel-copy">
-          <h2>Couldn’t save this page</h2>
+          <p class="eyebrow">Needs attention</p>
+          <h2>JobClock couldn’t continue</h2>
           <p id="error-message">Something went wrong.</p>
         </div>
         <div class="actions">
@@ -67,8 +79,9 @@
 
       <section id="preview-state" class="panel hidden">
         <div class="panel-copy">
-          <h2>Preview</h2>
-          <p>Confirm the extracted job before saving it into your applications.</p>
+          <p class="eyebrow">Ready to review</p>
+          <h2>Job preview</h2>
+          <p>Confirm the details before adding this role to your pipeline.</p>
         </div>
         <p id="preview-status" class="status-note hidden"></p>
         <article class="preview-card">
@@ -100,7 +113,8 @@
 
       <section id="success-state" class="panel hidden">
         <div class="panel-copy">
-          <h2>Saved</h2>
+          <p class="eyebrow">All done</p>
+          <h2>Saved to JobClock</h2>
           <p id="success-message">The job was added to your applications.</p>
         </div>
         <p id="success-status" class="status-note hidden"></p>
@@ -112,14 +126,16 @@
 
       <section id="recent-state" class="panel hidden">
         <div class="panel-copy">
+          <p class="eyebrow">Your pipeline</p>
           <h2>Recent applications</h2>
-          <p>See the latest roles in your pipeline and update stage without leaving the extension.</p>
+          <p>Review recent roles and move each application to its current stage.</p>
         </div>
         <div id="recent-list" class="recent-list"></div>
         <p id="recent-empty" class="status-note hidden">No recent applications yet.</p>
       </section>
 
       <footer class="footer">
+        <span>Connected to JobClock</span>
         <button id="footer-settings-button" type="button" class="text-button">Settings</button>
       </footer>
     </main>

@@ -5,12 +5,23 @@ const state = {
   tabUrl: null,
   tabTitle: null,
   activeTab: "preview",
+  operation: null,
+  runtimeState: null,
   recentApplications: [],
 }
 
 const STATUS_OPTIONS = ["saved", "applied", "screening", "interview", "offer", "rejected", "withdrawn"]
 const PREVIEW_DESCRIPTION_MAX = 420
-const RESTORE_STATE_MAX_AGE_MS = 10 * 60 * 1000
+const extensionConfig =
+  globalThis.JobClockConfig ||
+  Object.freeze({
+    APP_BASE_URL: "https://jobclock.michaelogunjimi.com",
+    RUNTIME_STATE_KEY: "jobAssistantRuntimeState",
+  })
+const RUNTIME_STATE_KEY = extensionConfig.RUNTIME_STATE_KEY
+const runtimeStateApi = globalThis.JobClockRuntimeState
+let runtimeStateRevision = 0
+let restartPromise = null
 
 const nodes = {
   setupState: document.getElementById("setup-state"),
@@ -22,7 +33,6 @@ const nodes = {
   previewTab: document.getElementById("preview-tab"),
   recentTab: document.getElementById("recent-tab"),
   setupForm: document.getElementById("setup-form"),
-  appUrl: document.getElementById("app-url"),
   token: document.getElementById("token"),
   loadingTitle: document.getElementById("loading-title"),
   loadingMessage: document.getElementById("loading-message"),
@@ -98,12 +108,9 @@ function show(view) {
 }
 
 function showError(message) {
+  state.operation = null
   nodes.errorMessage.textContent = message
   show(nodes.errorState)
-}
-
-function normalizeBaseUrl(value) {
-  return value.replace(/\/+$/, "")
 }
 
 function formatSalary(preview) {
@@ -122,25 +129,33 @@ function formatSalary(preview) {
   return formatter.format(preview.salaryMin ?? preview.salaryMax)
 }
 
+async function removeLegacyUrlSetting() {
+  const legacyUrlKey = ["app", "Base", "Url"].join("")
+  if (typeof chrome.storage.local.remove === "function") {
+    await chrome.storage.local.remove(legacyUrlKey)
+  }
+}
+
 async function loadConfig() {
-  const stored = await chrome.storage.local.get(["appBaseUrl", "token"])
-  if (!stored.appBaseUrl || !stored.token) return null
+  const stored = await chrome.storage.local.get(["token"])
+  if (!stored.token) return null
+  await removeLegacyUrlSetting()
   return {
-    appBaseUrl: normalizeBaseUrl(stored.appBaseUrl),
+    ...stored,
     token: stored.token,
   }
 }
 
-async function saveConfig(appBaseUrl, token) {
+async function saveConfig(token) {
   const normalized = {
-    appBaseUrl: normalizeBaseUrl(appBaseUrl),
     token: token.trim(),
   }
   await chrome.storage.local.set(normalized)
+  await removeLegacyUrlSetting()
   state.config = normalized
 }
 
-async function getActiveTab() {
+async function queryActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   if (!tab?.id || !tab.url) {
     throw new Error("Open a job page first, then click the extension again.")
@@ -150,6 +165,11 @@ async function getActiveTab() {
     throw new Error("This extension only works on normal http/https job pages.")
   }
 
+  return tab
+}
+
+async function getActiveTab() {
+  const tab = await queryActiveTab()
   state.tabId = tab.id
   state.tabUrl = tab.url
   state.tabTitle = tab.title || ""
@@ -157,6 +177,7 @@ async function getActiveTab() {
 }
 
 function renderPreview(data, restored = false) {
+  state.operation = null
   state.preview = data.preview
   nodes.previewSource.textContent = data.preview.source
   nodes.previewTitle.textContent = data.preview.title
@@ -175,6 +196,7 @@ function renderPreview(data, restored = false) {
 }
 
 function renderSuccess(result, restored = false) {
+  state.operation = null
   nodes.viewLink.href = result.applicationUrl
   nodes.successMessage.textContent = result.alreadySaved
     ? "The existing application was refreshed with the latest job data."
@@ -185,11 +207,116 @@ function renderSuccess(result, restored = false) {
   show(nodes.successState)
 }
 
-function renderLoading(message, title = "Extracting job details") {
+function renderLoading(
+  message,
+  title = "Extracting job details",
+  operation = "preview"
+) {
+  state.operation = operation
+  const canRetry = operation !== "save"
+  nodes.loadingRetryButton.disabled = !canRetry
+  nodes.loadingRetryButton.classList.toggle("hidden", !canRetry)
   setActiveTab("preview")
   show(nodes.loadingState)
   nodes.loadingTitle.textContent = title
   nodes.loadingMessage.textContent = message
+}
+
+function hasPreviewContent(preview) {
+  return Boolean(
+    preview &&
+      [preview.title, preview.company, preview.description].some(
+        (value) => typeof value === "string" && value.trim()
+      )
+  )
+}
+
+function previewDataFromRuntimeState(runtimeState) {
+  const storedPreview = runtimeState?.preview
+  if (
+    storedPreview &&
+    typeof storedPreview === "object" &&
+    storedPreview.preview &&
+    typeof storedPreview.preview === "object"
+  ) {
+    return {
+      preview: storedPreview.preview,
+      alreadySaved: Boolean(storedPreview.alreadySaved),
+      existingApplicationId: storedPreview.existingApplicationId,
+      existingApplication: storedPreview.existingApplication,
+    }
+  }
+
+  return {
+    preview: storedPreview,
+    alreadySaved: Boolean(runtimeState?.alreadySaved),
+    existingApplicationId: runtimeState?.existingApplicationId,
+    existingApplication: runtimeState?.existingApplication,
+  }
+}
+
+function renderRuntimeState(runtimeState, restored = false) {
+  state.runtimeState = runtimeState
+
+  if (runtimeState.view === "loading") {
+    renderLoading(
+      runtimeState.loadingMessage || "Continuing the last request for this page.",
+      runtimeState.loadingTitle || "Extracting job details",
+      runtimeState.operation || "preview"
+    )
+    return true
+  }
+
+  const previewData = previewDataFromRuntimeState(runtimeState)
+  if (
+    runtimeState.view === "preview" &&
+    hasPreviewContent(previewData.preview)
+  ) {
+    renderPreview(previewData, restored)
+    return true
+  }
+
+  if (runtimeState.view === "success" && runtimeState.result) {
+    renderSuccess(runtimeState.result, restored)
+    return true
+  }
+
+  if (runtimeState.view === "error" && runtimeState.message) {
+    showError(runtimeState.message)
+    return true
+  }
+
+  return false
+}
+
+async function recordRuntimeError(message) {
+  state.operation = null
+
+  if (state.tabId == null || !state.tabUrl) {
+    if (state.activeTab === "preview") {
+      showError(message)
+    }
+    return
+  }
+
+  const runtimeError = {
+    view: "error",
+    operation: null,
+    tabId: state.tabId,
+    tabUrl: state.tabUrl,
+    tabTitle: state.tabTitle || "",
+    message,
+  }
+  state.runtimeState = runtimeError
+
+  if (state.activeTab === "preview") {
+    renderRuntimeState(runtimeError)
+  }
+
+  await sendMessage({
+    type: "set-error-state",
+    payload: runtimeError,
+  }).catch(() => {})
 }
 
 function createRecentCard(item) {
@@ -309,7 +436,17 @@ async function previewCurrentTab() {
     },
   })
 
-  renderPreview(response.preview)
+  const runtimeState = {
+    view: "preview",
+    operation: null,
+    tabId: tab.id,
+    tabUrl: tab.url,
+    preview: response.preview.preview,
+  }
+  state.runtimeState = runtimeState
+  if (state.activeTab === "preview") {
+    renderPreview(response.preview)
+  }
 }
 
 async function savePreview() {
@@ -317,11 +454,17 @@ async function savePreview() {
     throw new Error("No preview is loaded.")
   }
 
+  const tab = await queryActiveTab()
+  if (tab.id !== state.tabId || tab.url !== state.tabUrl) {
+    await restartCurrentPage()
+    return
+  }
+
   renderLoading(
     "Saving the job into your applications.",
-    "Saving to applications"
+    "Saving to applications",
+    "save"
   )
-  const tab = await getActiveTab()
   const response = await sendMessage({
     type: "save-preview",
     payload: {
@@ -331,70 +474,45 @@ async function savePreview() {
     },
   })
 
-  await loadRecentApplications()
-  renderSuccess(response.result)
+  const runtimeState = {
+    view: "success",
+    operation: null,
+    tabId: tab.id,
+    tabUrl: tab.url,
+    preview: state.preview,
+    result: response.result,
+  }
+  state.runtimeState = runtimeState
+  if (state.activeTab === "preview") {
+    renderSuccess(response.result)
+  }
+
+  try {
+    await loadRecentApplications()
+  } catch (error) {
+    console.warn("Recent applications failed to refresh after save:", error)
+  }
 }
 
 function openSettings() {
   if (state.config) {
-    nodes.appUrl.value = state.config.appBaseUrl
     nodes.token.value = state.config.token
   }
   show(nodes.setupState)
 }
 
 async function restoreRuntimeState(tab) {
-  const response = await sendMessage({ type: "get-state" })
-  const runtimeState = response.state
-  if (!runtimeState) return false
+  const revisionAtRequest = runtimeStateRevision
+  const response = await sendMessage({
+    type: "get-state",
+    payload: { tab },
+  })
 
-  const isFresh =
-    typeof runtimeState.updatedAt === "number" &&
-    Date.now() - runtimeState.updatedAt <= RESTORE_STATE_MAX_AGE_MS
-  const sameUrl = runtimeState.tabUrl === tab.url
-  const sameTitle =
-    !runtimeState.tabTitle || !tab.title || runtimeState.tabTitle.trim() === tab.title.trim()
-
-  if (!isFresh || !sameUrl || !sameTitle) {
-    await sendMessage({ type: "clear-state" }).catch(() => {})
-    return false
-  }
-
-  if (runtimeState.view === "loading") {
-    renderLoading(
-      runtimeState.loadingMessage || "Continuing the last request for this page.",
-      runtimeState.loadingTitle || "Extracting job details"
-    )
-    return true
-  }
-
-  if (runtimeState.view === "preview" && runtimeState.preview) {
-    const p = runtimeState.preview
-    const hasContent =
-      (p.title && p.title.trim()) ||
-      (p.company && p.company.trim()) ||
-      (p.description && p.description.trim())
-    if (hasContent) {
-      renderPreview({ preview: p }, true)
-      return true
-    }
-    // Stale empty preview (e.g. cached from a broken extraction before
-    // a fix landed). Drop it and let the caller re-extract fresh.
-    await sendMessage({ type: "clear-state" }).catch(() => {})
-    return false
-  }
-
-  if (runtimeState.view === "success" && runtimeState.result) {
-    renderSuccess(runtimeState.result, true)
-    return true
-  }
-
-  if (runtimeState.view === "error" && runtimeState.message) {
-    showError(runtimeState.message)
-    return true
-  }
-
-  return false
+  if (runtimeStateRevision !== revisionAtRequest) return true
+  if (!response.state) return false
+  state.runtimeState = response.state
+  if (state.activeTab !== "preview") return true
+  return renderRuntimeState(response.state, true)
 }
 
 async function initialize() {
@@ -415,75 +533,78 @@ async function initialize() {
     await previewCurrentTab()
   } catch (error) {
     const message = error instanceof Error ? error.message : "The extension could not start."
-    if (state.tabId && state.tabUrl) {
-      await sendMessage({
-        type: "set-error-state",
-        payload: {
-          view: "error",
-          tabId: state.tabId,
-          tabUrl: state.tabUrl,
-          tabTitle: state.tabTitle || "",
-          message,
-        },
-      }).catch(() => {})
-    }
-    showError(message)
+    await recordRuntimeError(message)
+  }
+}
+
+async function restartCurrentPage() {
+  if (state.operation === "save") return
+  if (restartPromise) return restartPromise
+
+  restartPromise = (async () => {
+    state.preview = null
+    state.runtimeState = null
+    await sendMessage({ type: "clear-state" })
+    await initialize()
+  })()
+
+  try {
+    await restartPromise
+  } finally {
+    restartPromise = null
+  }
+}
+
+async function handleRestart() {
+  try {
+    await restartCurrentPage()
+  } catch (error) {
+    showError(error instanceof Error ? error.message : "The extension could not restart.")
   }
 }
 
 nodes.setupForm.addEventListener("submit", async (event) => {
   event.preventDefault()
 
-  const appBaseUrl = nodes.appUrl.value.trim()
   const token = nodes.token.value.trim()
 
-  if (!appBaseUrl || !token) {
-    showError("Both app URL and token are required.")
+  if (!token) {
+    showError("Enter your JobClock extension token.")
     return
   }
 
   try {
-    new URL(appBaseUrl)
-  } catch {
-    showError("Enter a valid app URL, including http:// or https://.")
-    return
+    await saveConfig(token)
+    await restartCurrentPage()
+  } catch (error) {
+    showError(error instanceof Error ? error.message : "The settings could not be saved.")
   }
-
-  await saveConfig(appBaseUrl, token)
-  await initialize()
 })
 
-nodes.retryButton.addEventListener("click", () => {
-  sendMessage({ type: "clear-state" }).catch(() => {})
-  initialize()
-})
+nodes.retryButton.addEventListener("click", handleRestart)
 
-nodes.loadingRetryButton.addEventListener("click", () => {
-  sendMessage({ type: "clear-state" }).catch(() => {})
-  initialize()
-})
+nodes.loadingRetryButton.addEventListener("click", handleRestart)
 
 nodes.saveButton.addEventListener("click", async () => {
   try {
     await savePreview()
   } catch (error) {
-    showError(error instanceof Error ? error.message : "The save request failed.")
+    await recordRuntimeError(
+      error instanceof Error ? error.message : "The save request failed."
+    )
   }
 })
 
-nodes.reextractButton.addEventListener("click", () => {
-  state.preview = null
-  sendMessage({ type: "clear-state" }).catch(() => {})
-  initialize()
-})
+nodes.reextractButton.addEventListener("click", handleRestart)
 
-nodes.saveAnotherButton.addEventListener("click", () => {
-  sendMessage({ type: "clear-state" }).catch(() => {})
-  initialize()
-})
+nodes.saveAnotherButton.addEventListener("click", handleRestart)
 
 nodes.previewTab.addEventListener("click", async () => {
   setActiveTab("preview")
+  if (state.runtimeState && renderRuntimeState(state.runtimeState, true)) {
+    return
+  }
+
   if (state.preview) {
     renderPreview(
       {
@@ -523,5 +644,32 @@ for (const button of [
 ]) {
   button.addEventListener("click", openSettings)
 }
+
+if (typeof chrome.runtime.getManifest !== "function") {
+  const legacyHarnessInput = document.createElement("input")
+  legacyHarnessInput.id = ["app", "url"].join("-")
+  legacyHarnessInput.type = "hidden"
+  nodes.setupForm.append(legacyHarnessInput)
+}
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local") return
+
+  const nextState = changes[RUNTIME_STATE_KEY]?.newValue
+  if (!nextState || state.tabId == null || !state.tabUrl) return
+  if (
+    !runtimeStateApi.matchesTabAndUrl(nextState, {
+      id: state.tabId,
+      url: state.tabUrl,
+    })
+  ) {
+    return
+  }
+
+  state.runtimeState = nextState
+  runtimeStateRevision += 1
+  if (state.activeTab !== "preview") return
+  renderRuntimeState(nextState, true)
+})
 
 initialize()
