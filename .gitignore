@@ -21,6 +21,7 @@ test-results/
 
 # production
 /build
+/release/
 
 # misc
 .DS_Store
