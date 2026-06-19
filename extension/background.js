@@ -205,13 +205,17 @@ async function previewJob({ config, tab }) {
       ? extracted.pageText
       : extracted.pageHints.description || ""
 
-    const preview = await callImportApi(config, {
+    const previewResponse = await callImportApi(config, {
       mode: "preview",
       url: tab.url,
       pageTitle: extracted.pageTitle || tab.title || "",
       pageHints: extracted.pageHints,
       pageText,
     })
+    const preview = previewResponse?.preview
+    if (!preview || typeof preview !== "object") {
+      throw new Error("JobClock returned an invalid preview.")
+    }
 
     await setRuntimeState({
       view: "preview",
@@ -220,9 +224,12 @@ async function previewJob({ config, tab }) {
       tabUrl: tab.url,
       tabTitle: tab.title || extracted.pageTitle || "",
       preview,
+      alreadySaved: Boolean(previewResponse.alreadySaved),
+      existingApplicationId: previewResponse.existingApplicationId,
+      existingApplication: previewResponse.existingApplication,
     })
 
-    return preview
+    return previewResponse
   })()
 
   inflightPreviews.set(key, job)

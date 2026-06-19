@@ -231,6 +231,30 @@ function hasPreviewContent(preview) {
   )
 }
 
+function previewDataFromRuntimeState(runtimeState) {
+  const storedPreview = runtimeState?.preview
+  if (
+    storedPreview &&
+    typeof storedPreview === "object" &&
+    storedPreview.preview &&
+    typeof storedPreview.preview === "object"
+  ) {
+    return {
+      preview: storedPreview.preview,
+      alreadySaved: Boolean(storedPreview.alreadySaved),
+      existingApplicationId: storedPreview.existingApplicationId,
+      existingApplication: storedPreview.existingApplication,
+    }
+  }
+
+  return {
+    preview: storedPreview,
+    alreadySaved: Boolean(runtimeState?.alreadySaved),
+    existingApplicationId: runtimeState?.existingApplicationId,
+    existingApplication: runtimeState?.existingApplication,
+  }
+}
+
 function renderRuntimeState(runtimeState, restored = false) {
   state.runtimeState = runtimeState
 
@@ -243,11 +267,12 @@ function renderRuntimeState(runtimeState, restored = false) {
     return true
   }
 
+  const previewData = previewDataFromRuntimeState(runtimeState)
   if (
     runtimeState.view === "preview" &&
-    hasPreviewContent(runtimeState.preview)
+    hasPreviewContent(previewData.preview)
   ) {
-    renderPreview({ preview: runtimeState.preview }, restored)
+    renderPreview(previewData, restored)
     return true
   }
 

@@ -506,6 +506,26 @@ describe("extension popup runtime state", () => {
     expect(harness.messagesOfType("preview-job")).toHaveLength(0)
   })
 
+  it("restores a completed API preview envelope without extracting again", async () => {
+    const harness = await loadPopupHarness({
+      runtimeState: {
+        view: "preview",
+        tabId: activeTab.id,
+        tabUrl: activeTab.url,
+        preview: {
+          preview: previewFixture,
+          alreadySaved: false,
+        },
+      },
+    })
+
+    await harness.ready()
+
+    expect(harness.visibleState()).toBe("preview-state")
+    expect(harness.previewTitle()).toBe(previewFixture.title)
+    expect(harness.messagesOfType("preview-job")).toHaveLength(0)
+  })
+
   it("updates a reopened loading popup when storage changes to preview", async () => {
     const harness = await loadPopupHarness({
       runtimeState: loadingFixture,

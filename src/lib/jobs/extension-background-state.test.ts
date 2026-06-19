@@ -250,14 +250,16 @@ describe("extension background runtime state", () => {
     expect(harness.executeScriptCalls()).toBe(2)
     expect(harness.fetchCalls()).toBe(1)
 
+    const extractedPreview = {
+      title: "Engineer",
+      company: "Acme",
+      source: "generic",
+      url: tab.url,
+      description: "Role description",
+    }
     harness.resolvePreview({
-      preview: {
-        title: "Engineer",
-        company: "Acme",
-        source: "generic",
-        url: tab.url,
-        description: "Role description",
-      },
+      preview: extractedPreview,
+      alreadySaved: false,
     })
     await Promise.all([firstPreview, secondPreview])
 
@@ -267,6 +269,7 @@ describe("extension background runtime state", () => {
         operation: null,
         tabId: tab.id,
         tabUrl: tab.url,
+        preview: extractedPreview,
       })
     )
   })
