@@ -35,14 +35,26 @@ export function PublicExtensionPage({
             aria-label="JobClock home"
             className="flex items-center gap-3"
           >
-            <span className="flex size-11 items-center justify-center border bg-primary">
+            <span className="relative flex size-11 items-center justify-center overflow-hidden border bg-primary">
               <Image
                 src="/logo-mark-light-white.svg"
                 alt=""
                 width={44}
                 height={44}
                 priority
-                className="size-full object-contain"
+                unoptimized
+                data-testid="extension-logo-light"
+                className="size-full object-contain dark:hidden"
+              />
+              <Image
+                src="/logo-mark-light.svg"
+                alt=""
+                width={44}
+                height={44}
+                priority
+                unoptimized
+                data-testid="extension-logo-dark"
+                className="hidden size-full object-contain dark:block"
               />
             </span>
             <span>

@@ -81,6 +81,14 @@ describe("public extension pages", () => {
   it("provides public navigation, privacy, and contact routes", () => {
     render(<ExtensionSupportPage />)
 
+    expect(screen.getByTestId("extension-logo-light")).toHaveAttribute(
+      "src",
+      expect.stringContaining("logo-mark-light-white.svg")
+    )
+    expect(screen.getByTestId("extension-logo-dark")).toHaveAttribute(
+      "src",
+      expect.stringContaining("logo-mark-light.svg")
+    )
     expect(screen.getByRole("link", { name: /JobClock home/i })).toHaveAttribute(
       "href",
       "/"
