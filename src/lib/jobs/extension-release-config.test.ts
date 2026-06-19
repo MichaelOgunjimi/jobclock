@@ -75,10 +75,10 @@ describe("extension production release configuration", () => {
   })
 
   it("defines responsive JobClock popup bounds and local design tokens", () => {
-    expect(popupCss).toMatch(/body\s*\{[^}]*width:\s*440px/s)
-    expect(popupCss).toMatch(/\.shell\s*\{[^}]*width:\s*100%/s)
+    expect(popupCss).toMatch(/body\s*\{[^}]*width:\s*440px/)
+    expect(popupCss).toMatch(/\.shell\s*\{[^}]*width:\s*100%/)
     expect(popupCss).not.toMatch(
-      /\.shell\s*\{[^}]*width:\s*440px[^}]*max-width:\s*100vw/s
+      /\.shell\s*\{[^}]*width:\s*440px[^}]*max-width:\s*100vw/
     )
     expect(popupCss).toContain("@media (max-width: 399px)")
     expect(popupCss).toContain("overflow-x: hidden")
