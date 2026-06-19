@@ -65,6 +65,9 @@ function createStoreIcon() {
       resolve(extensionDirectory, "icons/icon-128.png"),
       "-resize",
       "128x128",
+      "-strip",
+      "-define",
+      "png:exclude-chunks=date,time",
       resolve(outputDirectory, "icon-128.png"),
     ],
     { stdio: "inherit" }
