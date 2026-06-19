@@ -84,4 +84,3 @@ https://jobclock.michaelogunjimi.com/extension/support
 - Prevented duplicate extraction when reopening on the same tab and URL.
 - Added recent application stage updates.
 - Reduced host access to the production JobClock domain.
-

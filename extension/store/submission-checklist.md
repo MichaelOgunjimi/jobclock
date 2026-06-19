@@ -92,4 +92,3 @@ Single-purpose text:
 - [ ] Verify every uploaded asset has the required pixel dimensions.
 - [ ] Upload the exact validated ZIP produced by the release script.
 - [ ] Re-read all dashboard fields after upload and before **Submit for review**.
-
