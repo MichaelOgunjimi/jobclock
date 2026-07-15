@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { revalidatePath } from "next/cache"
-import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -25,11 +24,6 @@ import { buttonVariants } from "@/components/ui/button-styles"
 import type { ApplicationStatus, Database } from "@/lib/supabase/database.types"
 import { updateApplicationStatusForUser } from "@/lib/jobs/persist-job"
 import { ApplicationsFilterBar } from "./applications-filter-bar"
-import {
-  APPLICATIONS_FILTER_STATE_COOKIE,
-  getPersistedApplicationsFilterHref,
-  hasApplicationsListParams,
-} from "./applications-filter-state"
 import { APPLICATION_STATUS_OPTIONS } from "./pipeline-metrics"
 
 export const metadata: Metadata = {
@@ -66,13 +60,6 @@ export default async function ApplicationsPage({
   }
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined
-  if (!hasApplicationsListParams(resolvedSearchParams)) {
-    const cookieStore = await cookies()
-    const persistedHref = getPersistedApplicationsFilterHref(
-      cookieStore.get(APPLICATIONS_FILTER_STATE_COOKIE)?.value
-    )
-    if (persistedHref) redirect(persistedHref)
-  }
 
   const currentPage = Math.max(1, Number(resolvedSearchParams?.page ?? "1") || 1)
 

@@ -8,7 +8,9 @@ import { Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
 import {
-  APPLICATIONS_FILTER_STATE_COOKIE,
+  APPLICATIONS_FILTER_STATE_STORAGE_KEY,
+  getPersistedApplicationsFilterHref,
+  hasApplicationsUrlSearchParams,
   serializeApplicationsFilterState,
 } from "./applications-filter-state"
 
@@ -44,16 +46,32 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
   const searchParams = useSearchParams()
   const [searchInput, setSearchInput] = useState(activeSearch)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const restoringSessionFilterRef = useRef(false)
 
   useEffect(() => {
-    writeApplicationsFilterCookie(
+    if (hasApplicationsUrlSearchParams(searchParams)) return
+
+    const persistedHref = getPersistedApplicationsFilterHref(
+      window.sessionStorage.getItem(APPLICATIONS_FILTER_STATE_STORAGE_KEY) ?? undefined
+    )
+
+    if (persistedHref) {
+      restoringSessionFilterRef.current = true
+      router.replace(persistedHref, { scroll: false })
+    }
+  }, [router, searchParams])
+
+  useEffect(() => {
+    if (restoringSessionFilterRef.current && !hasApplicationsUrlSearchParams(searchParams)) return
+
+    writeApplicationsFilterSession(
       serializeApplicationsFilterState({
         status: activeStatus,
         sort: activeSort,
         q: activeSearch,
       })
     )
-  }, [activeSearch, activeSort, activeStatus])
+  }, [activeSearch, activeSort, activeStatus, searchParams])
 
   // Sync if the URL param changes externally (e.g. browser back)
   useEffect(() => { setSearchInput(activeSearch) }, [activeSearch])
@@ -162,7 +180,7 @@ function persistFilterHref(href: string) {
   const query = href.split("?")[1] ?? ""
   const params = new URLSearchParams(query)
 
-  writeApplicationsFilterCookie(
+  writeApplicationsFilterSession(
     serializeApplicationsFilterState({
       status: params.get("status") ?? "all",
       sort: params.get("sort") ?? "saved_desc",
@@ -171,11 +189,15 @@ function persistFilterHref(href: string) {
   )
 }
 
-function writeApplicationsFilterCookie(value: string | null) {
-  if (value) {
-    document.cookie = `${APPLICATIONS_FILTER_STATE_COOKIE}=${encodeURIComponent(value)}; Max-Age=7776000; Path=/; SameSite=Lax`
-    return
-  }
+function writeApplicationsFilterSession(value: string | null) {
+  try {
+    if (value) {
+      window.sessionStorage.setItem(APPLICATIONS_FILTER_STATE_STORAGE_KEY, value)
+      return
+    }
 
-  document.cookie = `${APPLICATIONS_FILTER_STATE_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax`
+    window.sessionStorage.removeItem(APPLICATIONS_FILTER_STATE_STORAGE_KEY)
+  } catch {
+    // Some browsers can deny storage; the URL still remains the source of truth.
+  }
 }
