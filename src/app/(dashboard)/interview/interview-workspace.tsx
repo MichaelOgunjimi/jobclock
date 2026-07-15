@@ -33,63 +33,50 @@ function ApplicationContextPicker({
         `${application.title} ${application.company}`.toLowerCase().includes(normalizedQuery),
       )
     : applications.slice(0, 8)
-  const modeTitle = selected ? `${selected.title}` : "General preparation"
-  const modeSubtitle = selected ? selected.company : "Reusable answers across roles"
 
   return (
-    <div className="grid overflow-hidden border border-border bg-card shadow-[0_24px_90px_rgba(0,0,0,0.12)] lg:grid-cols-[minmax(260px,0.82fr)_minmax(360px,1.18fr)]">
-      <div className="bg-foreground p-5 text-background md:p-6">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-background/55">
-          Interview mode
-        </p>
-        <h2 className="mt-4 font-heading text-2xl leading-tight tracking-[-0.04em] md:text-[2rem]">
-          {modeTitle}
-        </h2>
-        <p className="mt-1 text-sm text-background/65">{modeSubtitle}</p>
-        <p className="mt-5 max-w-md text-sm leading-6 text-background/70">
-          {selected
-            ? "Answers, tailored CV facts, and Grill Me feedback now use this application as context."
-            : "Practice common questions first, then switch into a specific job when you want sharper targeting."}
-        </p>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <span className="border border-background/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-background/75">
-            {selected ? "Job-specific" : "Reusable"}
-          </span>
-          <span className="border border-background/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-background/75">
-            Evidence first
-          </span>
-          {selected && (
-            <span className="border border-background/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-background/75">
-              {selected.hasResearch ? "Research ready" : "No research yet"}
+    <div className="border border-border bg-card/80 p-4 shadow-[0_14px_45px_rgba(0,0,0,0.07)] md:p-5">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,1.1fr)] lg:items-center">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Application context
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="border border-border bg-background px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground">
+              {selected ? `${selected.title} at ${selected.company}` : "General preparation"}
             </span>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-4 p-5 md:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Switch context
-            </p>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              Search an application to rehearse against that exact role.
-            </p>
+            {selected && (
+              <button
+                type="button"
+                onClick={() => onChange("")}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3" />
+                Use general prep
+              </button>
+            )}
           </div>
-          {selected && (
-            <button
-              type="button"
-              onClick={() => onChange("")}
-              className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-3" />
-              General prep
-            </button>
-          )}
+          <p className="mt-2 max-w-xl text-xs leading-relaxed text-muted-foreground">
+            Pick a role when you want answers and practice feedback to use that job, tailored CV, and saved company research.
+          </p>
         </div>
 
         <div className="relative">
-          <div className="relative">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Search applications</p>
+          </div>
+          {selected && (
+            <Link
+              href={`/applications/${selected.id}`}
+              className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
+            >
+              Open application
+            </Link>
+          )}
+        </div>
+
+          <div className="relative mt-2">
             <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
               id="interview-application-context"
@@ -138,7 +125,7 @@ function ApplicationContextPicker({
                   href={`/applications/${selected.id}`}
                   className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
                 >
-                  Open app
+                  {selected.hasResearch ? "View research" : "Add research"}
                 </Link>
               </div>
             </div>
@@ -268,7 +255,7 @@ export function InterviewWorkspace({
         </TabsList>
 
       <TabsContent value="questions">
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(300px,360px)_minmax(0,1fr)]">
           <QuestionLibrary
             questions={visibleQuestions}
             selectedKey={selected?.key ?? null}

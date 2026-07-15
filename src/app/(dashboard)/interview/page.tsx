@@ -24,7 +24,7 @@ export default async function InterviewPage({
   const workspace = await loadInterviewWorkspace(user.id, resolvedSearchParams?.applicationId)
 
   return (
-    <div className="page-shell max-w-6xl gap-6 py-5 md:gap-8 md:py-8 lg:min-h-0 lg:flex-1">
+    <div className="page-shell max-w-[1500px] gap-6 py-5 md:gap-8 md:py-8 lg:min-h-0 lg:flex-1">
       <div className="page-header gap-3 pb-5 md:pb-6">
         <div className="space-y-3">
           <p className="page-kicker">Interview Prep</p>
