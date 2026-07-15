@@ -4,7 +4,6 @@ import Link from "next/link"
 import { useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Search, X } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { QuestionLibrary } from "./question-library"
 import { AnswerComposer } from "./answer-composer"
@@ -34,30 +33,59 @@ function ApplicationContextPicker({
         `${application.title} ${application.company}`.toLowerCase().includes(normalizedQuery),
       )
     : applications.slice(0, 8)
+  const modeTitle = selected ? `${selected.title}` : "General preparation"
+  const modeSubtitle = selected ? selected.company : "Reusable answers across roles"
 
   return (
-    <div className="border border-border bg-card/80 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.10)] md:p-5">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(280px,1.1fr)] lg:items-center">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Application context</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge variant={selected ? "outline" : "default"}>
-              {selected ? `${selected.title} at ${selected.company}` : "General preparation"}
-            </Badge>
-            {selected && (
-              <button
-                type="button"
-                onClick={() => onChange("")}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <X className="size-3" />
-                Use general prep
-              </button>
-            )}
+    <div className="grid overflow-hidden border border-border bg-card shadow-[0_24px_90px_rgba(0,0,0,0.12)] lg:grid-cols-[minmax(260px,0.82fr)_minmax(360px,1.18fr)]">
+      <div className="bg-foreground p-5 text-background md:p-6">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-background/55">
+          Interview mode
+        </p>
+        <h2 className="mt-4 font-heading text-2xl leading-tight tracking-[-0.04em] md:text-[2rem]">
+          {modeTitle}
+        </h2>
+        <p className="mt-1 text-sm text-background/65">{modeSubtitle}</p>
+        <p className="mt-5 max-w-md text-sm leading-6 text-background/70">
+          {selected
+            ? "Answers, tailored CV facts, and Grill Me feedback now use this application as context."
+            : "Practice common questions first, then switch into a specific job when you want sharper targeting."}
+        </p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <span className="border border-background/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-background/75">
+            {selected ? "Job-specific" : "Reusable"}
+          </span>
+          <span className="border border-background/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-background/75">
+            Evidence first
+          </span>
+          {selected && (
+            <span className="border border-background/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-background/75">
+              {selected.hasResearch ? "Research ready" : "No research yet"}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4 p-5 md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Switch context
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              Search an application to rehearse against that exact role.
+            </p>
           </div>
-          <p className="mt-2 max-w-xl text-xs leading-relaxed text-muted-foreground">
-            Pick a role when you want answers and practice feedback to use that job, tailored CV, and saved company research.
-          </p>
+          {selected && (
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-3" />
+              General prep
+            </button>
+          )}
         </div>
 
         <div className="relative">
@@ -94,12 +122,26 @@ function ApplicationContextPicker({
             />
           </div>
           {selected && (
-            <Link
-              href={`/applications/${selected.id}`}
-              className="mt-2 inline-flex text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-            >
-              Open application
-            </Link>
+            <div className="mt-3 border border-border bg-secondary/25 p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">
+                    {selected.hasResearch ? "Company research available" : "Company research missing"}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {selected.hasResearch
+                      ? "Interview Prep can use saved company research as role context."
+                      : "You can still practise from the job description. Add research from the application page when needed."}
+                  </p>
+                </div>
+                <Link
+                  href={`/applications/${selected.id}`}
+                  className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
+                >
+                  Open app
+                </Link>
+              </div>
+            </div>
           )}
           {open && applications.length > 0 && (
             <div
@@ -151,37 +193,6 @@ function ApplicationContextPicker({
   )
 }
 
-function ApplicationResearchStatus({
-  application,
-}: {
-  application: InterviewWorkspaceData["applications"][number] | undefined
-}) {
-  if (!application) return null
-
-  return (
-    <div className="border border-border bg-secondary/20 px-4 py-3 text-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold">
-            {application.hasResearch ? "Company research available" : "No company research yet"}
-          </p>
-          <p className="mt-1 leading-relaxed text-muted-foreground">
-            {application.hasResearch
-              ? "Interview Prep will use saved company research as job context, not as personal evidence."
-              : "Interview Prep still works from the job description. Create research on the application page when you want company-specific coaching."}
-          </p>
-        </div>
-        <Link
-          href={`/applications/${application.id}`}
-          className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-        >
-          {application.hasResearch ? "View or refresh" : "Create research"}
-        </Link>
-      </div>
-    </div>
-  )
-}
-
 export function InterviewWorkspace({
   initial,
 }: {
@@ -208,7 +219,6 @@ export function InterviewWorkspace({
       null,
     [selectedKey, visibleQuestions],
   )
-  const selectedApplication = initial.applications.find((application) => application.id === applicationId)
 
   function changeApplicationContext(nextApplicationId: string) {
     setApplicationId(nextApplicationId)
@@ -248,7 +258,6 @@ export function InterviewWorkspace({
         value={applicationId}
         onChange={changeApplicationContext}
       />
-      <ApplicationResearchStatus application={selectedApplication} />
 
       <Tabs defaultValue="questions">
         <TabsList className="mb-4 gap-1 overflow-x-auto border-b-0 bg-secondary/25 p-1">
