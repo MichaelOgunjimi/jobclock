@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Search, X } from "lucide-react"
+import { CircleHelp, Search, X } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { QuestionLibrary } from "./question-library"
 import { AnswerComposer } from "./answer-composer"
@@ -63,18 +63,18 @@ function ApplicationContextPicker({
 
         <div className="relative">
           <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Search applications</p>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Search applications</p>
+            </div>
+            {selected && (
+              <Link
+                href={`/applications/${selected.id}`}
+                className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
+              >
+                Open application
+              </Link>
+            )}
           </div>
-          {selected && (
-            <Link
-              href={`/applications/${selected.id}`}
-              className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-            >
-              Open application
-            </Link>
-          )}
-        </div>
 
           <div className="relative mt-2">
             <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -247,12 +247,30 @@ export function InterviewWorkspace({
       />
 
       <Tabs defaultValue="questions">
-        <TabsList className="mb-4 gap-1 overflow-x-auto border-b-0 bg-secondary/25 p-1">
-          <TabsTrigger className="px-3.5 py-2 data-[active]:bg-background" value="questions">Questions</TabsTrigger>
-          <TabsTrigger className="px-3.5 py-2 data-[active]:bg-background" value="practice">Grill Me</TabsTrigger>
-          <TabsTrigger className="px-3.5 py-2 data-[active]:bg-background" value="stories">Story Bank</TabsTrigger>
-          <TabsTrigger className="px-3.5 py-2 data-[active]:bg-background" value="about">About Me</TabsTrigger>
-        </TabsList>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <TabsList className="gap-1 overflow-x-auto border-b-0 bg-secondary/25 p-1">
+            <TabsTrigger className="px-3.5 py-2 data-[active]:bg-background" value="questions">Questions</TabsTrigger>
+            <TabsTrigger className="px-3.5 py-2 data-[active]:bg-background" value="practice">Grill Me</TabsTrigger>
+            <TabsTrigger className="px-3.5 py-2 data-[active]:bg-background" value="stories">Story Bank</TabsTrigger>
+            <TabsTrigger className="px-3.5 py-2 data-[active]:bg-background" value="about">About Me</TabsTrigger>
+          </TabsList>
+
+          <details className="group relative">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 border border-border bg-card px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground">
+              <CircleHelp className="size-3.5" />
+              How to use this
+            </summary>
+            <div className="absolute right-0 z-30 mt-2 w-[min(360px,calc(100vw-2rem))] border border-border bg-background p-4 text-sm shadow-xl">
+              <p className="font-semibold text-foreground">Interview prep flow</p>
+              <ol className="mt-3 space-y-2 text-muted-foreground">
+                <li><span className="font-semibold text-foreground">1.</span> Stay in general mode for reusable answers, or search a job to tailor the page.</li>
+                <li><span className="font-semibold text-foreground">2.</span> Pick a question on the left, then generate or write a full answer on the right.</li>
+                <li><span className="font-semibold text-foreground">3.</span> Confirm facts or stories when the app asks for evidence, then save the answer.</li>
+                <li><span className="font-semibold text-foreground">4.</span> Use Grill Me to type a practice answer and get feedback against the saved version.</li>
+              </ol>
+            </div>
+          </details>
+        </div>
 
       <TabsContent value="questions">
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(300px,360px)_minmax(0,1fr)]">
