@@ -33,6 +33,7 @@ describe("loadInterviewWorkspace", () => {
 
   it("merges built-ins with persisted questions using canonical keys and stable tie ordering", async () => {
     db.execute
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         {
           id: "question-db-proud",
@@ -120,6 +121,7 @@ describe("loadInterviewWorkspace", () => {
     db.execute
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         {
           id: "fact-current",
@@ -185,6 +187,7 @@ describe("loadInterviewWorkspace", () => {
 
   it("reads story metadata, keeps imported sample stories unconfirmed, and orders ties deterministically", async () => {
     db.execute
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         {
@@ -352,6 +355,7 @@ describe("loadInterviewWorkspace", () => {
     }
 
     db.execute
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])

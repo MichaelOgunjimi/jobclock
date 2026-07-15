@@ -1337,7 +1337,7 @@ export function ApplicationDetail({
             Back to pipeline
           </Link>
           <Link
-            href={`/applications/${application.id}/interview`}
+            href={`/interview?applicationId=${application.id}`}
             className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center sm:w-auto")}
           >
             <BookOpen className="h-3.5 w-3.5" />

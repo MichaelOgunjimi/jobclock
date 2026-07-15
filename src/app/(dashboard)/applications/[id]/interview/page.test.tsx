@@ -1,76 +1,48 @@
-import { render, waitFor } from "@testing-library/react"
-import type { ComponentProps } from "react"
-import { describe, expect, it, beforeEach, vi } from "vitest"
-import InterviewPrepPage from "./page"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { createMockSupabaseClient } from "@/test/supabase-mock"
 
-const mockState = vi.hoisted(() => ({
-  activeJobsByKind: {} as Record<string, { id: string } | undefined>,
-}))
+vi.mock("@/lib/supabase/config", () => ({ isSupabaseConfigured: vi.fn() }))
+vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }))
 
-vi.mock("next/link", () => ({
-  default: ({ href, children, ...props }: ComponentProps<"a">) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
+const redirectMock = vi.hoisted(() => vi.fn((href: string) => {
+  throw new Error(`REDIRECT:${href}`)
 }))
 
 vi.mock("next/navigation", () => ({
-  useParams: () => ({ id: "app-123" }),
-  useRouter: () => ({ replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  redirect: redirectMock,
 }))
 
-vi.mock("@/contexts/generation-jobs-context", () => ({
-  useGenerationJobsContext: () => ({
-    jobs: [],
-    unseenJobs: [],
-    unseenCount: 0,
-    getActiveJob: (_applicationId: string, kind: string) => mockState.activeJobsByKind[kind],
-  }),
-}))
+import { isSupabaseConfigured } from "@/lib/supabase/config"
+import { createClient } from "@/lib/supabase/server"
+import InterviewPrepRedirectPage from "./page"
 
-describe("InterviewPrepPage job completion refresh", () => {
+describe("InterviewPrepRedirectPage", () => {
+  let supabaseMock: ReturnType<typeof createMockSupabaseClient>
+
   beforeEach(() => {
-    mockState.activeJobsByKind = {}
+    vi.clearAllMocks()
+    supabaseMock = createMockSupabaseClient()
+    vi.mocked(isSupabaseConfigured).mockReturnValue(true)
+    vi.mocked(createClient).mockResolvedValue(supabaseMock.client as never)
   })
 
-  it.each(["interview_prep", "company_research", "cover_letter", "interview_answer"] as const)(
-    "re-fetches saved content when %s finishes",
-    async (kind) => {
-      const fetchMock = vi.fn(async (input: string | URL | Request) => {
-        const url = typeof input === "string" ? input : input.toString()
+  it("redirects owned application interview links to the central interview workspace", async () => {
+    supabaseMock.setQueryResult("applications.select.single", {
+      data: { id: "app-123" },
+    })
 
-        if (url.includes("/api/applications/app-123/interview")) {
-          return {
-            json: async () => ({ content: null, questions: [], storyCount: null, answers: {} }),
-          } as Response
-        }
+    await expect(
+      InterviewPrepRedirectPage({ params: Promise.resolve({ id: "app-123" }) }),
+    ).rejects.toThrow("REDIRECT:/interview?applicationId=app-123")
+  })
 
-        if (url.includes("/api/applications/app-123/company-research")) {
-          return {
-            json: async () => ({ content: null }),
-          } as Response
-        }
+  it("redirects missing or foreign applications back to the pipeline", async () => {
+    supabaseMock.setQueryResult("applications.select.single", {
+      data: null,
+    })
 
-        throw new Error(`Unexpected fetch URL: ${url}`)
-      })
-
-      vi.stubGlobal("fetch", fetchMock)
-      mockState.activeJobsByKind = { [kind]: { id: "job-1" } }
-
-      const { rerender } = render(<InterviewPrepPage />)
-
-      await waitFor(() => {
-        expect(fetchMock).toHaveBeenCalledTimes(2)
-      })
-
-      mockState.activeJobsByKind = {}
-      rerender(<InterviewPrepPage />)
-
-      await waitFor(() => {
-        expect(fetchMock).toHaveBeenCalledTimes(4)
-      })
-    }
-  )
+    await expect(
+      InterviewPrepRedirectPage({ params: Promise.resolve({ id: "app-123" }) }),
+    ).rejects.toThrow("REDIRECT:/applications")
+  })
 })

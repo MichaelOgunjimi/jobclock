@@ -41,9 +41,10 @@ function jobHref(
     case "cover_letter":
       return status === "done" ? `${base}/cover-letter` : base
     case "interview_prep":
-    case "company_research":
     case "interview_answer":
-      return `${base}/interview`
+      return `/interview?applicationId=${applicationId}`
+    case "company_research":
+      return base
   }
 }
 

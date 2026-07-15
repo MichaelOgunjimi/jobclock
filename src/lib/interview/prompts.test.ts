@@ -48,12 +48,14 @@ describe("interview answer prompts", () => {
         title: "Software Engineer",
         company: "ACME",
         description: "Build reliable TypeScript services.",
+        researchContent: "ACME is investing in customer-facing AI tools.",
       },
     })
 
     expect(prompt).toContain("Software Engineer at ACME")
     expect(prompt).toContain("Build reliable TypeScript services.")
-    expect(prompt).toContain("Do not add facts, metrics, tools, or outcomes")
+    expect(prompt).toContain("ACME is investing in customer-facing AI tools.")
+    expect(prompt).toContain("Do not add facts, metrics, tools, or outcomes about the candidate")
     expect(prompt).toContain("[fact-1]")
   })
 

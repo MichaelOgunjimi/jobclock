@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, useTransition } from "react"
-import { Check, Loader2, Save, Search, Sparkles, X } from "lucide-react"
+import { Check, Loader2, Save, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { confirmProfileFacts, createQuestion, saveAnswer } from "./actions"
@@ -14,135 +14,6 @@ import type {
   InterviewQuestionView,
   ProfileFactDraft,
 } from "./data"
-
-type InterviewApplicationOption = {
-  id: string
-  title: string
-  company: string
-}
-
-function ApplicationVersionPicker({
-  applications,
-  value,
-  onChange,
-}: {
-  applications: InterviewApplicationOption[]
-  value: string
-  onChange: (value: string) => void
-}) {
-  const [query, setQuery] = useState("")
-  const [open, setOpen] = useState(false)
-  const selected = applications.find((application) => application.id === value)
-  const normalizedQuery = query.trim().toLowerCase()
-  const filtered = normalizedQuery
-    ? applications.filter((application) =>
-        `${application.title} ${application.company}`
-          .toLowerCase()
-          .includes(normalizedQuery),
-      )
-    : applications.slice(0, 8)
-
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={selected ? "outline" : "default"}>
-          {selected
-            ? `${selected.title} at ${selected.company}`
-            : "General answer"}
-        </Badge>
-        {selected && (
-          <button
-            type="button"
-            onClick={() => onChange("")}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <X className="size-3" />
-            Use general answer
-          </button>
-        )}
-      </div>
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <input
-          id="interview-application"
-          type="search"
-          value={query}
-          onFocus={() => setOpen(true)}
-          onChange={(event) => {
-            setQuery(event.target.value)
-            setOpen(true)
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              setOpen(false)
-              setQuery("")
-            }
-            if (event.key === "Enter" && filtered[0]) {
-              event.preventDefault()
-              onChange(filtered[0].id)
-              setQuery("")
-              setOpen(false)
-            }
-          }}
-          placeholder={
-            applications.length > 0
-              ? "Search jobs by title or company"
-              : "No saved applications yet"
-          }
-          disabled={applications.length === 0}
-          className="h-10 w-full border border-border bg-background px-9 text-sm outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-          role="combobox"
-          aria-expanded={open}
-          aria-controls="interview-application-results"
-        />
-      </div>
-      {open && applications.length > 0 && (
-        <div
-          id="interview-application-results"
-          className="max-h-64 overflow-y-auto border border-border bg-background shadow-sm"
-        >
-          <button
-            type="button"
-            onClick={() => {
-              onChange("")
-              setQuery("")
-              setOpen(false)
-            }}
-            className="block w-full border-b border-border px-3 py-2.5 text-left text-sm hover:bg-secondary"
-          >
-            General answer
-            <span className="mt-0.5 block text-xs text-muted-foreground">
-              Reusable across roles
-            </span>
-          </button>
-          {filtered.length > 0 ? (
-            filtered.map((application) => (
-              <button
-                key={application.id}
-                type="button"
-                onClick={() => {
-                  onChange(application.id)
-                  setQuery("")
-                  setOpen(false)
-                }}
-                className="block w-full border-b border-border px-3 py-2.5 text-left text-sm last:border-b-0 hover:bg-secondary"
-              >
-                {application.title}
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  {application.company}
-                </span>
-              </button>
-            ))
-          ) : (
-            <p className="px-3 py-3 text-sm text-muted-foreground">
-              No matching applications.
-            </p>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function TailoredCvFactSuggestions({
   applicationId,
@@ -252,6 +123,7 @@ export function AnswerComposer({
   question,
   answers,
   applications,
+  applicationId,
   facts,
   applicationCvFactDrafts,
   onQuestionPersisted,
@@ -259,11 +131,12 @@ export function AnswerComposer({
   question: InterviewQuestionView
   answers: InterviewAnswerView[]
   applications: Array<{ id: string; title: string; company: string }>
+  applicationId: string
   facts: InterviewProfileFactView[]
   applicationCvFactDrafts: ApplicationCvFactDraftGroup[]
   onQuestionPersisted: (key: string, id: string) => void
 }) {
-  const [applicationId, setApplicationId] = useState("")
+  const selectedApplication = applications.find((application) => application.id === applicationId)
   const saved = useMemo(
     () =>
       answers.find(
@@ -391,18 +264,12 @@ export function AnswerComposer({
       </div>
 
       <div className="space-y-5 p-5 md:p-6">
-        <div className="space-y-1.5">
-          <label
-            htmlFor="interview-application"
-            className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground"
-          >
-            Version
-          </label>
-          <ApplicationVersionPicker
-            applications={applications}
-            value={applicationId}
-            onChange={setApplicationId}
-          />
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={selectedApplication ? "outline" : "default"}>
+            {selectedApplication
+              ? `${selectedApplication.title} at ${selectedApplication.company}`
+              : "General answer"}
+          </Badge>
           <p className="text-xs text-muted-foreground">
             Job versions are saved separately from your reusable general answer.
           </p>

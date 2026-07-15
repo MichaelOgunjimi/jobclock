@@ -167,6 +167,7 @@ export async function POST(request: Request) {
           title: application.title ?? "Untitled role",
           company: application.company ?? "Unknown company",
           description: application.description ?? "",
+          researchContent: application.researchContent ?? null,
         }
       : null,
   })

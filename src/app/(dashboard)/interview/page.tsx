@@ -9,14 +9,19 @@ export const metadata: Metadata = {
   title: "Interview Prep",
 }
 
-export default async function InterviewPage() {
+export default async function InterviewPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ applicationId?: string }>
+}) {
   if (!isSupabaseConfigured()) redirect("/auth")
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth")
 
-  const workspace = await loadInterviewWorkspace(user.id)
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
+  const workspace = await loadInterviewWorkspace(user.id, resolvedSearchParams?.applicationId)
 
   return (
     <div className="page-shell max-w-6xl gap-6 py-5 md:gap-8 md:py-8 lg:min-h-0 lg:flex-1">

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("./actions", () => ({
   createQuestion: vi.fn(),
@@ -11,13 +11,36 @@ vi.mock("./actions", () => ({
   confirmDiscoveredStory: vi.fn(),
 }))
 
+const navigationMock = vi.hoisted(() => ({
+  replace: vi.fn(),
+  searchParams: new URLSearchParams(),
+}))
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    replace: navigationMock.replace,
+  }),
+  useSearchParams: () => navigationMock.searchParams,
+}))
+
 import { InterviewWorkspace } from "./interview-workspace"
 
 describe("InterviewWorkspace", () => {
+  beforeEach(() => {
+    navigationMock.replace.mockClear()
+    navigationMock.searchParams = new URLSearchParams()
+  })
+
+  const baseInitial = {
+    selectedApplicationId: null,
+    applicationContextError: null,
+  }
+
   it("presents questions, practice, stories, and personal evidence", () => {
     render(
       <InterviewWorkspace
         initial={{
+          ...baseInitial,
           questions: [
             {
               id: null,
@@ -44,16 +67,17 @@ describe("InterviewWorkspace", () => {
     )
 
     expect(screen.getByRole("tab", { name: "Questions" })).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: "Practice" })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: "Grill Me" })).toBeInTheDocument()
     expect(screen.getByRole("tab", { name: "Story Bank" })).toBeInTheDocument()
     expect(screen.getByRole("tab", { name: "About Me" })).toBeInTheDocument()
     expect(screen.getAllByText("Tell me about yourself.")).toHaveLength(2)
   })
 
-  it("lets the user search application versions by job or company", () => {
+  it("lets the user search the workspace application context by job or company", () => {
     render(
       <InterviewWorkspace
         initial={{
+          ...baseInitial,
           questions: [
             {
               id: "question-1",
@@ -77,11 +101,13 @@ describe("InterviewWorkspace", () => {
               id: "app-1",
               title: "Junior Software Engineer",
               company: "OneFamily",
+              hasResearch: false,
             },
             {
               id: "app-2",
               title: "Graduate Platform Engineer",
               company: "LiveFlow",
+              hasResearch: false,
             },
           ],
           applicationCvFactDrafts: [],
@@ -91,7 +117,7 @@ describe("InterviewWorkspace", () => {
     )
 
     const picker = screen.getByRole("combobox", {
-      name: "Version",
+      name: "Application context",
     })
     fireEvent.focus(picker)
     fireEvent.change(picker, { target: { value: "one" } })
@@ -105,14 +131,19 @@ describe("InterviewWorkspace", () => {
     fireEvent.click(screen.getByText("Junior Software Engineer"))
 
     expect(
-      screen.getByText("Junior Software Engineer at OneFamily"),
-    ).toBeInTheDocument()
+      screen.getAllByText("Junior Software Engineer at OneFamily").length,
+    ).toBeGreaterThan(0)
+    expect(navigationMock.replace).toHaveBeenCalledWith(
+      "/interview?applicationId=app-1",
+      { scroll: false },
+    )
   })
 
   it("shows tailored CV facts for the selected job so they can be confirmed", () => {
     render(
       <InterviewWorkspace
         initial={{
+          ...baseInitial,
           questions: [
             {
               id: "question-1",
@@ -136,6 +167,7 @@ describe("InterviewWorkspace", () => {
               id: "app-1",
               title: "Junior Software Engineer",
               company: "OneFamily",
+              hasResearch: true,
             },
           ],
           applicationCvFactDrafts: [
@@ -163,13 +195,14 @@ describe("InterviewWorkspace", () => {
     )
 
     const picker = screen.getByRole("combobox", {
-      name: "Version",
+      name: "Application context",
     })
     fireEvent.focus(picker)
     fireEvent.change(picker, { target: { value: "one" } })
     fireEvent.click(screen.getByText("Junior Software Engineer"))
 
     expect(screen.getByText("Suggested from this tailored CV")).toBeInTheDocument()
+    expect(screen.getByText("Company research available")).toBeInTheDocument()
     expect(screen.getAllByText("TypeScript").length).toBeGreaterThan(0)
     expect(
       screen.getByRole("button", { name: "Confirm selected facts" }),

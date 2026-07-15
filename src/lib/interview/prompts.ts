@@ -21,6 +21,7 @@ interface PromptApplication {
   title: string
   company: string
   description: string
+  researchContent?: string | null
 }
 
 export const INTERVIEW_ANSWER_SYSTEM_PROMPT = `Write a first-person interview answer that sounds natural when spoken.
@@ -66,7 +67,10 @@ Tags: ${story.tags.join(", ") || "None"}`,
 Tailor the emphasis to the ${application.title} at ${application.company}.
 ${application.description || "No job description is available."}
 
-Job context may change emphasis only. Do not add facts, metrics, tools, or outcomes that are not in the confirmed evidence.`
+## Company research
+${application.researchContent?.trim() || "No saved company research is available."}
+
+Job context and company research may change emphasis only. Do not add facts, metrics, tools, or outcomes about the candidate that are not in the confirmed evidence.`
     : `## Answer scope
 This is a reusable general answer. Do not mention or imply a specific employer or job.`
 

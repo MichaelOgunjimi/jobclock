@@ -80,9 +80,18 @@ export interface InterviewWorkspaceData {
   answers: InterviewAnswerView[]
   facts: InterviewProfileFactView[]
   stories: StoryEntry[]
-  applications: Array<{ id: string; title: string; company: string }>
+  applications: InterviewApplicationView[]
+  selectedApplicationId: string | null
+  applicationContextError: string | null
   cvFactDrafts: ProfileFactDraft[]
   applicationCvFactDrafts: ApplicationCvFactDraftGroup[]
+}
+
+export interface InterviewApplicationView {
+  id: string
+  title: string
+  company: string
+  hasResearch: boolean
 }
 
 export interface ApplicationCvFactDraftGroup {
@@ -147,6 +156,7 @@ interface PersistedApplicationRow {
   title: string | null
   company: string | null
   description: string | null
+  researchContent: string | null
   createdAt: unknown
 }
 
@@ -495,9 +505,11 @@ export async function loadInterviewApplicationById(userId: string, applicationId
       COALESCE(jobs_cache.title, 'Untitled role') AS title,
       COALESCE(jobs_cache.company, 'Unknown company') AS company,
       COALESCE(applications.custom_description, jobs_cache.description, '') AS description,
+      interview_prep.research_content AS "researchContent",
       applications.created_at AS "createdAt"
     FROM applications
     LEFT JOIN jobs_cache ON applications.job_id = jobs_cache.id
+    LEFT JOIN interview_prep ON interview_prep.application_id = applications.id
     WHERE applications.user_id = ${userId} AND applications.id = ${applicationId}
     LIMIT 1
   `)
@@ -604,6 +616,37 @@ export async function loadInterviewAnswers(userId: string): Promise<PersistedAns
   )
 }
 
+async function importLegacyApplicationQuestions(userId: string): Promise<void> {
+  await db.execute(sql`
+    INSERT INTO interview_questions (
+      user_id,
+      application_id,
+      text,
+      category,
+      source_type,
+      source_ref,
+      created_at,
+      updated_at
+    )
+    SELECT
+      applications.user_id,
+      applications.id,
+      LEFT(BTRIM(legacy_questions.question_text), 2000),
+      'custom',
+      'application_generated',
+      CONCAT(applications.id::text, ':legacy-prep:', legacy_questions.ordinal::text),
+      NOW(),
+      NOW()
+    FROM applications
+    INNER JOIN interview_prep ON interview_prep.application_id = applications.id
+    CROSS JOIN LATERAL UNNEST(COALESCE(interview_prep.questions, ARRAY[]::text[]))
+      WITH ORDINALITY AS legacy_questions(question_text, ordinal)
+    WHERE applications.user_id = ${userId}
+      AND BTRIM(legacy_questions.question_text) <> ''
+    ON CONFLICT DO NOTHING
+  `)
+}
+
 export async function loadInterviewAnswerById(userId: string, id: string): Promise<PersistedAnswerRow | null> {
   return queryOne<PersistedAnswerRow>(sql`
     SELECT
@@ -621,7 +664,12 @@ export async function loadInterviewAnswerById(userId: string, id: string): Promi
   `)
 }
 
-export async function loadInterviewWorkspace(userId: string): Promise<InterviewWorkspaceData> {
+export async function loadInterviewWorkspace(
+  userId: string,
+  requestedApplicationId?: string | null,
+): Promise<InterviewWorkspaceData> {
+  await importLegacyApplicationQuestions(userId)
+
   const [questionRows, answerRows, factRows, storyRows, applicationRows, cvResult, applicationCvFactDrafts] = await Promise.all([
     loadInterviewQuestionRows(userId),
     loadInterviewAnswers(userId),
@@ -633,9 +681,11 @@ export async function loadInterviewWorkspace(userId: string): Promise<InterviewW
         COALESCE(jobs_cache.title, 'Untitled role') AS title,
         COALESCE(jobs_cache.company, 'Unknown company') AS company,
         COALESCE(applications.custom_description, jobs_cache.description, '') AS description,
+        interview_prep.research_content AS "researchContent",
         applications.created_at AS "createdAt"
       FROM applications
       LEFT JOIN jobs_cache ON applications.job_id = jobs_cache.id
+      LEFT JOIN interview_prep ON interview_prep.application_id = applications.id
       WHERE applications.user_id = ${userId}
       ORDER BY applications.created_at DESC, applications.id DESC
     `),
@@ -677,12 +727,23 @@ export async function loadInterviewWorkspace(userId: string): Promise<InterviewW
       id: row.id,
       title: trim(row.title) || "Untitled role",
       company: trim(row.company) || "Unknown company",
+      hasResearch: Boolean(trim(row.researchContent)),
       createdAt: toIso(row.createdAt) ?? new Date(0).toISOString(),
     }))
     .map(({ createdAt, ...application }) => {
       void createdAt
       return application
     })
+  const normalizedRequestedApplicationId = trim(requestedApplicationId)
+  const selectedApplicationId = normalizedRequestedApplicationId
+    ? applications.some((application) => application.id === normalizedRequestedApplicationId)
+      ? normalizedRequestedApplicationId
+      : null
+    : null
+  const applicationContextError =
+    normalizedRequestedApplicationId && !selectedApplicationId
+      ? "That application could not be loaded, so Interview Prep opened in general mode."
+      : null
 
   return {
     questions,
@@ -690,6 +751,8 @@ export async function loadInterviewWorkspace(userId: string): Promise<InterviewW
     facts,
     stories,
     applications,
+    selectedApplicationId,
+    applicationContextError,
     cvFactDrafts,
     applicationCvFactDrafts,
   }
@@ -707,9 +770,11 @@ export async function loadInterviewApplicationMap(userId: string): Promise<Map<s
       COALESCE(jobs_cache.title, 'Untitled role') AS title,
       COALESCE(jobs_cache.company, 'Unknown company') AS company,
       COALESCE(applications.custom_description, jobs_cache.description, '') AS description,
+      interview_prep.research_content AS "researchContent",
       applications.created_at AS "createdAt"
     FROM applications
     LEFT JOIN jobs_cache ON applications.job_id = jobs_cache.id
+    LEFT JOIN interview_prep ON interview_prep.application_id = applications.id
     WHERE applications.user_id = ${userId}
   `)
   return new Map(rows.map((row) => [row.id, row] as const))
