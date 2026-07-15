@@ -243,16 +243,23 @@ export function AnswerComposer({
   }
 
   return (
-    <section className="min-w-0 border border-border bg-card">
-      <div className="border-b border-border p-5 md:p-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">{question.category}</Badge>
-          <Badge variant="ghost">
-            {question.requiresStory ? "Story required" : "Profile answer"}
+    <section className="min-w-0 overflow-hidden border border-border bg-card/95 shadow-[0_22px_80px_rgba(0,0,0,0.08)]">
+      <div className="border-b border-border bg-secondary/10 p-5 md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{question.category}</Badge>
+            <Badge variant="ghost">
+              {question.requiresStory ? "Story required" : "Profile answer"}
+            </Badge>
+            {saved?.evidenceStale && (
+              <Badge variant="destructive">Evidence changed</Badge>
+            )}
+          </div>
+          <Badge variant={selectedApplication ? "outline" : "default"}>
+            {selectedApplication
+              ? `${selectedApplication.title} at ${selectedApplication.company}`
+              : "General answer"}
           </Badge>
-          {saved?.evidenceStale && (
-            <Badge variant="destructive">Evidence changed</Badge>
-          )}
         </div>
         <h2 className="mt-4 font-heading text-[1.65rem] leading-tight tracking-[-0.03em]">
           {question.text}
@@ -264,16 +271,9 @@ export function AnswerComposer({
       </div>
 
       <div className="space-y-5 p-5 md:p-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={selectedApplication ? "outline" : "default"}>
-            {selectedApplication
-              ? `${selectedApplication.title} at ${selectedApplication.company}`
-              : "General answer"}
-          </Badge>
-          <p className="text-xs text-muted-foreground">
-            Job versions are saved separately from your reusable general answer.
-          </p>
-        </div>
+        <p className="border-l-2 border-border pl-3 text-xs leading-relaxed text-muted-foreground">
+          Job versions are saved separately from your reusable general answer.
+        </p>
 
         {applicationId && (
           <TailoredCvFactSuggestions
@@ -298,9 +298,9 @@ export function AnswerComposer({
             <textarea
               value={content}
               onChange={(event) => setContent(event.target.value)}
-              rows={14}
+              rows={13}
               placeholder="Your full answer will appear here. You can also write your own answer from scratch."
-              className="w-full resize-y border border-border bg-background/70 px-4 py-3 text-sm leading-7 outline-none focus:ring-1 focus:ring-ring"
+              className="w-full resize-y border border-border bg-background px-4 py-3.5 text-sm leading-7 outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/25 focus:ring-1 focus:ring-ring"
             />
             {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex flex-wrap gap-2">

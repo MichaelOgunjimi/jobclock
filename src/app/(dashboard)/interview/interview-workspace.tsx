@@ -36,12 +36,10 @@ function ApplicationContextPicker({
     : applications.slice(0, 8)
 
   return (
-    <div className="space-y-2 border border-border bg-card p-4 md:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="border border-border bg-card/80 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.10)] md:p-5">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(280px,1.1fr)] lg:items-center">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Application context
-          </p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Application context</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge variant={selected ? "outline" : "default"}>
               {selected ? `${selected.title} at ${selected.company}` : "General preparation"}
@@ -57,93 +55,98 @@ function ApplicationContextPicker({
               </button>
             )}
           </div>
+          <p className="mt-2 max-w-xl text-xs leading-relaxed text-muted-foreground">
+            Pick a role when you want answers and practice feedback to use that job, tailored CV, and saved company research.
+          </p>
         </div>
-        {selected && (
-          <Link
-            href={`/applications/${selected.id}`}
-            className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-          >
-            Open application
-          </Link>
-        )}
-      </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <input
-          id="interview-application-context"
-          type="search"
-          value={query}
-          onFocus={() => setOpen(true)}
-          onChange={(event) => {
-            setQuery(event.target.value)
-            setOpen(true)
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              setOpen(false)
-              setQuery("")
-            }
-            if (event.key === "Enter" && filtered[0]) {
-              event.preventDefault()
-              onChange(filtered[0].id)
-              setQuery("")
-              setOpen(false)
-            }
-          }}
-          placeholder={applications.length > 0 ? "Search saved applications" : "No saved applications yet"}
-          disabled={applications.length === 0}
-          className="h-10 w-full border border-border bg-background px-9 text-sm outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-          role="combobox"
-          aria-expanded={open}
-          aria-controls="interview-application-context-results"
-          aria-label="Application context"
-        />
-      </div>
-      {open && applications.length > 0 && (
-        <div
-          id="interview-application-context-results"
-          className="max-h-64 overflow-y-auto border border-border bg-background shadow-sm"
-        >
-          <button
-            type="button"
-            onClick={() => {
-              onChange("")
-              setQuery("")
-              setOpen(false)
-            }}
-            className="block w-full border-b border-border px-3 py-2.5 text-left text-sm hover:bg-secondary"
-          >
-            General preparation
-            <span className="mt-0.5 block text-xs text-muted-foreground">
-              Reusable questions and answers across roles
-            </span>
-          </button>
-          {filtered.length > 0 ? (
-            filtered.map((application) => (
+        <div className="relative">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              id="interview-application-context"
+              type="search"
+              value={query}
+              onFocus={() => setOpen(true)}
+              onChange={(event) => {
+                setQuery(event.target.value)
+                setOpen(true)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setOpen(false)
+                  setQuery("")
+                }
+                if (event.key === "Enter" && filtered[0]) {
+                  event.preventDefault()
+                  onChange(filtered[0].id)
+                  setQuery("")
+                  setOpen(false)
+                }
+              }}
+              placeholder={applications.length > 0 ? "Search saved applications" : "No saved applications yet"}
+              disabled={applications.length === 0}
+              className="h-11 w-full border border-border bg-background/85 px-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/25 focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              role="combobox"
+              aria-expanded={open}
+              aria-controls="interview-application-context-results"
+              aria-label="Application context"
+            />
+          </div>
+          {selected && (
+            <Link
+              href={`/applications/${selected.id}`}
+              className="mt-2 inline-flex text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
+            >
+              Open application
+            </Link>
+          )}
+          {open && applications.length > 0 && (
+            <div
+              id="interview-application-context-results"
+              className="absolute left-0 right-0 z-20 mt-2 max-h-72 overflow-y-auto border border-border bg-background shadow-xl"
+            >
               <button
-                key={application.id}
                 type="button"
                 onClick={() => {
-                  onChange(application.id)
+                  onChange("")
                   setQuery("")
                   setOpen(false)
                 }}
                 className="block w-full border-b border-border px-3 py-2.5 text-left text-sm last:border-b-0 hover:bg-secondary"
               >
-                {application.title}
+                General preparation
                 <span className="mt-0.5 block text-xs text-muted-foreground">
-                  {application.company}
+                  Reusable questions and answers across roles
                 </span>
               </button>
-            ))
-          ) : (
-            <p className="px-3 py-3 text-sm text-muted-foreground">
-              No matching applications.
-            </p>
+              {filtered.length > 0 ? (
+                filtered.map((application) => (
+                  <button
+                    key={application.id}
+                    type="button"
+                    onClick={() => {
+                      onChange(application.id)
+                      setQuery("")
+                      setOpen(false)
+                    }}
+                    className="block w-full border-b border-border px-3 py-2.5 text-left text-sm last:border-b-0 hover:bg-secondary"
+                  >
+                    {application.title}
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {application.company}
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <p className="px-3 py-3 text-sm text-muted-foreground">
+                  No matching applications.
+                </p>
+              )}
+            </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -156,10 +159,10 @@ function ApplicationResearchStatus({
   if (!application) return null
 
   return (
-    <div className="border border-border bg-secondary/25 p-4 text-sm md:p-5">
+    <div className="border border-border bg-secondary/20 px-4 py-3 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-semibold">
+          <p className="text-sm font-semibold">
             {application.hasResearch ? "Company research available" : "No company research yet"}
           </p>
           <p className="mt-1 leading-relaxed text-muted-foreground">
@@ -247,16 +250,16 @@ export function InterviewWorkspace({
       />
       <ApplicationResearchStatus application={selectedApplication} />
 
-    <Tabs defaultValue="questions">
-      <TabsList className="mb-5 overflow-x-auto">
-        <TabsTrigger value="questions">Questions</TabsTrigger>
-        <TabsTrigger value="practice">Grill Me</TabsTrigger>
-        <TabsTrigger value="stories">Story Bank</TabsTrigger>
-        <TabsTrigger value="about">About Me</TabsTrigger>
-      </TabsList>
+      <Tabs defaultValue="questions">
+        <TabsList className="mb-4 gap-1 overflow-x-auto border-b-0 bg-secondary/25 p-1">
+          <TabsTrigger className="px-3.5 py-2 data-[active]:bg-background" value="questions">Questions</TabsTrigger>
+          <TabsTrigger className="px-3.5 py-2 data-[active]:bg-background" value="practice">Grill Me</TabsTrigger>
+          <TabsTrigger className="px-3.5 py-2 data-[active]:bg-background" value="stories">Story Bank</TabsTrigger>
+          <TabsTrigger className="px-3.5 py-2 data-[active]:bg-background" value="about">About Me</TabsTrigger>
+        </TabsList>
 
       <TabsContent value="questions">
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(260px,0.72fr)_minmax(0,1.28fr)]">
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
           <QuestionLibrary
             questions={visibleQuestions}
             selectedKey={selected?.key ?? null}
@@ -300,7 +303,7 @@ export function InterviewWorkspace({
           cvFactDrafts={initial.cvFactDrafts}
         />
       </TabsContent>
-    </Tabs>
+      </Tabs>
     </div>
   )
 }

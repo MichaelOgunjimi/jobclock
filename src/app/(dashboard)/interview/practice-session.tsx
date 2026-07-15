@@ -79,8 +79,8 @@ export function PracticeSession({
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-      <section className="border border-border bg-card p-5 md:p-7">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(300px,0.92fr)]">
+      <section className="border border-border bg-card/95 p-5 shadow-[0_18px_70px_rgba(0,0,0,0.07)] md:p-7">
         <p className="page-kicker">
           {selectedApplication
             ? `Grill Me: ${selectedApplication.company}`
@@ -94,7 +94,7 @@ export function PracticeSession({
           onChange={(event) => setResponse(event.target.value)}
           rows={12}
           placeholder="Type the answer you would give aloud. Aim for clear, natural language rather than memorising every word."
-          className="mt-6 w-full resize-y border border-border bg-background px-4 py-3 text-sm leading-7 outline-none focus:ring-1 focus:ring-ring"
+          className="mt-6 w-full resize-y border border-border bg-background px-4 py-3.5 text-sm leading-7 outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/25 focus:ring-1 focus:ring-ring"
         />
         <p className="mt-2 text-xs text-muted-foreground">{wordCount} words</p>
         {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
@@ -137,7 +137,7 @@ export function PracticeSession({
         </div>
       </section>
 
-      <aside className="border border-border bg-secondary/25 p-5 md:p-7">
+      <aside className="border border-border bg-secondary/20 p-5 md:p-7">
         <p className="page-kicker">Coach&apos;s check</p>
         {feedback ? (
           <div className="mt-4 border border-border bg-card p-4">

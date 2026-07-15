@@ -82,12 +82,12 @@ export function QuestionLibrary({
   }
 
   return (
-    <aside className="border border-border bg-card">
-      <div className="border-b border-border p-4">
+    <aside className="overflow-hidden border border-border bg-card/90">
+      <div className="border-b border-border bg-secondary/15 p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold">Question library</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <p className="text-sm font-semibold tracking-[-0.01em]">Question library</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
               {questions.length} questions ready to practise
             </p>
           </div>
@@ -153,22 +153,22 @@ export function QuestionLibrary({
         </div>
       )}
 
-      <div className="max-h-[620px] overflow-y-auto">
+      <div className="max-h-[640px] overflow-y-auto p-2">
         {filtered.map((question, index) => (
           <button
             type="button"
             key={`${question.key}-${index}`}
             onClick={() => onSelect(question)}
-            className={`w-full border-b border-border px-4 py-3.5 text-left transition-colors last:border-b-0 ${
+            className={`mb-1 w-full border px-3.5 py-3 text-left transition-colors last:mb-0 ${
               selectedKey === question.key
-                ? "bg-foreground text-background"
-                : "hover:bg-secondary/55"
+                ? "border-foreground/25 bg-secondary text-foreground shadow-sm"
+                : "border-transparent hover:border-border hover:bg-secondary/45"
             }`}
           >
             <span
               className={`text-[10px] font-semibold uppercase tracking-[0.12em] ${
                 selectedKey === question.key
-                  ? "text-background/60"
+                  ? "text-foreground/55"
                   : "text-muted-foreground"
               }`}
             >
