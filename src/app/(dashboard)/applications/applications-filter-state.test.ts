@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest"
 import {
-  APPLICATIONS_FILTER_STATE_COOKIE,
+  APPLICATIONS_FILTER_STATE_STORAGE_KEY,
   buildApplicationsFilterHref,
   getPersistedApplicationsFilterHref,
   hasApplicationsListParams,
+  hasApplicationsUrlSearchParams,
   serializeApplicationsFilterState,
 } from "./applications-filter-state"
 
 describe("applications filter state", () => {
-  it("exposes a stable cookie name for persisted list filters", () => {
-    expect(APPLICATIONS_FILTER_STATE_COOKIE).toBe("applications-filter-state")
+  it("exposes a stable session storage key for persisted list filters", () => {
+    expect(APPLICATIONS_FILTER_STATE_STORAGE_KEY).toBe("applications-filter-state")
   })
 
   it("serializes only non-default filter values", () => {
@@ -52,5 +53,8 @@ describe("applications filter state", () => {
     expect(hasApplicationsListParams({ page: "2" })).toBe(true)
     expect(hasApplicationsListParams({ status: "saved" })).toBe(true)
     expect(hasApplicationsListParams({ q: "designer" })).toBe(true)
+
+    expect(hasApplicationsUrlSearchParams(new URLSearchParams())).toBe(false)
+    expect(hasApplicationsUrlSearchParams(new URLSearchParams("q=designer"))).toBe(true)
   })
 })

@@ -51,6 +51,7 @@ landing-*.yaml
 *.tsbuildinfo
 next-env.d.ts
 .progress/
+.superpowers/
 
 # drizzle introspection output — reference only; not source of truth
 drizzle/migrations/schema.ts

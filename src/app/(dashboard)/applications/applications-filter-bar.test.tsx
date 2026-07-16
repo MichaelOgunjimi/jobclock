@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { APPLICATIONS_FILTER_STATE_COOKIE } from "./applications-filter-state"
+import { APPLICATIONS_FILTER_STATE_STORAGE_KEY } from "./applications-filter-state"
 import { ApplicationsFilterBar } from "./applications-filter-bar"
 
 const navigationMock = vi.hoisted(() => ({
@@ -23,7 +23,7 @@ describe("ApplicationsFilterBar", () => {
     navigationMock.push.mockClear()
     navigationMock.replace.mockClear()
     navigationMock.searchParams = new URLSearchParams()
-    document.cookie = `${APPLICATIONS_FILTER_STATE_COOKIE}=; Max-Age=0; Path=/`
+    window.sessionStorage.clear()
   })
 
   afterEach(() => {
@@ -58,5 +58,49 @@ describe("ApplicationsFilterBar", () => {
       "/applications?q=soft+wire",
       { scroll: false }
     )
+    expect(window.sessionStorage.getItem(APPLICATIONS_FILTER_STATE_STORAGE_KEY)).toBe("q=soft+wire")
+  })
+
+  it("restores the saved session filter when the applications URL has no filters", () => {
+    window.sessionStorage.setItem(
+      APPLICATIONS_FILTER_STATE_STORAGE_KEY,
+      "status=interview&q=react"
+    )
+
+    render(
+      <ApplicationsFilterBar
+        counts={{}}
+        total={0}
+        activeStatus="all"
+        activeSort="saved_desc"
+        activeSearch=""
+      />
+    )
+
+    expect(navigationMock.replace).toHaveBeenCalledWith(
+      "/applications?status=interview&q=react",
+      { scroll: false }
+    )
+  })
+
+  it("does not restore the saved session filter over an explicit applications URL filter", () => {
+    navigationMock.searchParams = new URLSearchParams("q=manual")
+    window.sessionStorage.setItem(
+      APPLICATIONS_FILTER_STATE_STORAGE_KEY,
+      "status=interview&q=react"
+    )
+
+    render(
+      <ApplicationsFilterBar
+        counts={{}}
+        total={0}
+        activeStatus="all"
+        activeSort="saved_desc"
+        activeSearch="manual"
+      />
+    )
+
+    expect(navigationMock.replace).not.toHaveBeenCalled()
+    expect(window.sessionStorage.getItem(APPLICATIONS_FILTER_STATE_STORAGE_KEY)).toBe("q=manual")
   })
 })

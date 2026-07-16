@@ -1,6 +1,6 @@
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
 
-export const APPLICATIONS_FILTER_STATE_COOKIE = "applications-filter-state"
+export const APPLICATIONS_FILTER_STATE_STORAGE_KEY = "applications-filter-state"
 
 const DEFAULT_SORT = "saved_desc"
 const APPLICATION_LIST_PARAMS = new Set(["page", "status", "sort", "q"])
@@ -35,6 +35,14 @@ export function hasApplicationsListParams(
   })
 }
 
+export function hasApplicationsUrlSearchParams(searchParams: Pick<URLSearchParams, "get">) {
+  for (const key of APPLICATION_LIST_PARAMS) {
+    if (searchParams.get(key) !== null) return true
+  }
+
+  return false
+}
+
 export function serializeApplicationsFilterState(state: ApplicationsFilterState) {
   const params = new URLSearchParams()
   const status = state.status ?? "all"
@@ -59,12 +67,12 @@ export function buildApplicationsFilterHref(serializedFilterState: string | null
   return serializedFilterState ? `/applications?${serializedFilterState}` : "/applications"
 }
 
-export function getPersistedApplicationsFilterHref(cookieValue: string | undefined) {
-  if (!cookieValue) return null
+export function getPersistedApplicationsFilterHref(storageValue: string | undefined) {
+  if (!storageValue) return null
 
   let params: URLSearchParams
   try {
-    params = new URLSearchParams(decodeURIComponent(cookieValue))
+    params = new URLSearchParams(decodeURIComponent(storageValue))
   } catch {
     return null
   }

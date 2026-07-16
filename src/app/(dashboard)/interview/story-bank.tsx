@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { TagInput } from "@/components/ui/tag-input"
 import { toast } from "sonner"
 import { BookOpen, ChevronDown, ChevronUp, Download, Plus, Sparkles, Trash2 } from "lucide-react"
-import { createStory, updateStory, deleteStory, importSampleStories, type StoryEntry } from "./actions"
+import { confirmStory, createStory, updateStory, deleteStory, importSampleStories, type StoryEntry } from "./actions"
 
 function Textarea({
   id,
@@ -44,6 +44,7 @@ function StoryCard({ story, onDeleted }: { story: StoryEntry; onDeleted: (id: st
   const [action, setAction] = useState(story.action ?? "")
   const [result, setResult] = useState(story.result ?? "")
   const [tags, setTags] = useState<string[]>(story.tags)
+  const [confirmedAt, setConfirmedAt] = useState(story.confirmedAt ?? null)
   const [isPending, startTransition] = useTransition()
 
   function handleSave() {
@@ -67,6 +68,18 @@ function StoryCard({ story, onDeleted }: { story: StoryEntry; onDeleted: (id: st
       } else {
         onDeleted(story.id)
         toast.success("Story deleted")
+      }
+    })
+  }
+
+  function handleConfirm() {
+    startTransition(async () => {
+      const res = await confirmStory(story.id)
+      if (res.error) {
+        toast.error(res.error)
+      } else {
+        setConfirmedAt(new Date().toISOString())
+        toast.success("Story confirmed as your experience")
       }
     })
   }
@@ -102,6 +115,11 @@ function StoryCard({ story, onDeleted }: { story: StoryEntry; onDeleted: (id: st
           {expanded ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />}
         </button>
         <div className="flex items-center gap-2">
+          {!confirmedAt && (
+            <Button size="sm" onClick={handleConfirm} disabled={isPending}>
+              Confirm mine
+            </Button>
+          )}
           <Button size="sm" variant="outline" onClick={() => { setEditing((v) => !v); setExpanded(true) }}>
             {editing ? "Cancel" : "Edit"}
           </Button>
@@ -353,7 +371,7 @@ export function StoryBank({ initial }: { initial: StoryEntry[] }) {
         importControl={
           <Button variant="outline" size="sm" onClick={handleImport} disabled={importing}>
           <Download className="mr-1.5 h-4 w-4" />
-          {importing ? "Loading…" : "Load examples"}
+          {importing ? "Loading…" : "Load starter templates"}
         </Button>
         }
         onAdded={handleAdded}
@@ -364,7 +382,8 @@ export function StoryBank({ initial }: { initial: StoryEntry[] }) {
           <BookOpen className="h-8 w-8 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">No stories yet</p>
           <p className="text-xs text-muted-foreground/70 max-w-xs">
-            Add your own STAR stories, or click <strong className="text-muted-foreground">Load examples</strong> above to import 8 ready-made templates you can edit.
+            Add your own STAR stories, or load starter templates. Templates are
+            not used as evidence until you edit and confirm that they are true.
           </p>
         </div>
       ) : (
