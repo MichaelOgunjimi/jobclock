@@ -12,6 +12,10 @@ import {
 } from "./actions"
 import type { InterviewWorkspaceData } from "./data"
 
+function formatCategory(value: string) {
+  return value.replace(/_/g, " ")
+}
+
 function FactRow({
   fact,
   onChanged,
@@ -53,14 +57,21 @@ function FactRow({
   }
 
   return (
-    <div className="border-b border-border p-5 last:border-b-0">
-      <div className="flex gap-4">
-        <div className="min-w-0 flex-1">
+    <article className="group border-b border-border bg-background/35 p-5 transition-colors last:border-b-0 hover:bg-background/60 md:p-6">
+      <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_72px] lg:items-start">
+        <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            {fact.category.replace("_", " ")}
+            {formatCategory(fact.category)}
           </p>
+          {fact.isCurrentSource && (
+            <span className="mt-2 inline-flex border border-border bg-card px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-foreground">
+              Current CV
+            </span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
           {editing ? (
-            <div className="mt-3 space-y-3">
+            <div className="space-y-3">
               <Input
                 value={label}
                 onChange={(event) => setLabel(event.target.value)}
@@ -91,19 +102,21 @@ function FactRow({
             </div>
           ) : (
             <>
-              <p className="mt-1 font-medium">{fact.label}</p>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              <p className="text-base font-semibold leading-snug">
+                {fact.label}
+              </p>
+              <p className="mt-2 max-w-4xl text-sm leading-relaxed text-muted-foreground">
                 {fact.detail}
               </p>
             </>
           )}
         </div>
         {!editing && (
-          <div className="flex shrink-0 gap-3">
+          <div className="flex gap-3 lg:justify-end">
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="self-start text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground"
               aria-label={`Edit ${fact.label}`}
             >
               <Pencil className="size-4" />
@@ -112,7 +125,7 @@ function FactRow({
               type="button"
               onClick={remove}
               disabled={pending}
-              className="self-start text-muted-foreground hover:text-destructive"
+              className="text-muted-foreground hover:text-destructive"
               aria-label={`Delete ${fact.label}`}
             >
               <Trash2 className="size-4" />
@@ -120,7 +133,7 @@ function FactRow({
           </div>
         )}
       </div>
-    </div>
+    </article>
   )
 }
 
@@ -133,6 +146,13 @@ export function AboutMeEditor({
   const [detail, setDetail] = useState("")
   const [error, setError] = useState("")
   const [pending, startTransition] = useTransition()
+  const categoryCounts = facts.reduce<Record<string, number>>((counts, fact) => {
+    counts[fact.category] = (counts[fact.category] ?? 0) + 1
+    return counts
+  }, {})
+  const topCategories = Object.entries(categoryCounts)
+    .sort(([, leftCount], [, rightCount]) => rightCount - leftCount)
+    .slice(0, 5)
 
   function addFact() {
     startTransition(async () => {
@@ -160,95 +180,206 @@ export function AboutMeEditor({
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-      <section className="border border-border bg-card p-5">
-        <p className="page-kicker">Teach the assistant</p>
-        <h2 className="mt-3 font-heading text-2xl">Add something about you.</h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Add it once here. Confirmed facts can be reused across many interview
-          questions instead of asking you the same thing every time.
-        </p>
-        <div className="mt-5 space-y-3">
-          <select
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
-            className="h-10 w-full border border-border bg-background px-3 text-sm"
-          >
-            {[
-              "summary",
-              "education",
-              "experience",
-              "project",
-              "skill",
-              "achievement",
-              "strengths",
-              "goals",
-              "personal_context",
-            ].map((value) => (
-              <option key={value} value={value}>
-                {value.replace("_", " ")}
-              </option>
-            ))}
-          </select>
-          <Input
-            value={label}
-            onChange={(event) => setLabel(event.target.value)}
-            placeholder="Short title, e.g. MSc Artificial Intelligence"
-          />
-          <textarea
-            value={detail}
-            onChange={(event) => setDetail(event.target.value)}
-            rows={6}
-            placeholder="The accurate details you want the assistant to remember."
-            className="w-full resize-y border border-border bg-background px-3 py-3 text-sm leading-relaxed outline-none focus:ring-1 focus:ring-ring"
-          />
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button
-            onClick={addFact}
-            disabled={pending || !label.trim() || !detail.trim()}
-          >
-            <Plus className="mr-1.5 size-4" />
-            Add confirmed fact
-          </Button>
+    <div className="space-y-6">
+      <section className="relative overflow-hidden border border-border bg-card">
+        <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/3 border-l border-border/60 bg-[linear-gradient(135deg,transparent,rgba(255,255,255,0.04))] lg:block" />
+        <div className="relative grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_420px] xl:p-7">
+          <div className="max-w-4xl">
+            <p className="page-kicker">Teach the assistant</p>
+            <h2 className="mt-3 max-w-3xl font-heading text-[2.2rem] leading-[0.95] tracking-[-0.055em] md:text-[3rem] xl:text-[3.35rem]">
+              Build the profile the answers should sound like.
+            </h2>
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
+              This is your interview memory. Confirm true facts, pull useful
+              points from tailored CVs, then let answer generation reuse only the
+              evidence you trust.
+            </p>
+            {topCategories.length > 0 && (
+              <div className="mt-6 flex flex-wrap gap-2">
+                {topCategories.map(([name, count]) => (
+                  <span
+                    key={name}
+                    className="border border-border bg-background/60 px-3 py-1.5 text-xs font-medium capitalize text-muted-foreground"
+                  >
+                    {formatCategory(name)} · {count}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-3 border border-border bg-background/70 lg:grid-cols-1">
+            <div className="border-r border-border p-4 lg:border-b lg:border-r-0 xl:p-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Confirmed facts
+              </p>
+              <p className="mt-2 font-heading text-4xl leading-none tracking-[-0.06em]">
+                {facts.length}
+              </p>
+            </div>
+            <div className="border-r border-border p-4 lg:border-b lg:border-r-0 xl:p-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Waiting from CV
+              </p>
+              <p className="mt-2 font-heading text-4xl leading-none tracking-[-0.06em]">
+                {cvFactDrafts.length}
+              </p>
+            </div>
+            <div className="p-4 xl:p-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Flow
+              </p>
+              <p className="mt-2 max-w-40 text-sm font-semibold leading-tight">
+                Confirm, tailor, practise
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section className="border border-border bg-card">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-5">
-          <div>
-            <p className="text-sm font-semibold">What the assistant knows</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {facts.length} confirmed facts
+      <div className="space-y-6">
+        <section className="overflow-hidden border border-border bg-card">
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border p-5 md:p-6">
+            <div>
+              <p className="page-kicker">Confirmed memory</p>
+              <h3 className="mt-2 font-heading text-2xl leading-none tracking-[-0.04em] md:text-3xl">
+                What the assistant knows
+              </h3>
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                Edit this until it sounds like your real background. These facts
+                are the reusable source material for interview answers.
+              </p>
+            </div>
+            <p className="border border-border bg-background px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              {facts.length} saved
             </p>
           </div>
-          {cvFactDrafts.length > 0 && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={importCvFacts}
-              disabled={pending}
-            >
-              <Upload className="mr-1.5 size-3.5" />
-              Add from current CV
-            </Button>
+          {facts.length === 0 ? (
+            <div className="p-10 text-center">
+              <p className="font-heading text-2xl">No profile facts yet.</p>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+                Add one manually or import from the current CV queue, then use it
+                to generate stronger interview answers.
+              </p>
+            </div>
+          ) : (
+            <div>
+              {facts.map((fact) => (
+                <FactRow
+                  key={fact.id}
+                  fact={fact}
+                  onChanged={() => window.location.reload()}
+                />
+              ))}
+            </div>
           )}
-        </div>
-        {facts.length === 0 ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">
-            Nothing confirmed yet. Add a fact or import details from your CV.
-          </p>
-        ) : (
-          <div>
-            {facts.map((fact) => (
-              <FactRow
-                key={fact.id}
-                fact={fact}
-                onChanged={() => window.location.reload()}
+        </section>
+
+        <section className="border border-border bg-card">
+          <div className="grid gap-6 p-5 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)] xl:p-6">
+            <div>
+              <p className="page-kicker">Add new evidence</p>
+              <h3 className="mt-3 font-heading text-2xl leading-none tracking-[-0.04em] md:text-3xl">
+                Teach it one true thing.
+              </h3>
+              <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                Use this for anything the assistant should remember exactly:
+                education, projects, strengths, achievements, responsibilities,
+                or useful context.
+              </p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+              <select
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                className="h-11 w-full border border-border bg-background px-3 text-sm capitalize"
+              >
+                {[
+                  "summary",
+                  "education",
+                  "experience",
+                  "project",
+                  "skill",
+                  "achievement",
+                  "strengths",
+                  "goals",
+                  "personal_context",
+                ].map((value) => (
+                  <option key={value} value={value}>
+                    {formatCategory(value)}
+                  </option>
+                ))}
+              </select>
+              <Input
+                value={label}
+                onChange={(event) => setLabel(event.target.value)}
+                placeholder="Short title, e.g. MSc Artificial Intelligence"
               />
-            ))}
+              <textarea
+                value={detail}
+                onChange={(event) => setDetail(event.target.value)}
+                rows={5}
+                placeholder="Write the accurate detail you want interview answers to remember."
+                className="w-full resize-y border border-border bg-background px-3 py-3 text-sm leading-relaxed outline-none focus:ring-1 focus:ring-ring md:col-span-2"
+              />
+              <div className="md:col-span-2">
+                {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
+                <Button
+                  onClick={addFact}
+                  disabled={pending || !label.trim() || !detail.trim()}
+                  className="h-11 justify-center"
+                >
+                  <Plus className="mr-1.5 size-4" />
+                  Add confirmed fact
+                </Button>
+              </div>
+            </div>
           </div>
+        </section>
+
+        {cvFactDrafts.length > 0 && (
+          <section className="overflow-hidden border border-border bg-card">
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border bg-background/30 p-5">
+              <div>
+                <p className="page-kicker">Review queue</p>
+                <h3 className="mt-2 font-heading text-2xl leading-none tracking-[-0.04em]">
+                  Suggested from this tailored CV
+                </h3>
+                <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                  These are role-specific facts pulled from the selected
+                  application CV. Add them only if they are accurate and useful
+                  for interviews.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={importCvFacts}
+                disabled={pending}
+              >
+                <Upload className="mr-1.5 size-3.5" />
+                Add from current CV
+              </Button>
+            </div>
+            <div className="grid gap-px bg-border md:grid-cols-2 2xl:grid-cols-3">
+              {cvFactDrafts.map((draft) => (
+                <div
+                  key={draft.sourceRef}
+                  className="bg-card p-5 transition-colors hover:bg-background/55"
+                >
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {formatCategory(draft.category)}
+                  </p>
+                  <p className="mt-3 text-sm font-semibold leading-snug">
+                    {draft.label}
+                  </p>
+                  <p className="mt-2 line-clamp-5 text-xs leading-relaxed text-muted-foreground">
+                    {draft.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
-      </section>
+      </div>
     </div>
   )
 }
