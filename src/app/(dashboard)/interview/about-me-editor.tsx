@@ -10,10 +10,71 @@ import {
   deleteProfileFact,
   updateProfileFact,
 } from "./actions"
-import type { InterviewWorkspaceData } from "./data"
+import type {
+  InterviewWorkspaceData,
+  ProfileFactDraft,
+} from "./data"
 
 function formatCategory(value: string) {
   return value.replace(/_/g, " ")
+}
+
+const categoryLabels: Record<string, string> = {
+  activity: "Activities",
+  achievement: "Achievements",
+  certification: "Certifications",
+  education: "Education",
+  experience: "Experience",
+  goals: "Goals",
+  language: "Languages",
+  personal_context: "Personal context",
+  project: "Projects",
+  skill: "Skills",
+  strengths: "Strengths",
+  summary: "Summary",
+}
+
+const categoryOrder = [
+  "summary",
+  "skill",
+  "experience",
+  "project",
+  "education",
+  "achievement",
+  "certification",
+  "activity",
+  "language",
+  "goals",
+  "personal_context",
+]
+
+function categoryLabel(value: string) {
+  return categoryLabels[value] ?? formatCategory(value)
+}
+
+function formatCvDate(value: string | null) {
+  if (!value) return "Primary CV"
+  return new Date(value).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })
+}
+
+function groupFactDrafts(drafts: ProfileFactDraft[]) {
+  const grouped = drafts.reduce<Record<string, ProfileFactDraft[]>>((groups, draft) => {
+    groups[draft.category] = [...(groups[draft.category] ?? []), draft]
+    return groups
+  }, {})
+
+  return Object.entries(grouped).sort(([left], [right]) => {
+    const leftIndex = categoryOrder.indexOf(left)
+    const rightIndex = categoryOrder.indexOf(right)
+    if (leftIndex === -1 && rightIndex === -1) return left.localeCompare(right)
+    if (leftIndex === -1) return 1
+    if (rightIndex === -1) return -1
+    return leftIndex - rightIndex
+  })
 }
 
 function FactRow({
@@ -140,7 +201,12 @@ function FactRow({
 export function AboutMeEditor({
   facts,
   cvFactDrafts,
-}: Pick<InterviewWorkspaceData, "facts" | "cvFactDrafts">) {
+  applicationCvFactDrafts,
+  applicationId,
+  applications,
+}: Pick<InterviewWorkspaceData, "facts" | "cvFactDrafts" | "applicationCvFactDrafts" | "applications"> & {
+  applicationId: string
+}) {
   const [category, setCategory] = useState("experience")
   const [label, setLabel] = useState("")
   const [detail, setDetail] = useState("")
@@ -153,6 +219,41 @@ export function AboutMeEditor({
   const topCategories = Object.entries(categoryCounts)
     .sort(([, leftCount], [, rightCount]) => rightCount - leftCount)
     .slice(0, 5)
+  const selectedApplication = applications.find((application) => application.id === applicationId)
+  const tailoredCvGroup =
+    applicationId
+      ? applicationCvFactDrafts.find((group) => group.applicationId === applicationId)
+      : null
+  const confirmedSourceRefs = new Set(
+    facts.map((fact) => fact.sourceRef).filter(Boolean),
+  )
+  const suggestionSource: {
+    title: string
+    subtitle: string
+    generatedAt: string | null
+    customizedCvId: string | null
+    drafts: ProfileFactDraft[]
+  } = tailoredCvGroup
+    ? {
+        title: selectedApplication
+          ? `${selectedApplication.title} at ${selectedApplication.company}`
+          : "Selected tailored CV",
+        subtitle: "Tailored CV suggestions grouped by section.",
+        generatedAt: tailoredCvGroup.generatedAt,
+        customizedCvId: tailoredCvGroup.customizedCvId,
+        drafts: tailoredCvGroup.facts,
+      }
+    : {
+        title: "Primary CV",
+        subtitle: "General CV suggestions grouped by section.",
+        generatedAt: null,
+        customizedCvId: null,
+        drafts: cvFactDrafts,
+      }
+  const pendingCvDrafts = suggestionSource.drafts.filter(
+    (draft) => !confirmedSourceRefs.has(draft.sourceRef),
+  )
+  const groupedCvDrafts = groupFactDrafts(pendingCvDrafts)
 
   function addFact() {
     startTransition(async () => {
@@ -169,7 +270,7 @@ export function AboutMeEditor({
   function importCvFacts() {
     startTransition(async () => {
       const result = await confirmProfileFacts(
-        cvFactDrafts.map((draft) => ({ sourceRef: draft.sourceRef })),
+        pendingCvDrafts.map((draft) => ({ sourceRef: draft.sourceRef })),
       )
       if ("error" in result) {
         setError(result.error)
@@ -221,7 +322,7 @@ export function AboutMeEditor({
                 Waiting from CV
               </p>
               <p className="mt-2 font-heading text-4xl leading-none tracking-[-0.06em]">
-                {cvFactDrafts.length}
+                {pendingCvDrafts.length}
               </p>
             </div>
             <div className="p-4 xl:p-5">
@@ -336,19 +437,33 @@ export function AboutMeEditor({
           </div>
         </section>
 
-        {cvFactDrafts.length > 0 && (
+        {pendingCvDrafts.length > 0 && (
           <section className="overflow-hidden border border-border bg-card">
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border bg-background/30 p-5">
               <div>
                 <p className="page-kicker">Review queue</p>
                 <h3 className="mt-2 font-heading text-2xl leading-none tracking-[-0.04em]">
-                  Suggested from this tailored CV
+                  {tailoredCvGroup
+                    ? "Suggested from this tailored CV"
+                    : "Suggested from your CV"}
                 </h3>
                 <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-                  These are role-specific facts pulled from the selected
-                  application CV. Add them only if they are accurate and useful
-                  for interviews.
+                  {suggestionSource.subtitle} Add only what is accurate and
+                  useful for interviews.
                 </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="border border-border bg-background px-2.5 py-1 font-semibold text-foreground">
+                    {suggestionSource.title}
+                  </span>
+                  <span className="border border-border bg-background px-2.5 py-1">
+                    CV date: {formatCvDate(suggestionSource.generatedAt)}
+                  </span>
+                  {suggestionSource.customizedCvId && (
+                    <span className="border border-border bg-background px-2.5 py-1">
+                      Tailored CV
+                    </span>
+                  )}
+                </div>
               </div>
               <Button
                 variant="outline"
@@ -359,22 +474,45 @@ export function AboutMeEditor({
                 Add from current CV
               </Button>
             </div>
-            <div className="grid gap-px bg-border md:grid-cols-2 2xl:grid-cols-3">
-              {cvFactDrafts.map((draft) => (
-                <div
-                  key={draft.sourceRef}
-                  className="bg-card p-5 transition-colors hover:bg-background/55"
+            <div className="divide-y divide-border">
+              {groupedCvDrafts.map(([groupName, drafts], index) => (
+                <details
+                  key={groupName}
+                  className="group bg-card open:bg-background/30"
+                  open={index < 3}
                 >
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                    {formatCategory(draft.category)}
-                  </p>
-                  <p className="mt-3 text-sm font-semibold leading-snug">
-                    {draft.label}
-                  </p>
-                  <p className="mt-2 line-clamp-5 text-xs leading-relaxed text-muted-foreground">
-                    {draft.detail}
-                  </p>
-                </div>
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 hover:bg-background/45">
+                    <span>
+                      <span className="block text-sm font-semibold">
+                        {categoryLabel(groupName)}
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {drafts.length} suggestion{drafts.length === 1 ? "" : "s"}
+                      </span>
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground group-open:hidden">
+                      Open
+                    </span>
+                    <span className="hidden text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground group-open:inline">
+                      Close
+                    </span>
+                  </summary>
+                  <div className="grid gap-px bg-border md:grid-cols-2">
+                    {drafts.map((draft) => (
+                      <div
+                        key={draft.sourceRef}
+                        className="bg-card p-5 transition-colors hover:bg-background/55"
+                      >
+                        <p className="text-sm font-semibold leading-snug">
+                          {draft.label}
+                        </p>
+                        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                          {draft.detail}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </details>
               ))}
             </div>
           </section>

@@ -315,6 +315,9 @@ export function InterviewWorkspace({
         <AboutMeEditor
           facts={initial.facts}
           cvFactDrafts={initial.cvFactDrafts}
+          applicationCvFactDrafts={initial.applicationCvFactDrafts}
+          applicationId={applicationId}
+          applications={initial.applications}
         />
       </TabsContent>
       </Tabs>

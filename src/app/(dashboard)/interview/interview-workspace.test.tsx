@@ -186,6 +186,16 @@ describe("InterviewWorkspace", () => {
                   sourceRef: "application-cv:app-1:cv:skill:typescript:digest",
                   confirmedAt: null,
                 },
+                {
+                  category: "project",
+                  label: "Portfolio",
+                  detail: "Built a portfolio project with Next.js.",
+                  sourceType: "cv",
+                  logicalSourceRef: "application-cv:app-1:cv:project:portfolio",
+                  contentDigest: "project-digest",
+                  sourceRef: "application-cv:app-1:cv:project:portfolio:project-digest",
+                  confirmedAt: null,
+                },
               ],
             },
           ],
@@ -207,5 +217,13 @@ describe("InterviewWorkspace", () => {
     expect(
       screen.getByRole("button", { name: "Confirm selected facts" }),
     ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("tab", { name: "About Me" }))
+
+    expect(screen.getAllByText("Suggested from this tailored CV").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Junior Software Engineer at OneFamily").length).toBeGreaterThan(0)
+    expect(screen.getByText("CV date: 15 Jun 2026")).toBeInTheDocument()
+    expect(screen.getByText("Skills")).toBeInTheDocument()
+    expect(screen.getByText("Projects")).toBeInTheDocument()
   })
 })

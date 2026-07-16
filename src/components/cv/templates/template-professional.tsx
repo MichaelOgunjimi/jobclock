@@ -249,7 +249,7 @@ export function TemplateProfessional({ cv }: CvTemplateProps) {
 
       {cv.projects && cv.projects.length > 0 && (
         <>
-          <SectionHeading>University Projects</SectionHeading>
+          <SectionHeading>Projects</SectionHeading>
           {cv.projects.map((entry, index) => (
             <ProjectEntry key={index} entry={entry} />
           ))}
