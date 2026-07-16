@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { resolveAiConfig } from "@/lib/ai"
+import { resolveAiConfig, withPlatformAiKeyAccess } from "@/lib/ai"
 import type { AiSettings, UserPreferences } from "@/lib/ai"
 import type { AppWithJob, CvData } from "@/lib/supabase/database.types"
 import { buildChatAssistantSystemPrompt } from "@/lib/ai/prompts"
@@ -66,7 +66,11 @@ export async function POST(request: NextRequest) {
   // Tailored CV lives in customized_cvs keyed by application_id.
   const selectedCvId = typedApp.selected_cv_id
   const [{ data: profile }, { data: tailoredCvRow }, { data: baseCvRow }] = await Promise.all([
-    supabase.from("profiles").select("preferences").eq("id", user.id).single(),
+    supabase
+      .from("profiles")
+      .select("preferences, allow_platform_ai_key")
+      .eq("id", user.id)
+      .single(),
     // Latest AI-generated tailored CV for this application
     supabase
       .from("customized_cvs")
@@ -82,7 +86,10 @@ export async function POST(request: NextRequest) {
       : supabase.from("user_cvs").select("parsed_json, name").eq("user_id", user.id).eq("is_primary", true).maybeSingle(),
   ])
 
-  const prefs = (profile?.preferences ?? {}) as UserPreferences
+  const prefs = withPlatformAiKeyAccess(
+    (profile?.preferences ?? {}) as UserPreferences,
+    profile?.allow_platform_ai_key === true,
+  )
 
   let settings: AiSettings
   let apiKey: string

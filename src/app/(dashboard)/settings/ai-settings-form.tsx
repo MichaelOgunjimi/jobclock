@@ -27,7 +27,7 @@ function KeyStatusBadge({ source }: { source: KeySource }) {
   if (source === "env") {
     return (
       <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-        <KeyRound className="h-3 w-3" /> Using environment variable
+        <KeyRound className="h-3 w-3" /> Key configured
       </span>
     )
   }
@@ -118,6 +118,18 @@ export function AiSettingsForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid gap-3 border border-border bg-secondary/35 p-4 sm:grid-cols-[auto_minmax(0,1fr)]">
+        <div className="flex size-10 items-center justify-center border bg-background">
+          <KeyRound className="size-4" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold">Bring your own AI key.</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Choose the provider you already use, then add that provider&apos;s API key below before using AI generation.
+          </p>
+        </div>
+      </div>
+
       <div className="space-y-3">
         <Label>Provider</Label>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -179,7 +191,7 @@ export function AiSettingsForm({
           onTyped={() => setHasKeyInput(true)}
         />
         <p className="text-xs text-muted-foreground">
-          Leave blank to keep existing key. Keys are stored securely and only accessible to you.
+          Leave blank to keep an existing key. Saved keys are encrypted before storage and used for your generation requests.
         </p>
       </div>
 

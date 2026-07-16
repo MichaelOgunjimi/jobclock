@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { GenerationJobsProvider } from "@/components/generation-jobs-provider"
+import { resolveAiSettings, type UserPreferences } from "@/lib/ai"
 
 // Every page under (dashboard) is behind auth. Tell crawlers not to
 // index them so accidental URL leaks (shared links, referer headers)
@@ -30,13 +31,24 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, avatar_url")
+    .select("full_name, avatar_url, preferences, allow_platform_ai_key")
     .eq("id", user.id)
     .single()
+  const preferences = (profile?.preferences ?? null) as UserPreferences | null
+  const aiSettings = resolveAiSettings(preferences)
+  const canUsePlatformAiKey = profile?.allow_platform_ai_key === true
+  const hasSelectedProviderKey =
+    aiSettings.provider === "openai"
+      ? Boolean(preferences?.openai_api_key || (canUsePlatformAiKey && process.env.OPENAI_API_KEY))
+      : Boolean(preferences?.anthropic_api_key || (canUsePlatformAiKey && process.env.ANTHROPIC_API_KEY))
+  const providerLabel = aiSettings.provider === "openai" ? "OpenAI" : "Anthropic"
 
   return (
     <GenerationJobsProvider userId={user.id}>
       <DashboardShell
+        aiKeyBanner={
+          hasSelectedProviderKey ? null : { providerLabel }
+        }
         userProfile={{
           email: user.email ?? "",
           fullName: profile?.full_name ?? null,

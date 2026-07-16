@@ -10,7 +10,7 @@ import {
 } from "@/lib/db/schema"
 import { buildCvContext } from "@/lib/cover-letter/cv-context"
 import type { CvData } from "@/lib/supabase/database.types"
-import type { UserPreferences } from "@/lib/ai"
+import { withPlatformAiKeyAccess, type UserPreferences } from "@/lib/ai"
 import type { GenerationJob } from "../jobs"
 
 export interface CoverLetterContext {
@@ -48,7 +48,10 @@ export async function loadCoverLetterContext(
       .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
       .where(and(eq(applications.id, applicationId), eq(applications.userId, userId))),
     db
-      .select({ preferences: profiles.preferences })
+      .select({
+        preferences: profiles.preferences,
+        allowPlatformAiKey: profiles.allowPlatformAiKey,
+      })
       .from(profiles)
       .where(eq(profiles.id, userId)),
   ])
@@ -97,7 +100,13 @@ export async function loadCoverLetterContext(
     ((researchRows[0] as { researchContent?: string | null } | undefined)?.researchContent?.trim()) || undefined
 
   const tone = app.coverLetterTone ?? structure?.defaultTone ?? "professional"
-  const preferences = (((profileRows[0] as { preferences?: unknown } | undefined)?.preferences) ?? {}) as UserPreferences
+  const profile = profileRows[0] as
+    | { preferences?: unknown; allowPlatformAiKey?: boolean | null }
+    | undefined
+  const preferences = withPlatformAiKeyAccess(
+    (profile?.preferences ?? null) as UserPreferences | null,
+    profile?.allowPlatformAiKey,
+  )
 
   return {
     userId,

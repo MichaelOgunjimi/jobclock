@@ -45,7 +45,10 @@ describe("loadInterviewAnswerContext", () => {
     expect(ctx.questionText).toBe("Tell me about a time you led a team.")
     expect(ctx.storyText).toContain("Leadership")
     expect(ctx.jdContext).toContain("Engineer")
-    expect(ctx.preferences).toEqual({ ai_provider: "openai" })
+    expect(ctx.preferences).toEqual({
+      ai_provider: "openai",
+      allow_platform_ai_key: false,
+    })
   })
 
   it("throws when params are missing", async () => {

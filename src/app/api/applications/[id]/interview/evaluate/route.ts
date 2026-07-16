@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { resolveAiConfig, generateText, type UserPreferences } from "@/lib/ai"
+import {
+  generateText,
+  resolveAiConfig,
+  withPlatformAiKeyAccess,
+  type UserPreferences,
+} from "@/lib/ai"
 import type { AppWithJob } from "@/lib/supabase/database.types"
 import { aiGenerateRateLimit } from "@/lib/rate-limit"
 
@@ -35,7 +40,11 @@ export async function POST(
 
   const [{ data: appData }, { data: profileData }] = await Promise.all([
     supabase.from("applications").select("*, jobs_cache (*)").eq("id", applicationId).eq("user_id", user.id).single(),
-    supabase.from("profiles").select("preferences").eq("id", user.id).single(),
+    supabase
+      .from("profiles")
+      .select("preferences, allow_platform_ai_key")
+      .eq("id", user.id)
+      .single(),
   ])
 
   if (!appData) return NextResponse.json({ error: "Application not found" }, { status: 404 })
@@ -45,7 +54,10 @@ export async function POST(
   const company = app.jobs_cache?.company ?? "this company"
   const description = (app.custom_description ?? app.jobs_cache?.description ?? "").slice(0, 1500)
 
-  const preferences = (profileData?.preferences ?? {}) as UserPreferences
+  const preferences = withPlatformAiKeyAccess(
+    (profileData?.preferences ?? {}) as UserPreferences,
+    profileData?.allow_platform_ai_key === true,
+  )
   let settings: ReturnType<typeof resolveAiConfig>["settings"]
   let apiKey: string
   try {

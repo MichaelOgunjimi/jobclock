@@ -137,7 +137,7 @@ export function SettingsTabs({
             <p className="section-label">AI</p>
             <CardTitle>Provider & Model</CardTitle>
             <CardDescription>
-              Select which AI provider and model powers the assistant features.
+              Choose the provider and model for assistant features, then add your own API key for generation.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">

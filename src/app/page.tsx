@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowRight, BadgeCheck, BriefcaseBusiness, FileCheck2, FolderKanban, Search, ShieldCheck, Sparkles } from "lucide-react"
+import { ArrowRight, BadgeCheck, BriefcaseBusiness, FileCheck2, FolderKanban, KeyRound, Search, ShieldCheck, Sparkles } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { LandingAnchorLink } from "@/components/landing-anchor-link"
@@ -38,6 +38,7 @@ const workflowSteps = [
 const proofPoints = [
   "Role search with salary and location filters",
   "Multiple CV management and inline editing",
+  "Bring your own AI provider key for generation",
   "Application pipeline for saved, applied, and interview stages",
   "Document templates for CV and cover letter output",
 ]
@@ -77,7 +78,7 @@ export default async function HomePage() {
               <div className="landing-reveal landing-delay-1 space-y-6">
                 <div className="inline-flex items-center gap-2 border bg-secondary px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Structured search. Cleaner decisions.
+                  Free workspace. Configure an AI key.
                 </div>
 
                 <div className="space-y-5">
@@ -85,7 +86,7 @@ export default async function HomePage() {
                     Turn the job hunt into a deliberate system.
                   </h1>
                   <p className="max-w-2xl text-[16px] leading-7 text-muted-foreground sm:text-[17px]">
-                    Search roles, tailor your CV, save the opportunities worth pursuing, and track every application from one restrained workspace.
+                    Search roles, tailor your CV, save the opportunities worth pursuing, and track every application from one restrained workspace. AI generation uses the provider key you configure.
                   </p>
                 </div>
 
@@ -97,6 +98,18 @@ export default async function HomePage() {
                   <LandingAnchorLink href="#features" className={buttonVariants({ size: "lg", variant: "outline" })}>
                     Explore the flow
                   </LandingAnchorLink>
+                </div>
+
+                <div className="grid max-w-2xl gap-4 border bg-background/75 p-4 sm:grid-cols-[auto_minmax(0,1fr)]">
+                  <div className="flex size-11 items-center justify-center border bg-secondary">
+                    <KeyRound className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">Bring your own AI provider key.</p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                      Add your OpenAI or Anthropic key in Settings for CV tailoring, cover letters, research, and interview prep.
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -238,7 +251,7 @@ export default async function HomePage() {
               ["Search faster", "Narrow the market before you start tailoring."],
               ["Edit cleaner", "Keep the right CV variation close to the role you want."],
               ["Track better", "See what is saved, sent, or moving toward interview."],
-              ["Stay consistent", "Use templates and preferences without rebuilding your workflow each time."],
+              ["Control AI cost", "Use your own provider key for AI generation instead of hidden usage."],
             ].map(([title, body], index) => (
               <div key={title} className={`landing-reveal landing-delay-${(index % 3) + 1} bg-background px-6 py-8`}>
                 <p className="text-[1.1rem] font-medium tracking-[-0.03em] text-foreground">{title}</p>

@@ -39,6 +39,7 @@ export const profiles = pgTable("profiles", {
   email: text("email").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   preferences: jsonb("preferences").default({}),
+  allowPlatformAiKey: boolean("allow_platform_ai_key").default(false).notNull(),
   rightToWorkUk: boolean("right_to_work_uk"),
   locationsUk: text("locations_uk").array(),
   desiredRoles: text("desired_roles").array(),

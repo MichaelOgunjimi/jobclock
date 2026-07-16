@@ -69,7 +69,10 @@ describe("loadInterviewPrepContext", () => {
     expect(ctx.company).toBe("ACME")
     expect(ctx.description).toBe("JD text")
     expect(ctx.stories).toHaveLength(1)
-    expect(ctx.preferences).toEqual({ ai_provider: "openai" })
+    expect(ctx.preferences).toEqual({
+      ai_provider: "openai",
+      allow_platform_ai_key: false,
+    })
   })
 
   it("prefers customDescription over jobs_cache description", async () => {

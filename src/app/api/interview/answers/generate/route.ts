@@ -1,7 +1,12 @@
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { aiGenerateRateLimit } from "@/lib/rate-limit"
-import { generateText, resolveAiConfig, type UserPreferences } from "@/lib/ai"
+import {
+  generateText,
+  resolveAiConfig,
+  withPlatformAiKeyAccess,
+  type UserPreferences,
+} from "@/lib/ai"
 import { normalizeAiMarkdown } from "@/lib/cv/normalize"
 import { assessEvidence } from "@/lib/interview/evidence"
 import { resolveQuestionDefinition } from "@/lib/interview/question-catalog"
@@ -132,14 +137,17 @@ export async function POST(request: Request) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("preferences")
+    .select("preferences, allow_platform_ai_key")
     .eq("id", user.id)
     .single()
 
   let aiConfig: ReturnType<typeof resolveAiConfig>
   try {
     aiConfig = resolveAiConfig(
-      (profile?.preferences ?? {}) as UserPreferences,
+      withPlatformAiKeyAccess(
+        (profile?.preferences ?? {}) as UserPreferences,
+        profile?.allow_platform_ai_key === true,
+      ),
     )
   } catch (error) {
     return Response.json(

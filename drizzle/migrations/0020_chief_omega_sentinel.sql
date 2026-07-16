@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "allow_platform_ai_key" boolean DEFAULT false NOT NULL;

@@ -1,7 +1,12 @@
 import { z } from "zod/v4"
 import { eq } from "drizzle-orm"
 import { extractJson } from "@/lib/ai/extract-json"
-import { generateText, resolveAiConfig, type UserPreferences } from "@/lib/ai"
+import {
+  generateText,
+  resolveAiConfig,
+  withPlatformAiKeyAccess,
+  type UserPreferences,
+} from "@/lib/ai"
 import { JOB_IMPORT_SYSTEM_PROMPT, buildJobImportUserPrompt } from "@/lib/ai/prompts/job-import"
 import { db } from "@/lib/db"
 import { profiles } from "@/lib/db/schema"
@@ -298,12 +303,18 @@ export async function parseImportedJobPreview(input: {
   pageText: string
 }): Promise<JobImportPreview> {
   const [profile] = await db
-    .select({ preferences: profiles.preferences })
+    .select({
+      preferences: profiles.preferences,
+      allowPlatformAiKey: profiles.allowPlatformAiKey,
+    })
     .from(profiles)
     .where(eq(profiles.id, input.userId))
     .limit(1)
 
-  const preferences = (profile?.preferences ?? null) as UserPreferences | null
+  const preferences = withPlatformAiKeyAccess(
+    (profile?.preferences ?? null) as UserPreferences | null,
+    profile?.allowPlatformAiKey,
+  )
 
   let settings
   let apiKey

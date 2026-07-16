@@ -48,7 +48,18 @@ export interface UserPreferences {
   anthropic_api_key?: string
   openai_api_key?: string
   perplexity_api_key?: string
+  allow_platform_ai_key?: boolean
   job_sources?: JobSources
+}
+
+export function withPlatformAiKeyAccess(
+  preferences: UserPreferences | null | undefined,
+  allowPlatformAiKey: boolean | null | undefined,
+): UserPreferences {
+  return {
+    ...(preferences ?? {}),
+    allow_platform_ai_key: Boolean(allowPlatformAiKey),
+  }
 }
 
 export function resolveAiSettings(preferences: UserPreferences | null): AiSettings {
@@ -58,22 +69,24 @@ export function resolveAiSettings(preferences: UserPreferences | null): AiSettin
 }
 
 /** Returns the API key for the given provider.
- *  Priority: stored preference key → environment variable */
+ *  Priority: stored preference key → allowlisted platform key. */
 export function resolveApiKey(
   provider: AiProvider,
   preferences: UserPreferences | null
 ): string {
   const storedKey =
-		provider === "openai" ?
-			preferences?.openai_api_key
-		:	preferences?.anthropic_api_key;
+    provider === "openai"
+      ? preferences?.openai_api_key
+      : preferences?.anthropic_api_key
 
-  const envKey =
-		provider === "openai" ?
-			process.env.OPENAI_API_KEY
-		:	process.env.ANTHROPIC_API_KEY;
+  const platformKey =
+    preferences?.allow_platform_ai_key
+      ? provider === "openai"
+        ? process.env.OPENAI_API_KEY
+        : process.env.ANTHROPIC_API_KEY
+      : null
 
-  const key = (storedKey ? decrypt(storedKey) : null) || envKey
+  const key = (storedKey ? decrypt(storedKey) : null) || platformKey
 
   if (!key) {
     throw new Error(
