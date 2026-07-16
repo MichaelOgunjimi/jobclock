@@ -7,6 +7,10 @@ vi.mock("@/lib/rate-limit", () => ({
 vi.mock("@/lib/ai", () => ({
   resolveAiConfig: vi.fn(),
   generateText: vi.fn(),
+  withPlatformAiKeyAccess: vi.fn((preferences, allowPlatformAiKey) => ({
+    ...(preferences ?? {}),
+    allow_platform_ai_key: Boolean(allowPlatformAiKey),
+  })),
 }))
 vi.mock("@/app/(dashboard)/interview/data", () => ({
   loadInterviewQuestionById: vi.fn(),

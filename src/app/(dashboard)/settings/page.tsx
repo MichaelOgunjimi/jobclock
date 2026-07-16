@@ -20,7 +20,11 @@ export default async function SettingsPage() {
   if (!user) redirect("/auth")
 
   const [{ data: profile }, { data: profileData }, extensionToken, companies] = await Promise.all([
-    supabase.from("profiles").select("preferences").eq("id", user.id).single(),
+    supabase
+      .from("profiles")
+      .select("preferences, allow_platform_ai_key")
+      .eq("id", user.id)
+      .single(),
     supabase
       .from("profiles")
       .select("desired_roles, locations_uk, target_salary_min, right_to_work_uk, experience_level")
@@ -32,16 +36,17 @@ export default async function SettingsPage() {
 
   const preferences = profile?.preferences as UserPreferences | null
   const aiSettings = resolveAiSettings(preferences)
+  const canUsePlatformAiKey = profile?.allow_platform_ai_key === true
 
   const anthropicKeySource = preferences?.anthropic_api_key
     ? "saved"
-    : process.env.ANTHROPIC_API_KEY ? "env" : "none"
+    : canUsePlatformAiKey && process.env.ANTHROPIC_API_KEY ? "env" : "none"
   const openaiKeySource = preferences?.openai_api_key
     ? "saved"
-    : process.env.OPENAI_API_KEY ? "env" : "none"
+    : canUsePlatformAiKey && process.env.OPENAI_API_KEY ? "env" : "none"
   const perplexityKeySource = preferences?.perplexity_api_key
     ? "saved"
-    : process.env.PERPLEXITY_API_KEY ? "env" : "none"
+    : canUsePlatformAiKey && process.env.PERPLEXITY_API_KEY ? "env" : "none"
 
   const jobSources: JobSources = (preferences?.job_sources as JobSources) ?? {}
 

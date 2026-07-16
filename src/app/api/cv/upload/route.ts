@@ -5,7 +5,7 @@ import pdfParse from "pdf-parse"
 import mammoth from "mammoth"
 import { parseCvWithAi } from "@/lib/ai/parse-cv"
 import { reviewCv } from "@/lib/ai/cv-review"
-import type { UserPreferences } from "@/lib/ai"
+import { withPlatformAiKeyAccess, type UserPreferences } from "@/lib/ai"
 import type { Json } from "@/lib/supabase/database.types"
 import { cvGenerateRateLimit } from "@/lib/rate-limit"
 
@@ -98,11 +98,14 @@ export async function POST(request: NextRequest) {
     // Fetch user's AI settings for parsing
     const { data: profile } = await supabase
       .from("profiles")
-      .select("preferences")
+      .select("preferences, allow_platform_ai_key")
       .eq("id", user.id)
       .single()
 
-    const preferences = profile?.preferences as UserPreferences | null
+    const preferences = withPlatformAiKeyAccess(
+      profile?.preferences as UserPreferences | null,
+      profile?.allow_platform_ai_key === true,
+    )
 
     // AI-powered CV parsing
     let parsedCv

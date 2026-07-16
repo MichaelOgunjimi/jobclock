@@ -15,6 +15,7 @@ export type Database = {
 					email: string;
 					created_at: string;
 					preferences: Json;
+					allow_platform_ai_key: boolean;
 					right_to_work_uk: boolean | null;
 					locations_uk: string[] | null;
 					desired_roles: string[] | null;
@@ -34,6 +35,7 @@ export type Database = {
 					email: string;
 					created_at?: string;
 					preferences?: Json;
+					allow_platform_ai_key?: boolean;
 					right_to_work_uk?: boolean | null;
 					locations_uk?: string[] | null;
 					desired_roles?: string[] | null;
@@ -53,6 +55,7 @@ export type Database = {
 					email?: string;
 					created_at?: string;
 					preferences?: Json;
+					allow_platform_ai_key?: boolean;
 					right_to_work_uk?: boolean | null;
 					locations_uk?: string[] | null;
 					desired_roles?: string[] | null;

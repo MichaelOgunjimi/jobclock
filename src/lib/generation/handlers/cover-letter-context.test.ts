@@ -65,7 +65,10 @@ describe("loadCoverLetterContext", () => {
     expect(ctx.templateSnippet).toBe("template content")
     expect(ctx.companyResearch).toBe("ACME ships APIs")
     expect(ctx.cvContext).toBe("cv-text")
-    expect(ctx.preferences).toEqual({ ai_provider: "openai" })
+    expect(ctx.preferences).toEqual({
+      ai_provider: "openai",
+      allow_platform_ai_key: false,
+    })
   })
 
   it("falls back to primary CV and built-in structure when neither is set on the application", async () => {

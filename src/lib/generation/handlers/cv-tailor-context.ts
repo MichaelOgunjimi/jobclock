@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { applications, jobsCache, profiles, userCvs } from "@/lib/db/schema"
-import type { UserPreferences } from "@/lib/ai"
+import { withPlatformAiKeyAccess, type UserPreferences } from "@/lib/ai"
 import type { CvData } from "@/lib/supabase/database.types"
 import type { GenerationJob } from "../jobs"
 
@@ -34,7 +34,10 @@ export async function loadCvTailorContext(job: GenerationJob): Promise<CvTailorC
       .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
       .where(and(eq(applications.id, applicationId), eq(applications.userId, userId))),
     db
-      .select({ preferences: profiles.preferences })
+      .select({
+        preferences: profiles.preferences,
+        allowPlatformAiKey: profiles.allowPlatformAiKey,
+      })
       .from(profiles)
       .where(eq(profiles.id, userId)),
   ])
@@ -59,6 +62,9 @@ export async function loadCvTailorContext(job: GenerationJob): Promise<CvTailorC
   const cvRows = await cvQuery
   const cvParsed = ((cvRows[0] as { parsedJson?: unknown } | undefined)?.parsedJson as CvData | null) ?? null
   if (!cvParsed) throw new Error("No CV found. Upload a CV first.")
+  const profile = profileRows[0] as
+    | { preferences?: unknown; allowPlatformAiKey?: boolean | null }
+    | undefined
 
   return {
     userId,
@@ -68,6 +74,9 @@ export async function loadCvTailorContext(job: GenerationJob): Promise<CvTailorC
     location: app.location ?? null,
     description,
     cvJson: JSON.stringify(cvParsed, null, 2),
-    preferences: (((profileRows[0] as { preferences?: unknown } | undefined)?.preferences) ?? {}) as UserPreferences,
+    preferences: withPlatformAiKeyAccess(
+      (profile?.preferences ?? null) as UserPreferences | null,
+      profile?.allowPlatformAiKey,
+    ),
   }
 }

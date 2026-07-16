@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { applications, jobsCache, profiles, storyBank } from "@/lib/db/schema"
-import type { UserPreferences } from "@/lib/ai"
+import { withPlatformAiKeyAccess, type UserPreferences } from "@/lib/ai"
 import type { GenerationJob } from "../jobs"
 
 export interface StoryRow {
@@ -42,7 +42,10 @@ export async function loadInterviewPrepContext(
       .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
       .where(and(eq(applications.id, applicationId), eq(applications.userId, userId))),
     db
-      .select({ preferences: profiles.preferences })
+      .select({
+        preferences: profiles.preferences,
+        allowPlatformAiKey: profiles.allowPlatformAiKey,
+      })
       .from(profiles)
       .where(eq(profiles.id, userId)),
     db
@@ -54,6 +57,9 @@ export async function loadInterviewPrepContext(
 
   const app = appRows[0]
   if (!app) throw new Error(`Application not found: ${applicationId}`)
+  const profile = profileRows[0] as
+    | { preferences?: unknown; allowPlatformAiKey?: boolean | null }
+    | undefined
 
   return {
     userId,
@@ -62,6 +68,9 @@ export async function loadInterviewPrepContext(
     company: app.company ?? "this company",
     description: app.customDescription ?? app.description ?? "",
     stories: stories as unknown as StoryRow[],
-    preferences: (((profileRows[0] as { preferences?: unknown } | undefined)?.preferences) ?? {}) as UserPreferences,
+    preferences: withPlatformAiKeyAccess(
+      (profile?.preferences ?? null) as UserPreferences | null,
+      profile?.allowPlatformAiKey,
+    ),
   }
 }

@@ -42,7 +42,10 @@ describe("loadCvTailorContext", () => {
     expect(ctx.location).toBe("London")
     expect(ctx.description).toBe("JD text")
     expect(ctx.cvJson).toContain("TypeScript")
-    expect(ctx.preferences).toEqual({ ai_provider: "openai" })
+    expect(ctx.preferences).toEqual({
+      ai_provider: "openai",
+      allow_platform_ai_key: false,
+    })
   })
 
   it("throws when application is not found", async () => {

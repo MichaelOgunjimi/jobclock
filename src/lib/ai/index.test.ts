@@ -68,11 +68,22 @@ describe("ai config helpers", () => {
 
   it("resolveApiKey falls back to env key and throws when missing", () => {
     process.env.ANTHROPIC_API_KEY = "env-anthropic"
-    expect(resolveApiKey("anthropic", null)).toBe("env-anthropic")
+    expect(resolveApiKey("anthropic", { allow_platform_ai_key: true })).toBe("env-anthropic")
 
     delete process.env.ANTHROPIC_API_KEY
-    expect(() => resolveApiKey("anthropic", null)).toThrow(
+    expect(() => resolveApiKey("anthropic", { allow_platform_ai_key: true })).toThrow(
       "No API key configured for anthropic. Add one in Settings → AI Configuration."
+    )
+  })
+
+  it("resolveApiKey does not use env keys for non-allowlisted users", () => {
+    process.env.OPENAI_API_KEY = "env-openai"
+
+    expect(() => resolveApiKey("openai", null)).toThrow(
+      "No API key configured for openai. Add one in Settings → AI Configuration."
+    )
+    expect(() => resolveApiKey("openai", {})).toThrow(
+      "No API key configured for openai. Add one in Settings → AI Configuration."
     )
   })
 
@@ -82,6 +93,7 @@ describe("ai config helpers", () => {
       resolveAiConfig({
         ai_provider: "openai",
         ai_model: "gpt-4o",
+        allow_platform_ai_key: true,
       })
     ).toEqual({
       settings: { provider: "openai", model: "gpt-4o" },
