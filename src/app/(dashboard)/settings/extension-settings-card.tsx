@@ -66,7 +66,8 @@ export function ExtensionSettingsCard({
         <CardTitle>Browser Extension Access</CardTitle>
         <CardDescription>
           Generate a personal token for the JobClock Chrome extension. The extension
-          connects to the production JobClock site automatically.
+          is not published on the Chrome Web Store yet, but local testing can connect
+          to the production JobClock site.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
@@ -131,8 +132,8 @@ export function ExtensionSettingsCard({
         <div className="space-y-2 border p-4">
           <p className="text-sm font-medium text-foreground">Extension setup</p>
           <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-            <li>Install JobClock from the Chrome Web Store.</li>
-            <li>For development, load the unpacked local `extension/` directory instead.</li>
+            <li>The Chrome Web Store listing is not live yet.</li>
+            <li>For testing, load the unpacked local <code>extension/</code> directory in Chrome.</li>
             <li>Open the extension popup and paste the token shown after generation.</li>
             <li>Open a job page and click JobClock to preview and save the role.</li>
           </ol>

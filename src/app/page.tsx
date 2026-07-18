@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { LandingAnchorLink } from "@/components/landing-anchor-link"
 import { LandingNavbar } from "@/components/landing-navbar"
+import { ExtensionAvailabilityBanner } from "@/components/extension-availability-banner"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -111,6 +112,8 @@ export default async function HomePage() {
                     </p>
                   </div>
                 </div>
+
+                <ExtensionAvailabilityBanner />
               </div>
 
               <div className="landing-reveal landing-delay-2 grid gap-px border bg-border sm:grid-cols-3">

@@ -69,9 +69,9 @@ describe("extension production release configuration", () => {
     expect(popupHtml).not.toMatch(/id=["']app-url["']/)
     expect(popupSource).not.toContain("appBaseUrl")
     expect(popupHtml).toContain('id="token"')
-    expect(settingsSource).toContain(
-      "connects to the production JobClock site automatically"
-    )
+    expect(settingsSource).toContain("local testing can connect")
+    expect(settingsSource).toContain("to the production JobClock site")
+    expect(settingsSource).toContain("Chrome Web Store listing is not live yet")
   })
 
   it("defines responsive JobClock popup bounds and local design tokens", () => {
