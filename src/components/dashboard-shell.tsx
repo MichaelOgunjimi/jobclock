@@ -5,6 +5,7 @@ import { useState } from "react"
 import { KeyRound } from "lucide-react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { DashboardTopbar } from "@/components/dashboard-topbar"
+import { ExtensionAvailabilityBanner } from "@/components/extension-availability-banner"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { cn } from "@/lib/utils"
 
@@ -64,6 +65,11 @@ export function DashboardShell({
             </div>
           </div>
         )}
+        <div className="border-b px-4 py-3 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1440px]">
+            <ExtensionAvailabilityBanner compact />
+          </div>
+        </div>
         {children}
       </main>
     </div>

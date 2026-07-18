@@ -17,6 +17,14 @@ function formatNetworkError(action) {
   return `Could not reach JobClock while trying to ${action}. Check your connection and try again.`
 }
 
+function apiErrorFromBody(body, fallbackMessage) {
+  const error = new Error(body?.error || fallbackMessage)
+  if (typeof body?.code === "string") {
+    error.code = body.code
+  }
+  return error
+}
+
 async function getRuntimeState() {
   const stored = await chrome.storage.local.get([STATE_KEY])
   return stored[STATE_KEY] || null
@@ -109,7 +117,7 @@ async function callImportApi(config, payload) {
 
   const body = await response.json().catch(() => ({}))
   if (!response.ok) {
-    throw new Error(body.error || "The app rejected the import request.")
+    throw apiErrorFromBody(body, "The app rejected the import request.")
   }
 
   return body
@@ -133,7 +141,7 @@ async function fetchRecentApplications(config, limit = 5) {
 
   const body = await response.json().catch(() => ({}))
   if (!response.ok) {
-    throw new Error(body.error || "The app rejected the recent applications request.")
+    throw apiErrorFromBody(body, "The app rejected the recent applications request.")
   }
 
   return body.recentApplications || []
@@ -160,7 +168,7 @@ async function updateRecentStatus(config, applicationId, status) {
 
   const body = await response.json().catch(() => ({}))
   if (!response.ok) {
-    throw new Error(body.error || "The app rejected the stage update.")
+    throw apiErrorFromBody(body, "The app rejected the stage update.")
   }
 
   return body.recentApplications || []
@@ -390,6 +398,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       sendResponse({ ok: false, error: "Unknown message type" })
     } catch (error) {
       const messageText = error instanceof Error ? error.message : "Unexpected extension error."
+      const errorCode =
+        error && typeof error === "object" && typeof error.code === "string"
+          ? error.code
+          : undefined
       if (
         typeof message?.payload?.tab?.id === "number" &&
         typeof message?.payload?.tab?.url === "string"
@@ -401,9 +413,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           tabUrl: message.payload.tab.url,
           tabTitle: message.payload.tab.title || "",
           message: messageText,
+          ...(errorCode ? { errorCode } : {}),
         })
       }
-      sendResponse({ ok: false, error: messageText })
+      sendResponse({ ok: false, error: messageText, ...(errorCode ? { errorCode } : {}) })
     }
   })()
 

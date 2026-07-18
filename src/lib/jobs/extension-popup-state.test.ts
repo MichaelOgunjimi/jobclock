@@ -113,6 +113,7 @@ async function loadPopupHarness({
   deferClearState = false,
   deferSave = false,
   deferRecent = false,
+  previewError = null,
   recentError = null,
   initialConfig = {
     appBaseUrl: "https://jobclock.example",
@@ -126,6 +127,7 @@ async function loadPopupHarness({
   deferClearState?: boolean
   deferSave?: boolean
   deferRecent?: boolean
+  previewError?: { message: string; code?: string } | null
   recentError?: string | null
   initialConfig?: { appBaseUrl: string; token: string } | null
   configSetError?: string | null
@@ -273,6 +275,23 @@ async function loadPopupHarness({
               loadingTitle: "Extracting job details",
               loadingMessage: "Reading the current page.",
             })
+            if (previewError) {
+              emitRuntimeState({
+                view: "error",
+                operation: null,
+                tabId: previewTab.id,
+                tabUrl: previewTab.url,
+                message: previewError.message,
+                ...(previewError.code ? { errorCode: previewError.code } : {}),
+              })
+              callback({
+                ok: false,
+                error: previewError.message,
+                ...(previewError.code ? { errorCode: previewError.code } : {}),
+              })
+              return
+            }
+
             emitRuntimeState({
               view: "preview",
               tabId: previewTab.id,
@@ -438,6 +457,9 @@ async function loadPopupHarness({
     previewTitle() {
       return document.getElementById("preview-title")?.textContent
     },
+    errorMessage() {
+      return document.getElementById("error-message")?.textContent
+    },
     resolveClearState() {
       clearStateResponse.resolve()
     },
@@ -579,6 +601,46 @@ describe("extension popup runtime state", () => {
     expect(harness.visibleState()).toBe("error-state")
     expect(document.getElementById("error-message")?.textContent).toBe(
       "Extraction failed."
+    )
+    expect(harness.messagesOfType("preview-job")).toHaveLength(0)
+  })
+
+  it("shows a helpful AI key setup error from the preview request", async () => {
+    const harness = await loadPopupHarness({
+      runtimeState: null,
+      previewError: {
+        message:
+          "JobClock needs your OpenAI API key before it can extract this job. Add one in Settings -> AI Configuration, then try again.",
+        code: "missing_ai_api_key",
+      },
+    })
+
+    await harness.ready()
+
+    await waitFor(() => {
+      expect(harness.visibleState()).toBe("error-state")
+      expect(harness.errorMessage()).toContain("OpenAI API key")
+      expect(harness.errorMessage()).toContain("Settings -> AI Configuration")
+    })
+    expect(harness.messagesOfType("preview-job")).toHaveLength(1)
+  })
+
+  it("expands legacy missing API key errors into a setup instruction", async () => {
+    const harness = await loadPopupHarness({
+      runtimeState: {
+        view: "error",
+        tabId: activeTab.id,
+        tabUrl: activeTab.url,
+        message: "No API key configured",
+        errorCode: "missing_ai_api_key",
+      },
+    })
+
+    await harness.ready()
+
+    expect(harness.visibleState()).toBe("error-state")
+    expect(harness.errorMessage()).toBe(
+      "JobClock needs your AI provider API key before it can extract this job. Add one in JobClock Settings -> AI Configuration, then try again."
     )
     expect(harness.messagesOfType("preview-job")).toHaveLength(0)
   })

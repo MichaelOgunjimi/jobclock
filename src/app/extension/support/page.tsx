@@ -19,8 +19,8 @@ export const metadata: Metadata = {
 
 const setupSteps = [
   {
-    title: "Install and pin",
-    body: "Install JobClock from the Chrome Web Store, then pin it from Chrome's Extensions menu for quick access.",
+    title: "Launch status",
+    body: "The Chrome Web Store listing is not live yet. For testing, load the unpacked local extension directory in Chrome.",
   },
   {
     title: "Generate a token",

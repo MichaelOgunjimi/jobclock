@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm"
 import { extractJson } from "@/lib/ai/extract-json"
 import {
   generateText,
+  MissingAiApiKeyError,
   resolveAiConfig,
   withPlatformAiKeyAccess,
   type UserPreferences,
@@ -14,12 +15,18 @@ import { detectSourceFromUrl } from "@/lib/jobs/source-detection"
 
 export class JobImportError extends Error {
   status: number
+  code?: string
 
-  constructor(message: string, status = 422) {
+  constructor(message: string, status = 422, code?: string) {
     super(message)
     this.name = "JobImportError"
     this.status = status
+    this.code = code
   }
+}
+
+function aiProviderLabel(provider: MissingAiApiKeyError["provider"]): string {
+  return provider === "anthropic" ? "Anthropic" : "OpenAI"
 }
 
 const optText = z
@@ -323,6 +330,14 @@ export async function parseImportedJobPreview(input: {
     settings = resolved.settings
     apiKey = resolved.apiKey
   } catch (error) {
+    if (error instanceof MissingAiApiKeyError) {
+      throw new JobImportError(
+        `JobClock needs your ${aiProviderLabel(error.provider)} API key before it can extract this job. Add one in Settings -> AI Configuration, then try again.`,
+        422,
+        error.code
+      )
+    }
+
     throw new JobImportError(
       error instanceof Error ? error.message : "No AI provider is configured for job import."
     )

@@ -18,6 +18,7 @@ type RuntimeMessage = {
 type RuntimeResponse = {
   ok: boolean
   error?: string
+  errorCode?: string
   preview?: Record<string, unknown>
   result?: Record<string, unknown>
   state?: Record<string, unknown> | null
@@ -36,10 +37,10 @@ function deferred<T>() {
   return { promise, resolve: resolvePromise }
 }
 
-function jsonResponse(body: Record<string, unknown>) {
+function jsonResponse(body: Record<string, unknown>, status = 200) {
   return {
-    ok: true,
-    status: 200,
+    ok: status >= 200 && status < 300,
+    status,
     json: async () => body,
   }
 }
@@ -187,6 +188,9 @@ async function loadBackgroundHarness({
     importedScripts: () => [...importScriptCalls],
     resolvePreview(body: Record<string, unknown>) {
       previewResponse.resolve(jsonResponse(body))
+    },
+    rejectPreview(body: Record<string, unknown>, status = 422) {
+      previewResponse.resolve(jsonResponse(body, status))
     },
     resolveSave(body: Record<string, unknown>) {
       saveResponse.resolve(jsonResponse(body))
@@ -414,6 +418,45 @@ describe("extension background runtime state", () => {
         tabId: 0,
         tabUrl: tab.url,
         tabTitle: tab.title,
+      })
+    )
+  })
+
+  it("persists missing AI key errors with their structured code", async () => {
+    const harness = await loadBackgroundHarness()
+    const tab = {
+      id: 31,
+      url: "https://jobs.example.com/roles/31",
+      title: "AI-backed role",
+    }
+
+    const preview = harness.send({
+      type: "preview-job",
+      payload: { config, tab },
+    })
+
+    await harness.waitForStoredView("loading")
+    harness.rejectPreview({
+      error:
+        "JobClock needs your OpenAI API key before it can extract this job. Add one in Settings -> AI Configuration, then try again.",
+      code: "missing_ai_api_key",
+    })
+
+    await expect(preview).resolves.toEqual({
+      ok: false,
+      error:
+        "JobClock needs your OpenAI API key before it can extract this job. Add one in Settings -> AI Configuration, then try again.",
+      errorCode: "missing_ai_api_key",
+    })
+    expect(await harness.storedState()).toEqual(
+      expect.objectContaining({
+        view: "error",
+        operation: null,
+        tabId: tab.id,
+        tabUrl: tab.url,
+        message:
+          "JobClock needs your OpenAI API key before it can extract this job. Add one in Settings -> AI Configuration, then try again.",
+        errorCode: "missing_ai_api_key",
       })
     )
   })
