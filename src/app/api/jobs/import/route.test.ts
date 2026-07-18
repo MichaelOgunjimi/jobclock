@@ -9,10 +9,12 @@ vi.mock("@/lib/personal-api-tokens", () => ({
 vi.mock("@/lib/jobs/import-job", () => ({
   JobImportError: class JobImportError extends Error {
     status: number
+    code?: string
 
-    constructor(message: string, status = 422) {
+    constructor(message: string, status = 422, code?: string) {
       super(message)
       this.status = status
+      this.code = code
     }
   },
   jobImportPreviewSchema: z.object({
@@ -230,6 +232,32 @@ describe("POST /api/jobs/import", () => {
 
     expect(response.status).toBe(422)
     expect(await response.json()).toEqual({ error: "No AI key configured" })
+  })
+
+  it("returns a structured error when the user has not set an AI provider key", async () => {
+    vi.mocked(parseImportedJobPreview).mockRejectedValue(
+      new JobImportError(
+        "JobClock needs your OpenAI API key before it can extract this job. Add one in Settings -> AI Configuration, then try again.",
+        422,
+        "missing_ai_api_key"
+      )
+    )
+
+    const response = await POST(
+      createRequest({
+        mode: "preview",
+        url: "https://example.com/job-1",
+        pageTitle: "Engineer",
+        pageText: "job page body",
+      })
+    )
+
+    expect(response.status).toBe(422)
+    expect(await response.json()).toEqual({
+      error:
+        "JobClock needs your OpenAI API key before it can extract this job. Add one in Settings -> AI Configuration, then try again.",
+      code: "missing_ai_api_key",
+    })
   })
 })
 

@@ -22,6 +22,7 @@ const RUNTIME_STATE_KEY = extensionConfig.RUNTIME_STATE_KEY
 const runtimeStateApi = globalThis.JobClockRuntimeState
 let runtimeStateRevision = 0
 let restartPromise = null
+const MISSING_AI_KEY_ERROR_CODE = "missing_ai_api_key"
 
 const nodes = {
   setupState: document.getElementById("setup-state"),
@@ -78,13 +79,48 @@ function sendMessage(message) {
       }
 
       if (!response?.ok) {
-        reject(new Error(response?.error || "Extension request failed."))
+        const error = new Error(response?.error || "Extension request failed.")
+        if (typeof response?.errorCode === "string") {
+          error.code = response.errorCode
+        }
+        reject(error)
         return
       }
 
       resolve(response)
     })
   })
+}
+
+function errorCodeFrom(value) {
+  return value && typeof value === "object" && typeof value.code === "string"
+    ? value.code
+    : value && typeof value === "object" && typeof value.errorCode === "string"
+      ? value.errorCode
+      : undefined
+}
+
+function errorMessageFrom(value, fallback = "Something went wrong.") {
+  const message =
+    typeof value === "string"
+      ? value
+      : value instanceof Error
+        ? value.message
+        : value && typeof value === "object" && typeof value.message === "string"
+          ? value.message
+          : fallback
+  const code = errorCodeFrom(value)
+
+  if (
+    code === MISSING_AI_KEY_ERROR_CODE ||
+    /No API key configured|needs your .* API key/i.test(message)
+  ) {
+    return message.includes("Settings")
+      ? message
+      : "JobClock needs your AI provider API key before it can extract this job. Add one in JobClock Settings -> AI Configuration, then try again."
+  }
+
+  return message
 }
 
 function setActiveTab(tabName) {
@@ -107,9 +143,9 @@ function show(view) {
   }
 }
 
-function showError(message) {
+function showError(error) {
   state.operation = null
-  nodes.errorMessage.textContent = message
+  nodes.errorMessage.textContent = errorMessageFrom(error)
   show(nodes.errorState)
 }
 
@@ -282,7 +318,10 @@ function renderRuntimeState(runtimeState, restored = false) {
   }
 
   if (runtimeState.view === "error" && runtimeState.message) {
-    showError(runtimeState.message)
+    showError({
+      message: runtimeState.message,
+      errorCode: runtimeState.errorCode,
+    })
     return true
   }
 
@@ -291,6 +330,8 @@ function renderRuntimeState(runtimeState, restored = false) {
 
 async function recordRuntimeError(message) {
   state.operation = null
+  const normalizedMessage = errorMessageFrom(message)
+  const errorCode = errorCodeFrom(message)
 
   if (state.tabId == null || !state.tabUrl) {
     if (state.activeTab === "preview") {
@@ -305,7 +346,8 @@ async function recordRuntimeError(message) {
     tabId: state.tabId,
     tabUrl: state.tabUrl,
     tabTitle: state.tabTitle || "",
-    message,
+    message: normalizedMessage,
+    ...(errorCode ? { errorCode } : {}),
   }
   state.runtimeState = runtimeError
 
@@ -532,8 +574,7 @@ async function initialize() {
     })
     await previewCurrentTab()
   } catch (error) {
-    const message = error instanceof Error ? error.message : "The extension could not start."
-    await recordRuntimeError(message)
+    await recordRuntimeError(error instanceof Error ? error : "The extension could not start.")
   }
 }
 
@@ -559,7 +600,7 @@ async function handleRestart() {
   try {
     await restartCurrentPage()
   } catch (error) {
-    showError(error instanceof Error ? error.message : "The extension could not restart.")
+    showError(error instanceof Error ? error : "The extension could not restart.")
   }
 }
 
@@ -577,7 +618,7 @@ nodes.setupForm.addEventListener("submit", async (event) => {
     await saveConfig(token)
     await restartCurrentPage()
   } catch (error) {
-    showError(error instanceof Error ? error.message : "The settings could not be saved.")
+    showError(error instanceof Error ? error : "The settings could not be saved.")
   }
 })
 
@@ -590,7 +631,7 @@ nodes.saveButton.addEventListener("click", async () => {
     await savePreview()
   } catch (error) {
     await recordRuntimeError(
-      error instanceof Error ? error.message : "The save request failed."
+      error instanceof Error ? error : "The save request failed."
     )
   }
 })
@@ -632,7 +673,7 @@ nodes.recentTab.addEventListener("click", async () => {
     await loadRecentApplications()
     show(nodes.recentState)
   } catch (error) {
-    showError(error instanceof Error ? error.message : "Recent applications failed to load.")
+    showError(error instanceof Error ? error : "Recent applications failed to load.")
     setActiveTab("recent")
   }
 })

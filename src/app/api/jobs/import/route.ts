@@ -254,7 +254,14 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     if (error instanceof JobImportError) {
-      return json(request, { error: error.message }, { status: error.status })
+      return json(
+        request,
+        {
+          error: error.message,
+          ...(error.code ? { code: error.code } : {}),
+        },
+        { status: error.status }
+      )
     }
 
     console.error("Job import error:", error)

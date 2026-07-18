@@ -6,6 +6,7 @@ vi.mock("@/lib/crypto", () => ({
 
 import { decrypt } from "@/lib/crypto"
 import {
+  MissingAiApiKeyError,
   resolveAiConfig,
   resolveApiKey,
   resolveAiSettings,
@@ -73,6 +74,9 @@ describe("ai config helpers", () => {
     delete process.env.ANTHROPIC_API_KEY
     expect(() => resolveApiKey("anthropic", { allow_platform_ai_key: true })).toThrow(
       "No API key configured for anthropic. Add one in Settings → AI Configuration."
+    )
+    expect(() => resolveApiKey("anthropic", { allow_platform_ai_key: true })).toThrow(
+      MissingAiApiKeyError
     )
   })
 

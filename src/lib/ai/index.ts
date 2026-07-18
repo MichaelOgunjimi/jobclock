@@ -28,6 +28,19 @@ export interface AiSettings {
   model: string
 }
 
+export class MissingAiApiKeyError extends Error {
+  code = "missing_ai_api_key" as const
+  provider: AiProvider
+
+  constructor(provider: AiProvider) {
+    super(
+      `No API key configured for ${provider}. Add one in Settings → AI Configuration.`
+    )
+    this.name = "MissingAiApiKeyError"
+    this.provider = provider
+  }
+}
+
 export interface JobSourceCustomUrl {
   id: string
   label: string
@@ -89,9 +102,7 @@ export function resolveApiKey(
   const key = (storedKey ? decrypt(storedKey) : null) || platformKey
 
   if (!key) {
-    throw new Error(
-      `No API key configured for ${provider}. Add one in Settings → AI Configuration.`
-    )
+    throw new MissingAiApiKeyError(provider)
   }
   return key
 }
