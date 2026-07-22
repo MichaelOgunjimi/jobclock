@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
+import Link from "next/link"
 import { isSupabaseConfigured, SUPABASE_SETUP_MESSAGE } from "@/lib/supabase/config"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -254,6 +255,19 @@ export function AuthPageClient() {
                         <>{mode === "signin" ? "Sign In" : "Create Account"} <ArrowRight className="h-4 w-4" /></>
                       )}
                     </Button>
+                    {mode === "signup" && (
+                      <p className="text-center text-xs leading-5 text-muted-foreground">
+                        By creating an account, you agree to the{" "}
+                        <Link href="/terms" className="font-medium text-foreground underline underline-offset-4">
+                          Terms
+                        </Link>{" "}
+                        and acknowledge the{" "}
+                        <Link href="/privacy" className="font-medium text-foreground underline underline-offset-4">
+                          Privacy Policy
+                        </Link>
+                        .
+                      </p>
+                    )}
                   </form>
 
                   <div className="relative">
@@ -308,6 +322,11 @@ export function AuthPageClient() {
                   </>
                 )}
               </div>
+              <nav className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground" aria-label="Legal pages">
+                <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
+                <Link href="/terms" className="hover:text-foreground">Terms</Link>
+                <Link href="/cookies" className="hover:text-foreground">Cookies</Link>
+              </nav>
             </CardContent>
           </Card>
         </section>

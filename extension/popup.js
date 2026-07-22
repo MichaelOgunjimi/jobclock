@@ -23,6 +23,9 @@ const runtimeStateApi = globalThis.JobClockRuntimeState
 let runtimeStateRevision = 0
 let restartPromise = null
 const MISSING_AI_KEY_ERROR_CODE = "missing_ai_api_key"
+const INVALID_EXTENSION_TOKEN_ERROR_CODE = "invalid_extension_token"
+const INVALID_EXTENSION_TOKEN_MESSAGE =
+  "Your extension token has expired or been revoked. Generate a new token in JobClock Settings → Extension, then select Edit settings here to reconnect."
 
 const nodes = {
   setupState: document.getElementById("setup-state"),
@@ -118,6 +121,15 @@ function errorMessageFrom(value, fallback = "Something went wrong.") {
     return message.includes("Settings")
       ? message
       : "JobClock needs your AI provider API key before it can extract this job. Add one in JobClock Settings -> AI Configuration, then try again."
+  }
+
+  if (
+    code === INVALID_EXTENSION_TOKEN_ERROR_CODE ||
+    /^(?:Unauthorized|Your JobClock extension token is no longer valid\.)$/i.test(
+      message
+    )
+  ) {
+    return INVALID_EXTENSION_TOKEN_MESSAGE
   }
 
   return message

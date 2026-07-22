@@ -45,7 +45,7 @@ export default function ExtensionPrivacyPage() {
       kicker="Extension privacy"
       title="JobClock extension privacy"
       lede="This policy describes the data handled by the JobClock Chrome extension, when access happens, and the controls available to you."
-      updatedAt="12 June 2026"
+      updatedAt="21 July 2026"
     >
       <PolicySection title="Single purpose" kicker="01">
         <p>
@@ -138,9 +138,9 @@ export default function ExtensionPrivacyPage() {
           policy or the extension can be sent to{" "}
           <a
             className="font-medium text-foreground underline underline-offset-4"
-            href="mailto:michael_ogunjimi@yahoo.com"
+            href="mailto:support@jobclock.michaelogunjimi.com"
           >
-            michael_ogunjimi@yahoo.com
+            support@jobclock.michaelogunjimi.com
           </a>
           , or raised through the public JobClock support page.
         </p>

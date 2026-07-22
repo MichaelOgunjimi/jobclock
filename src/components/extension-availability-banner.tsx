@@ -28,14 +28,14 @@ export function ExtensionAvailabilityBanner({
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 border bg-background px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 <Rocket className="size-3" />
-                Extension launch pending
+                Chrome Web Store review
               </span>
             </div>
             <p className={cn("font-semibold tracking-[-0.02em]", compact ? "text-sm" : "text-base")}>
-              The Chrome extension is built, but it is not on the Chrome Web Store yet.
+              The Chrome extension is pending review.
             </p>
             <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              I still need to submit it through the Chrome Web Store developer flow. Until then, use the web app directly or load the local extension manually for testing.
+              Google is reviewing the submitted extension. The listing will become available after approval; until then, use the web app directly.
             </p>
           </div>
         </div>

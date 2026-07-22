@@ -102,7 +102,10 @@ describe("POST /api/jobs/import", () => {
     const response = await POST(createRequest({ mode: "preview", url: "https://example.com", pageText: "body" }, "bad"))
 
     expect(response.status).toBe(401)
-    expect(await response.json()).toEqual({ error: "Unauthorized" })
+    expect(await response.json()).toEqual({
+      error: "Your JobClock extension token is no longer valid.",
+      code: "invalid_extension_token",
+    })
   })
 
   it("returns 400 for malformed request bodies", async () => {

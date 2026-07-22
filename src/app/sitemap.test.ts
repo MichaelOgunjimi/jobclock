@@ -22,5 +22,11 @@ describe("sitemap", () => {
       changeFrequency: "monthly",
       priority: 0.5,
     })
+
+    for (const path of ["privacy", "terms", "cookies"]) {
+      expect(
+        byUrl.get(`https://jobclock.michaelogunjimi.com/${path}`)
+      ).toMatchObject({ changeFrequency: "yearly" })
+    }
   })
 })

@@ -645,6 +645,25 @@ describe("extension popup runtime state", () => {
     expect(harness.messagesOfType("preview-job")).toHaveLength(0)
   })
 
+  it("explains how to reconnect after a token is revoked", async () => {
+    const harness = await loadPopupHarness({
+      runtimeState: {
+        view: "error",
+        tabId: activeTab.id,
+        tabUrl: activeTab.url,
+        message: "Your JobClock extension token is no longer valid.",
+        errorCode: "invalid_extension_token",
+      },
+    })
+
+    await harness.ready()
+
+    expect(harness.visibleState()).toBe("error-state")
+    expect(harness.errorMessage()).toBe(
+      "Your extension token has expired or been revoked. Generate a new token in JobClock Settings → Extension, then select Edit settings here to reconnect."
+    )
+  })
+
   it("ignores storage changes for other tabs, URLs, keys, and areas", async () => {
     const harness = await loadPopupHarness({
       runtimeState: loadingFixture,

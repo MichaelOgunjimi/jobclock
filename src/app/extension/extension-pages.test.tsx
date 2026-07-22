@@ -75,7 +75,7 @@ describe("public extension pages", () => {
     expect(
       screen.getAllByText(/Recent applications/i).length
     ).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Revoke Token/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/expired or been revoked/i)).toBeInTheDocument()
   })
 
   it("provides public navigation, privacy, and contact routes", () => {
@@ -106,7 +106,13 @@ describe("public extension pages", () => {
     )
     expect(
       screen.getByRole("link", { name: /email JobClock support/i })
-    ).toHaveAttribute("href", "mailto:michael_ogunjimi@yahoo.com")
+    ).toHaveAttribute(
+      "href",
+      "mailto:support@jobclock.michaelogunjimi.com"
+    )
+    expect(
+      screen.getByText("support@jobclock.michaelogunjimi.com")
+    ).toBeInTheDocument()
   })
 
   it("exports descriptive static metadata", () => {
