@@ -1,6 +1,7 @@
 import Link from "next/link"
-import { ArrowRight, Puzzle, Rocket } from "lucide-react"
+import { ArrowRight, ExternalLink, Puzzle, Rocket } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button-styles"
+import { CHROME_WEB_STORE_URL } from "@/lib/extension"
 import { cn } from "@/lib/utils"
 
 export function ExtensionAvailabilityBanner({
@@ -28,24 +29,34 @@ export function ExtensionAvailabilityBanner({
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 border bg-background px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 <Rocket className="size-3" />
-                Chrome Web Store review
+                Available on Chrome
               </span>
             </div>
             <p className={cn("font-semibold tracking-[-0.02em]", compact ? "text-sm" : "text-base")}>
-              The Chrome extension is pending review.
+              Install the JobClock Chrome extension.
             </p>
             <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              Google is reviewing the submitted extension. The listing will become available after approval; until then, use the web app directly.
+              Capture the job listing in your active tab, review the details,
+              and save it directly to your JobClock pipeline.
             </p>
           </div>
         </div>
 
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row md:items-center">
+          <a
+            href={CHROME_WEB_STORE_URL}
+            target="_blank"
+            rel="noreferrer"
+            className={buttonVariants({ size: "sm" })}
+          >
+            Add to Chrome
+            <ExternalLink className="size-3.5" />
+          </a>
           <Link
             href="/extension/support"
             className={cn(buttonVariants({ size: "sm", variant: "outline" }), "bg-background")}
           >
-            Extension notes
+            Setup guide
             <ArrowRight className="size-3.5" />
           </Link>
         </div>

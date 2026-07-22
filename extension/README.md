@@ -1,11 +1,9 @@
 # JobClock Chrome Extension
 
-## Load it in Chrome
+## Install from the Chrome Web Store
 
-1. Open `chrome://extensions`
-2. Enable **Developer mode**
-3. Click **Load unpacked**
-4. Select this `extension/` folder
+[Install JobClock: Job Application Tracker](https://chromewebstore.google.com/detail/jobclock-job-application/albhohoocdlhefihfhiapcmckopbgjhh),
+then select **Add to Chrome** and confirm **Add extension**.
 
 ## First-time setup
 
@@ -19,7 +17,8 @@ Chrome's local extension storage and can be revoked from JobClock settings.
 
 ## Development
 
-Load the unpacked `extension/` directory to test a local build of the extension.
+To test a local build, open `chrome://extensions`, enable **Developer mode**,
+select **Load unpacked**, and choose the `extension/` directory.
 It still connects to the production JobClock service; the app URL is not
 editable.
 

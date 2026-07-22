@@ -6,6 +6,7 @@ import ExtensionPrivacyPage, {
 import ExtensionSupportPage, {
   metadata as supportMetadata,
 } from "./support/page"
+import { CHROME_WEB_STORE_URL } from "@/lib/extension"
 
 describe("public extension pages", () => {
   it("explains extension data access, storage, transfer, and user control", () => {
@@ -96,6 +97,12 @@ describe("public extension pages", () => {
     expect(
       screen.getByRole("link", { name: /Open JobClock/i })
     ).toHaveAttribute("href", "/auth")
+    expect(
+      screen.getByRole("link", { name: /Install extension/i })
+    ).toHaveAttribute("href", CHROME_WEB_STORE_URL)
+    expect(
+      screen.getByRole("link", { name: /Open Chrome Web Store/i })
+    ).toHaveAttribute("href", CHROME_WEB_STORE_URL)
     expect(screen.getByRole("link", { name: /^Privacy$/i })).toHaveAttribute(
       "href",
       "/extension/privacy"

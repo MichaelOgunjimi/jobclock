@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
+import { CHROME_WEB_STORE_URL } from "@/lib/extension"
 
 const extensionPath = (...parts: string[]) =>
   resolve(process.cwd(), "extension", ...parts)
@@ -69,9 +70,14 @@ describe("extension production release configuration", () => {
     expect(popupHtml).not.toMatch(/id=["']app-url["']/)
     expect(popupSource).not.toContain("appBaseUrl")
     expect(popupHtml).toContain('id="token"')
-    expect(settingsSource).toContain("pending Chrome Web Store review")
-    expect(settingsSource).toContain("to the production JobClock site")
-    expect(settingsSource).toContain("Chrome Web Store submission is pending review")
+  })
+
+  it("links extension setup to the published Chrome Web Store listing", () => {
+    expect(CHROME_WEB_STORE_URL).toBe(
+      "https://chromewebstore.google.com/detail/jobclock-job-application/albhohoocdlhefihfhiapcmckopbgjhh"
+    )
+    expect(settingsSource).toContain("published JobClock Chrome extension")
+    expect(settingsSource).toContain("CHROME_WEB_STORE_URL")
   })
 
   it("defines responsive JobClock popup bounds and local design tokens", () => {

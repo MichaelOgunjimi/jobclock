@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { CHROME_WEB_STORE_URL } from "@/lib/extension"
 import { toast } from "sonner"
 import { generateExtensionToken, revokeExtensionToken } from "./actions"
 import type { PersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
@@ -65,9 +66,8 @@ export function ExtensionSettingsCard({
         <p className="section-label">Extension</p>
         <CardTitle>Browser Extension Access</CardTitle>
         <CardDescription>
-          Generate a personal token for the JobClock Chrome extension. The extension
-          is pending Chrome Web Store review. Existing local installations can still
-          connect to the production JobClock site.
+          Install the published JobClock Chrome extension, then generate a
+          personal token to connect it securely to your account.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
@@ -132,8 +132,18 @@ export function ExtensionSettingsCard({
         <div className="space-y-2 border p-4">
           <p className="text-sm font-medium text-foreground">Extension setup</p>
           <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-            <li>The Chrome Web Store submission is pending review.</li>
-            <li>If you already installed the extension locally, keep using that copy during review.</li>
+            <li>
+              <a
+                href={CHROME_WEB_STORE_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-foreground underline underline-offset-4"
+              >
+                Install JobClock from the Chrome Web Store
+              </a>
+              .
+            </li>
+            <li>Generate a token and copy it when it appears.</li>
             <li>Open the extension popup and paste the token shown after generation.</li>
             <li>Open a job page and click JobClock to preview and save the role.</li>
           </ol>
