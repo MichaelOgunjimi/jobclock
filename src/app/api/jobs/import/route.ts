@@ -109,6 +109,17 @@ function json(request: NextRequest, data: unknown, init?: ResponseInit) {
   })
 }
 
+function invalidExtensionToken(request: NextRequest) {
+  return json(
+    request,
+    {
+      error: "Your JobClock extension token is no longer valid.",
+      code: "invalid_extension_token",
+    },
+    { status: 401 }
+  )
+}
+
 async function authenticateRequest(request: NextRequest) {
   const authHeader = request.headers.get("authorization")
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : ""
@@ -132,7 +143,7 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   const auth = await authenticateRequest(request)
-  if (!auth) return json(request, { error: "Unauthorized" }, { status: 401 })
+  if (!auth) return invalidExtensionToken(request)
   if (!rateLimitToken(auth.tokenId)) return json(request, { error: "Too many requests" }, { status: 429 })
 
   const limit = Math.min(
@@ -162,7 +173,7 @@ const updateStatusSchema = z.object({
 
 export async function PATCH(request: NextRequest) {
   const auth = await authenticateRequest(request)
-  if (!auth) return json(request, { error: "Unauthorized" }, { status: 401 })
+  if (!auth) return invalidExtensionToken(request)
   if (!rateLimitToken(auth.tokenId)) return json(request, { error: "Too many requests" }, { status: 429 })
 
   let body: unknown
@@ -204,7 +215,7 @@ export async function PATCH(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const auth = await authenticateRequest(request)
-  if (!auth) return json(request, { error: "Unauthorized" }, { status: 401 })
+  if (!auth) return invalidExtensionToken(request)
   if (!rateLimitToken(auth.tokenId)) return json(request, { error: "Too many requests" }, { status: 429 })
 
   let body: unknown

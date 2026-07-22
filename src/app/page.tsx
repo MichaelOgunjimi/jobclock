@@ -314,7 +314,15 @@ export default async function HomePage() {
             <Link className="transition-colors hover:text-foreground" href="/auth">
               Open workspace
             </Link>
-            <p>Built for deliberate job search.</p>
+            <Link className="transition-colors hover:text-foreground" href="/privacy">
+              Privacy
+            </Link>
+            <Link className="transition-colors hover:text-foreground" href="/terms">
+              Terms
+            </Link>
+            <Link className="transition-colors hover:text-foreground" href="/cookies">
+              Cookies
+            </Link>
           </div>
         </div>
       </footer>

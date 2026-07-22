@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 const setupSteps = [
   {
     title: "Launch status",
-    body: "The Chrome Web Store listing is not live yet. For testing, load the unpacked local extension directory in Chrome.",
+    body: "The Chrome Web Store submission is pending review. The listing will become available after Google approves it.",
   },
   {
     title: "Generate a token",
@@ -42,7 +42,7 @@ export default function ExtensionSupportPage() {
       kicker="Extension support"
       title="JobClock extension support"
       lede="Connect the extension, capture jobs from the active page, and recover cleanly when a site or network request gets in the way."
-      updatedAt="12 June 2026"
+      updatedAt="21 July 2026"
     >
       <Card>
         <CardHeader className="border-b">
@@ -112,9 +112,9 @@ export default function ExtensionSupportPage() {
         </CardHeader>
         <CardContent className="divide-y p-0">
           <TroubleshootingItem title="Unauthorized or invalid token">
-            Generate a new token in JobClock settings and reconnect the
-            extension. Select <strong>Revoke Token</strong> to invalidate the
-            old credential.
+            Your token may have expired or been revoked. Generate a new token
+            under <strong>JobClock Settings → Extension</strong>, then open the
+            extension settings and reconnect.
           </TroubleshootingItem>
           <TroubleshootingItem title="No job details found">
             Confirm the full description is visible, especially on LinkedIn,
@@ -149,10 +149,10 @@ export default function ExtensionSupportPage() {
         <p>
           For support, email{" "}
           <a
-            href="mailto:michael_ogunjimi@yahoo.com"
+            href="mailto:support@jobclock.michaelogunjimi.com"
             className="font-medium text-foreground underline underline-offset-4"
           >
-            michael_ogunjimi@yahoo.com
+            support@jobclock.michaelogunjimi.com
           </a>
           . Include the page URL, the error message, and your Chrome version,
           but never include your extension token.

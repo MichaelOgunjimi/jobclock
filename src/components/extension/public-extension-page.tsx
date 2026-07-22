@@ -147,7 +147,7 @@ export function PublicExtensionPage({
                 not include your extension token.
               </p>
               <a
-                href="mailto:michael_ogunjimi@yahoo.com"
+                href="mailto:support@jobclock.michaelogunjimi.com"
                 aria-label="Email JobClock support"
                 className={cn(
                   buttonVariants({ variant: "outline", size: "sm" }),
@@ -165,7 +165,11 @@ export function PublicExtensionPage({
       <footer className="border-t bg-sidebar text-white">
         <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-2 px-4 py-8 text-sm text-white/60 sm:px-6 md:flex-row md:items-center md:justify-between md:px-10 xl:px-12">
           <p>JobClock by Michael Ogunjimi.</p>
-          <p>Public extension information, available without signing in.</p>
+          <nav className="flex flex-wrap gap-x-4 gap-y-2" aria-label="Legal pages">
+            <Link href="/privacy" className="hover:text-white">General privacy</Link>
+            <Link href="/terms" className="hover:text-white">Terms</Link>
+            <Link href="/cookies" className="hover:text-white">Cookies</Link>
+          </nav>
         </div>
       </footer>
     </main>
