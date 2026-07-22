@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { ExternalLink } from "lucide-react"
 import { PublicExtensionPage } from "@/components/extension/public-extension-page"
 import {
   Card,
@@ -7,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { CHROME_WEB_STORE_URL } from "@/lib/extension"
 
 export const metadata: Metadata = {
   title: "Extension Support",
@@ -19,8 +21,9 @@ export const metadata: Metadata = {
 
 const setupSteps = [
   {
-    title: "Launch status",
-    body: "The Chrome Web Store submission is pending review. The listing will become available after Google approves it.",
+    title: "Install JobClock",
+    body: "Open the published Chrome Web Store listing, select Add to Chrome, and confirm Add extension.",
+    href: CHROME_WEB_STORE_URL,
   },
   {
     title: "Generate a token",
@@ -42,7 +45,7 @@ export default function ExtensionSupportPage() {
       kicker="Extension support"
       title="JobClock extension support"
       lede="Connect the extension, capture jobs from the active page, and recover cleanly when a site or network request gets in the way."
-      updatedAt="21 July 2026"
+      updatedAt="22 July 2026"
     >
       <Card>
         <CardHeader className="border-b">
@@ -57,6 +60,17 @@ export default function ExtensionSupportPage() {
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
                 {step.body}
               </p>
+              {step.href ? (
+                <a
+                  href={step.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline underline-offset-4"
+                >
+                  Open Chrome Web Store
+                  <ExternalLink className="size-3.5" />
+                </a>
+              ) : null}
             </div>
           ))}
         </CardContent>

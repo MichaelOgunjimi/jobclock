@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { CHROME_WEB_STORE_URL } from "@/lib/extension"
 import { cn } from "@/lib/utils"
 
 interface PublicExtensionPageProps {
@@ -80,6 +81,15 @@ export function PublicExtensionPage({
                 Privacy
               </Link>
             </nav>
+            <a
+              href={CHROME_WEB_STORE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Install extension
+              <ExternalLink className="size-3.5" />
+            </a>
             <Link href="/auth" className={buttonVariants({ size: "sm" })}>
               Open JobClock
               <ArrowRight className="size-3.5" />

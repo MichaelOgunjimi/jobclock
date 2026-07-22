@@ -1,7 +1,11 @@
 # Chrome Web Store Submission Checklist
 
-Complete every item against the final uploaded ZIP before selecting **Submit for
-review**.
+## Published Listing
+
+JobClock is publicly available in the
+[Chrome Web Store](https://chromewebstore.google.com/detail/jobclock-job-application/albhohoocdlhefihfhiapcmckopbgjhh).
+
+Use the remaining checklist when preparing a new version for review.
 
 ## Publisher
 
