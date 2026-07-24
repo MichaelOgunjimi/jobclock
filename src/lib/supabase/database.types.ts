@@ -79,6 +79,7 @@ export type Database = {
 					name: string | null;
 					original_file_path: string | null;
 					parsed_json: Json | null;
+					review_findings: Json | null;
 					file_path: string | null;
 					created_at: string;
 					is_primary: boolean | null;
@@ -89,6 +90,7 @@ export type Database = {
 					name?: string | null;
 					original_file_path?: string | null;
 					parsed_json?: Json | null;
+					review_findings?: Json | null;
 					file_path?: string | null;
 					created_at?: string;
 					is_primary?: boolean | null;
@@ -99,6 +101,7 @@ export type Database = {
 					name?: string | null;
 					original_file_path?: string | null;
 					parsed_json?: Json | null;
+					review_findings?: Json | null;
 					file_path?: string | null;
 					created_at?: string;
 					is_primary?: boolean | null;
