@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect } from "next/navigation"
+import { parseReviewFindings } from "@/lib/ai/cv-review-schemas"
 import { ProfileTabs } from "./profile-tabs"
 
 export const metadata: Metadata = {
@@ -21,7 +22,7 @@ export default async function ProfilePage() {
   const [{ data: cvs }, { data: structures }] = await Promise.all([
     supabase
       .from("user_cvs")
-      .select("id, name, is_primary, created_at, parsed_json")
+      .select("id, name, is_primary, created_at, parsed_json, review_findings")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
     supabase
@@ -51,7 +52,10 @@ export default async function ProfilePage() {
 
       <Suspense>
         <ProfileTabs
-          cvs={cvs ?? []}
+          cvs={(cvs ?? []).map(({ review_findings, ...cv }) => ({
+            ...cv,
+            review_finding_count: parseReviewFindings(review_findings).length,
+          }))}
           builtInStyles={builtInStyles}
           userStyles={userStyles}
         />

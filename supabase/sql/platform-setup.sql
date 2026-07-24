@@ -221,7 +221,12 @@ BEGIN
   ON CONFLICT (id) DO NOTHING;
   RETURN new;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+
+-- This function is invoked only by the auth.users trigger. Prevent PostgREST
+-- clients from calling the SECURITY DEFINER function directly as an RPC.
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO service_role;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -248,6 +253,10 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('templates', 'templates', false)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true)
 ON CONFLICT (id) DO NOTHING;
 
 DROP POLICY IF EXISTS "Users can upload own CV" ON storage.objects;
@@ -277,6 +286,33 @@ CREATE POLICY "Users can update their own templates" ON storage.objects
 DROP POLICY IF EXISTS "Users can delete their own templates" ON storage.objects;
 CREATE POLICY "Users can delete their own templates" ON storage.objects
   FOR DELETE USING (bucket_id = 'templates' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- Avatar files are served through the public object URL, which does not need
+-- a storage.objects SELECT policy. Keep metadata access and all writes scoped
+-- to the authenticated user's own top-level folder. SELECT is required for
+-- the client's upsert flow but no longer exposes a listing of every avatar.
+DROP POLICY IF EXISTS "avatars: public read" ON storage.objects;
+DROP POLICY IF EXISTS "avatars: owner select" ON storage.objects;
+CREATE POLICY "avatars: owner select" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+DROP POLICY IF EXISTS "avatars: owner insert" ON storage.objects;
+CREATE POLICY "avatars: owner insert" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+DROP POLICY IF EXISTS "avatars: owner update" ON storage.objects;
+CREATE POLICY "avatars: owner update" ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1])
+  WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+DROP POLICY IF EXISTS "avatars: owner delete" ON storage.objects;
+CREATE POLICY "avatars: owner delete" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
 -- ============================================================
 -- GENERATION JOBS (async generation lifecycle + Realtime)
 -- ============================================================

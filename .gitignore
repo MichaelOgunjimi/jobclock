@@ -28,6 +28,7 @@ test-results/
 docs/scratch/
 *.pem
 skills-lock.json
+.agents/
 # scripts/ — tracked (contains setup and migration utilities)
 .claude/
 
@@ -43,9 +44,13 @@ landing-*.yaml
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.local.example
 
 # vercel
 .vercel
+
+# supabase cli
+supabase/.temp/
 
 # typescript
 *.tsbuildinfo

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { ArrowUpRight, FileText, Star } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,7 @@ type CvRow = {
 	is_primary: boolean | null;
 	created_at: string;
 	parsed_json: unknown;
+	review_finding_count: number;
 };
 
 export const EXPERIENCE_LEVELS = [
@@ -81,6 +83,7 @@ export function ProfileTabs({
 							const label = cv.name ?? parsed?.name ?? "Untitled CV";
 							const skills = parsed?.skills?.slice(0, 4) ?? [];
 							const expCount = parsed?.experience?.length ?? 0;
+							const findingCount = cv.review_finding_count;
 							return (
 								<Card
 									key={cv.id}
@@ -133,6 +136,11 @@ export function ProfileTabs({
 														{expCount} experience{" "}
 														{expCount === 1 ? "entry" : "entries"}
 													</p>
+													{findingCount > 0 && (
+														<Badge variant="destructive" className="text-[10px]">
+															{findingCount} review {findingCount === 1 ? "issue" : "issues"}
+														</Badge>
+													)}
 												</div>
 											</div>
 										</div>
