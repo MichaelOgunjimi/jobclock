@@ -1,10 +1,19 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { ProfileTabs } from "./profile-tabs"
+import { saveGenerationAutomation } from "./actions"
+
+const { navigationState } = vi.hoisted(() => ({
+  navigationState: { search: "" },
+}))
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(navigationState.search),
+}))
+
+vi.mock("./actions", () => ({
+  saveGenerationAutomation: vi.fn(),
 }))
 
 vi.mock("./cv-card-actions", () => ({
@@ -60,5 +69,46 @@ describe("ProfileTabs CV cards", () => {
     )
 
     expect(screen.queryByText(/review issues?/i)).not.toBeInTheDocument()
+  })
+})
+
+describe("ProfileTabs automation", () => {
+  it("shows independent CV and cover-letter generation toggles", () => {
+    navigationState.search = "tab=automation"
+
+    render(
+      <ProfileTabs
+        cvs={[]}
+        builtInStyles={[]}
+        userStyles={[]}
+        generationAutomation={{ generateCv: true, generateCoverLetter: false }}
+      />,
+    )
+
+    expect(screen.getByRole("switch", { name: /tailored cv/i })).toHaveAttribute("aria-checked", "true")
+    expect(screen.getByRole("switch", { name: /cover letter/i })).toHaveAttribute("aria-checked", "false")
+  })
+
+  it("saves either automation independently", async () => {
+    navigationState.search = "tab=automation"
+    vi.mocked(saveGenerationAutomation).mockResolvedValue({ success: true })
+    render(
+      <ProfileTabs
+        cvs={[]}
+        builtInStyles={[]}
+        userStyles={[]}
+        generationAutomation={{ generateCv: false, generateCoverLetter: false }}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole("switch", { name: /tailored cv/i }))
+    fireEvent.click(screen.getByRole("button", { name: /save automation/i }))
+
+    await waitFor(() => {
+      expect(saveGenerationAutomation).toHaveBeenCalledWith({
+        generateCv: true,
+        generateCoverLetter: false,
+      })
+    })
   })
 })

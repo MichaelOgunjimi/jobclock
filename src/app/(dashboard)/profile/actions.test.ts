@@ -13,6 +13,7 @@ import {
   deleteWritingStyle,
   renameCv,
   saveCvData,
+  saveGenerationAutomation,
   savePreferences,
   saveWritingStyle,
   setPrimaryCV,
@@ -166,5 +167,30 @@ describe("profile actions", () => {
       right_to_work_uk: true,
       experience_level: null,
     })
+  })
+
+  it("saveGenerationAutomation merges both toggles into existing preferences", async () => {
+    supabaseMock.setQueryResult("profiles.select.single", {
+      data: { preferences: { ai_provider: "openai", preferred_cv_template: "modern" } },
+    })
+
+    const result = await saveGenerationAutomation({
+      generateCv: true,
+      generateCoverLetter: false,
+    })
+
+    expect(result).toEqual({ success: true })
+    const updateCall = supabaseMock
+      .getQueryCalls()
+      .find((call) => call.table === "profiles" && call.operation === "update")
+    expect(updateCall?.payload).toEqual({
+      preferences: {
+        ai_provider: "openai",
+        preferred_cv_template: "modern",
+        auto_generate_cv_on_job_add: true,
+        auto_generate_cover_letter_on_job_add: false,
+      },
+    })
+    expect(revalidatePath).toHaveBeenCalledWith("/profile")
   })
 })
