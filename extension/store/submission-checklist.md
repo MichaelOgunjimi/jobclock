@@ -83,7 +83,7 @@ Single-purpose text:
 
 ## Package Review
 
-- [ ] Manifest version is 3 and extension version is `0.2.0`.
+- [ ] Manifest version is 3 and extension version is `0.2.1`.
 - [ ] Permissions are exactly `activeTab`, `scripting`, and `storage`.
 - [ ] Host permission is exactly
       `https://jobclock.michaelogunjimi.com/*`.

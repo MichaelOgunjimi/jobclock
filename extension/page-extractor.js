@@ -359,12 +359,15 @@
   }
 
   function relevantPageText(description) {
-    // The sidebar-flood problem only exists on LinkedIn: when scope falls
-    // back to document there, the [class*="job" i] sweep matches hundreds
-    // of feed items and dumps the entire recommendation list into pageText.
+    // LinkedIn's selected-job pane also contains candidate comparisons,
+    // company insights, related jobs, and other chrome after the posting.
+    // Once a description block has been found, do not supplement it from the
+    // broader pane: literal models can mistake that chrome for JD sections.
+    // This also covers document fallback, where the [class*="job" i] sweep
+    // can match hundreds of feed items.
     // On external ATS pages (Workday, Greenhouse, etc.) the whole page IS
     // the job posting, so let the normal container scan run.
-    if (scopeIsDocument && /(?:^|\.)linkedin\.com$/i.test(location.hostname)) {
+    if (description && /(?:^|\.)linkedin\.com$/i.test(location.hostname)) {
       return (description || "").slice(0, MAX_RELEVANT_PAGE_TEXT_CHARS)
     }
 
@@ -402,11 +405,13 @@
 
   const DESCRIPTION_SELECTORS = [
     ".job-details-about-the-job-module__description",
-    ".job-details-module",
     ".jobs-description__content",
     ".jobs-box__html-content",
     ".show-more-less-html__markup",
     ".description__text",
+    // This is a generic LinkedIn module wrapper and may contain page chrome.
+    // Keep it strictly after every known description-specific selector.
+    ".job-details-module",
   ]
 
   function descriptionReadyText() {
@@ -492,12 +497,14 @@
         // /jobs/collections/recommended/?currentJobId=…): the description
         // block was renamed away from `.jobs-description__content`.
         ".job-details-about-the-job-module__description",
-        ".job-details-module",
         ".jobs-description__content",
         ".jobs-box__html-content",
         // Public guest view (works without login on /jobs/view/<id>/).
         ".show-more-less-html__markup",
         ".description__text",
+        // Last-resort wrapper: LinkedIn also uses this class for broader
+        // modules, so all description-specific selectors must run first.
+        ".job-details-module",
       ]) || largestTextBlockIn(scope, 800, 20000)
 
     const glassdoorTitle = firstText([

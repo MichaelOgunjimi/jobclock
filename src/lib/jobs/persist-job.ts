@@ -1,6 +1,8 @@
 import { and, desc, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { applicationStatusEvents, applications, jobsCache } from "@/lib/db/schema"
+import { applicationStatusEvents, applications, jobsCache, profiles } from "@/lib/db/schema"
+import { enqueueGeneration } from "@/lib/generation/enqueue"
+import type { UserPreferences } from "@/lib/ai"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
 
 export interface PersistedJobInput {
@@ -177,7 +179,7 @@ export async function persistJobForUser(
   userId: string,
   job: PersistedJobInput
 ): Promise<{ applicationId: string; alreadySaved: boolean }> {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [cachedJob] = await tx
       .insert(jobsCache)
       .values({
@@ -253,4 +255,31 @@ export async function persistJobForUser(
       alreadySaved: true,
     }
   })
+
+  if (!result.alreadySaved) {
+    const [profile] = await db
+      .select({ preferences: profiles.preferences })
+      .from(profiles)
+      .where(eq(profiles.id, userId))
+
+    const preferences = (profile?.preferences ?? {}) as UserPreferences
+    const generationRequests: Promise<unknown>[] = []
+    if (preferences.auto_generate_cv_on_job_add) {
+      generationRequests.push(enqueueGeneration({
+        kind: "cv_tailor",
+        userId,
+        applicationId: result.applicationId,
+      }))
+    }
+    if (preferences.auto_generate_cover_letter_on_job_add) {
+      generationRequests.push(enqueueGeneration({
+        kind: "cover_letter",
+        userId,
+        applicationId: result.applicationId,
+      }))
+    }
+    await Promise.allSettled(generationRequests)
+  }
+
+  return result
 }

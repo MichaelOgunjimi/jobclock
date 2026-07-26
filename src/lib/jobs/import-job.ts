@@ -156,13 +156,15 @@ export function chooseDescription(parsedDescription: string | null, hintedDescri
   // (no paragraph breaks, no headings) — the AI reformats it into
   // markdown while preserving content, so users get a readable result.
   //
-  // Compression guard: if the AI's output is dramatically shorter than
-  // the raw hint, the model likely summarised against instructions —
-  // fall back to the raw hint so we never lose content.
+  // Fidelity guard: if the AI output is dramatically shorter, it likely
+  // summarised the hint. If it is substantially longer, it likely copied
+  // surrounding page chrome (LinkedIn candidate/company insights are a
+  // common example). Formatting can change length slightly, but it should
+  // not invent a quarter more content.
   if (parsedDescription && isSubstantialDescription(parsedDescription)) {
     const parsedLen = parsedDescription.trim().length
     const hintedLen = hintedDescription?.trim().length ?? 0
-    if (hintedLen === 0 || parsedLen >= hintedLen * 0.6) {
+    if (hintedLen === 0 || (parsedLen >= hintedLen * 0.6 && parsedLen <= hintedLen * 1.25)) {
       return parsedDescription
     }
   }

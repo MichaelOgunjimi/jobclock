@@ -2,10 +2,10 @@ import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
-function loadCollector() {
+function loadCollector(pageLocation: Pick<Location, "href" | "hostname"> = window.location) {
   const source = readFileSync(resolve(process.cwd(), "extension/page-extractor.js"), "utf8")
-  const script = new Function(`${source}; return globalThis.collectJobAssistantPageData;`)
-  const collector = script()
+  const script = new Function("location", `${source}; return globalThis.collectJobAssistantPageData;`)
+  const collector = script(pageLocation)
 
   if (typeof collector !== "function") {
     throw new Error("collectJobAssistantPageData was not registered")
@@ -102,5 +102,42 @@ describe("extension page extractor", () => {
     expect(result.pageText).not.toContain("Marketing Manager 249")
     expect(result.pageText).not.toContain("Application question 99")
     expect(result.pageText.length).toBeLessThan(12_000)
+  })
+
+  it("prefers LinkedIn's nested description over a broader job details module", async () => {
+    document.title = "Associate, Front Office Software Engineer | LinkedIn"
+    document.body.innerHTML = `
+      <main class="jobs-search-two-pane__details-wrapper">
+        <h1 class="jobs-unified-top-card__job-title">Associate, Front Office Software Engineer</h1>
+        <a class="jobs-unified-top-card__company-name">Castleton Commodities International</a>
+        <div class="job-details-module">
+          <section class="jobs-description__content">
+            <h2>About the job</h2>
+            <p>${"Partner directly with traders and analysts to engineer trading processes and build scalable Python services for market analytics. ".repeat(4)}</p>
+            <h3>Requirements</h3>
+            <p>Strong Python, algorithms, Linux, cloud platforms, and an interest in commodities markets.</p>
+          </section>
+          <section class="candidate-insights">
+            <h2>See how you compare to others who clicked apply</h2>
+            <p>Candidates who clicked apply: 334 total in the past day.</p>
+          </section>
+          <section class="company-insights">
+            <h2>Company focus areas</h2>
+            <p>The latest hiring trend is 627 total employees.</p>
+          </section>
+        </div>
+      </main>
+    `
+
+    const result = await loadCollector({
+      href: "https://www.linkedin.com/jobs/view/associate-front-office-software-engineer/",
+      hostname: "www.linkedin.com",
+    })()
+
+    expect(result.pageHints.description).toContain("Partner directly with traders")
+    expect(result.pageHints.description).not.toContain("Candidates who clicked apply")
+    expect(result.pageHints.description).not.toContain("Company focus areas")
+    expect(result.pageText).not.toContain("Candidates who clicked apply")
+    expect(result.pageText).not.toContain("Company focus areas")
   })
 })

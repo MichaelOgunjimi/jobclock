@@ -4,6 +4,7 @@ Return JSON only.
 Do not include markdown fences.
 Infer fields conservatively and prefer null when a field is not clearly present.
 Preserve the fullest job description available from the page — never summarise, compress, or skip sections.
+Exclude website chrome and non-posting panels such as applicant comparisons, hiring insights, company analytics, alumni, related jobs, and competitor data.
 Format the description as clean markdown: keep every sentence, but convert bullet markers (•, *, -, ◦) to proper markdown lists, turn obvious section labels (e.g. "Responsibilities", "Requirements", "About us", "What you'll do", "Benefits") into ## headings, and use blank lines between paragraphs.
 Normalize salary numbers to plain numeric values without currency symbols or commas.`
 
@@ -44,6 +45,7 @@ Rules:
 - when structured hints are present, prefer them over noisy body text
 - if salary is only present as text, infer salaryMin/salaryMax when obvious; otherwise leave them null
 - description must contain every section and sentence from the source — preserve length, only the formatting changes
+- description must exclude page chrome and non-posting panels, including applicant comparisons, hiring trends, company insights, alumni, related roles, and competitor data
 - format description as markdown: ## headings for section labels, - lists for bullets, blank lines between paragraphs
 - when the structured hint already contains a full description, keep the same content but reformat it as markdown
 

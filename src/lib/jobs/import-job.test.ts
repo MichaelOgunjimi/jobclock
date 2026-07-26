@@ -37,6 +37,28 @@ describe("chooseDescription", () => {
       )
     ).toBe("Full parsed description with responsibilities, requirements, and process.")
   })
+
+  it("rejects an AI description that appends unrelated LinkedIn page sections", () => {
+    const hintedDescription = [
+      "About the job",
+      "Partner directly with traders and analysts to engineer and optimize trading processes, analytical models, and systematic strategies.",
+      "Build and maintain scalable, high-performance Python services and APIs that power our analytics platform.",
+      "Develop solutions for market data analysis and strategy research in a fast-paced front office environment.",
+      "Requirements include strong Python, data structures, algorithms, Linux, cloud platforms, and an interest in commodities markets.",
+    ].join("\n")
+    const noisyModelDescription = [
+      hintedDescription,
+      "People you can reach out to",
+      "School alumni from The University of Manchester",
+      "See how you compare to others who clicked apply",
+      "Candidates who clicked apply 334 total in the past day",
+      "Company focus areas",
+      "The latest hiring trend 627 Total employees",
+      "Competitors Sources: zippia.com",
+    ].join("\n")
+
+    expect(chooseDescription(noisyModelDescription, hintedDescription)).toBe(hintedDescription)
+  })
 })
 
 describe("deriveTitleAndCompanyFromPageTitle", () => {

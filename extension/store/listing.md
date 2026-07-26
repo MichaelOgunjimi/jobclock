@@ -75,6 +75,11 @@ https://jobclock.michaelogunjimi.com/extension/privacy
 Support:
 https://jobclock.michaelogunjimi.com/extension/support
 
+## Release Notes - 0.2.1
+
+- Improved LinkedIn extraction so applicant comparisons and company insights are not included in job descriptions.
+- Improved extraction consistency across supported AI providers.
+
 ## Release Notes - 0.2.0
 
 - Renamed and restyled the extension for JobClock.

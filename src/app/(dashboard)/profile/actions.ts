@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { revalidatePath } from "next/cache"
 import type { CvData, Json, WritingStyleTone } from "@/lib/supabase/database.types"
+import type { UserPreferences } from "@/lib/ai"
 
 export async function setPrimaryCV(formData: FormData): Promise<{ error?: string; success?: boolean }> {
   if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
@@ -211,6 +212,38 @@ export async function savePreferences(payload: {
       right_to_work_uk: payload.rightToWorkUk,
       experience_level: payload.experienceLevel.length > 0 ? payload.experienceLevel : null as unknown as string[] | null,
     })
+    .eq("id", user.id)
+
+  if (error) return { error: error.message }
+  revalidatePath("/profile")
+  return { success: true }
+}
+
+export async function saveGenerationAutomation(payload: {
+  generateCv: boolean
+  generateCoverLetter: boolean
+}) {
+  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Unauthorized" }
+
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("preferences")
+    .eq("id", user.id)
+    .single()
+
+  const preferences = (existing?.preferences ?? {}) as UserPreferences
+  const updated: UserPreferences = {
+    ...preferences,
+    auto_generate_cv_on_job_add: payload.generateCv,
+    auto_generate_cover_letter_on_job_add: payload.generateCoverLetter,
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ preferences: updated as unknown as Json })
     .eq("id", user.id)
 
   if (error) return { error: error.message }

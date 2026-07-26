@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect } from "next/navigation"
 import { parseReviewFindings } from "@/lib/ai/cv-review-schemas"
+import type { UserPreferences } from "@/lib/ai"
 import { ProfileTabs } from "./profile-tabs"
 
 export const metadata: Metadata = {
@@ -19,7 +20,7 @@ export default async function ProfilePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth")
 
-  const [{ data: cvs }, { data: structures }] = await Promise.all([
+  const [{ data: cvs }, { data: structures }, { data: profile }] = await Promise.all([
     supabase
       .from("user_cvs")
       .select("id, name, is_primary, created_at, parsed_json, review_findings")
@@ -31,10 +32,16 @@ export default async function ProfilePage() {
       .or(`is_built_in.eq.true,user_id.eq.${user.id}`)
       .order("is_built_in", { ascending: false })
       .order("created_at", { ascending: true }),
+    supabase
+      .from("profiles")
+      .select("preferences")
+      .eq("id", user.id)
+      .single(),
   ])
 
   const builtInStyles = (structures ?? []).filter((s) => s.is_built_in)
   const userStyles = (structures ?? []).filter((s) => !s.is_built_in)
+  const preferences = (profile?.preferences ?? {}) as UserPreferences
 
   return (
     <div className="page-shell max-w-5xl">
@@ -58,6 +65,10 @@ export default async function ProfilePage() {
           }))}
           builtInStyles={builtInStyles}
           userStyles={userStyles}
+          generationAutomation={{
+            generateCv: preferences.auto_generate_cv_on_job_add ?? false,
+            generateCoverLetter: preferences.auto_generate_cover_letter_on_job_add ?? false,
+          }}
         />
       </Suspense>
     </div>

@@ -58,6 +58,8 @@ export interface JobSources {
 export interface UserPreferences {
   ai_provider?: AiProvider
   ai_model?: string
+  auto_generate_cv_on_job_add?: boolean
+  auto_generate_cover_letter_on_job_add?: boolean
   anthropic_api_key?: string
   openai_api_key?: string
   perplexity_api_key?: string

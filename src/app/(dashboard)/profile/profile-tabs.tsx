@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { CvCardActions } from "./cv-card-actions";
 import { CvUploadDialog } from "./cv-upload-dialog";
 import { WritingStylesTab } from "./writing-styles-tab";
+import { GenerationAutomationTab } from "./generation-automation-tab";
 import type {
 	WritingStyle,
 	CvData,
@@ -38,17 +39,19 @@ export function ProfileTabs({
 	cvs,
 	builtInStyles,
 	userStyles,
+	generationAutomation,
 }: {
 	cvs: CvRow[];
 	builtInStyles: WritingStyle[];
 	userStyles: WritingStyle[];
+	generationAutomation?: { generateCv: boolean; generateCoverLetter: boolean };
 }) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 
 	const [isTabPending, startTabTransition] = useTransition();
 
-	const validTabs = ["cvs", "writing-styles"];
+	const validTabs = ["cvs", "writing-styles", "automation"];
 	const activeTab =
 		validTabs.includes(searchParams.get("tab") ?? "") ?
 			searchParams.get("tab")!
@@ -69,6 +72,7 @@ export function ProfileTabs({
 			>
 				<TabsTrigger value="cvs">CVs</TabsTrigger>
 				<TabsTrigger value="writing-styles">Writing Styles</TabsTrigger>
+				<TabsTrigger value="automation">Automation</TabsTrigger>
 			</TabsList>
 
 			{/* CVs Tab */}
@@ -191,6 +195,13 @@ export function ProfileTabs({
 			{/* Writing Styles Tab */}
 			<TabsContent value="writing-styles">
 				<WritingStylesTab builtIns={builtInStyles} userStyles={userStyles} />
+			</TabsContent>
+
+			<TabsContent value="automation">
+				<GenerationAutomationTab
+					initialGenerateCv={generationAutomation?.generateCv ?? false}
+					initialGenerateCoverLetter={generationAutomation?.generateCoverLetter ?? false}
+				/>
 			</TabsContent>
 		</Tabs>
 	);
