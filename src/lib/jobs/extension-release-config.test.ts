@@ -37,7 +37,7 @@ describe("extension production release configuration", () => {
     expect(manifest.description).toBe(
       "Preview and save job listings from any website directly into your JobClock pipeline."
     )
-    expect(manifest.version).toBe("0.2.0")
+    expect(manifest.version).toBe("0.2.1")
     expect(manifest.action.default_title).toBe("Save job to JobClock")
     expect(manifest.host_permissions).toEqual([
       "https://jobclock.michaelogunjimi.com/*",

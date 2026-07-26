@@ -32,8 +32,8 @@ export function validateManifest(manifest) {
   if (manifest.manifest_version !== 3) {
     throw new Error("The extension must use Manifest V3.")
   }
-  if (manifest.version !== "0.2.0") {
-    throw new Error("The extension package version must be 0.2.0.")
+  if (manifest.version !== "0.2.1") {
+    throw new Error("The extension package version must be 0.2.1.")
   }
   if (
     !Array.isArray(manifest.permissions) ||
