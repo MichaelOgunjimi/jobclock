@@ -146,7 +146,7 @@ function parseSkillsGap(raw: unknown): { gap: string[]; changes: string | null }
 
 // ── Pipeline stepper ────────────────────────────────────────────────────────
 
-function StatusStepper({
+export function StatusStepper({
   currentStatus,
   applicationId,
 }: {
@@ -154,6 +154,7 @@ function StatusStepper({
   applicationId: string
 }) {
   const [pending, startTransition] = useTransition()
+  const [pendingStatus, setPendingStatus] = useState<ApplicationStatus | null>(null)
   const isTerminal =
     currentStatus === "rejected" || currentStatus === "withdrawn" || currentStatus === "ghosted"
   const currentIndex = STATUS_STEPS.findIndex((s) => s.value === currentStatus)
@@ -162,7 +163,14 @@ function StatusStepper({
     const formData = new FormData()
     formData.set("applicationId", applicationId)
     formData.set("status", status)
-    startTransition(() => updateStatus(formData))
+    setPendingStatus(status)
+    startTransition(async () => {
+      try {
+        await updateStatus(formData)
+      } finally {
+        setPendingStatus(null)
+      }
+    })
   }
 
   return (
@@ -170,6 +178,12 @@ function StatusStepper({
       <p className="text-xs text-muted-foreground">
         Click any stage to move this application forward or back. Outcomes stay available below.
       </p>
+      {pendingStatus && (
+        <div role="status" aria-live="polite" className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Updating stage to {getStatusLabel(pendingStatus)}…
+        </div>
+      )}
       <div className="grid gap-2 sm:hidden">
         {STATUS_STEPS.map((step, index) => {
           const isPast = !isTerminal && index < currentIndex
@@ -177,10 +191,10 @@ function StatusStepper({
           const isFuture = isTerminal || index > currentIndex
 
           return (
-            <div
+            <button
               key={step.value}
-              role="button"
-              tabIndex={0}
+              type="button"
+              disabled={pending || step.value === currentStatus}
               onClick={() => handleStatusClick(step.value)}
               className={cn(
                 "flex items-center justify-between border px-4 py-3 transition-colors",
@@ -203,7 +217,7 @@ function StatusStepper({
                 </span>
               </div>
               {isCurrent && <span className="text-[10px] font-semibold tracking-[0.1em] uppercase">current</span>}
-            </div>
+            </button>
           )
         })}
       </div>
@@ -215,10 +229,10 @@ function StatusStepper({
           const isFuture = isTerminal || index > currentIndex
 
           return (
-            <div
+            <button
               key={step.value}
-              role="button"
-              tabIndex={0}
+              type="button"
+              disabled={pending || step.value === currentStatus}
               onClick={() => handleStatusClick(step.value)}
               className={cn(
                 "flex flex-1 flex-col gap-1.5 border px-3 py-3 text-center transition-colors",
@@ -239,7 +253,7 @@ function StatusStepper({
               <span className="text-[11px] font-semibold tracking-[0.06em] uppercase">
                 {step.label}
               </span>
-            </div>
+            </button>
           )
         })}
       </div>

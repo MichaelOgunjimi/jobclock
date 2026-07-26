@@ -5,15 +5,11 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
 import {
   Briefcase,
   Search,
   ArrowRight,
   CalendarDays,
-  ChevronDown,
-  CircleDot,
   MapPin,
   Plus,
   Wallet,
@@ -24,6 +20,7 @@ import { buttonVariants } from "@/components/ui/button-styles"
 import type { ApplicationStatus, Database } from "@/lib/supabase/database.types"
 import { updateApplicationStatusForUser } from "@/lib/jobs/persist-job"
 import { ApplicationsFilterBar } from "./applications-filter-bar"
+import { ApplicationStatusForm } from "./application-status-form"
 import { APPLICATION_STATUS_OPTIONS } from "./pipeline-metrics"
 
 export const metadata: Metadata = {
@@ -433,6 +430,7 @@ export default async function ApplicationsPage({
                       applicationId={app.id}
                       currentStatus={app.status}
                       statusOptions={statusOptions}
+                      action={updateApplicationStatus}
                     />
                   </div>
                 </div>
@@ -528,58 +526,6 @@ function getVisiblePages(currentPage: number, totalPages: number): Array<number 
   }
 
   return [1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages]
-}
-
-function ApplicationStatusForm({
-  applicationId,
-  currentStatus,
-  statusOptions,
-}: {
-  applicationId: string
-  currentStatus: string
-  statusOptions: { value: string; label: string; color: string; dot: string }[]
-}) {
-  return (
-    <form
-      action={updateApplicationStatus}
-      className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"
-    >
-      <input type="hidden" name="applicationId" value={applicationId} />
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          Application status
-        </Label>
-        <p className="text-sm text-muted-foreground">
-          Move this role forward or back and keep the pipeline current.
-        </p>
-      </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Stage
-          </Label>
-          <div className="relative">
-            <CircleDot className="pointer-events-none absolute top-1/2 left-3.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <ChevronDown className="pointer-events-none absolute top-1/2 right-4 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <select
-              name="status"
-              defaultValue={currentStatus}
-              className="form-select min-w-[15rem] bg-none pl-10 pr-14"
-            >
-              {statusOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <Button type="submit" size="default" className="w-full sm:w-auto">
-          Update stage
-        </Button>
-      </div>
-    </form>
-  )
 }
 
 async function updateApplicationStatus(formData: FormData) {
