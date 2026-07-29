@@ -80,6 +80,70 @@ describe("cvTailorHandler", () => {
     expect(resultRef).toBe("cv-new")
   })
 
+  it("persists only relevant skills selected from the original CV", async () => {
+    vi.mocked(loadCvTailorContext).mockResolvedValue({
+      ...CTX,
+      cvJson: JSON.stringify({
+        skills: [
+          "Python",
+          "FastAPI",
+          "Docker",
+          "REST APIs",
+          "Git",
+          "CI/CD",
+          "JavaScript",
+          "HTML",
+          "CSS",
+          "Attention to detail",
+          "Teamwork",
+          "Problem-solving",
+        ],
+      }),
+    } as never)
+    vi.mocked(cvTailoringPlanSchema.safeParse).mockReturnValue({
+      success: true,
+      data: {
+        skills_plan: {
+          prioritize: ["Python", "REST APIs", "FastAPI"],
+          keep: ["Docker", "Git", "CI/CD", "Attention to detail", "Teamwork", "Problem-solving"],
+          add_if_present_in_cv: ["Distributed Systems"],
+        },
+      },
+    } as never)
+    vi.mocked(tailoredCvResultSchema.safeParse).mockReturnValue({
+      success: true,
+      data: {
+        ...TAILOR_RESULT,
+        cv: {
+          name: "Alice",
+          skills: [
+            "Python",
+            "AI-powered development tools",
+            "FastAPI",
+            "Distributed Systems",
+            "Collaborative Development Workflows",
+            "full-stack",
+            "ownership",
+            "Attention to detail",
+            "Teamwork",
+            "Problem-solving",
+          ],
+        },
+      },
+    } as never)
+    const returning = vi.fn().mockResolvedValue([{ id: "cv-new" }])
+    const values = vi.fn(() => ({ returning }))
+    db.insert.mockReturnValue({ values })
+
+    await cvTailorHandler(JOB)
+
+    expect(values).toHaveBeenCalledWith(expect.objectContaining({
+      cvJson: expect.objectContaining({
+        skills: ["Python", "REST APIs", "FastAPI", "Docker", "Git", "CI/CD"],
+      }),
+    }))
+  })
+
   it("throws on LLM failure so dispatcher marks the job failed", async () => {
     vi.mocked(generateText).mockRejectedValueOnce(new Error("Stage B timeout"))
     db.insert.mockReturnValue({ values: () => ({ returning: vi.fn().mockResolvedValue([{ id: "x" }]) }) })
