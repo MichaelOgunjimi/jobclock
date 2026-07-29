@@ -18,10 +18,12 @@ interface UserProfile {
 export function DashboardShell({
   children,
   aiKeyBanner,
+  showExtensionBanner,
   userProfile,
 }: {
   children: React.ReactNode
   aiKeyBanner?: { providerLabel: string } | null
+  showExtensionBanner: boolean
   userProfile: UserProfile
 }) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
@@ -65,11 +67,13 @@ export function DashboardShell({
             </div>
           </div>
         )}
-        <div className="border-b px-4 py-3 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-[1440px]">
-            <ExtensionAvailabilityBanner compact />
+        {showExtensionBanner && (
+          <div className="border-b px-4 py-3 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-[1440px]">
+              <ExtensionAvailabilityBanner compact />
+            </div>
           </div>
-        </div>
+        )}
         {children}
       </main>
     </div>

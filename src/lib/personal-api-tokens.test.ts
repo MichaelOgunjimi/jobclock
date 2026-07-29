@@ -14,6 +14,7 @@ import {
   authenticatePersonalApiToken,
   generatePersonalApiToken,
   getActivePersonalApiTokenMetadata,
+  hasPersonalApiTokenHistory,
   touchPersonalApiToken,
 } from "./personal-api-tokens"
 
@@ -105,6 +106,21 @@ describe("personal api tokens", () => {
       expiresAt: "2026-07-22T10:00:00.000Z",
       lastUsedAt: "2026-04-23T12:00:00.000Z",
     })
+  })
+
+  it.each([
+    [[{ id: "token-1" }], true],
+    [[], false],
+  ])("reports whether a user has ever set up an extension token", async (records, expected) => {
+    db.select.mockImplementationOnce(() => ({
+      from: () => ({
+        where: () => ({
+          limit: vi.fn().mockResolvedValue(records),
+        }),
+      }),
+    }))
+
+    await expect(hasPersonalApiTokenHistory("user-1")).resolves.toBe(expected)
   })
 
   it("touchPersonalApiToken updates the last-used timestamp", async () => {

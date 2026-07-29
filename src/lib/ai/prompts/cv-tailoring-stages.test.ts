@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest"
-import { STAGE_E_SYSTEM_PROMPT } from "./cv-tailoring-stages"
+import { STAGE_D_SYSTEM_PROMPT, STAGE_E_SYSTEM_PROMPT } from "./cv-tailoring-stages"
+
+describe("CV tailoring prompts — skills provenance", () => {
+  it("makes the planner select exact entries only from the original skills array", () => {
+    expect(STAGE_D_SYSTEM_PROMPT).toMatch(/exclusively from the candidate_cv\.skills array/i)
+    expect(STAGE_D_SYSTEM_PROMPT).toMatch(/jd.+never a source of new cv skills/i)
+    expect(STAGE_D_SYSTEM_PROMPT).toMatch(/add_if_present_in_cv.+always return \[\]/i)
+  })
+
+  it("forbids the writer from copying new skills out of the JD", () => {
+    expect(STAGE_E_SYSTEM_PROMPT).toMatch(/every output skill must be copied exactly from original_cv\.skills/i)
+    expect(STAGE_E_SYSTEM_PROMPT).toMatch(/jd is used only to decide which existing skills/i)
+    expect(STAGE_E_SYSTEM_PROMPT).toContain("AI-powered development tools")
+    expect(STAGE_E_SYSTEM_PROMPT).toContain("collaborative development workflows")
+    expect(STAGE_E_SYSTEM_PROMPT).toMatch(/exclude generic soft skills/i)
+    expect(STAGE_E_SYSTEM_PROMPT).toMatch(/attention to detail.+teamwork.+problem-solving/i)
+  })
+})
 
 describe("STAGE_E_SYSTEM_PROMPT — bullet quality", () => {
   it("requires each rewritten bullet to evidence at least 2 of the four axes", () => {

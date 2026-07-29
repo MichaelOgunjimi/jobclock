@@ -44,6 +44,16 @@ export async function getActivePersonalApiTokenMetadata(userId: string): Promise
   return record ? toMetadata(record) : null
 }
 
+export async function hasPersonalApiTokenHistory(userId: string): Promise<boolean> {
+  const [record] = await db
+    .select({ id: personalApiTokens.id })
+    .from(personalApiTokens)
+    .where(eq(personalApiTokens.userId, userId))
+    .limit(1)
+
+  return Boolean(record)
+}
+
 export async function generatePersonalApiToken(userId: string): Promise<{ token: string; metadata: PersonalApiTokenMetadata }> {
   const rawToken = `ja_ext_${randomBytes(24).toString("hex")}`
   const tokenHash = hashToken(rawToken)

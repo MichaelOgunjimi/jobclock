@@ -221,7 +221,7 @@ describe("settings actions", () => {
       },
     })
     expect(generatePersonalApiToken).toHaveBeenCalledWith(mockUser.id)
-    expect(revalidatePath).toHaveBeenCalledWith("/settings")
+    expect(revalidatePath).toHaveBeenCalledWith("/settings", "layout")
   })
 
   it("revokeExtensionToken revokes active tokens", async () => {

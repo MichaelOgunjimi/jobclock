@@ -35,6 +35,85 @@ function parseStage<T>(raw: string, schema: ZodType<T>, stageName: string): T {
   return result.data
 }
 
+function skillKey(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase("en-GB")
+    .replace(/[‐‑‒–—-]/g, " ")
+    .replace(/\s+/g, " ")
+}
+
+const GENERIC_SOFT_SKILLS = new Set([
+  "adaptability",
+  "analytical skills",
+  "attention to detail",
+  "attention to details",
+  "collaboration",
+  "communication",
+  "communication skills",
+  "creativity",
+  "critical thinking",
+  "decision making",
+  "interpersonal skills",
+  "leadership",
+  "organisation",
+  "organisational skills",
+  "organization",
+  "organizational skills",
+  "ownership",
+  "problem solving",
+  "self motivation",
+  "team work",
+  "teamwork",
+  "time management",
+  "work ethic",
+])
+
+function isGenericSoftSkill(value: string): boolean {
+  return GENERIC_SOFT_SKILLS.has(skillKey(value))
+}
+
+export function selectTailoredSkills(
+  cvJson: string,
+  tailoringPlan: CvTailoringPlan,
+  generatedSkills: string[] | undefined,
+): string[] {
+  let originalSkills: string[] = []
+  try {
+    const originalCv = JSON.parse(cvJson) as { skills?: unknown }
+    if (Array.isArray(originalCv.skills)) {
+      originalSkills = originalCv.skills
+        .filter((skill): skill is string => typeof skill === "string")
+        .map((skill) => skill.trim())
+        .filter((skill) => skill && !isGenericSoftSkill(skill))
+    }
+  } catch {
+    return []
+  }
+
+  const originalByKey = new Map(originalSkills.map((skill) => [skillKey(skill), skill]))
+  const planCandidates = [
+    ...(tailoringPlan.skills_plan?.prioritize ?? []),
+    ...(tailoringPlan.skills_plan?.keep ?? []),
+  ]
+  const proposedSkills = planCandidates.some((skill) => originalByKey.has(skillKey(skill)))
+    ? planCandidates
+    : (generatedSkills ?? [])
+
+  const selected: string[] = []
+  const selectedKeys = new Set<string>()
+  for (const proposed of proposedSkills) {
+    if (typeof proposed !== "string") continue
+    const key = skillKey(proposed)
+    const original = originalByKey.get(key)
+    if (!original || selectedKeys.has(key)) continue
+    selected.push(original)
+    selectedKeys.add(key)
+  }
+
+  return selected.length > 0 ? selected : originalSkills
+}
+
 /**
  * cv_tailor generation handler. Runs the 4-stage B→C→D→E pipeline, inserts
  * into customized_cvs, and returns the row id as the result_ref.
@@ -72,6 +151,11 @@ export async function cvTailorHandler(job: GenerationJob): Promise<string> {
 
   if (!result.cv) throw new Error("AI returned incomplete CV data. Please try again.")
 
+  const constrainedCv = {
+    ...result.cv,
+    skills: selectTailoredSkills(ctx.cvJson, tailoringPlan, result.cv.skills),
+  }
+
   const skillsGap: StoredSkillsGap = {
     gap: result.missing_keywords,
     changes: result.match_summary,
@@ -86,7 +170,7 @@ export async function cvTailorHandler(job: GenerationJob): Promise<string> {
     .values({
       userId: ctx.userId,
       applicationId: ctx.applicationId,
-      cvJson: normalizeObjectStrings(result.cv) as unknown as Json,
+      cvJson: normalizeObjectStrings(constrainedCv) as unknown as Json,
       atsScore: result.ats_match_estimate?.score ?? null,
       skillsGap: skillsGap as unknown as Json,
     })

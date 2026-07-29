@@ -76,8 +76,10 @@ export interface CvTailoringPlan {
   project_plan: TailoringInstruction[]
   education_plan: TailoringInstruction[]
   skills_plan: {
+    keep: string[]
     prioritize: string[]
     add_if_present_in_cv: string[]
+    remove: string[]
     remove_or_deprioritize: string[]
     ordering_strategy: string
   }

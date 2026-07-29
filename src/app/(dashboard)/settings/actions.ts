@@ -209,7 +209,7 @@ export async function generateExtensionToken() {
 
   try {
     const result = await generatePersonalApiToken(auth.userId)
-    revalidatePath("/settings")
+    revalidatePath("/settings", "layout")
     return {
       success: true,
       token: result.token,
