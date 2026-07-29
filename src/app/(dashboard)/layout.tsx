@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { GenerationJobsProvider } from "@/components/generation-jobs-provider"
 import { resolveAiSettings, type UserPreferences } from "@/lib/ai"
+import { hasPersonalApiTokenHistory } from "@/lib/personal-api-tokens"
 
 // Every page under (dashboard) is behind auth. Tell crawlers not to
 // index them so accidental URL leaks (shared links, referer headers)
@@ -29,11 +30,14 @@ export default async function DashboardLayout({
     redirect("/auth")
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, avatar_url, preferences, allow_platform_ai_key")
-    .eq("id", user.id)
-    .single()
+  const [{ data: profile }, hasExtensionTokenHistory] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name, avatar_url, preferences, allow_platform_ai_key")
+      .eq("id", user.id)
+      .single(),
+    hasPersonalApiTokenHistory(user.id),
+  ])
   const preferences = (profile?.preferences ?? null) as UserPreferences | null
   const aiSettings = resolveAiSettings(preferences)
   const canUsePlatformAiKey = profile?.allow_platform_ai_key === true
@@ -49,6 +53,7 @@ export default async function DashboardLayout({
         aiKeyBanner={
           hasSelectedProviderKey ? null : { providerLabel }
         }
+        showExtensionBanner={!hasExtensionTokenHistory}
         userProfile={{
           email: user.email ?? "",
           fullName: profile?.full_name ?? null,
