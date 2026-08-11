@@ -69,6 +69,8 @@ const GENERIC_SOFT_SKILLS = new Set([
   "work ethic",
 ])
 
+const MIN_TAILORED_SKILLS = 13
+
 function isGenericSoftSkill(value: string): boolean {
   return GENERIC_SOFT_SKILLS.has(skillKey(value))
 }
@@ -111,7 +113,18 @@ export function selectTailoredSkills(
     selectedKeys.add(key)
   }
 
-  return selected.length > 0 ? selected : originalSkills
+  const requiredSkillCount = Math.min(MIN_TAILORED_SKILLS, originalSkills.length)
+  if (selected.length < requiredSkillCount) {
+    for (const original of originalSkills) {
+      const key = skillKey(original)
+      if (selectedKeys.has(key)) continue
+      selected.push(original)
+      selectedKeys.add(key)
+      if (selected.length === requiredSkillCount) break
+    }
+  }
+
+  return selected
 }
 
 /**

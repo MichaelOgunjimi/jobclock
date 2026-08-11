@@ -16,6 +16,13 @@ describe("CV tailoring prompts — skills provenance", () => {
     expect(STAGE_E_SYSTEM_PROMPT).toMatch(/exclude generic soft skills/i)
     expect(STAGE_E_SYSTEM_PROMPT).toMatch(/attention to detail.+teamwork.+problem-solving/i)
   })
+
+  it("requires at least 13 genuine source skills in the tailored CV", () => {
+    expect(STAGE_D_SYSTEM_PROMPT).toMatch(/at least 13 skills/i)
+    expect(STAGE_D_SYSTEM_PROMPT).toMatch(/fewer than 13 eligible skills/i)
+    expect(STAGE_E_SYSTEM_PROMPT).toMatch(/at least 13 skills/i)
+    expect(STAGE_E_SYSTEM_PROMPT).toMatch(/never invent/i)
+  })
 })
 
 describe("STAGE_E_SYSTEM_PROMPT — bullet quality", () => {

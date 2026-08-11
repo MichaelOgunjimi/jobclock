@@ -196,10 +196,8 @@ The candidate's master CV contains many skills. Select the best-fitting skills E
 - "skills_plan.keep": directly relevant entries copied EXACTLY from candidate_cv.skills — include these in the output.
 - "skills_plan.prioritize": a subset of keep, copied EXACTLY from candidate_cv.skills — move these to the front because they best match the role.
 - "skills_plan.add_if_present_in_cv": always return [] for this field. Do not promote words from experience, projects, education, responsibilities, job titles, or the JD into the skills list.
-- "skills_plan.remove": skills with no relevance to this role — OMIT them from the output entirely. Be aggressive: if a skill is not needed for this role, remove it. A focused list beats an exhaustive 35-skill dump. Scale the cap to the target seniority:
-  - "entry", "junior": aim for 8–12 skills.
-  - "mid": aim for 10–15 skills.
-  - "senior", "lead": aim for 12–18 skills.
+- "skills_plan.remove": skills with no relevance to this role — OMIT them only after the minimum has been satisfied. Keep a focused list of 13–18 skills, selecting at least 13 skills whenever candidate_cv.skills contains 13 eligible technical or role-specific entries.
+- If candidate_cv.skills contains fewer than 13 eligible skills after excluding generic soft skills, keep every eligible skill. Never invent, infer, or copy a skill from the JD merely to reach the minimum.
 - "skills_plan.ordering_strategy": brief description of how to order the kept skills (e.g. "languages first, then frameworks, then databases, then tooling").
 - Never create umbrella labels or inferred categories such as "full-stack", "web app development", "feature design and implementation", "ownership", "AI-powered development tools", or "collaborative development workflows" unless that exact string is already an entry in candidate_cv.skills. Prefer the candidate's concrete named skills.
 - Exclude generic soft skills and personal traits from the skills plan, even if candidate_cv.skills contains them. Examples: "attention to detail", "teamwork", "problem-solving", "communication", "adaptability", and "time management".
@@ -369,7 +367,10 @@ SKILLS
     - Every output skill MUST be copied exactly from original_cv.skills. If it is not already an entry in original_cv.skills, omit it even when it appears in the JD, another CV section, or the tailoring plan.
     - Output skills = "prioritize" + "keep". Nothing else. Ignore "add_if_present_in_cv".
     - Move "prioritize" skills to the front of the output list.
-    - Skills in "remove" must not appear in the output at all.
+    - Skills in "remove" should not appear unless an eligible source skill is needed to satisfy the 13-skill minimum.
+    - Output at least 13 skills whenever original_cv.skills contains 13 eligible technical or role-specific entries. Prefer the most role-relevant 13–18 entries.
+    - All output skills must be distinct after case-insensitive comparison.
+    - If original_cv.skills contains fewer than 13 eligible skills, include every eligible source skill. Never invent, infer, or copy a skill from the JD merely to reach 13.
     - Keep skills as simple text entries.
     - Do not synthesize umbrella labels from responsibilities or prose. Forbidden examples include "full-stack", "web app development", "feature design and implementation", "ownership", "AI-powered development tools", and "collaborative development workflows" unless the exact label exists in original_cv.skills.
     - Exclude generic soft skills and personal traits such as "attention to detail", "teamwork", "problem-solving", "communication", "adaptability", and "time management", even when they appear in original_cv.skills or the JD.

@@ -31,7 +31,7 @@ import {
   cvTailoringPlanSchema,
   tailoredCvResultSchema,
 } from "@/lib/ai/cv-tailoring-schemas"
-import { cvTailorHandler } from "./cv-tailor"
+import { cvTailorHandler, selectTailoredSkills } from "./cv-tailor"
 
 const JOB = { id: "job-1", userId: "user-1", applicationId: "app-1", kind: "cv_tailor" } as never
 
@@ -139,7 +139,7 @@ describe("cvTailorHandler", () => {
 
     expect(values).toHaveBeenCalledWith(expect.objectContaining({
       cvJson: expect.objectContaining({
-        skills: ["Python", "REST APIs", "FastAPI", "Docker", "Git", "CI/CD"],
+        skills: ["Python", "REST APIs", "FastAPI", "Docker", "Git", "CI/CD", "JavaScript", "HTML", "CSS"],
       }),
     }))
   })
@@ -172,5 +172,45 @@ describe("cvTailorHandler", () => {
     })
 
     await expect(cvTailorHandler(JOB)).rejects.toThrow("No API key configured.")
+  })
+})
+
+describe("selectTailoredSkills", () => {
+  it("backfills genuine source skills until the CV contains at least 13", () => {
+    const originalSkills = [
+      "Python",
+      "TypeScript",
+      "React",
+      "Next.js",
+      "Node.js",
+      "FastAPI",
+      "Docker",
+      "AWS",
+      "PostgreSQL",
+      "Redis",
+      "Git",
+      "CI/CD",
+      "REST APIs",
+      "HTML",
+      "CSS",
+    ]
+
+    const result = selectTailoredSkills(
+      JSON.stringify({ skills: originalSkills }),
+      {
+        skills_plan: {
+          prioritize: ["TypeScript", "React"],
+          keep: ["Next.js", "Node.js", "Docker"],
+          add_if_present_in_cv: [],
+          remove: [],
+          ordering_strategy: "Role relevance first",
+        },
+      } as never,
+      ["TypeScript", "React"],
+    )
+
+    expect(result).toHaveLength(13)
+    expect(result.slice(0, 5)).toEqual(["TypeScript", "React", "Next.js", "Node.js", "Docker"])
+    expect(result.every((skill) => originalSkills.includes(skill))).toBe(true)
   })
 })
