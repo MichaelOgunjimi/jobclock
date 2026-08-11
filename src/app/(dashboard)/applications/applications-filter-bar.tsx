@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import type { ChangeEvent } from "react"
 import { Search } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -44,7 +44,8 @@ interface Props {
 export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort, activeSearch }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [searchInput, setSearchInput] = useState(activeSearch)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const searchInputDirtyRef = useRef(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const restoringSessionFilterRef = useRef(false)
 
@@ -73,15 +74,27 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
     )
   }, [activeSearch, activeSort, activeStatus, searchParams])
 
-  // Sync if the URL param changes externally (e.g. browser back)
-  useEffect(() => { setSearchInput(activeSearch) }, [activeSearch])
+  // Sync external URL changes, but never let an older search response replace
+  // text the user has typed while that navigation was in flight.
+  useEffect(() => {
+    const searchInput = searchInputRef.current
+    if (!searchInput) return
+
+    if (activeSearch === searchInput.value.trim()) {
+      searchInputDirtyRef.current = false
+      return
+    }
+    if (searchInputDirtyRef.current) return
+
+    searchInput.value = activeSearch
+  }, [activeSearch])
 
   // Clear pending debounce on unmount
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current) }, [])
 
   function handleSearchChange(e: ChangeEvent<HTMLInputElement>) {
     const value = e.target.value
-    setSearchInput(value)
+    searchInputDirtyRef.current = value.trim() !== activeSearch
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
       const href = buildUrl({ q: value.trim() || null, page: null })
@@ -116,10 +129,11 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <input
+          ref={searchInputRef}
           type="search"
           aria-label="Search applications by role or company"
           placeholder="Search by role or company…"
-          value={searchInput}
+          defaultValue={activeSearch}
           onChange={handleSearchChange}
           className="w-full border border-border bg-background py-2 pl-9 pr-3 text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
         />
