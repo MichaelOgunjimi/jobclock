@@ -264,7 +264,9 @@ Always:
 ## Skills Constraints
 
 ### Ideal Skill Count:
-8–15 skills maximum
+13–18 skills when the source CV contains at least 13 genuine technical or role-specific skills.
+
+If fewer than 13 eligible skills exist in the source CV, include all eligible skills rather than inventing new ones.
 
 ### Prioritize:
 - Technical relevance
