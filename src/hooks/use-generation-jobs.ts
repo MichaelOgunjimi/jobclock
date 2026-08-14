@@ -67,6 +67,7 @@ export function useGenerationJobs(userId: string) {
   const [appLabels, setAppLabels] = useState<Map<string, ApplicationLabel>>(
     new Map(),
   )
+  const [cvLabels, setCvLabels] = useState<Map<string, string>>(new Map())
   const prevStatusRef = useRef<Map<string, GenerationStatus>>(new Map())
   const jobsRef = useRef<GenerationJobRow[]>([])
 
@@ -214,32 +215,55 @@ export function useGenerationJobs(userId: string) {
     return () => clearInterval(id)
   }, [refetch])
 
-  // Notification rows arrive as raw generation_jobs rows (including via
-  // Realtime), so resolve role/company through a client-side application
-  // lookup rather than an embedded select that Realtime payloads lack.
+  // Resolve human-readable labels once for notifications and dynamic breadcrumbs.
   useEffect(() => {
     let mounted = true
     const supabase = createClient()
-    void supabase
-      .from("applications")
-      .select("id, jobs_cache(title, company)")
-      .eq("user_id", userId)
-      .then(({ data }) => {
-        if (!mounted || !data) return
-        const map = new Map<string, ApplicationLabel>()
-        for (const row of data as unknown as Array<{
+    void (async () => {
+      const [applicationsResult, cvsResult] = await Promise.all([
+        supabase
+          .from("applications")
+          .select("id, jobs_cache(title, company)")
+          .eq("user_id", userId),
+        supabase
+          .from("user_cvs")
+          .select("id, name, parsed_json")
+          .eq("user_id", userId),
+      ])
+      if (!mounted) return
+
+      if (applicationsResult.data) {
+        const nextAppLabels = new Map<string, ApplicationLabel>()
+        for (const row of applicationsResult.data as unknown as Array<{
           id: string
           jobs_cache: { title: string; company: string } | null
         }>) {
           if (row.jobs_cache) {
-            map.set(row.id, {
+            nextAppLabels.set(row.id, {
               role: row.jobs_cache.title,
               company: row.jobs_cache.company,
             })
           }
         }
-        setAppLabels(map)
-      })
+        setAppLabels(nextAppLabels)
+      }
+
+      if (cvsResult.data) {
+        const nextCvLabels = new Map<string, string>()
+        for (const row of cvsResult.data as unknown as Array<{
+          id: string
+          name: string | null
+          parsed_json: { name?: unknown } | null
+        }>) {
+          const parsedName = typeof row.parsed_json?.name === "string"
+            ? row.parsed_json.name.trim()
+            : ""
+          const label = row.name?.trim() || parsedName
+          if (label) nextCvLabels.set(row.id, label)
+        }
+        setCvLabels(nextCvLabels)
+      }
+    })()
     return () => {
       mounted = false
     }
@@ -249,6 +273,12 @@ export function useGenerationJobs(userId: string) {
     (applicationId: string | null): ApplicationLabel | null =>
       applicationId ? (appLabels.get(applicationId) ?? null) : null,
     [appLabels],
+  )
+
+  const getCvLabel = useCallback(
+    (cvId: string | null): string | null =>
+      cvId ? (cvLabels.get(cvId) ?? null) : null,
+    [cvLabels],
   )
 
   const getActiveJob = useCallback(
@@ -269,6 +299,7 @@ export function useGenerationJobs(userId: string) {
     jobs,
     getActiveJob,
     getApplicationLabel,
+    getCvLabel,
     trackJob,
     recentJobs,
     unseenJobs,
