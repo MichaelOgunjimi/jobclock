@@ -7,9 +7,12 @@ import Link from "next/link"
 import {
   ArrowLeft,
   BookOpen,
+  Check,
   ExternalLink,
   Loader2,
   Maximize2,
+  Pencil,
+  RotateCcw,
   Send,
   Trash2,
   X,
@@ -29,6 +32,7 @@ import {
   updateCv,
   updateWritingStyle,
   updateDescription,
+  updateJobDetail,
   deleteApplication,
   generateCoverLetter,
 } from "./actions"
@@ -178,12 +182,6 @@ export function StatusStepper({
       <p className="text-xs text-muted-foreground">
         Click any stage to move this application forward or back. Outcomes stay available below.
       </p>
-      {pendingStatus && (
-        <div role="status" aria-live="polite" className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          Updating stage to {getStatusLabel(pendingStatus)}…
-        </div>
-      )}
       <div className="grid gap-2 sm:hidden">
         {STATUS_STEPS.map((step, index) => {
           const isPast = !isTerminal && index < currentIndex
@@ -196,11 +194,10 @@ export function StatusStepper({
               type="button"
               disabled={pending || step.value === currentStatus}
               onClick={() => handleStatusClick(step.value)}
+              aria-label={pendingStatus === step.value ? `Updating ${step.label}` : step.label}
               className={cn(
                 "flex items-center justify-between border px-4 py-3 transition-colors",
-                pending
-                  ? "cursor-wait"
-                  : "cursor-pointer hover:ring-2 hover:ring-foreground/20",
+                "cursor-pointer hover:ring-2 hover:ring-foreground/20",
                 isCurrent &&
                   "border-foreground bg-foreground text-background",
                 isPast &&
@@ -215,6 +212,9 @@ export function StatusStepper({
                 <span className="text-[11px] font-semibold tracking-[0.06em] uppercase">
                   {step.label}
                 </span>
+                {pendingStatus === step.value && (
+                  <Loader2 role="status" aria-label={`Updating ${step.label}`} className="h-3.5 w-3.5 animate-spin" />
+                )}
               </div>
               {isCurrent && <span className="text-[10px] font-semibold tracking-[0.1em] uppercase">current</span>}
             </button>
@@ -234,12 +234,11 @@ export function StatusStepper({
               type="button"
               disabled={pending || step.value === currentStatus}
               onClick={() => handleStatusClick(step.value)}
+              aria-label={pendingStatus === step.value ? `Updating ${step.label}` : step.label}
               className={cn(
                 "flex flex-1 flex-col gap-1.5 border px-3 py-3 text-center transition-colors",
                 index !== 0 && "-ml-px",
-                pending
-                  ? "cursor-wait"
-                  : "cursor-pointer hover:ring-2 hover:ring-foreground/20",
+                "cursor-pointer hover:ring-2 hover:ring-foreground/20",
                 isCurrent &&
                   "relative z-10 border-foreground bg-foreground text-background",
                 isPast &&
@@ -250,8 +249,11 @@ export function StatusStepper({
               <span className="text-[10px] font-semibold tracking-[0.1em] opacity-60">
                 {step.num}
               </span>
-              <span className="text-[11px] font-semibold tracking-[0.06em] uppercase">
+              <span className="inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold tracking-[0.06em] uppercase">
                 {step.label}
+                {pendingStatus === step.value && (
+                  <Loader2 role="status" aria-label={`Updating ${step.label}`} className="h-3.5 w-3.5 animate-spin" />
+                )}
               </span>
             </button>
           )
@@ -263,42 +265,48 @@ export function StatusStepper({
           type="button"
           onClick={() => handleStatusClick("rejected")}
           disabled={pending}
+          aria-label={pendingStatus === "rejected" ? "Updating Rejected" : "Rejected"}
           className={cn(
             "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
             currentStatus === "rejected"
               ? "border-destructive/40 bg-destructive/10 text-destructive"
               : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
-            pending && "cursor-wait opacity-60"
+            pending && "opacity-60"
           )}
         >
+          {pendingStatus === "rejected" && <Loader2 role="status" aria-label="Updating Rejected" className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />}
           Rejected
         </button>
         <button
           type="button"
           onClick={() => handleStatusClick("withdrawn")}
           disabled={pending}
+          aria-label={pendingStatus === "withdrawn" ? "Updating Withdrawn" : "Withdrawn"}
           className={cn(
             "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
             currentStatus === "withdrawn"
               ? "border-border bg-secondary text-muted-foreground"
               : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
-            pending && "cursor-wait opacity-60"
+            pending && "opacity-60"
           )}
         >
+          {pendingStatus === "withdrawn" && <Loader2 role="status" aria-label="Updating Withdrawn" className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />}
           Withdrawn
         </button>
         <button
           type="button"
           onClick={() => handleStatusClick("ghosted")}
           disabled={pending}
+          aria-label={pendingStatus === "ghosted" ? "Updating Ghosted" : "Ghosted"}
           className={cn(
             "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
             currentStatus === "ghosted"
               ? "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300"
               : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
-            pending && "cursor-wait opacity-60"
+            pending && "opacity-60"
           )}
         >
+          {pendingStatus === "ghosted" && <Loader2 role="status" aria-label="Updating Ghosted" className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />}
           Ghosted
         </button>
       </div>
@@ -308,42 +316,48 @@ export function StatusStepper({
           type="button"
           onClick={() => handleStatusClick("rejected")}
           disabled={pending}
+          aria-label={pendingStatus === "rejected" ? "Updating Rejected" : "Rejected"}
           className={cn(
             "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
             currentStatus === "rejected"
               ? "border-destructive/40 bg-destructive/10 text-destructive"
               : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
-            pending && "cursor-wait opacity-60"
+            pending && "opacity-60"
           )}
         >
+          {pendingStatus === "rejected" && <Loader2 role="status" aria-label="Updating Rejected" className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />}
           Rejected
         </button>
         <button
           type="button"
           onClick={() => handleStatusClick("withdrawn")}
           disabled={pending}
+          aria-label={pendingStatus === "withdrawn" ? "Updating Withdrawn" : "Withdrawn"}
           className={cn(
             "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
             currentStatus === "withdrawn"
               ? "border-border bg-secondary text-muted-foreground"
               : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
-            pending && "cursor-wait opacity-60"
+            pending && "opacity-60"
           )}
         >
+          {pendingStatus === "withdrawn" && <Loader2 role="status" aria-label="Updating Withdrawn" className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />}
           Withdrawn
         </button>
         <button
           type="button"
           onClick={() => handleStatusClick("ghosted")}
           disabled={pending}
+          aria-label={pendingStatus === "ghosted" ? "Updating Ghosted" : "Ghosted"}
           className={cn(
             "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
             currentStatus === "ghosted"
               ? "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300"
               : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
-            pending && "cursor-wait opacity-60"
+            pending && "opacity-60"
           )}
         >
+          {pendingStatus === "ghosted" && <Loader2 role="status" aria-label="Updating Ghosted" className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />}
           Ghosted
         </button>
       </div>
@@ -1265,6 +1279,139 @@ function DeleteButton({ applicationId }: { applicationId: string }) {
   )
 }
 
+type EditableJobField = "title" | "company" | "location" | "salary"
+
+export function InlineJobDetail({
+  applicationId,
+  field,
+  label,
+  extractedValue,
+  initialOverride,
+  fallback,
+  displayClassName,
+}: {
+  applicationId: string
+  field: EditableJobField
+  label: string
+  extractedValue: string | null
+  initialOverride: string | null
+  fallback: string
+  displayClassName?: string
+}) {
+  const router = useRouter()
+  const [editing, setEditing] = useState(false)
+  const [savedOverride, setSavedOverride] = useState(initialOverride)
+  const [value, setValue] = useState(initialOverride ?? extractedValue ?? "")
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+  const effectiveValue = savedOverride ?? extractedValue ?? ""
+
+  function closeEditor() {
+    setValue(effectiveValue)
+    setError(null)
+    setEditing(false)
+  }
+
+  function submit(useExtracted = false) {
+    const formData = new FormData()
+    formData.set("applicationId", applicationId)
+    formData.set("field", field)
+    formData.set("value", value)
+    if (useExtracted) formData.set("useExtracted", "true")
+
+    setError(null)
+    startTransition(async () => {
+      const result = await updateJobDetail(formData)
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      setSavedOverride(useExtracted ? null : value.trim())
+      setEditing(false)
+      router.refresh()
+    })
+  }
+
+  if (editing) {
+    return (
+      <form
+        onSubmit={(event) => {
+          event.preventDefault()
+          submit()
+        }}
+        className="flex max-w-xl flex-col gap-2"
+      >
+        <Label htmlFor={`job-detail-${field}`} className="sr-only">{label}</Label>
+        <div className="flex items-center gap-2">
+          <Input
+            id={`job-detail-${field}`}
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") closeEditor()
+            }}
+            autoFocus
+            disabled={pending}
+            className="h-9 min-w-0"
+          />
+          <Button type="submit" size="icon-sm" disabled={pending} aria-label={`Save ${label}`}>
+            {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+          </Button>
+          <Button type="button" size="icon-sm" variant="ghost" onClick={closeEditor} disabled={pending} aria-label={`Cancel editing ${label}`}>
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <div className="flex min-h-5 items-center gap-3">
+          {savedOverride !== null && (
+            <button
+              type="button"
+              onClick={() => submit(true)}
+              disabled={pending}
+              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-60"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Use extracted value
+            </button>
+          )}
+          {error && <span className="text-[11px] text-destructive">{error}</span>}
+        </div>
+      </form>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setValue(effectiveValue)
+        setEditing(true)
+      }}
+      className={cn(
+        "group inline-flex max-w-full items-center gap-2 text-left hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+        displayClassName,
+      )}
+      aria-label={`Edit ${label}: ${effectiveValue || fallback}`}
+      title={`Edit ${label}`}
+    >
+      <span className="min-w-0 truncate">{effectiveValue || fallback}</span>
+      <Pencil className="h-3.5 w-3.5 shrink-0 opacity-45 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+    </button>
+  )
+}
+
+function formatExtractedSalary(job: JobsCacheRow | null): string | null {
+  if (job?.salary_min == null) return null
+  const currency = job.salary_currency ?? "GBP"
+  const formatter = new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  })
+  const minimum = formatter.format(Number(job.salary_min))
+  const maximum = job.salary_max == null ? null : formatter.format(Number(job.salary_max))
+  return maximum ? `${minimum} – ${maximum}` : minimum
+}
+
 export function ApplicationDetail({
   application,
   cvs,
@@ -1277,14 +1424,7 @@ export function ApplicationDetail({
   const job = application.jobs_cache
   const hasDescription = !!(application.custom_description || job?.description)
 
-  const salaryText =
-    job?.salary_min != null
-      ? `£${Number(job.salary_min).toLocaleString()}${
-          job.salary_max != null
-            ? ` – £${Number(job.salary_max).toLocaleString()}`
-            : ""
-        }`
-      : null
+  const extractedSalary = formatExtractedSalary(job)
 
   const postedAt = job?.posted_at
       ? new Date(job.posted_at).toLocaleDateString("en-GB", {
@@ -1328,15 +1468,47 @@ export function ApplicationDetail({
         <div className="space-y-3">
           <p className="page-kicker">Application</p>
           <div className="space-y-2">
-            <h1 className="page-title">{job?.title ?? "Unknown Role"}</h1>
-            <p className="page-lede">
-              {[job?.company, job?.location].filter(Boolean).join(" · ")}
-            </p>
+            <InlineJobDetail
+              applicationId={application.id}
+              field="title"
+              label="role"
+              extractedValue={job?.title ?? null}
+              initialOverride={application.custom_title}
+              fallback="Unknown Role"
+              displayClassName="page-title"
+            />
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
+              <InlineJobDetail
+                applicationId={application.id}
+                field="company"
+                label="company"
+                extractedValue={job?.company ?? null}
+                initialOverride={application.custom_company}
+                fallback="Unknown company"
+                displayClassName="page-lede"
+              />
+              <span aria-hidden="true">·</span>
+              <InlineJobDetail
+                applicationId={application.id}
+                field="location"
+                label="location"
+                extractedValue={job?.location ?? null}
+                initialOverride={application.custom_location}
+                fallback="Add location"
+                displayClassName="page-lede"
+              />
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {salaryText && (
-              <span className="text-sm text-muted-foreground">{salaryText}</span>
-            )}
+            <InlineJobDetail
+              applicationId={application.id}
+              field="salary"
+              label="salary"
+              extractedValue={extractedSalary}
+              initialOverride={application.custom_salary_text}
+              fallback="Add salary"
+              displayClassName="text-sm text-muted-foreground"
+            />
             <Badge className={getStatusBadgeClass(application.status)}>
               {getStatusLabel(application.status)}
             </Badge>
@@ -1426,8 +1598,8 @@ export function ApplicationDetail({
         />
         <CoverLetterCard
           applicationId={application.id}
-          jobTitle={job?.title ?? null}
-          jobCompany={job?.company ?? null}
+          jobTitle={application.custom_title ?? job?.title ?? null}
+          jobCompany={application.custom_company ?? job?.company ?? null}
           writingStyles={writingStyles}
           currentStructureId={application.structure_id ?? null}
           currentTone={application.cover_letter_tone ?? null}

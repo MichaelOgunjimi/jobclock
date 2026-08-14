@@ -148,6 +148,13 @@
       "when": 1784217928460,
       "tag": "0020_chief_omega_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1786717057816,
+      "tag": "0021_dusty_revanche",
+      "breakpoints": true
     }
   ]
 }

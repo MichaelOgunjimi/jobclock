@@ -68,6 +68,9 @@ export async function findExistingApplicationByUrl(
       title: jobsCache.title,
       company: jobsCache.company,
       location: jobsCache.location,
+      customTitle: applications.customTitle,
+      customCompany: applications.customCompany,
+      customLocation: applications.customLocation,
       postingUrl: jobsCache.url,
     })
     .from(applications)
@@ -80,11 +83,11 @@ export async function findExistingApplicationByUrl(
 
   return {
     applicationId: row.applicationId,
-    title: row.title ?? "Untitled role",
-    company: row.company ?? "Unknown company",
+    title: row.customTitle ?? row.title ?? "Untitled role",
+    company: row.customCompany ?? row.company ?? "Unknown company",
     status: row.status ?? "saved",
     createdAt: row.createdAt?.toISOString() ?? new Date().toISOString(),
-    location: row.location ?? null,
+    location: row.customLocation ?? row.location ?? null,
     applicationUrl: new URL(`/applications/${row.applicationId}`, origin).toString(),
     postingUrl: row.postingUrl ?? null,
   }
@@ -103,6 +106,9 @@ export async function listRecentApplicationsForUser(
       title: jobsCache.title,
       company: jobsCache.company,
       location: jobsCache.location,
+      customTitle: applications.customTitle,
+      customCompany: applications.customCompany,
+      customLocation: applications.customLocation,
       postingUrl: jobsCache.url,
     })
     .from(applications)
@@ -113,11 +119,11 @@ export async function listRecentApplicationsForUser(
 
   return rows.map((row) => ({
     applicationId: row.applicationId,
-    title: row.title ?? "Untitled role",
-    company: row.company ?? "Unknown company",
+    title: row.customTitle ?? row.title ?? "Untitled role",
+    company: row.customCompany ?? row.company ?? "Unknown company",
     status: row.status ?? "saved",
     createdAt: row.createdAt?.toISOString() ?? new Date().toISOString(),
-    location: row.location ?? null,
+    location: row.customLocation ?? row.location ?? null,
     applicationUrl: new URL(`/applications/${row.applicationId}`, origin).toString(),
     postingUrl: row.postingUrl ?? null,
   }))

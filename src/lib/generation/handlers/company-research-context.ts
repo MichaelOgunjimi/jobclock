@@ -26,6 +26,8 @@ export async function loadCompanyResearchContext(
         title: jobsCache.title,
         description: jobsCache.description,
         customDescription: applications.customDescription,
+        customTitle: applications.customTitle,
+        customCompany: applications.customCompany,
       })
       .from(applications)
       .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
@@ -50,8 +52,8 @@ export async function loadCompanyResearchContext(
   return {
     userId,
     applicationId,
-    company: app.company ?? "this company",
-    title: app.title ?? "this role",
+    company: app.customCompany ?? app.company ?? "this company",
+    title: app.customTitle ?? app.title ?? "this role",
     description,
     preferences: withPlatformAiKeyAccess(
       (profile?.preferences ?? null) as UserPreferences | null,

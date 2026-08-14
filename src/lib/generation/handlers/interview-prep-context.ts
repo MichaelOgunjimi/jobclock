@@ -37,6 +37,8 @@ export async function loadInterviewPrepContext(
         company: jobsCache.company,
         description: jobsCache.description,
         customDescription: applications.customDescription,
+        customTitle: applications.customTitle,
+        customCompany: applications.customCompany,
       })
       .from(applications)
       .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
@@ -64,8 +66,8 @@ export async function loadInterviewPrepContext(
   return {
     userId,
     applicationId,
-    title: app.title ?? "this role",
-    company: app.company ?? "this company",
+    title: app.customTitle ?? app.title ?? "this role",
+    company: app.customCompany ?? app.company ?? "this company",
     description: app.customDescription ?? app.description ?? "",
     stories: stories as unknown as StoryRow[],
     preferences: withPlatformAiKeyAccess(

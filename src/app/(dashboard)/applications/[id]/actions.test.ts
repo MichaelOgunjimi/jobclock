@@ -24,6 +24,7 @@ import {
   updateCoverLetter,
   updateCv,
   updateDescription,
+  updateJobDetail,
   updateNotes,
   updateStatus,
   updateWritingStyle,
@@ -154,6 +155,49 @@ describe("application actions", () => {
       )
     ).toEqual({ success: true })
     expect(revalidatePath).toHaveBeenCalledWith("/applications/app-1")
+  })
+
+  it("updateJobDetail updates only the allowlisted correction field", async () => {
+    expect(
+      await updateJobDetail(makeFormData({
+        applicationId: "app-1",
+        field: "company",
+        value: "Correct Company",
+      })),
+    ).toEqual({ success: true })
+
+    const call = supabaseMock
+      .getQueryCalls()
+      .find((query) => query.table === "applications" && query.operation === "update")
+    expect(call?.payload).toEqual({ custom_company: "Correct Company" })
+    expect(revalidatePath).toHaveBeenCalledWith("/applications/app-1")
+    expect(revalidatePath).toHaveBeenCalledWith("/applications")
+  })
+
+  it("updateJobDetail can restore the extracted value", async () => {
+    expect(
+      await updateJobDetail(makeFormData({
+        applicationId: "app-1",
+        field: "salary",
+        value: "ignored",
+        useExtracted: "true",
+      })),
+    ).toEqual({ success: true })
+
+    const call = supabaseMock
+      .getQueryCalls()
+      .find((query) => query.table === "applications" && query.operation === "update")
+    expect(call?.payload).toEqual({ custom_salary_text: null })
+  })
+
+  it("updateJobDetail rejects unknown fields and empty required values", async () => {
+    expect(
+      await updateJobDetail(makeFormData({ applicationId: "app-1", field: "url", value: "bad" })),
+    ).toEqual({ error: "Invalid job detail field" })
+    expect(
+      await updateJobDetail(makeFormData({ applicationId: "app-1", field: "title", value: " " })),
+    ).toEqual({ error: "Role is required" })
+    expect(supabaseMock.getQueryCalls()).toHaveLength(0)
   })
 
   it("generateCoverLetter enqueues a cover_letter job for the authenticated user", async () => {

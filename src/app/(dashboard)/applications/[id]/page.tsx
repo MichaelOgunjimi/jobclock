@@ -20,14 +20,18 @@ export async function generateMetadata({
   if (!user) return { title: "Application" }
   const { data } = await supabase
     .from("applications")
-    .select("jobs_cache(title, company)")
+    .select("custom_title, custom_company, jobs_cache(title, company)")
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle()
-  const job = (data as { jobs_cache: { title?: string; company?: string } | null } | null)?.jobs_cache
-  const title = job?.title && job?.company
-    ? `${job.title} · ${job.company}`
-    : job?.title ?? "Application"
+  const record = data as {
+    custom_title: string | null
+    custom_company: string | null
+    jobs_cache: { title?: string; company?: string } | null
+  } | null
+  const role = record?.custom_title ?? record?.jobs_cache?.title
+  const company = record?.custom_company ?? record?.jobs_cache?.company
+  const title = role && company ? `${role} · ${company}` : role ?? "Application"
   return { title }
 }
 

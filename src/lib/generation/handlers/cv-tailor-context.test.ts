@@ -19,6 +19,9 @@ function selectOnce(rows: unknown[]) {
 const APP_ROW = {
   selectedCvId: null,
   customDescription: null,
+  customTitle: null,
+  customCompany: null,
+  customLocation: null,
   title: "Engineer",
   company: "ACME",
   location: "London",
@@ -53,6 +56,25 @@ describe("loadCvTailorContext", () => {
     selectOnce([PROFILE_ROW])
 
     await expect(loadCvTailorContext(JOB)).rejects.toThrow("Application not found")
+  })
+
+  it("uses corrected application details instead of extracted job values", async () => {
+    selectOnce([{
+      ...APP_ROW,
+      customTitle: "Senior Engineer",
+      customCompany: "Correct ACME",
+      customLocation: "Remote",
+    }])
+    selectOnce([PROFILE_ROW])
+    selectOnce([CV_ROW])
+
+    const ctx = await loadCvTailorContext(JOB)
+
+    expect(ctx).toMatchObject({
+      title: "Senior Engineer",
+      company: "Correct ACME",
+      location: "Remote",
+    })
   })
 
   it("throws when no CV is available", async () => {

@@ -22,6 +22,7 @@ vi.mock("./actions", () => ({
   updateCv: vi.fn(),
   updateWritingStyle: vi.fn(),
   updateDescription: vi.fn(),
+  updateJobDetail: vi.fn(),
   deleteApplication: vi.fn(),
   generateCoverLetter: vi.fn(),
 }))

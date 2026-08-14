@@ -107,19 +107,23 @@ export async function POST(request: NextRequest) {
   // Build system prompt with full application context
   const job = typedApp.jobs_cache
   const salaryLine =
-    job?.salary_min != null
+    typeof typedApp.custom_salary_text === "string"
+      ? typedApp.custom_salary_text
+        ? `Salary: ${typedApp.custom_salary_text}`
+        : null
+      : job?.salary_min != null
       ? `Salary: £${Number(job.salary_min).toLocaleString()}${
           job.salary_max != null ? ` – £${Number(job.salary_max).toLocaleString()}` : ""
         }`
       : null
 
   const systemPrompt = buildChatAssistantSystemPrompt({
-    title: job?.title ?? "Unknown",
-    company: job?.company ?? "Unknown",
-    location: job?.location ?? null,
+    title: typedApp.custom_title ?? job?.title ?? "Unknown",
+    company: typedApp.custom_company ?? job?.company ?? "Unknown",
+    location: typedApp.custom_location ?? job?.location ?? null,
     salaryLine,
     status: typedApp.status,
-    description: job?.description ?? "No description provided.",
+    description: typedApp.custom_description ?? job?.description ?? "No description provided.",
     baseCv: (baseCvRow?.parsed_json ?? null) as CvData | null,
     baseCvName: baseCvRow?.name ?? null,
     tailoredCv: (tailoredCvRow?.cv_json ?? null) as CvData | null,

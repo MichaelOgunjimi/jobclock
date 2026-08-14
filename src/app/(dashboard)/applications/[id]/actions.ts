@@ -10,6 +10,7 @@ import { applications } from "@/lib/db/schema"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
 import { enqueueGeneration } from "@/lib/generation/enqueue"
 import { updateApplicationStatusForUser } from "@/lib/jobs/persist-job"
+import { z } from "zod"
 
 const VALID_STATUSES = new Set<ApplicationStatus>([
   "saved",
@@ -21,6 +22,20 @@ const VALID_STATUSES = new Set<ApplicationStatus>([
   "withdrawn",
   "ghosted",
 ])
+
+const jobDetailSchema = z.discriminatedUnion("field", [
+  z.object({ field: z.literal("title"), value: z.string().trim().min(1, "Role is required").max(200) }),
+  z.object({ field: z.literal("company"), value: z.string().trim().min(1, "Company is required").max(200) }),
+  z.object({ field: z.literal("location"), value: z.string().trim().max(200) }),
+  z.object({ field: z.literal("salary"), value: z.string().trim().max(120) }),
+])
+
+const jobDetailColumns = {
+  title: "custom_title",
+  company: "custom_company",
+  location: "custom_location",
+  salary: "custom_salary_text",
+} as const
 
 export async function updateStatus(formData: FormData) {
   if (!isSupabaseConfigured()) return
@@ -181,6 +196,50 @@ export async function updateDescription(
   if (error) return { error: error.message }
 
   revalidatePath(`/applications/${applicationId}`)
+  return { success: true }
+}
+
+export async function updateJobDetail(
+  formData: FormData,
+): Promise<{ error?: string; success?: boolean }> {
+  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Unauthorized" }
+
+  const applicationId = formData.get("applicationId")
+  const field = formData.get("field")
+  const useExtracted = formData.get("useExtracted") === "true"
+  if (typeof applicationId !== "string" || !applicationId) {
+    return { error: "Missing application ID" }
+  }
+  if (typeof field !== "string" || !(field in jobDetailColumns)) {
+    return { error: "Invalid job detail field" }
+  }
+
+  let value: string | null = null
+  if (!useExtracted) {
+    const parsed = jobDetailSchema.safeParse({ field, value: formData.get("value") })
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? "Invalid value" }
+    }
+    value = parsed.data.value
+  }
+
+  const column = jobDetailColumns[field as keyof typeof jobDetailColumns]
+  const { error } = await supabase
+    .from("applications")
+    .update({ [column]: value })
+    .eq("id", applicationId)
+    .eq("user_id", user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/applications/${applicationId}`)
+  revalidatePath("/applications")
   return { success: true }
 }
 

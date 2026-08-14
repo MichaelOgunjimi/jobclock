@@ -212,6 +212,10 @@ export type Database = {
 					auto_apply_success: boolean | null;
 					application_quality_score: number | null;
 					right_to_work_confirmed: boolean | null;
+					custom_title: string | null;
+					custom_company: string | null;
+					custom_location: string | null;
+					custom_salary_text: string | null;
 					custom_description: string | null;
 				};
 				Insert: {
@@ -233,6 +237,10 @@ export type Database = {
 					auto_apply_success?: boolean | null;
 					application_quality_score?: number | null;
 					right_to_work_confirmed?: boolean | null;
+					custom_title?: string | null;
+					custom_company?: string | null;
+					custom_location?: string | null;
+					custom_salary_text?: string | null;
 					custom_description?: string | null;
 				};
 				Update: {
@@ -254,6 +262,10 @@ export type Database = {
 					auto_apply_success?: boolean | null;
 					application_quality_score?: number | null;
 					right_to_work_confirmed?: boolean | null;
+					custom_title?: string | null;
+					custom_company?: string | null;
+					custom_location?: string | null;
+					custom_salary_text?: string | null;
 					custom_description?: string | null;
 				};
 				Relationships: [];
