@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 type ApplicationWithJob = Database["public"]["Tables"]["applications"]["Row"] & {
   jobs_cache: Pick<
     Database["public"]["Tables"]["jobs_cache"]["Row"],
-    "id" | "title" | "company" | "location" | "url" | "salary_min" | "salary_max"
+    "id" | "title" | "company" | "location" | "url" | "salary_min" | "salary_max" | "salary_currency"
   > | null
 }
 
@@ -96,6 +96,10 @@ export default async function ApplicationsPage({
       source,
       notes,
       tags,
+      custom_title,
+      custom_company,
+      custom_location,
+      custom_salary_text,
       jobs_cache (
         id,
         title,
@@ -103,7 +107,8 @@ export default async function ApplicationsPage({
         location,
         url,
         salary_min,
-        salary_max
+        salary_max,
+        salary_currency
       )
     `, { count: "exact" })
     .eq("user_id", user.id)
@@ -117,15 +122,26 @@ export default async function ApplicationsPage({
   // Strip chars that would break PostgREST or() filter syntax (comma, parens).
   if (activeSearch) {
     const escaped = activeSearch.replace(/[,()']/g, " ")
-    const { data: matchingJobs, error: searchError } = await supabase
-      .from("jobs_cache")
-      .select("id")
-      .or(`title.ilike.%${escaped}%,company.ilike.%${escaped}%`)
+    const [{ data: matchingJobs, error: searchError }, { data: matchingApplications }] = await Promise.all([
+      supabase
+        .from("jobs_cache")
+        .select("id")
+        .or(`title.ilike.%${escaped}%,company.ilike.%${escaped}%`),
+      supabase
+        .from("applications")
+        .select("id")
+        .eq("user_id", user.id)
+        .or(`custom_title.ilike.%${escaped}%,custom_company.ilike.%${escaped}%`),
+    ])
     if (!searchError) {
       const jobIds = matchingJobs?.map((j) => j.id) ?? []
-      query = jobIds.length > 0
-        ? query.in("job_id", jobIds)
-        : query.in("job_id", ["00000000-0000-0000-0000-000000000000"]) // force empty
+      const applicationIds = matchingApplications?.map((application) => application.id) ?? []
+      const filters = []
+      if (jobIds.length > 0) filters.push(`job_id.in.(${jobIds.join(",")})`)
+      if (applicationIds.length > 0) filters.push(`id.in.(${applicationIds.join(",")})`)
+      query = filters.length > 0
+        ? query.or(filters.join(","))
+        : query.in("id", ["00000000-0000-0000-0000-000000000000"]) // force empty
     }
     // On search error: skip the filter and show all results rather than hiding everything
   }
@@ -318,11 +334,23 @@ export default async function ApplicationsPage({
             const statusConfig = statusOptions.find((s) => s.value === app.status)
             const statusColor = statusConfig?.color ?? "border-border bg-secondary text-muted-foreground"
             const statusDot = statusConfig?.dot ?? "bg-muted-foreground"
-            const salaryLabel = app.jobs_cache?.salary_min
-              ? `£${app.jobs_cache.salary_min.toLocaleString()}${app.jobs_cache.salary_max
-                ? ` - £${app.jobs_cache.salary_max.toLocaleString()}`
-                : ""}`
+            const title = app.custom_title ?? app.jobs_cache?.title ?? "Unknown Job"
+            const company = app.custom_company ?? app.jobs_cache?.company ?? "Unknown Company"
+            const location = app.custom_location ?? app.jobs_cache?.location
+            const extractedSalary = app.jobs_cache?.salary_min
+              ? (() => {
+                  const formatter = new Intl.NumberFormat("en-GB", {
+                    style: "currency",
+                    currency: app.jobs_cache.salary_currency ?? "GBP",
+                    maximumFractionDigits: 0,
+                  })
+                  const minimum = formatter.format(Number(app.jobs_cache.salary_min))
+                  return app.jobs_cache.salary_max
+                    ? `${minimum} - ${formatter.format(Number(app.jobs_cache.salary_max))}`
+                    : minimum
+                })()
               : null
+            const salaryLabel = app.custom_salary_text ?? extractedSalary
 
             return (
               <Card
@@ -331,7 +359,7 @@ export default async function ApplicationsPage({
               >
                 <Link
                   href={`/applications/${app.id}`}
-                  aria-label={`Open application for ${app.jobs_cache?.title ?? "job"}`}
+                  aria-label={`Open application for ${title}`}
                   className="absolute inset-0 z-0"
                 />
 
@@ -340,7 +368,7 @@ export default async function ApplicationsPage({
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="space-y-3">
                         <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                          <span>{app.jobs_cache?.company ?? "Unknown Company"}</span>
+                          <span>{company}</span>
                           {app.source && (
                             <>
                               <span className="text-border">/</span>
@@ -349,7 +377,7 @@ export default async function ApplicationsPage({
                           )}
                         </div>
                         <CardTitle className="max-w-3xl text-[1.45rem] leading-[1.04] transition-colors group-hover:text-foreground/82 sm:text-[1.65rem]">
-                          {app.jobs_cache?.title ?? "Unknown Job"}
+                          {title}
                         </CardTitle>
                       </div>
 
@@ -360,10 +388,10 @@ export default async function ApplicationsPage({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
-                      {app.jobs_cache?.location && (
+                      {location && (
                         <span className="inline-flex items-center gap-1.5 border border-border bg-secondary/45 px-3 py-1.5">
                           <MapPin className="h-3.5 w-3.5" />
-                          {app.jobs_cache.location}
+                          {location}
                         </span>
                       )}
                       {salaryLabel && (

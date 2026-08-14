@@ -30,6 +30,8 @@ export async function loadInterviewAnswerContext(
         company: jobsCache.company,
         description: jobsCache.description,
         customDescription: applications.customDescription,
+        customTitle: applications.customTitle,
+        customCompany: applications.customCompany,
       })
       .from(applications)
       .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
@@ -54,7 +56,7 @@ export async function loadInterviewAnswerContext(
   if (!story) throw new Error(`Story not found: ${params.storyId}`)
 
   const description = (app.customDescription ?? app.description ?? "").slice(0, 800)
-  const jdContext = `Role: ${app.title ?? "the role"} at ${app.company ?? "the company"}.\n${description}`
+  const jdContext = `Role: ${app.customTitle ?? app.title ?? "the role"} at ${app.customCompany ?? app.company ?? "the company"}.\n${description}`
 
   const storyText = [
     `Title: ${story.title}`,

@@ -223,7 +223,7 @@ export function useGenerationJobs(userId: string) {
       const [applicationsResult, cvsResult] = await Promise.all([
         supabase
           .from("applications")
-          .select("id, jobs_cache(title, company)")
+          .select("id, custom_title, custom_company, jobs_cache(title, company)")
           .eq("user_id", userId),
         supabase
           .from("user_cvs")
@@ -236,12 +236,16 @@ export function useGenerationJobs(userId: string) {
         const nextAppLabels = new Map<string, ApplicationLabel>()
         for (const row of applicationsResult.data as unknown as Array<{
           id: string
+          custom_title: string | null
+          custom_company: string | null
           jobs_cache: { title: string; company: string } | null
         }>) {
-          if (row.jobs_cache) {
+          const role = row.custom_title ?? row.jobs_cache?.title
+          const company = row.custom_company ?? row.jobs_cache?.company
+          if (role || company) {
             nextAppLabels.set(row.id, {
-              role: row.jobs_cache.title,
-              company: row.jobs_cache.company,
+              role: role ?? "Unknown role",
+              company: company ?? "Unknown company",
             })
           }
         }

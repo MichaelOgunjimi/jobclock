@@ -502,8 +502,8 @@ export async function loadInterviewApplicationById(userId: string, applicationId
   return queryOne<PersistedApplicationRow>(sql`
     SELECT
       applications.id,
-      COALESCE(jobs_cache.title, 'Untitled role') AS title,
-      COALESCE(jobs_cache.company, 'Unknown company') AS company,
+      COALESCE(applications.custom_title, jobs_cache.title, 'Untitled role') AS title,
+      COALESCE(applications.custom_company, jobs_cache.company, 'Unknown company') AS company,
       COALESCE(applications.custom_description, jobs_cache.description, '') AS description,
       interview_prep.research_content AS "researchContent",
       applications.created_at AS "createdAt"
@@ -678,8 +678,8 @@ export async function loadInterviewWorkspace(
     queryRows<PersistedApplicationRow>(sql`
       SELECT
         applications.id,
-        COALESCE(jobs_cache.title, 'Untitled role') AS title,
-        COALESCE(jobs_cache.company, 'Unknown company') AS company,
+        COALESCE(applications.custom_title, jobs_cache.title, 'Untitled role') AS title,
+        COALESCE(applications.custom_company, jobs_cache.company, 'Unknown company') AS company,
         COALESCE(applications.custom_description, jobs_cache.description, '') AS description,
         interview_prep.research_content AS "researchContent",
         applications.created_at AS "createdAt"
@@ -767,8 +767,8 @@ export async function loadInterviewApplicationMap(userId: string): Promise<Map<s
   const rows = await queryRows<PersistedApplicationRow>(sql`
     SELECT
       applications.id,
-      COALESCE(jobs_cache.title, 'Untitled role') AS title,
-      COALESCE(jobs_cache.company, 'Unknown company') AS company,
+      COALESCE(applications.custom_title, jobs_cache.title, 'Untitled role') AS title,
+      COALESCE(applications.custom_company, jobs_cache.company, 'Unknown company') AS company,
       COALESCE(applications.custom_description, jobs_cache.description, '') AS description,
       interview_prep.research_content AS "researchContent",
       applications.created_at AS "createdAt"

@@ -25,6 +25,9 @@ export async function loadCvTailorContext(job: GenerationJob): Promise<CvTailorC
       .select({
         selectedCvId: applications.selectedCvId,
         customDescription: applications.customDescription,
+        customTitle: applications.customTitle,
+        customCompany: applications.customCompany,
+        customLocation: applications.customLocation,
         title: jobsCache.title,
         company: jobsCache.company,
         location: jobsCache.location,
@@ -69,9 +72,9 @@ export async function loadCvTailorContext(job: GenerationJob): Promise<CvTailorC
   return {
     userId,
     applicationId,
-    title: app.title ?? "the role",
-    company: app.company ?? "the company",
-    location: app.location ?? null,
+    title: app.customTitle ?? app.title ?? "the role",
+    company: app.customCompany ?? app.company ?? "the company",
+    location: app.customLocation ?? app.location ?? null,
     description,
     cvJson: JSON.stringify(cvParsed, null, 2),
     preferences: withPlatformAiKeyAccess(

@@ -23,6 +23,7 @@ vi.mock("@anthropic-ai/sdk", () => ({
 import { createClient } from "@/lib/supabase/server"
 import { chatRateLimit } from "@/lib/rate-limit"
 import { resolveAiConfig } from "@/lib/ai"
+import { buildChatAssistantSystemPrompt } from "@/lib/ai/prompts"
 import Anthropic from "@anthropic-ai/sdk"
 import { POST } from "./route"
 
@@ -171,6 +172,40 @@ describe("POST /api/chat/application", () => {
     expect(streamArgs.messages).toHaveLength(20)
     expect(streamArgs.messages[0]).toEqual({ role: "user", content: "msg-5" })
     expect(streamArgs.messages[19]).toEqual({ role: "user", content: "msg-24" })
+  })
+
+  it("uses application corrections in the chat context", async () => {
+    supabaseMock.setQueryResult("applications.select.single", {
+      data: {
+        id: "app-1",
+        user_id: "test-user-id",
+        status: "applied",
+        custom_title: "Senior Engineer",
+        custom_company: "Correct ACME",
+        custom_location: "Remote",
+        custom_salary_text: "£80k plus bonus",
+        custom_description: "Corrected description",
+        jobs_cache: {
+          title: "Software Engineer",
+          company: "Acme",
+          location: "London",
+          description: "Extracted description",
+          salary_min: 50000,
+          salary_max: 70000,
+        },
+      },
+    })
+
+    const response = await POST(createChatRequest({ applicationId: "app-1", messages: [] }))
+
+    expect(response.status).toBe(200)
+    expect(buildChatAssistantSystemPrompt).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Senior Engineer",
+      company: "Correct ACME",
+      location: "Remote",
+      salaryLine: "Salary: £80k plus bonus",
+      description: "Corrected description",
+    }))
   })
 
   it("filters invalid messages", async () => {
