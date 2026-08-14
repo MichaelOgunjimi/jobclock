@@ -70,6 +70,7 @@ const GENERIC_SOFT_SKILLS = new Set([
 ])
 
 const MIN_TAILORED_SKILLS = 13
+const MAX_TAILORED_SKILLS = 15
 
 function isGenericSoftSkill(value: string): boolean {
   return GENERIC_SOFT_SKILLS.has(skillKey(value))
@@ -80,14 +81,28 @@ export function selectTailoredSkills(
   tailoringPlan: CvTailoringPlan,
   generatedSkills: string[] | undefined,
 ): string[] {
-  let originalSkills: string[] = []
+  const originalSkills: string[] = []
   try {
-    const originalCv = JSON.parse(cvJson) as { skills?: unknown }
-    if (Array.isArray(originalCv.skills)) {
-      originalSkills = originalCv.skills
-        .filter((skill): skill is string => typeof skill === "string")
-        .map((skill) => skill.trim())
-        .filter((skill) => skill && !isGenericSoftSkill(skill))
+    const originalCv = JSON.parse(cvJson) as {
+      skills?: unknown
+      projects?: Array<{ technologies?: unknown }>
+    }
+    const explicitSkills = [
+      ...(Array.isArray(originalCv.skills) ? originalCv.skills : []),
+      ...(Array.isArray(originalCv.projects)
+        ? originalCv.projects.flatMap((project) =>
+            Array.isArray(project?.technologies) ? project.technologies : []
+          )
+        : []),
+    ]
+    const seen = new Set<string>()
+    for (const skill of explicitSkills) {
+      if (typeof skill !== "string") continue
+      const value = skill.trim()
+      const key = skillKey(value)
+      if (!value || isGenericSoftSkill(value) || seen.has(key)) continue
+      originalSkills.push(value)
+      seen.add(key)
     }
   } catch {
     return []
@@ -124,7 +139,7 @@ export function selectTailoredSkills(
     }
   }
 
-  return selected
+  return selected.slice(0, MAX_TAILORED_SKILLS)
 }
 
 /**

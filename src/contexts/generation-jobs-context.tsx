@@ -8,6 +8,7 @@ interface GenerationJobsContextValue {
   jobs: GenerationJobRow[]
   getActiveJob: (applicationId: string, kind: GenerationKind) => GenerationJobRow | undefined
   getApplicationLabel: (applicationId: string | null) => ApplicationLabel | null
+  getCvLabel: (cvId: string | null) => string | null
   trackJob: (input: {
     id: string
     applicationId: string | null

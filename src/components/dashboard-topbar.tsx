@@ -159,6 +159,10 @@ function toLabel(segment: string) {
   return LABELS[segment] ?? segment.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
+function shortenRecordId(value: string) {
+  return value.length > 12 ? `${value.slice(0, 8)}…` : value
+}
+
 function getInitials(fullName: string | null, email: string): string {
   if (fullName && fullName.trim()) {
     const parts = fullName.trim().split(/\s+/)
@@ -315,9 +319,10 @@ export function DashboardTopbar({
 }) {
   const pathname = usePathname()
   const segments = pathname.split("/").filter(Boolean)
+  const { getApplicationLabel, getCvLabel } = useGenerationJobsContext()
   const pageCrumbs = segments.map((segment, index) => ({
     href: `/${segments.slice(0, index + 1).join("/")}`,
-    label: toLabel(segment),
+    label: getBreadcrumbLabel(segments, index, getApplicationLabel, getCvLabel),
   }))
   const crumbs =
     pageCrumbs[0]?.href === "/dashboard"
@@ -348,9 +353,15 @@ export function DashboardTopbar({
                   <li key={crumb.href} className="flex items-center gap-2 whitespace-nowrap">
                     {index > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
                     {isLast ? (
-                      <span className="font-medium text-foreground">{crumb.label}</span>
+                      <span className="block max-w-64 truncate font-medium text-foreground" title={crumb.label}>
+                        {crumb.label}
+                      </span>
                     ) : (
-                      <Link href={crumb.href} className="transition-colors hover:text-foreground">
+                      <Link
+                        href={crumb.href}
+                        className="block max-w-64 truncate transition-colors hover:text-foreground"
+                        title={crumb.label}
+                      >
                         {crumb.label}
                       </Link>
                     )}
@@ -359,7 +370,7 @@ export function DashboardTopbar({
               })}
             </ol>
             <div className="sm:hidden">
-              <span className="text-[13px] font-medium tracking-[0.01em] text-foreground">
+              <span className="block max-w-[65vw] truncate text-[13px] font-medium tracking-[0.01em] text-foreground" title={mobileCrumb.label}>
                 {mobileCrumb.label}
               </span>
             </div>
@@ -374,4 +385,23 @@ export function DashboardTopbar({
       </div>
     </div>
   )
+}
+
+function getBreadcrumbLabel(
+  segments: string[],
+  index: number,
+  getApplicationLabel: (applicationId: string | null) => { role: string; company: string } | null,
+  getCvLabel: (cvId: string | null) => string | null,
+) {
+  const segment = segments[index]
+  if (index === 1 && segments[0] === "applications") {
+    const application = getApplicationLabel(segment)
+    return application
+      ? `${application.role} at ${application.company}`
+      : shortenRecordId(segment)
+  }
+  if (index === 1 && segments[0] === "profile") {
+    return getCvLabel(segment) ?? shortenRecordId(segment)
+  }
+  return toLabel(segment)
 }
