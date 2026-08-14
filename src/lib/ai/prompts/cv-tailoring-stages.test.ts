@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest"
 import { STAGE_D_SYSTEM_PROMPT, STAGE_E_SYSTEM_PROMPT } from "./cv-tailoring-stages"
 
 describe("CV tailoring prompts — skills provenance", () => {
-  it("makes the planner select exact entries only from the original skills array", () => {
-    expect(STAGE_D_SYSTEM_PROMPT).toMatch(/exclusively from the candidate_cv\.skills array/i)
+  it("makes the planner select exact entries only from explicit CV skill sources", () => {
+    expect(STAGE_D_SYSTEM_PROMPT).toMatch(/exclusively from candidate_cv\.skills or project technologies/i)
     expect(STAGE_D_SYSTEM_PROMPT).toMatch(/jd.+never a source of new cv skills/i)
     expect(STAGE_D_SYSTEM_PROMPT).toMatch(/add_if_present_in_cv.+always return \[\]/i)
   })
@@ -18,9 +18,10 @@ describe("CV tailoring prompts — skills provenance", () => {
   })
 
   it("requires at least 13 genuine source skills in the tailored CV", () => {
-    expect(STAGE_D_SYSTEM_PROMPT).toMatch(/at least 13 skills/i)
+    expect(STAGE_D_SYSTEM_PROMPT).toMatch(/13–15 distinct skills/i)
+    expect(STAGE_D_SYSTEM_PROMPT).toMatch(/candidate_cv\.skills or project technologies/i)
     expect(STAGE_D_SYSTEM_PROMPT).toMatch(/fewer than 13 eligible skills/i)
-    expect(STAGE_E_SYSTEM_PROMPT).toMatch(/at least 13 skills/i)
+    expect(STAGE_E_SYSTEM_PROMPT).toMatch(/13–15 distinct skills/i)
     expect(STAGE_E_SYSTEM_PROMPT).toMatch(/never invent/i)
   })
 })

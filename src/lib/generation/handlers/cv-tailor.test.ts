@@ -176,6 +176,31 @@ describe("cvTailorHandler", () => {
 })
 
 describe("selectTailoredSkills", () => {
+  it("uses explicit project technologies when the top-level skills list has fewer than 13", () => {
+    const result = selectTailoredSkills(
+      JSON.stringify({
+        skills: ["TypeScript", "React", "Next.js", "Node.js", "PostgreSQL"],
+        projects: [
+          { technologies: ["Docker", "AWS", "Redis", "Git", "CI/CD"] },
+          { technologies: ["REST APIs", "HTML", "CSS", "Python", "FastAPI"] },
+        ],
+      }),
+      {
+        skills_plan: {
+          prioritize: ["TypeScript", "React"],
+          keep: ["Next.js", "Node.js", "PostgreSQL"],
+        },
+      } as never,
+      ["TypeScript", "React"],
+    )
+
+    expect(result).toHaveLength(13)
+    expect(result).toEqual([
+      "TypeScript", "React", "Next.js", "Node.js", "PostgreSQL",
+      "Docker", "AWS", "Redis", "Git", "CI/CD", "REST APIs", "HTML", "CSS",
+    ])
+  })
+
   it("backfills genuine source skills until the CV contains at least 13", () => {
     const originalSkills = [
       "Python",
