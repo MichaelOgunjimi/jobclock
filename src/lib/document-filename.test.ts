@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { buildAttachmentContentDisposition, buildCvFilenameBase, withPdfExtension } from "./document-filename"
+import {
+  buildAttachmentContentDisposition,
+  buildCvFilenameBase,
+  buildJsonAttachmentContentDisposition,
+  withJsonExtension,
+  withPdfExtension,
+} from "./document-filename"
 
 describe("document filenames", () => {
   it("builds CV filenames from full name, company, and role", () => {
@@ -36,6 +42,15 @@ describe("document filenames", () => {
   it("builds an ASCII-safe attachment header with encoded UTF-8 filename", () => {
     expect(buildAttachmentContentDisposition("Mícháel – R&D / Labs - CV")).toBe(
       "attachment; filename=\"Michael R&D Labs - CV.pdf\"; filename*=UTF-8''M%C3%ADch%C3%A1el%20%E2%80%93%20R%26D%20Labs%20-%20CV.pdf",
+    )
+  })
+
+  it("builds an ASCII-safe JSON attachment header", () => {
+    expect(withJsonExtension("Mícháel – Acme Application Export")).toBe(
+      "Mícháel – Acme Application Export.json",
+    )
+    expect(buildJsonAttachmentContentDisposition("Mícháel – Acme Application Export")).toBe(
+      "attachment; filename=\"Michael Acme Application Export.json\"; filename*=UTF-8''M%C3%ADch%C3%A1el%20%E2%80%93%20Acme%20Application%20Export.json",
     )
   })
 })

@@ -48,6 +48,11 @@ export function withPdfExtension(filenameBase: string): string {
   return cleaned.toLowerCase().endsWith(".pdf") ? cleaned : `${cleaned}.pdf`
 }
 
+export function withJsonExtension(filenameBase: string): string {
+  const cleaned = cleanFilenamePart(filenameBase) ?? "application"
+  return cleaned.toLowerCase().endsWith(".json") ? cleaned : `${cleaned}.json`
+}
+
 function asciiFilenameFallback(filename: string): string {
   return (
     filename
@@ -62,6 +67,13 @@ function asciiFilenameFallback(filename: string): string {
 
 export function buildAttachmentContentDisposition(filenameBase: string): string {
   const filename = withPdfExtension(filenameBase)
+  const fallback = asciiFilenameFallback(filename)
+
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+}
+
+export function buildJsonAttachmentContentDisposition(filenameBase: string): string {
+  const filename = withJsonExtension(filenameBase)
   const fallback = asciiFilenameFallback(filename)
 
   return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`
