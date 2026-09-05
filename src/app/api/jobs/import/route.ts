@@ -261,7 +261,7 @@ export async function POST(request: NextRequest) {
       success: true,
       alreadySaved: result.alreadySaved,
       applicationId: result.applicationId,
-      applicationUrl: new URL(`/applications/${result.applicationId}`, request.nextUrl.origin).toString(),
+      applicationUrl: new URL(`/applications/${result.applicationSlug}`, request.nextUrl.origin).toString(),
     })
   } catch (error) {
     if (error instanceof JobImportError) {

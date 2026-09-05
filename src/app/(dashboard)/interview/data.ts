@@ -89,6 +89,7 @@ export interface InterviewWorkspaceData {
 
 export interface InterviewApplicationView {
   id: string
+  slug: string
   title: string
   company: string
   hasResearch: boolean
@@ -153,6 +154,7 @@ interface PersistedStoryRow {
 
 interface PersistedApplicationRow {
   id: string
+  slug: string
   title: string | null
   company: string | null
   description: string | null
@@ -502,6 +504,7 @@ export async function loadInterviewApplicationById(userId: string, applicationId
   return queryOne<PersistedApplicationRow>(sql`
     SELECT
       applications.id,
+      applications.slug,
       COALESCE(applications.custom_title, jobs_cache.title, 'Untitled role') AS title,
       COALESCE(applications.custom_company, jobs_cache.company, 'Unknown company') AS company,
       COALESCE(applications.custom_description, jobs_cache.description, '') AS description,
@@ -678,6 +681,7 @@ export async function loadInterviewWorkspace(
     queryRows<PersistedApplicationRow>(sql`
       SELECT
         applications.id,
+        applications.slug,
         COALESCE(applications.custom_title, jobs_cache.title, 'Untitled role') AS title,
         COALESCE(applications.custom_company, jobs_cache.company, 'Unknown company') AS company,
         COALESCE(applications.custom_description, jobs_cache.description, '') AS description,
@@ -725,6 +729,7 @@ export async function loadInterviewWorkspace(
   const applications = sortByCreatedAtThenId(applicationRows)
     .map((row) => ({
       id: row.id,
+      slug: row.slug,
       title: trim(row.title) || "Untitled role",
       company: trim(row.company) || "Unknown company",
       hasResearch: Boolean(trim(row.researchContent)),
@@ -735,11 +740,14 @@ export async function loadInterviewWorkspace(
       return application
     })
   const normalizedRequestedApplicationId = trim(requestedApplicationId)
-  const selectedApplicationId = normalizedRequestedApplicationId
-    ? applications.some((application) => application.id === normalizedRequestedApplicationId)
-      ? normalizedRequestedApplicationId
-      : null
+  const requestedApplication = normalizedRequestedApplicationId
+    ? applications.find(
+        (application) =>
+          application.id === normalizedRequestedApplicationId ||
+          application.slug === normalizedRequestedApplicationId,
+      )
     : null
+  const selectedApplicationId = requestedApplication?.id ?? null
   const applicationContextError =
     normalizedRequestedApplicationId && !selectedApplicationId
       ? "That application could not be loaded, so Interview Prep opened in general mode."
@@ -767,6 +775,7 @@ export async function loadInterviewApplicationMap(userId: string): Promise<Map<s
   const rows = await queryRows<PersistedApplicationRow>(sql`
     SELECT
       applications.id,
+      applications.slug,
       COALESCE(applications.custom_title, jobs_cache.title, 'Untitled role') AS title,
       COALESCE(applications.custom_company, jobs_cache.company, 'Unknown company') AS company,
       COALESCE(applications.custom_description, jobs_cache.description, '') AS description,

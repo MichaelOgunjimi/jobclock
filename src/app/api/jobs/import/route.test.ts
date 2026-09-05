@@ -184,6 +184,7 @@ describe("POST /api/jobs/import", () => {
   it("saves a validated preview into applications", async () => {
     vi.mocked(persistJobForUser).mockResolvedValue({
       applicationId: "app-2",
+      applicationSlug: "engineer-app2",
       alreadySaved: false,
     })
 
@@ -212,7 +213,7 @@ describe("POST /api/jobs/import", () => {
       success: true,
       alreadySaved: false,
       applicationId: "app-2",
-      applicationUrl: "https://app.example.com/applications/app-2",
+      applicationUrl: "https://app.example.com/applications/engineer-app2",
     })
     expect(persistJobForUser).toHaveBeenCalledWith("user-1", expect.objectContaining({
       url: "https://example.com/job-2",

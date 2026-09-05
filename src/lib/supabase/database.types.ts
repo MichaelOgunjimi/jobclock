@@ -195,6 +195,7 @@ export type Database = {
 			applications: {
 				Row: {
 					id: string;
+					slug: string;
 					user_id: string;
 					job_id: string | null;
 					status: ApplicationStatus;
@@ -220,6 +221,7 @@ export type Database = {
 				};
 				Insert: {
 					id?: string;
+					slug: string;
 					user_id: string;
 					job_id?: string | null;
 					status?: ApplicationStatus;
@@ -245,6 +247,7 @@ export type Database = {
 				};
 				Update: {
 					id?: string;
+					slug?: string;
 					user_id?: string;
 					job_id?: string | null;
 					status?: ApplicationStatus;

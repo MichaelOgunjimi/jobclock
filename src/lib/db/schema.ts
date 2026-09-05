@@ -135,6 +135,7 @@ export const applications = pgTable(
   "applications",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    slug: text("slug").notNull(),
     userId: uuid("user_id").notNull(),
     jobId: uuid("job_id").references(() => jobsCache.id, { onDelete: "set null" }),
     status: applicationStatusEnum("status").default("saved"),
@@ -162,6 +163,7 @@ export const applications = pgTable(
     followUpNotes: text("follow_up_notes"),
   },
   (table) => [
+    uniqueIndex("applications_slug_unique").on(table.slug),
     uniqueIndex("applications_user_id_job_id_unique").on(table.userId, table.jobId),
   ]
 )

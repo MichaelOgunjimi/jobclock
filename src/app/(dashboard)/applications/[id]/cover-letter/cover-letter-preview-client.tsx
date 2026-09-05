@@ -25,9 +25,11 @@ import {
   saveCoverLetterContent,
   saveCoverLetterTemplatePreference,
 } from "./actions"
+import { applicationPath } from "@/lib/applications/path"
 
 interface Props {
   applicationId: string
+  applicationSlug: string
   coverLetterId: string
   content: string
   tone: string | null
@@ -93,6 +95,7 @@ function TemplateSwitcher({
 
 export function CoverLetterPreviewClient({
   applicationId,
+  applicationSlug,
   coverLetterId,
   content: initialContent,
   tone,
@@ -233,7 +236,7 @@ export function CoverLetterPreviewClient({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Link
-              href={`/applications/${applicationId}`}
+              href={applicationPath(applicationSlug)}
               className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
             >
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -241,7 +244,7 @@ export function CoverLetterPreviewClient({
             </Link>
             {hasCv && (
               <Link
-                href={`/applications/${applicationId}/cv`}
+                href={applicationPath(applicationSlug, "/cv")}
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
               >
                 <FileText className="h-3.5 w-3.5" />
@@ -357,7 +360,7 @@ export function CoverLetterPreviewClient({
                   {copied ? "Copied!" : "Copy"}
                 </Button>
                 <Link
-                  href={`/applications/${applicationId}/cover-letter/print`}
+                  href={applicationPath(applicationSlug, "/cover-letter/print")}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full sm:w-auto")}

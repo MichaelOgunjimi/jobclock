@@ -144,6 +144,15 @@
   }
 }
 
+@media (max-width: 767px) {
+  input:not([type="button"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]):not([type="radio"]):not([type="reset"]):not([type="submit"]),
+  select,
+  textarea {
+    /* iOS Safari zooms the viewport when a focused form control is below 16px. */
+    font-size: 16px !important;
+  }
+}
+
 @layer components {
   .page-shell {
     @apply mx-auto flex w-full max-w-[1440px] flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8 md:gap-10 md:px-10 md:py-10 xl:px-12;
