@@ -27,11 +27,11 @@ function kindLabel(kind: GenerationKind): string {
 
 function jobHref(
   kind: GenerationKind,
-  applicationId: string | null,
+  applicationRouteKey: string | null,
   status: GenerationStatus,
 ): string {
-  if (!applicationId) return "/applications"
-  const base = `/applications/${applicationId}`
+  if (!applicationRouteKey) return "/applications"
+  const base = `/applications/${applicationRouteKey}`
   switch (kind) {
     // Deep-link to the generated artifact on success. A failed cv_tailor /
     // cover_letter has no row, so its preview page would notFound() — send
@@ -42,7 +42,7 @@ function jobHref(
       return status === "done" ? `${base}/cover-letter` : base
     case "interview_prep":
     case "interview_answer":
-      return `/interview?applicationId=${applicationId}`
+      return `/interview?application=${applicationRouteKey}`
     case "company_research":
       return base
   }
@@ -113,7 +113,7 @@ function NotificationsDropdown() {
                 return (
                   <Link
                     key={job.id}
-                    href={jobHref(job.kind, job.application_id, job.status)}
+                    href={jobHref(job.kind, label?.slug ?? null, job.status)}
                     onClick={() => setOpen(false)}
                     className="flex items-start gap-3 px-4 py-3 text-[13px] transition-colors hover:bg-muted"
                   >
@@ -390,7 +390,7 @@ export function DashboardTopbar({
 function getBreadcrumbLabel(
   segments: string[],
   index: number,
-  getApplicationLabel: (applicationId: string | null) => { role: string; company: string } | null,
+  getApplicationLabel: (applicationId: string | null) => { role: string; company: string; slug: string } | null,
   getCvLabel: (cvId: string | null) => string | null,
 ) {
   const segment = segments[index]

@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { notFound, redirect } from "next/navigation"
+import { notFound, permanentRedirect, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { eq, and } from "drizzle-orm"
@@ -7,6 +7,8 @@ import { db } from "@/lib/db"
 import { applications } from "@/lib/db/schema"
 import type { Database } from "@/lib/supabase/database.types"
 import { ApplicationDetail } from "./application-detail"
+import { applicationPath } from "@/lib/applications/path"
+import { resolveApplicationRoute } from "@/lib/applications/route"
 
 export async function generateMetadata({
   params,
@@ -18,10 +20,12 @@ export async function generateMetadata({
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { title: "Application" }
+  const route = await resolveApplicationRoute(user.id, id)
+  if (!route) return { title: "Application" }
   const { data } = await supabase
     .from("applications")
     .select("custom_title, custom_company, jobs_cache(title, company)")
-    .eq("id", id)
+    .eq("id", route.id)
     .eq("user_id", user.id)
     .maybeSingle()
   const record = data as {
@@ -58,6 +62,11 @@ export default async function ApplicationDetailPage({
   } = await supabase.auth.getUser()
   if (!user) redirect("/auth")
 
+  const route = await resolveApplicationRoute(user.id, id)
+  if (!route) notFound()
+  if (id !== route.slug) permanentRedirect(applicationPath(route.slug))
+  const applicationId = route.id
+
   // Fetch application with full jobs_cache join
   const { data: applicationData } = await supabase
     .from("applications")
@@ -65,7 +74,7 @@ export default async function ApplicationDetailPage({
       *,
       jobs_cache (*)
     `)
-    .eq("id", id)
+    .eq("id", applicationId)
     .eq("user_id", user.id)
     .single()
 
@@ -95,14 +104,14 @@ export default async function ApplicationDetailPage({
     supabase
       .from("customized_cvs")
       .select("id, cv_json, skills_gap, ats_score, created_at")
-      .eq("application_id", id)
+      .eq("application_id", applicationId)
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(3),
     supabase
       .from("cover_letters")
       .select("id, content, tone, label, created_at")
-      .eq("application_id", id)
+      .eq("application_id", applicationId)
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -110,7 +119,7 @@ export default async function ApplicationDetailPage({
     db
       .select({ followUpDueAt: applications.followUpDueAt, followUpNotes: applications.followUpNotes })
       .from(applications)
-      .where(and(eq(applications.id, id), eq(applications.userId, user.id)))
+      .where(and(eq(applications.id, applicationId), eq(applications.userId, user.id)))
       .limit(1)
       .then((rows) => rows[0] ?? null),
   ])

@@ -68,7 +68,7 @@ function ApplicationContextPicker({
             </div>
             {selected && (
               <Link
-                href={`/applications/${selected.id}`}
+                href={`/applications/${selected.slug}`}
                 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
               >
                 Open application
@@ -122,7 +122,7 @@ function ApplicationContextPicker({
                   </p>
                 </div>
                 <Link
-                  href={`/applications/${selected.id}`}
+                  href={`/applications/${selected.slug}`}
                   className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
                 >
                   {selected.hasResearch ? "View research" : "Add research"}
@@ -211,8 +211,11 @@ export function InterviewWorkspace({
     setApplicationId(nextApplicationId)
     const params = new URLSearchParams(searchParams.toString())
     if (nextApplicationId) {
-      params.set("applicationId", nextApplicationId)
+      const application = initial.applications.find((item) => item.id === nextApplicationId)
+      params.set("application", application?.slug ?? nextApplicationId)
+      params.delete("applicationId")
     } else {
+      params.delete("application")
       params.delete("applicationId")
     }
     const query = params.toString()

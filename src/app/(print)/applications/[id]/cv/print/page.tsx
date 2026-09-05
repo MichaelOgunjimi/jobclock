@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation"
+import { notFound, permanentRedirect, redirect } from "next/navigation"
 import { Suspense } from "react"
 import type { CvData } from "@/lib/supabase/database.types"
 import { createClient } from "@/lib/supabase/server"
@@ -9,6 +9,8 @@ import {
   type CvTemplateName,
 } from "@/components/cv/templates/cv-template-renderer"
 import { AutoPrint } from "@/app/(print)/auto-print"
+import { applicationPath } from "@/lib/applications/path"
+import { resolveApplicationRoute } from "@/lib/applications/route"
 
 export const dynamic = "force-dynamic"
 
@@ -30,11 +32,16 @@ export default async function ApplicationCvPrintPage({
 
   if (!user) redirect("/auth")
 
+  const route = await resolveApplicationRoute(user.id, id)
+  if (!route) notFound()
+  if (id !== route.slug) permanentRedirect(applicationPath(route.slug, "/cv/print"))
+  const applicationId = route.id
+
   const [{ data: cvRow }, { data: profile }] = await Promise.all([
     supabase
       .from("customized_cvs")
       .select("cv_json")
-      .eq("application_id", id)
+      .eq("application_id", applicationId)
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)

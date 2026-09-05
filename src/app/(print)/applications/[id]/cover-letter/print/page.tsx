@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation"
+import { notFound, permanentRedirect, redirect } from "next/navigation"
 import { Suspense } from "react"
 import type { CoverLetterRenderData, CvData } from "@/lib/supabase/database.types"
 import { createClient } from "@/lib/supabase/server"
@@ -9,6 +9,8 @@ import {
   type CoverLetterTemplateName,
 } from "@/components/cover-letter/templates/cover-letter-template-renderer"
 import { AutoPrint } from "@/app/(print)/auto-print"
+import { applicationPath } from "@/lib/applications/path"
+import { resolveApplicationRoute } from "@/lib/applications/route"
 
 export const dynamic = "force-dynamic"
 
@@ -30,12 +32,19 @@ export default async function ApplicationCoverLetterPrintPage({
 
   if (!user) redirect("/auth")
 
+  const route = await resolveApplicationRoute(user.id, id)
+  if (!route) notFound()
+  if (id !== route.slug) {
+    permanentRedirect(applicationPath(route.slug, "/cover-letter/print"))
+  }
+  const applicationId = route.id
+
   const [{ data: coverLetter }, { data: profile }, { data: application }] =
     await Promise.all([
       supabase
         .from("cover_letters")
         .select("id, content, tone, label, created_at")
-        .eq("application_id", id)
+        .eq("application_id", applicationId)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -48,7 +57,7 @@ export default async function ApplicationCoverLetterPrintPage({
       supabase
         .from("applications")
         .select("selected_cv_id, jobs_cache(title, company)")
-        .eq("id", id)
+        .eq("id", applicationId)
         .eq("user_id", user.id)
         .maybeSingle(),
     ])
