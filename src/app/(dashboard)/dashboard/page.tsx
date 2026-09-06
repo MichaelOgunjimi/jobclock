@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Briefcase, Clock, FileText, Search, Send, TrendingUp } from "lucide-react"
+import { Briefcase, FileText, Search, Send } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button-styles"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Database } from "@/lib/supabase/database.types"
 import { cn } from "@/lib/utils"
+import { APPLICATION_STATUS_OPTIONS } from "../applications/pipeline-metrics"
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
 
 type RecentApplication = Pick<
   Database["public"]["Tables"]["applications"]["Row"],
-  "id" | "status" | "created_at" | "applied_at"
+  "id" | "slug" | "status" | "created_at" | "applied_at"
 > & {
   jobs_cache: Pick<
     Database["public"]["Tables"]["jobs_cache"]["Row"],
@@ -35,35 +36,18 @@ export default async function DashboardPage() {
   if (!user) redirect("/auth")
 
   const [
-    { count: totalApplications },
-    { count: pendingApplications },
-    { count: interviewCount },
-    { count: savedCount },
+    { data: applicationStatuses },
     { data: recentAppsData },
   ] = await Promise.all([
     supabase
       .from("applications")
-      .select("*", { count: "exact", head: true })
+      .select("status")
       .eq("user_id", user.id),
-    supabase
-      .from("applications")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("status", "applied"),
-    supabase
-      .from("applications")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("status", "interview"),
-    supabase
-      .from("applications")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("status", "saved"),
     supabase
       .from("applications")
       .select(`
         id,
+        slug,
         status,
         created_at,
         applied_at,
@@ -79,37 +63,14 @@ export default async function DashboardPage() {
   ])
 
   const recentApps = (recentAppsData ?? []) as RecentApplication[]
-
-  const statCards = [
-    {
-      index: "01",
-      title: "Total applications",
-      value: totalApplications ?? 0,
-      icon: Send,
-      note: "Tracked roles in your pipeline",
+  const totalApplications = (applicationStatuses ?? []).length
+  const statusCounts = (applicationStatuses ?? []).reduce(
+    (counts, application) => {
+      counts[application.status] = (counts[application.status] ?? 0) + 1
+      return counts
     },
-    {
-      index: "02",
-      title: "Saved roles",
-      value: savedCount ?? 0,
-      icon: Briefcase,
-      note: "Posts worth tailoring for next",
-    },
-    {
-      index: "03",
-      title: "Interview rounds",
-      value: interviewCount ?? 0,
-      icon: Clock,
-      note: "Conversations currently progressing",
-    },
-    {
-      index: "04",
-      title: "Awaiting reply",
-      value: pendingApplications ?? 0,
-      icon: TrendingUp,
-      note: "Applications with no decision yet",
-    },
-  ]
+    {} as Record<string, number>
+  )
 
   const statusConfig: Record<string, { label: string; color: string }> = {
     saved: { label: "Saved", color: "border-border bg-secondary text-foreground" },
@@ -147,31 +108,62 @@ export default async function DashboardPage() {
       </div>
 
       <div className="space-y-4">
-        <div className="section-label">Current volume</div>
-        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
-          {statCards.map((card) => {
-            const Icon = card.icon
-
-            return (
-              <Card key={card.title} className="border-border">
-                <CardContent className="space-y-6 pt-1">
-                  <div className="flex items-center justify-between">
-                    <span className="metric-label">{card.index}</span>
-                    <div className="flex size-11 items-center justify-center border border-border bg-secondary text-foreground">
-                      <Icon className="h-4 w-4" />
-                    </div>
+        <div className="section-label">Pipeline overview</div>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
+          <Link
+            href="/analytics"
+            className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+          >
+            <Card className="h-full bg-card py-4 transition-[border-color,box-shadow] group-hover:border-foreground/20 group-hover:shadow-[0_18px_34px_-30px_rgba(10,10,10,0.4)]">
+              <CardContent className="space-y-4 pt-1">
+                <div className="flex items-center justify-between">
+                  <span className="metric-label">00</span>
+                  <Badge className="h-8 gap-2 border-border bg-secondary/70 px-3 text-[10px] tracking-[0.12em] text-foreground">
+                    Total
+                  </Badge>
+                </div>
+                <div className="space-y-2">
+                  <div className="font-heading text-[2.2rem] leading-none tracking-[-0.05em] text-foreground">
+                    {totalApplications}
                   </div>
-                  <div className="space-y-3">
-                    <div className="metric-value">{card.value}</div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium tracking-[0.02em]">Total applications</p>
+                    <p className="text-[13px] text-muted-foreground">
+                      Every tracked role across the full pipeline.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          {APPLICATION_STATUS_OPTIONS.map((option, index) => (
+            <Link
+              key={option.value}
+              href={`/analytics?status=${option.value}`}
+              className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+            >
+              <Card className="h-full bg-card py-4 transition-[border-color,box-shadow] group-hover:border-foreground/20 group-hover:shadow-[0_18px_34px_-30px_rgba(10,10,10,0.4)]">
+                <CardContent className="space-y-4 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="metric-label">{String(index + 1).padStart(2, "0")}</span>
+                    <Badge className={cn("h-8 gap-2 px-3 text-[10px] tracking-[0.12em]", option.color)}>
+                      <span className={cn("size-1.5 rounded-full", option.dot)} />
+                      {option.label}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="font-heading text-[2.2rem] leading-none tracking-[-0.05em] text-foreground">
+                      {statusCounts[option.value] ?? 0}
+                    </div>
                     <div className="space-y-1">
-                      <p className="text-sm font-medium tracking-[0.02em]">{card.title}</p>
-                      <p className="text-[13px] text-muted-foreground">{card.note}</p>
+                      <p className="text-sm font-medium tracking-[0.02em]">{option.label}</p>
+                      <p className="text-[13px] text-muted-foreground">{option.description}</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            )
-          })}
+            </Link>
+          ))}
         </div>
       </div>
 
@@ -212,7 +204,7 @@ export default async function DashboardPage() {
                   return (
                     <Link
                       key={app.id}
-                      href={`/applications/${app.id}`}
+                      href={`/applications/${app.slug}`}
                       className="group -mx-6 flex items-start justify-between gap-4 px-6 py-5 transition-colors hover:bg-secondary/60 first:pt-0 last:pb-0"
                     >
                       <div className="space-y-2">

@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge"
 import {
   Briefcase,
   Search,
-  ArrowRight,
   CalendarDays,
   MapPin,
   Plus,
@@ -90,6 +89,7 @@ export default async function ApplicationsPage({
     .from("applications")
     .select(`
       id,
+      slug,
       status,
       created_at,
       applied_at,
@@ -183,8 +183,6 @@ export default async function ApplicationsPage({
   }
 
   const statusOptions = APPLICATION_STATUS_OPTIONS
-  const totalPipelineApplications = (applicationStatuses ?? []).length
-
   const statusCounts = (applicationStatuses ?? []).reduce(
     (acc, app) => {
       acc[app.status] = (acc[app.status] ?? 0) + 1
@@ -209,75 +207,6 @@ export default async function ApplicationsPage({
             <Plus className="h-4 w-4" />
             Find roles
         </Link>
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="section-label">Pipeline overview</div>
-          <Link
-            href="/analytics"
-            className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Open analytics
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
-          <Link
-            href="/analytics"
-            className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
-          >
-            <Card className="h-full bg-card py-4 transition-[border-color,box-shadow] group-hover:border-foreground/20 group-hover:shadow-[0_18px_34px_-30px_rgba(10,10,10,0.4)]">
-              <CardContent className="space-y-4 pt-1">
-                <div className="flex items-center justify-between">
-                  <span className="metric-label">00</span>
-                  <Badge className="h-8 gap-2 border-border bg-secondary/70 px-3 text-[10px] tracking-[0.12em] text-foreground">
-                    Total
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  <div className="font-heading text-[2.2rem] leading-none tracking-[-0.05em] text-foreground">
-                    {totalPipelineApplications}
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium tracking-[0.02em]">Total applications</p>
-                    <p className="text-[13px] text-muted-foreground">
-                      Every tracked role across the full pipeline.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          {statusOptions.map((opt, index) => (
-            <Link
-              key={opt.value}
-              href={`/analytics?status=${opt.value}`}
-              className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
-            >
-              <Card className="h-full bg-card py-4 transition-[border-color,box-shadow] group-hover:border-foreground/20 group-hover:shadow-[0_18px_34px_-30px_rgba(10,10,10,0.4)]">
-                <CardContent className="space-y-4 pt-1">
-                  <div className="flex items-center justify-between">
-                    <span className="metric-label">{String(index + 1).padStart(2, "0")}</span>
-                    <Badge className={cn("h-8 gap-2 px-3 text-[10px] tracking-[0.12em]", opt.color)}>
-                      <span className={cn("size-1.5 rounded-full", opt.dot)} />
-                      {opt.label}
-                    </Badge>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="font-heading text-[2.2rem] leading-none tracking-[-0.05em] text-foreground">
-                      {statusCounts[opt.value] ?? 0}
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium tracking-[0.02em]">{opt.label}</p>
-                      <p className="text-[13px] text-muted-foreground">{opt.description}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
       </div>
 
       {(applicationStatuses ?? []).length === 0 ? (
@@ -358,7 +287,7 @@ export default async function ApplicationsPage({
                 className="group relative gap-0 overflow-hidden border-border/90 bg-card py-0 transition-[border-color,box-shadow] hover:border-foreground/15 hover:shadow-[0_20px_36px_-32px_rgba(10,10,10,0.24)]"
               >
                 <Link
-                  href={`/applications/${app.id}`}
+                  href={`/applications/${app.slug}`}
                   aria-label={`Open application for ${title}`}
                   className="absolute inset-0 z-0"
                 />

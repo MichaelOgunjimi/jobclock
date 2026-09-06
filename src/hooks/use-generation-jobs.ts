@@ -21,6 +21,7 @@ export interface GenerationJobRow {
 export interface ApplicationLabel {
   role: string
   company: string
+  slug: string
 }
 
 /** Newest-updated done/failed jobs shown in the notifications dropdown. */
@@ -223,7 +224,7 @@ export function useGenerationJobs(userId: string) {
       const [applicationsResult, cvsResult] = await Promise.all([
         supabase
           .from("applications")
-          .select("id, custom_title, custom_company, jobs_cache(title, company)")
+          .select("id, slug, custom_title, custom_company, jobs_cache(title, company)")
           .eq("user_id", userId),
         supabase
           .from("user_cvs")
@@ -236,6 +237,7 @@ export function useGenerationJobs(userId: string) {
         const nextAppLabels = new Map<string, ApplicationLabel>()
         for (const row of applicationsResult.data as unknown as Array<{
           id: string
+          slug: string
           custom_title: string | null
           custom_company: string | null
           jobs_cache: { title: string; company: string } | null
@@ -243,10 +245,13 @@ export function useGenerationJobs(userId: string) {
           const role = row.custom_title ?? row.jobs_cache?.title
           const company = row.custom_company ?? row.jobs_cache?.company
           if (role || company) {
-            nextAppLabels.set(row.id, {
+            const label = {
               role: role ?? "Unknown role",
               company: company ?? "Unknown company",
-            })
+              slug: row.slug,
+            }
+            nextAppLabels.set(row.id, label)
+            nextAppLabels.set(row.slug, label)
           }
         }
         setAppLabels(nextAppLabels)

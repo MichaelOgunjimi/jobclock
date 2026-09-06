@@ -99,12 +99,14 @@ describe("InterviewWorkspace", () => {
           applications: [
             {
               id: "app-1",
+              slug: "junior-software-engineer-app1",
               title: "Junior Software Engineer",
               company: "OneFamily",
               hasResearch: false,
             },
             {
               id: "app-2",
+              slug: "graduate-platform-engineer-app2",
               title: "Graduate Platform Engineer",
               company: "LiveFlow",
               hasResearch: false,
@@ -134,7 +136,7 @@ describe("InterviewWorkspace", () => {
       screen.getAllByText("Junior Software Engineer at OneFamily").length,
     ).toBeGreaterThan(0)
     expect(navigationMock.replace).toHaveBeenCalledWith(
-      "/interview?applicationId=app-1",
+      "/interview?application=junior-software-engineer-app1",
       { scroll: false },
     )
   })
@@ -165,6 +167,7 @@ describe("InterviewWorkspace", () => {
           applications: [
             {
               id: "app-1",
+              slug: "junior-software-engineer-app1",
               title: "Junior Software Engineer",
               company: "OneFamily",
               hasResearch: true,

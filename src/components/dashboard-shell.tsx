@@ -33,6 +33,7 @@ export function DashboardShell({
       <AppSidebar
         isMobileOpen={isMobileSidebarOpen}
         onMobileOpenChange={setIsMobileSidebarOpen}
+        userProfile={userProfile}
       />
       <main
         data-scroll-restoration-target

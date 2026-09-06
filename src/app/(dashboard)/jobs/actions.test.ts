@@ -52,6 +52,7 @@ describe("saveJob", () => {
 
     vi.mocked(persistJobForUser).mockResolvedValueOnce({
       applicationId: "app-1",
+      applicationSlug: "engineer-app1",
       alreadySaved: true,
     })
     expect(await saveJob(sampleJob as never)).toEqual({ alreadySaved: true })
@@ -60,6 +61,7 @@ describe("saveJob", () => {
   it("delegates to the shared persistence helper", async () => {
     vi.mocked(persistJobForUser).mockResolvedValueOnce({
       applicationId: "app-2",
+      applicationSlug: "engineer-app2",
       alreadySaved: false,
     })
     expect(await saveJob(sampleJob as never)).toEqual({ success: true })

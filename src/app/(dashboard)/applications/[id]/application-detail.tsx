@@ -41,6 +41,7 @@ import { FollowUpCard } from "./follow-up-card"
 import { useDownloadPdf } from "@/hooks/use-download-pdf"
 import { buildCoverLetterFilenameBase } from "@/lib/document-filename"
 import type { ApplicationStatus, Database, WritingStyle } from "@/lib/supabase/database.types"
+import { applicationPath } from "@/lib/applications/path"
 
 type ApplicationRow = Database["public"]["Tables"]["applications"]["Row"]
 type JobsCacheRow = Database["public"]["Tables"]["jobs_cache"]["Row"]
@@ -785,12 +786,14 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
 
 function CvCard({
   applicationId,
+  applicationSlug,
   cvs,
   currentCvId,
   tailoredCvs,
   hasDescription,
 }: {
   applicationId: string
+  applicationSlug: string
   cvs: UserCvRow[]
   currentCvId: string | null
   tailoredCvs: TailoredCvRow[]
@@ -906,7 +909,7 @@ function CvCard({
             )}
             {tailoredCvs.length > 0 && (
               <Link
-                href={`/applications/${applicationId}/cv`}
+                href={applicationPath(applicationSlug, "/cv")}
                 className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full justify-center sm:w-auto")}
               >
                 Preview &amp; Download CV
@@ -988,6 +991,7 @@ const TONES = [
 
 function CoverLetterCard({
   applicationId,
+  applicationSlug,
   jobTitle,
   jobCompany,
   writingStyles,
@@ -997,6 +1001,7 @@ function CoverLetterCard({
   hasDescription,
 }: {
   applicationId: string
+  applicationSlug: string
   jobTitle: string | null
   jobCompany: string | null
   writingStyles: WritingStyleRow[]
@@ -1168,7 +1173,7 @@ function CoverLetterCard({
             )}
             {generatedCoverLetter && (
               <Link
-                href={`/applications/${applicationId}/cover-letter`}
+                href={applicationPath(applicationSlug, "/cover-letter")}
                 className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full justify-center sm:w-auto")}
               >
                 Preview &amp; Download Cover Letter
@@ -1524,7 +1529,7 @@ export function ApplicationDetail({
             Back to pipeline
           </Link>
           <Link
-            href={`/interview?applicationId=${application.id}`}
+            href={`/interview?application=${application.slug}`}
             className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center sm:w-auto")}
           >
             <BookOpen className="h-3.5 w-3.5" />
@@ -1599,6 +1604,7 @@ export function ApplicationDetail({
       <div className="grid gap-6 sm:grid-cols-2">
         <CvCard
           applicationId={application.id}
+          applicationSlug={application.slug}
           cvs={cvs}
           currentCvId={application.selected_cv_id}
           tailoredCvs={tailoredCvs}
@@ -1606,6 +1612,7 @@ export function ApplicationDetail({
         />
         <CoverLetterCard
           applicationId={application.id}
+          applicationSlug={application.slug}
           jobTitle={application.custom_title ?? job?.title ?? null}
           jobCompany={application.custom_company ?? job?.company ?? null}
           writingStyles={writingStyles}

@@ -22,11 +22,13 @@ import {
   type CvTemplateName,
 } from "@/components/cv/templates/cv-template-renderer"
 import { saveCustomizedCvData, saveTemplatePreference } from "./actions"
+import { applicationPath } from "@/lib/applications/path"
 
 interface Props {
   customizedCvId: string
   cvData: CvData
   applicationId: string
+  applicationSlug: string
   atsScore: number | null
   generatedAt: string
   initialTemplate: CvTemplateName
@@ -199,6 +201,7 @@ export function CvPreviewClient({
   customizedCvId,
   cvData,
   applicationId,
+  applicationSlug,
   atsScore,
   generatedAt,
   initialTemplate,
@@ -319,7 +322,7 @@ export function CvPreviewClient({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Link
-              href={`/applications/${applicationId}`}
+              href={applicationPath(applicationSlug)}
               className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
             >
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -327,7 +330,7 @@ export function CvPreviewClient({
             </Link>
             {hasCoverLetter && (
               <Link
-                href={`/applications/${applicationId}/cover-letter`}
+                href={applicationPath(applicationSlug, "/cover-letter")}
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
               >
                 <FileText className="h-3.5 w-3.5" />
@@ -456,7 +459,7 @@ export function CvPreviewClient({
                   {isDownloading ? "Generating…" : "Download PDF"}
                 </Button>
                 <Link
-                  href={`/applications/${applicationId}/cv/print`}
+                  href={applicationPath(applicationSlug, "/cv/print")}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full sm:w-auto")}

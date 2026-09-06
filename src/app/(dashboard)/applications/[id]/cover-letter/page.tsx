@@ -1,9 +1,11 @@
-import { notFound, redirect } from "next/navigation"
+import { notFound, permanentRedirect, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import type { CvData } from "@/lib/supabase/database.types"
 import type { Metadata } from "next"
 import { CoverLetterPreviewClient } from "./cover-letter-preview-client"
+import { applicationPath } from "@/lib/applications/path"
+import { resolveApplicationRoute } from "@/lib/applications/route"
 
 export async function generateMetadata({
   params,
@@ -15,10 +17,12 @@ export async function generateMetadata({
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { title: "Cover Letter" }
+  const route = await resolveApplicationRoute(user.id, id)
+  if (!route) return { title: "Cover Letter" }
   const { data } = await supabase
     .from("applications")
     .select("jobs_cache(title, company)")
-    .eq("id", id)
+    .eq("id", route.id)
     .eq("user_id", user.id)
     .maybeSingle()
   const job = (data as { jobs_cache: { title?: string; company?: string } | null } | null)?.jobs_cache
@@ -42,12 +46,17 @@ export default async function CoverLetterPreviewPage({
   } = await supabase.auth.getUser()
   if (!user) redirect("/auth")
 
+  const route = await resolveApplicationRoute(user.id, id)
+  if (!route) notFound()
+  if (id !== route.slug) permanentRedirect(applicationPath(route.slug, "/cover-letter"))
+  const applicationId = route.id
+
   // Fetch application (with job data), generated cover letter, user CV, and profile
   const [{ data: app }, { data: profile }, { data: cvExists }] = await Promise.all([
     supabase
       .from("applications")
       .select("*, jobs_cache(*)")
-      .eq("id", id)
+      .eq("id", applicationId)
       .eq("user_id", user.id)
       .single(),
     supabase
@@ -58,7 +67,7 @@ export default async function CoverLetterPreviewPage({
     supabase
       .from("customized_cvs")
       .select("id")
-      .eq("application_id", id)
+      .eq("application_id", applicationId)
       .eq("user_id", user.id)
       .limit(1)
       .maybeSingle(),
@@ -76,7 +85,7 @@ export default async function CoverLetterPreviewPage({
   const { data: coverLetter } = await supabase
     .from("cover_letters")
     .select("id, content, tone, label, created_at")
-    .eq("application_id", id)
+    .eq("application_id", applicationId)
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -114,7 +123,8 @@ export default async function CoverLetterPreviewPage({
 
   return (
     <CoverLetterPreviewClient
-      applicationId={id}
+      applicationId={applicationId}
+      applicationSlug={route.slug}
       coverLetterId={coverLetter.id}
       content={coverLetter.content}
       tone={coverLetter.tone}

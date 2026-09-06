@@ -4,6 +4,7 @@ import { applicationStatusEvents, applications, jobsCache, profiles } from "@/li
 import { enqueueGeneration } from "@/lib/generation/enqueue"
 import type { UserPreferences } from "@/lib/ai"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
+import { createApplicationSlug } from "@/lib/applications/slug"
 
 export interface PersistedJobInput {
   url: string
@@ -63,6 +64,7 @@ export async function findExistingApplicationByUrl(
   const [row] = await db
     .select({
       applicationId: applications.id,
+      applicationSlug: applications.slug,
       status: applications.status,
       createdAt: applications.createdAt,
       title: jobsCache.title,
@@ -88,7 +90,7 @@ export async function findExistingApplicationByUrl(
     status: row.status ?? "saved",
     createdAt: row.createdAt?.toISOString() ?? new Date().toISOString(),
     location: row.customLocation ?? row.location ?? null,
-    applicationUrl: new URL(`/applications/${row.applicationId}`, origin).toString(),
+    applicationUrl: new URL(`/applications/${row.applicationSlug}`, origin).toString(),
     postingUrl: row.postingUrl ?? null,
   }
 }
@@ -101,6 +103,7 @@ export async function listRecentApplicationsForUser(
   const rows = await db
     .select({
       applicationId: applications.id,
+      applicationSlug: applications.slug,
       status: applications.status,
       createdAt: applications.createdAt,
       title: jobsCache.title,
@@ -124,7 +127,7 @@ export async function listRecentApplicationsForUser(
     status: row.status ?? "saved",
     createdAt: row.createdAt?.toISOString() ?? new Date().toISOString(),
     location: row.customLocation ?? row.location ?? null,
-    applicationUrl: new URL(`/applications/${row.applicationId}`, origin).toString(),
+    applicationUrl: new URL(`/applications/${row.applicationSlug}`, origin).toString(),
     postingUrl: row.postingUrl ?? null,
   }))
 }
@@ -184,7 +187,11 @@ export async function updateApplicationStatusForUser(
 export async function persistJobForUser(
   userId: string,
   job: PersistedJobInput
-): Promise<{ applicationId: string; alreadySaved: boolean }> {
+): Promise<{
+  applicationId: string
+  applicationSlug: string
+  alreadySaved: boolean
+}> {
   const result = await db.transaction(async (tx) => {
     const [cachedJob] = await tx
       .insert(jobsCache)
@@ -232,22 +239,24 @@ export async function persistJobForUser(
       .values({
         userId,
         jobId: cachedJob.id,
+        slug: createApplicationSlug(job.title),
         status: "saved",
       })
       .onConflictDoNothing({
         target: [applications.userId, applications.jobId],
       })
-      .returning({ id: applications.id })
+      .returning({ id: applications.id, slug: applications.slug })
 
     if (insertedApplication) {
       return {
         applicationId: insertedApplication.id,
+        applicationSlug: insertedApplication.slug,
         alreadySaved: false,
       }
     }
 
     const [existingApplication] = await tx
-      .select({ id: applications.id })
+      .select({ id: applications.id, slug: applications.slug })
       .from(applications)
       .where(and(eq(applications.userId, userId), eq(applications.jobId, cachedJob.id)))
       .limit(1)
@@ -258,6 +267,7 @@ export async function persistJobForUser(
 
     return {
       applicationId: existingApplication.id,
+      applicationSlug: existingApplication.slug,
       alreadySaved: true,
     }
   })
