@@ -145,8 +145,8 @@ function MobileNavigationSheet({
     >
       <Drawer.Portal>
         <Drawer.Backdrop className="fixed inset-0 z-40 bg-black/55 opacity-100 transition-opacity duration-300 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 motion-reduce:transition-none lg:hidden" />
-        <Drawer.Viewport className="fixed inset-0 z-50 flex items-end lg:hidden">
-          <Drawer.Popup className="flex h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] w-full translate-y-0 flex-col overflow-hidden border-t border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[0_-18px_60px_rgba(0,0,0,0.28)] transition-transform duration-300 ease-out data-[ending-style]:translate-y-full data-[starting-style]:translate-y-full motion-reduce:transition-none">
+        <Drawer.Viewport className="fixed inset-0 z-50 flex items-end px-3 lg:hidden">
+          <Drawer.Popup className="flex h-[90dvh] max-h-[calc(100dvh-2rem)] w-full translate-y-0 flex-col overflow-hidden border border-b-0 border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[0_-18px_60px_rgba(0,0,0,0.28)] transition-transform duration-300 ease-out data-[ending-style]:translate-y-full data-[starting-style]:translate-y-full motion-reduce:transition-none">
             <Drawer.Title className="sr-only">Navigation</Drawer.Title>
             <Drawer.Description className="sr-only">
               User context, workspace navigation, and account actions.

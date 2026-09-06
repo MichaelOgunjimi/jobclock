@@ -21,6 +21,7 @@ import { updateApplicationStatusForUser } from "@/lib/jobs/persist-job"
 import { ApplicationsFilterBar } from "./applications-filter-bar"
 import { ApplicationStatusForm } from "./application-status-form"
 import { APPLICATION_STATUS_OPTIONS } from "./pipeline-metrics"
+import { assertApplicationsQuerySucceeded } from "./applications-query"
 
 export const metadata: Metadata = {
   title: "Applications",
@@ -156,8 +157,8 @@ export default async function ApplicationsPage({
   }
 
   const [
-    { data: applicationsData, count: totalApplications },
-    { data: applicationStatuses },
+    { data: applicationsData, count: totalApplications, error: applicationsError },
+    { data: applicationStatuses, error: applicationStatusesError },
   ] = await Promise.all([
     query.range(rangeStart, rangeEnd),
     supabase
@@ -165,6 +166,9 @@ export default async function ApplicationsPage({
       .select("status")
       .eq("user_id", user.id),
   ])
+
+  assertApplicationsQuerySucceeded(applicationsError, "applications")
+  assertApplicationsQuerySucceeded(applicationStatusesError, "application statuses")
 
   let applications = (applicationsData ?? []) as ApplicationWithJob[]
 

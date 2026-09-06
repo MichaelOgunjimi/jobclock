@@ -99,6 +99,8 @@ describe("AppSidebar mobile navigation", () => {
     )
 
     const sheet = await screen.findByRole("dialog", { name: "Navigation" })
+    expect(sheet).toHaveClass("h-[90dvh]")
+    expect(sheet.parentElement).toHaveClass("px-3")
     expect(within(sheet).getByText("Example Person")).toBeInTheDocument()
     expect(within(sheet).getByText("person@example.com")).toBeInTheDocument()
     expect(within(sheet).getByRole("link", { name: "Dashboard" })).toHaveAttribute(
