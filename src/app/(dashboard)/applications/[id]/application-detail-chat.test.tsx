@@ -92,6 +92,15 @@ describe("ApplicationDetail chat", () => {
     vi.restoreAllMocks()
   })
 
+  it("links to a complete JSON export for this application", () => {
+    renderApplicationDetail()
+
+    expect(screen.getByRole("link", { name: "Export JSON" })).toHaveAttribute(
+      "href",
+      "/api/applications/app-1/export",
+    )
+  })
+
   it("lets the user draft the next message while an answer is streaming", async () => {
     const chat = mockStreamingChat()
     renderApplicationDetail()

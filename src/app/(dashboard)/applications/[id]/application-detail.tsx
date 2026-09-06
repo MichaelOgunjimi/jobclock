@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   BookOpen,
   Check,
+  Download,
   ExternalLink,
   Loader2,
   Maximize2,
@@ -1534,6 +1535,13 @@ export function ApplicationDetail({
             <BookOpen className="h-3.5 w-3.5" />
             Interview Prep
           </Link>
+          <a
+            href={`/api/applications/${application.id}/export`}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center sm:w-auto")}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export JSON
+          </a>
           {job?.url && (
             <a
               href={job.url}
