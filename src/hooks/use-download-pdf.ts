@@ -40,7 +40,10 @@ export function useDownloadPdf({
       if (filenameBase) params.set("filename", filenameBase)
 
       const res = await fetch(`/api/applications/${applicationId}/${type}/pdf?${params}`)
-      if (!res.ok) throw new Error("PDF generation failed")
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null
+        throw new Error(body?.error ?? "PDF generation failed")
+      }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
@@ -51,8 +54,8 @@ export function useDownloadPdf({
       a.remove()
       URL.revokeObjectURL(url)
       toast.success("PDF downloaded")
-    } catch {
-      toast.error("Failed to generate PDF — please try again")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to generate PDF — please try again")
     } finally {
       setIsDownloading(false)
     }
