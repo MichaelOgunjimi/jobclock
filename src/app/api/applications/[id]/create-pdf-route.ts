@@ -57,7 +57,21 @@ export function createPdfRoute({
         cookie: request.headers.get("cookie") ?? "",
       })
 
-      await page.goto(printUrl.toString(), { waitUntil: "load" })
+      const response = await page.goto(printUrl.toString(), { waitUntil: "load" })
+
+      if (response && new URL(page.url()).pathname.startsWith("/auth")) {
+        await page.close()
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      }
+
+      if (response && response.status() === 404) {
+        await page.close()
+        return NextResponse.json(
+          { error: `No ${errorLabel} found for this application` },
+          { status: 404 },
+        )
+      }
+
       await page.emulateMediaType("print")
       await page.waitForSelector(`[${dataAttribute}="true"]`, { timeout: 15_000 })
 
