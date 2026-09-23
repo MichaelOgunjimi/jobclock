@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { createClient } from "@/lib/supabase/server"
 import { buildAttachmentContentDisposition } from "@/lib/document-filename"
+import { resolveApplicationRoute } from "@/lib/applications/route"
 import { launchPdfBrowser, type PdfBrowser } from "./pdf-browser"
 
 type RouteParams = { params: Promise<{ id: string }> }
@@ -38,9 +39,17 @@ export function createPdfRoute({
     }
 
     const { id } = await params
+    const route = await resolveApplicationRoute(user.id, id)
+    if (!route) {
+      return NextResponse.json(
+        { error: `No ${errorLabel} found for this application` },
+        { status: 404 },
+      )
+    }
+
     const template = request.nextUrl.searchParams.get("template")
     const requestedFilename = request.nextUrl.searchParams.get("filename")
-    const printUrl = new URL(`/applications/${id}/${printPath}`, request.nextUrl.origin)
+    const printUrl = new URL(`/applications/${route.slug}/${printPath}`, request.nextUrl.origin)
 
     if (template && templateValidator(template)) {
       printUrl.searchParams.set("template", template)
