@@ -22,6 +22,10 @@ import { ApplicationsFilterBar } from "./applications-filter-bar"
 import { ApplicationStatusForm } from "./application-status-form"
 import { APPLICATION_STATUS_OPTIONS } from "./pipeline-metrics"
 import { assertApplicationsQuerySucceeded } from "./applications-query"
+import {
+  getNormalStatusChoices,
+  isApplicationStatus,
+} from "@/lib/applications/status-transitions"
 
 export const metadata: Metadata = {
   title: "Applications",
@@ -33,17 +37,6 @@ type ApplicationWithJob = Database["public"]["Tables"]["applications"]["Row"] & 
     "id" | "title" | "company" | "location" | "url" | "salary_min" | "salary_max" | "salary_currency"
   > | null
 }
-
-const VALID_APPLICATION_STATUSES = new Set<ApplicationStatus>([
-  "saved",
-  "applied",
-  "screening",
-  "interview",
-  "offer",
-  "rejected",
-  "withdrawn",
-  "ghosted",
-])
 
 const APPLICATIONS_PER_PAGE = 8
 
@@ -63,7 +56,7 @@ export default async function ApplicationsPage({
   // Filter param — validate against known statuses
   const rawStatus = resolvedSearchParams?.status ?? ""
   const activeStatus: ApplicationStatus | "all" =
-    rawStatus && VALID_APPLICATION_STATUSES.has(rawStatus as ApplicationStatus)
+    rawStatus && isApplicationStatus(rawStatus)
       ? (rawStatus as ApplicationStatus)
       : "all"
 
@@ -265,6 +258,9 @@ export default async function ApplicationsPage({
 
           {applications.map((app) => {
             const statusConfig = statusOptions.find((s) => s.value === app.status)
+            const availableStatusOptions = statusOptions.filter((option) =>
+              getNormalStatusChoices(app.status).includes(option.value)
+            )
             const statusColor = statusConfig?.color ?? "border-border bg-secondary text-muted-foreground"
             const statusDot = statusConfig?.dot ?? "bg-muted-foreground"
             const title = app.custom_title ?? app.jobs_cache?.title ?? "Unknown Job"
@@ -390,7 +386,7 @@ export default async function ApplicationsPage({
                     <ApplicationStatusForm
                       applicationId={app.id}
                       currentStatus={app.status}
-                      statusOptions={statusOptions}
+                      statusOptions={availableStatusOptions}
                       action={updateApplicationStatus}
                     />
                   </div>
@@ -504,11 +500,11 @@ async function updateApplicationStatus(formData: FormData) {
   const applicationId = formData.get("applicationId") as string
   const status = formData.get("status")
 
-  if (typeof status !== "string" || !VALID_APPLICATION_STATUSES.has(status as ApplicationStatus)) {
+  if (!isApplicationStatus(status)) {
     return
   }
 
-  await updateApplicationStatusForUser(user.id, applicationId, status as ApplicationStatus)
+  await updateApplicationStatusForUser(user.id, applicationId, status)
 
   revalidatePath("/applications")
   revalidatePath(`/applications/${applicationId}`)

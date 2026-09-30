@@ -42,6 +42,12 @@ import { useDownloadPdf } from "@/hooks/use-download-pdf"
 import { buildCoverLetterFilenameBase } from "@/lib/document-filename"
 import type { ApplicationStatus, Database, WritingStyle } from "@/lib/supabase/database.types"
 import { applicationPath } from "@/lib/applications/path"
+import {
+  APPLICATION_OUTCOME_STATUSES,
+  getCorrectionStatusChoices,
+  getReopenStatusChoices,
+  type ApplicationStatusIntent,
+} from "@/lib/applications/status-transitions"
 
 type ApplicationRow = Database["public"]["Tables"]["applications"]["Row"]
 type JobsCacheRow = Database["public"]["Tables"]["jobs_cache"]["Row"]
@@ -164,11 +170,18 @@ export function StatusStepper({
   const isTerminal =
     currentStatus === "rejected" || currentStatus === "withdrawn" || currentStatus === "ghosted"
   const currentIndex = STATUS_STEPS.findIndex((s) => s.value === currentStatus)
-  function handleStatusClick(status: ApplicationStatus) {
+  const correctionChoices = getCorrectionStatusChoices(currentStatus)
+  const reopenChoices = getReopenStatusChoices(currentStatus)
+
+  function handleStatusClick(
+    status: ApplicationStatus,
+    intent: ApplicationStatusIntent = "progress"
+  ) {
     if (status === currentStatus || pending) return
     const formData = new FormData()
     formData.set("applicationId", applicationId)
     formData.set("status", status)
+    formData.set("intent", intent)
     setPendingStatus(status)
     startTransition(async () => {
       try {
@@ -182,24 +195,25 @@ export function StatusStepper({
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Click any stage to move this application forward or back. Outcomes stay available below.
+        Move forward through the pipeline or record an outcome below.
       </p>
       <div className="grid gap-2 sm:hidden">
         {STATUS_STEPS.map((step, index) => {
           const isPast = !isTerminal && index < currentIndex
           const isCurrent = !isTerminal && index === currentIndex
           const isFuture = isTerminal || index > currentIndex
+          const canProgress = !isTerminal && index > currentIndex
 
           return (
             <button
               key={step.value}
               type="button"
-              disabled={pending || step.value === currentStatus}
+              disabled={pending || !canProgress}
               onClick={() => handleStatusClick(step.value)}
               aria-label={pendingStatus === step.value ? `Updating ${step.label}` : step.label}
               className={cn(
                 "flex items-center justify-between border px-4 py-3 transition-colors",
-                "cursor-pointer hover:ring-2 hover:ring-foreground/20",
+                canProgress ? "cursor-pointer hover:ring-2 hover:ring-foreground/20" : "cursor-default",
                 isCurrent &&
                   "border-foreground bg-foreground text-background",
                 isPast &&
@@ -229,18 +243,19 @@ export function StatusStepper({
           const isPast = !isTerminal && index < currentIndex
           const isCurrent = !isTerminal && index === currentIndex
           const isFuture = isTerminal || index > currentIndex
+          const canProgress = !isTerminal && index > currentIndex
 
           return (
             <button
               key={step.value}
               type="button"
-              disabled={pending || step.value === currentStatus}
+              disabled={pending || !canProgress}
               onClick={() => handleStatusClick(step.value)}
               aria-label={pendingStatus === step.value ? `Updating ${step.label}` : step.label}
               className={cn(
                 "flex flex-1 flex-col gap-1.5 border px-3 py-3 text-center transition-colors",
                 index !== 0 && "-ml-px",
-                "cursor-pointer hover:ring-2 hover:ring-foreground/20",
+                canProgress ? "cursor-pointer hover:ring-2 hover:ring-foreground/20" : "cursor-default",
                 isCurrent &&
                   "relative z-10 border-foreground bg-foreground text-background",
                 isPast &&
@@ -262,107 +277,73 @@ export function StatusStepper({
         })}
       </div>
 
-      <div className="flex gap-2 mt-2 sm:hidden">
-        <button
-          type="button"
-          onClick={() => handleStatusClick("rejected")}
-          disabled={pending}
-          aria-label={pendingStatus === "rejected" ? "Updating Rejected" : "Rejected"}
-          className={cn(
-            "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
-            currentStatus === "rejected"
-              ? "border-destructive/40 bg-destructive/10 text-destructive"
-              : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
-            pending && "opacity-60"
-          )}
-        >
-          {pendingStatus === "rejected" && <Loader2 role="status" aria-label="Updating Rejected" className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />}
-          Rejected
-        </button>
-        <button
-          type="button"
-          onClick={() => handleStatusClick("withdrawn")}
-          disabled={pending}
-          aria-label={pendingStatus === "withdrawn" ? "Updating Withdrawn" : "Withdrawn"}
-          className={cn(
-            "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
-            currentStatus === "withdrawn"
-              ? "border-border bg-secondary text-muted-foreground"
-              : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
-            pending && "opacity-60"
-          )}
-        >
-          {pendingStatus === "withdrawn" && <Loader2 role="status" aria-label="Updating Withdrawn" className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />}
-          Withdrawn
-        </button>
-        <button
-          type="button"
-          onClick={() => handleStatusClick("ghosted")}
-          disabled={pending}
-          aria-label={pendingStatus === "ghosted" ? "Updating Ghosted" : "Ghosted"}
-          className={cn(
-            "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
-            currentStatus === "ghosted"
-              ? "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300"
-              : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
-            pending && "opacity-60"
-          )}
-        >
-          {pendingStatus === "ghosted" && <Loader2 role="status" aria-label="Updating Ghosted" className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />}
-          Ghosted
-        </button>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {APPLICATION_OUTCOME_STATUSES.map((status) => {
+          const label = getStatusLabel(status)
+          return (
+            <button
+              key={status}
+              type="button"
+              onClick={() => handleStatusClick(status)}
+              disabled={pending || isTerminal}
+              aria-label={pendingStatus === status ? `Updating ${label}` : label}
+              className={cn(
+                "border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors",
+                currentStatus === status
+                  ? getStatusBadgeClass(status)
+                  : "border-border bg-background text-muted-foreground",
+                !isTerminal && "cursor-pointer hover:ring-2 hover:ring-foreground/20",
+                (pending || isTerminal) && "cursor-default opacity-60"
+              )}
+            >
+              {pendingStatus === status && (
+                <Loader2 role="status" aria-label={`Updating ${label}`} className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />
+              )}
+              {label}
+            </button>
+          )
+        })}
       </div>
 
-      <div className="hidden gap-2 mt-2 sm:flex">
-        <button
-          type="button"
-          onClick={() => handleStatusClick("rejected")}
-          disabled={pending}
-          aria-label={pendingStatus === "rejected" ? "Updating Rejected" : "Rejected"}
-          className={cn(
-            "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
-            currentStatus === "rejected"
-              ? "border-destructive/40 bg-destructive/10 text-destructive"
-              : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
-            pending && "opacity-60"
-          )}
-        >
-          {pendingStatus === "rejected" && <Loader2 role="status" aria-label="Updating Rejected" className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />}
-          Rejected
-        </button>
-        <button
-          type="button"
-          onClick={() => handleStatusClick("withdrawn")}
-          disabled={pending}
-          aria-label={pendingStatus === "withdrawn" ? "Updating Withdrawn" : "Withdrawn"}
-          className={cn(
-            "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
-            currentStatus === "withdrawn"
-              ? "border-border bg-secondary text-muted-foreground"
-              : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
-            pending && "opacity-60"
-          )}
-        >
-          {pendingStatus === "withdrawn" && <Loader2 role="status" aria-label="Updating Withdrawn" className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />}
-          Withdrawn
-        </button>
-        <button
-          type="button"
-          onClick={() => handleStatusClick("ghosted")}
-          disabled={pending}
-          aria-label={pendingStatus === "ghosted" ? "Updating Ghosted" : "Ghosted"}
-          className={cn(
-            "px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] border transition-colors cursor-pointer",
-            currentStatus === "ghosted"
-              ? "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300"
-              : "border-border bg-background text-muted-foreground hover:ring-2 hover:ring-foreground/20",
-            pending && "opacity-60"
-          )}
-        >
-          {pendingStatus === "ghosted" && <Loader2 role="status" aria-label="Updating Ghosted" className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />}
-          Ghosted
-        </button>
-      </div>
+      {correctionChoices.length > 0 && (
+        <details className="border border-border bg-secondary/25 px-3 py-2 text-xs text-muted-foreground">
+          <summary className="cursor-pointer font-semibold text-foreground">
+            Correct {isTerminal ? "outcome" : "current stage"}
+          </summary>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {correctionChoices.map((status) => (
+              <button
+                key={status}
+                type="button"
+                disabled={pending}
+                onClick={() => handleStatusClick(status, "correction")}
+                className="border border-border bg-background px-3 py-1.5 font-semibold text-foreground hover:ring-2 hover:ring-foreground/20 disabled:opacity-60"
+              >
+                Correct to {getStatusLabel(status)}
+              </button>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {reopenChoices.length > 0 && (
+        <details className="border border-border bg-secondary/25 px-3 py-2 text-xs text-muted-foreground">
+          <summary className="cursor-pointer font-semibold text-foreground">Reopen application</summary>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {reopenChoices.map((status) => (
+              <button
+                key={status}
+                type="button"
+                disabled={pending}
+                onClick={() => handleStatusClick(status, "reopen")}
+                className="border border-border bg-background px-3 py-1.5 font-semibold text-foreground hover:ring-2 hover:ring-foreground/20 disabled:opacity-60"
+              >
+                Reopen at {getStatusLabel(status)}
+              </button>
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   )
 }

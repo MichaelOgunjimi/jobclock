@@ -21,6 +21,30 @@ describe("persistJobForUser", () => {
     db.transaction.mockImplementation((callback) => callback(db))
   })
 
+  function mockCurrentApplication(status: string, appliedAt: Date | null = null) {
+    db.select.mockImplementationOnce(() => ({
+      from: () => ({
+        where: () => ({
+          limit: () => ({
+            for: vi.fn().mockResolvedValue([{ id: "app-1", status, appliedAt }]),
+          }),
+        }),
+      }),
+    }))
+  }
+
+  function mockStatusWrite() {
+    const updateWhere = vi.fn().mockResolvedValue(undefined)
+    const set = vi.fn((value: Record<string, unknown>) => {
+      void value
+      return { where: updateWhere }
+    })
+    const values = vi.fn().mockResolvedValue(undefined)
+    db.update.mockImplementationOnce(() => ({ set }))
+    db.insert.mockImplementationOnce(() => ({ values }))
+    return { set, values }
+  }
+
   it("returns the existing application when the same user already saved the job", async () => {
     const returningCachedJob = vi.fn().mockResolvedValue([{ id: "job-1" }])
     const onConflictDoUpdate = vi.fn(() => ({ returning: returningCachedJob }))
@@ -207,70 +231,92 @@ describe("persistJobForUser", () => {
     })
   })
 
-  it("records a transition event when application status changes", async () => {
-    db.select.mockImplementationOnce(() => ({
-      from: () => ({
-        where: () => ({
-          limit: vi.fn().mockResolvedValue([{ id: "app-1", status: "applied", appliedAt: null }]),
-        }),
-      }),
-    }))
-
-    const updateWhere = vi.fn().mockResolvedValue(undefined)
-    const set = vi.fn(() => ({ where: updateWhere }))
-    db.update.mockImplementationOnce(() => ({ set }))
-
-    const values = vi.fn().mockResolvedValue(undefined)
-    db.insert.mockImplementationOnce(() => ({ values }))
+  it("records every skipped forward stage and sets appliedAt atomically", async () => {
+    mockCurrentApplication("saved")
+    const { set, values } = mockStatusWrite()
 
     const result = await updateApplicationStatusForUser("user-1", "app-1", "interview")
 
     expect(result).toBe(true)
-    expect(set).toHaveBeenCalledWith(expect.objectContaining({ status: "interview" }))
-    expect(values).toHaveBeenCalledWith(expect.objectContaining({
-      userId: "user-1",
-      applicationId: "app-1",
-      fromStatus: "applied",
-      toStatus: "interview",
+    expect(db.transaction).toHaveBeenCalledOnce()
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({
+      status: "interview",
+      appliedAt: expect.any(Date),
+      lastStatusUpdate: expect.any(Date),
     }))
+    expect(values).toHaveBeenCalledWith([
+      expect.objectContaining({ fromStatus: "saved", toStatus: "applied" }),
+      expect.objectContaining({ fromStatus: "applied", toStatus: "screening" }),
+      expect.objectContaining({ fromStatus: "screening", toStatus: "interview" }),
+    ])
+
+    const events = values.mock.calls[0][0]
+    expect(events[0].createdAt.getTime()).toBeLessThan(events[1].createdAt.getTime())
+    expect(events[1].createdAt.getTime()).toBeLessThan(events[2].createdAt.getTime())
+    expect(set.mock.calls[0][0].appliedAt).toEqual(events[0].createdAt)
   })
 
-  it("records a backward transition event when an application moves to a previous stage", async () => {
-    db.select.mockImplementationOnce(() => ({
-      from: () => ({
-        where: () => ({
-          limit: vi.fn().mockResolvedValue([{ id: "app-1", status: "interview", appliedAt: new Date() }]),
-        }),
-      }),
-    }))
-
-    const updateWhere = vi.fn().mockResolvedValue(undefined)
-    const set = vi.fn(() => ({ where: updateWhere }))
-    db.update.mockImplementationOnce(() => ({ set }))
-
-    const values = vi.fn().mockResolvedValue(undefined)
-    db.insert.mockImplementationOnce(() => ({ values }))
+  it("rejects ordinary backward transitions", async () => {
+    mockCurrentApplication("interview", new Date())
 
     const result = await updateApplicationStatusForUser("user-1", "app-1", "screening")
 
+    expect(result).toBe(false)
+    expect(db.update).not.toHaveBeenCalled()
+    expect(db.insert).not.toHaveBeenCalled()
+  })
+
+  it("allows an explicit correction to a previous stage", async () => {
+    mockCurrentApplication("interview", new Date())
+    const { values } = mockStatusWrite()
+
+    const result = await updateApplicationStatusForUser(
+      "user-1",
+      "app-1",
+      "screening",
+      "correction"
+    )
+
     expect(result).toBe(true)
-    expect(set).toHaveBeenCalledWith(expect.objectContaining({ status: "screening" }))
-    expect(values).toHaveBeenCalledWith(expect.objectContaining({
-      userId: "user-1",
-      applicationId: "app-1",
-      fromStatus: "interview",
-      toStatus: "screening",
-    }))
+    expect(values).toHaveBeenCalledWith([
+      expect.objectContaining({ fromStatus: "interview", toStatus: "screening" }),
+    ])
+  })
+
+  it("requires explicit intent to reopen a closed application", async () => {
+    const appliedAt = new Date("2026-09-01T10:00:00.000Z")
+    mockCurrentApplication("rejected", appliedAt)
+
+    expect(
+      await updateApplicationStatusForUser("user-1", "app-1", "interview")
+    ).toBe(false)
+
+    mockCurrentApplication("rejected", appliedAt)
+    const { values } = mockStatusWrite()
+    expect(
+      await updateApplicationStatusForUser("user-1", "app-1", "interview", "reopen")
+    ).toBe(true)
+    expect(values).toHaveBeenCalledWith([
+      expect.objectContaining({ fromStatus: "rejected", toStatus: "interview" }),
+    ])
+  })
+
+  it("records outcomes without replacing an existing applied timestamp", async () => {
+    const appliedAt = new Date("2026-09-01T10:00:00.000Z")
+    mockCurrentApplication("screening", appliedAt)
+    const { set, values } = mockStatusWrite()
+
+    const result = await updateApplicationStatusForUser("user-1", "app-1", "rejected")
+
+    expect(result).toBe(true)
+    expect(set).toHaveBeenCalledWith(expect.not.objectContaining({ appliedAt: expect.anything() }))
+    expect(values).toHaveBeenCalledWith([
+      expect.objectContaining({ fromStatus: "screening", toStatus: "rejected" }),
+    ])
   })
 
   it("does not record a transition event when status is unchanged", async () => {
-    db.select.mockImplementationOnce(() => ({
-      from: () => ({
-        where: () => ({
-          limit: vi.fn().mockResolvedValue([{ id: "app-1", status: "applied", appliedAt: null }]),
-        }),
-      }),
-    }))
+    mockCurrentApplication("applied")
 
     const result = await updateApplicationStatusForUser("user-1", "app-1", "applied")
 

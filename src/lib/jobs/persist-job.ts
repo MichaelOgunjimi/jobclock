@@ -5,6 +5,11 @@ import { enqueueGeneration } from "@/lib/generation/enqueue"
 import type { UserPreferences } from "@/lib/ai"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
 import { createApplicationSlug } from "@/lib/applications/slug"
+import {
+  getApplicationStatusTransition,
+  isApplicationStatus,
+  type ApplicationStatusIntent,
+} from "@/lib/applications/status-transitions"
 
 export interface PersistedJobInput {
   url: string
@@ -132,23 +137,13 @@ export async function listRecentApplicationsForUser(
   }))
 }
 
-const VALID_STATUSES = new Set<ApplicationStatus>([
-  "saved",
-  "applied",
-  "screening",
-  "interview",
-  "offer",
-  "rejected",
-  "withdrawn",
-  "ghosted",
-])
-
 export async function updateApplicationStatusForUser(
   userId: string,
   applicationId: string,
-  status: ApplicationStatus
+  status: ApplicationStatus,
+  intent: ApplicationStatusIntent = "progress"
 ): Promise<boolean> {
-  if (!VALID_STATUSES.has(status)) return false
+  if (!isApplicationStatus(status)) return false
 
   return db.transaction(async (tx) => {
     const [current] = await tx
@@ -160,25 +155,39 @@ export async function updateApplicationStatusForUser(
       .from(applications)
       .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)))
       .limit(1)
+      .for("update")
 
     if (!current) return false
-    if (current.status === status) return true
+    const transitions = getApplicationStatusTransition(current.status ?? "saved", status, intent)
+    if (!transitions) return false
+    if (transitions.length === 0) return true
+
+    const changedAt = new Date()
+    const firstEventAt = changedAt.getTime() - transitions.length + 1
+    let fromStatus = current.status ?? "saved"
+    const events = transitions.map((toStatus, index) => {
+      const event = {
+        userId,
+        applicationId,
+        fromStatus,
+        toStatus,
+        createdAt: new Date(firstEventAt + index),
+      }
+      fromStatus = toStatus
+      return event
+    })
+    const appliedAt = events.find((event) => event.toStatus === "applied")?.createdAt
 
     await tx
       .update(applications)
       .set({
         status,
-        lastStatusUpdate: new Date(),
-        ...(status === "applied" && !current.appliedAt ? { appliedAt: new Date() } : {}),
+        lastStatusUpdate: changedAt,
+        ...(!current.appliedAt && appliedAt ? { appliedAt } : {}),
       })
       .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)))
 
-    await tx.insert(applicationStatusEvents).values({
-      userId,
-      applicationId,
-      fromStatus: current.status,
-      toStatus: status,
-    })
+    await tx.insert(applicationStatusEvents).values(events)
 
     return true
   })
