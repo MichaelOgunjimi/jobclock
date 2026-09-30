@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { revalidatePath } from "next/cache"
 import { createMockSupabaseClient } from "@/test/supabase-mock"
 
+const { db } = vi.hoisted(() => ({ db: { transaction: vi.fn() } }))
+
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }))
 vi.mock("@/lib/supabase/config", () => ({ isSupabaseConfigured: vi.fn() }))
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
+vi.mock("@/lib/db", () => ({ db }))
+vi.mock("@/lib/applications/audit", () => ({ appendApplicationAuditEvents: vi.fn() }))
 
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
@@ -36,9 +40,7 @@ describe("application cv actions", () => {
   })
 
   it("saveCustomizedCvData handles error and success paths", async () => {
-    supabaseMock.setQueryResult("customized_cvs.update", {
-      error: { message: "failed" },
-    })
+    db.transaction.mockResolvedValueOnce(false)
     expect(
       await saveCustomizedCvData({
         applicationId: "app-1",
@@ -47,7 +49,7 @@ describe("application cv actions", () => {
       })
     ).toEqual({ error: "Failed to save tailored CV" })
 
-    supabaseMock.setQueryResult("customized_cvs.update", { error: null })
+    db.transaction.mockResolvedValueOnce(true)
     expect(
       await saveCustomizedCvData({
         applicationId: "app-1",

@@ -20,6 +20,7 @@ import {
 } from "./data"
 import { COMMON_INTERVIEW_QUESTIONS_BY_KEY, resolveQuestionDefinition } from "@/lib/interview/question-catalog"
 import type { ProfileFactCategory } from "@/lib/interview/types"
+import { appendApplicationAuditEvents } from "@/lib/applications/audit"
 
 export type { StoryEntry } from "./data"
 
@@ -272,45 +273,58 @@ export async function createQuestion(input: {
     text = validation.value ?? ""
   }
 
-  const inserted = await executeRows<{ id: string }>(db, sql`
-    INSERT INTO interview_questions (
-      user_id,
-      application_id,
-      text,
-      category,
-      source_type,
-      source_ref,
-      created_at,
-      updated_at
-    )
-    VALUES (
-      ${auth},
-      ${applicationId || null},
-      ${text},
-      ${category},
-      ${sourceType},
-      ${sourceRef},
-      NOW(),
-      NOW()
-    )
-    ON CONFLICT DO NOTHING
-    RETURNING id
-  `)
+  const existing = await db.transaction(async (tx) => {
+    const inserted = await executeRows<{ id: string }>(tx, sql`
+      INSERT INTO interview_questions (
+        user_id,
+        application_id,
+        text,
+        category,
+        source_type,
+        source_ref,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        ${auth},
+        ${applicationId || null},
+        ${text},
+        ${category},
+        ${sourceType},
+        ${sourceRef},
+        NOW(),
+        NOW()
+      )
+      ON CONFLICT DO NOTHING
+      RETURNING id
+    `)
 
-  if (inserted[0]) {
-    revalidatePath("/interview")
-    return { id: inserted[0].id }
-  }
+    if (inserted[0]) {
+      if (applicationId) {
+        await appendApplicationAuditEvents(tx, {
+          applicationId,
+          userId: auth,
+          eventType: "application.interview_question_added",
+          metadata: {
+            questionId: inserted[0].id,
+            category,
+            sourceType,
+          },
+        })
+      }
+      return inserted[0]
+    }
 
-  const existing = await executeOne<{ id: string }>(db, sql`
-    SELECT id
-    FROM interview_questions
-    WHERE user_id = ${auth}
-      AND source_type = ${sourceType}
-      AND source_ref IS NOT DISTINCT FROM ${sourceRef}
-      ${sourceType === "application_generated" ? sql`AND application_id = ${applicationId}` : sql``}
-    LIMIT 1
-  `)
+    return executeOne<{ id: string }>(tx, sql`
+      SELECT id
+      FROM interview_questions
+      WHERE user_id = ${auth}
+        AND source_type = ${sourceType}
+        AND source_ref IS NOT DISTINCT FROM ${sourceRef}
+        ${sourceType === "application_generated" ? sql`AND application_id = ${applicationId}` : sql``}
+      LIMIT 1
+    `)
+  })
 
   if (!existing) return { error: "Failed to save question" }
   revalidatePath("/interview")
@@ -371,7 +385,7 @@ export async function saveAnswer(input: {
         }
     `)
 
-    return executeRows<{ id: string }>(tx, sql`
+    const rows = await executeRows<{ id: string }>(tx, sql`
       INSERT INTO interview_answers (
         user_id,
         question_id,
@@ -394,6 +408,21 @@ export async function saveAnswer(input: {
       )
       RETURNING id
     `)
+    if (rows[0] && applicationId) {
+      await appendApplicationAuditEvents(tx, {
+        applicationId,
+        userId: auth,
+        eventType: "application.interview_answer_saved",
+        metadata: {
+          answerId: rows[0].id,
+          questionId,
+          contentCharacters: content.length,
+          factCount: evidence.value!.factIds.length,
+          storyCount: evidence.value!.storyIds.length,
+        },
+      })
+    }
+    return rows
   })
 
   if (!inserted[0]) return { error: "Failed to save answer" }

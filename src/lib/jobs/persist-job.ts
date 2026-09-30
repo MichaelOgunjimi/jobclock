@@ -10,6 +10,7 @@ import {
   isApplicationStatus,
   type ApplicationStatusIntent,
 } from "@/lib/applications/status-transitions"
+import { appendApplicationAuditEvents } from "@/lib/applications/audit"
 
 export interface PersistedJobInput {
   url: string
@@ -188,6 +189,20 @@ export async function updateApplicationStatusForUser(
       .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)))
 
     await tx.insert(applicationStatusEvents).values(events)
+    await appendApplicationAuditEvents(
+      tx,
+      events.map((event) => ({
+        applicationId,
+        userId,
+        eventType: "application.status_changed" as const,
+        createdAt: event.createdAt,
+        metadata: {
+          fromStatus: event.fromStatus,
+          toStatus: event.toStatus,
+          intent,
+        },
+      })),
+    )
 
     return true
   })
@@ -257,6 +272,15 @@ export async function persistJobForUser(
       .returning({ id: applications.id, slug: applications.slug })
 
     if (insertedApplication) {
+      await appendApplicationAuditEvents(tx, {
+        applicationId: insertedApplication.id,
+        userId,
+        eventType: "application.created",
+        metadata: {
+          jobId: cachedJob.id,
+          source: job.source,
+        },
+      })
       return {
         applicationId: insertedApplication.id,
         applicationSlug: insertedApplication.slug,

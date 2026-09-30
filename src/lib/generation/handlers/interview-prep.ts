@@ -8,6 +8,7 @@ import { normalizeAiMarkdown } from "@/lib/cv/normalize"
 import { interviewSystemPrompt, interviewUserPrompt } from "@/lib/prompts/interview"
 import type { GenerationJob } from "../jobs"
 import { loadInterviewPrepContext, type StoryRow } from "./interview-prep-context"
+import { appendApplicationAuditEvents } from "@/lib/applications/audit"
 
 function formatStoryBank(stories: StoryRow[]): string {
   if (!stories.length) return "No stories in the story bank yet."
@@ -58,28 +59,42 @@ export async function interviewPrepHandler(job: GenerationJob): Promise<string> 
     .filter((line) => /^\*\*Q\d+\.\*\*|^Q\d+\./.test(line.trim()))
     .map((line) => line.trim())
 
-  const existing = await db
-    .select({ id: interviewPrep.id })
-    .from(interviewPrep)
-    .where(eq(interviewPrep.applicationId, ctx.applicationId))
-    .limit(1)
-
-  if (existing.length > 0) {
-    await db
-      .update(interviewPrep)
-      .set({ questions, suggestedAnswers: { raw: normalized, storyCount: ctx.stories.length } })
+  return db.transaction(async (tx) => {
+    const existing = await tx
+      .select({ id: interviewPrep.id })
+      .from(interviewPrep)
       .where(eq(interviewPrep.applicationId, ctx.applicationId))
-    return existing[0].id
-  }
+      .limit(1)
+    let prepId = existing[0]?.id
 
-  const [inserted] = await db
-    .insert(interviewPrep)
-    .values({
+    if (prepId) {
+      await tx
+        .update(interviewPrep)
+        .set({ questions, suggestedAnswers: { raw: normalized, storyCount: ctx.stories.length } })
+        .where(eq(interviewPrep.applicationId, ctx.applicationId))
+    } else {
+      const [inserted] = await tx
+        .insert(interviewPrep)
+        .values({
+          applicationId: ctx.applicationId,
+          questions,
+          suggestedAnswers: { raw: normalized, storyCount: ctx.stories.length },
+        })
+        .returning({ id: interviewPrep.id })
+      prepId = inserted.id
+    }
+
+    await appendApplicationAuditEvents(tx, {
       applicationId: ctx.applicationId,
-      questions,
-      suggestedAnswers: { raw: normalized, storyCount: ctx.stories.length },
+      userId: ctx.userId,
+      eventType: "application.interview_prep_generated",
+      metadata: {
+        interviewPrepId: prepId,
+        generationJobId: job.id,
+        questionCount: questions.length,
+        storyCount: ctx.stories.length,
+      },
     })
-    .returning({ id: interviewPrep.id })
-
-  return inserted.id
+    return prepId
+  })
 }

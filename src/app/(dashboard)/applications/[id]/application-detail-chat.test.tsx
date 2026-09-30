@@ -63,6 +63,7 @@ function renderApplicationDetail() {
       generatedCoverLetter={null}
       followUpDueAt={null}
       followUpNotes={null}
+      activity={[]}
     />,
   )
 }

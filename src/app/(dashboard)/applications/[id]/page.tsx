@@ -9,6 +9,7 @@ import type { Database } from "@/lib/supabase/database.types"
 import { ApplicationDetail } from "./application-detail"
 import { applicationPath } from "@/lib/applications/path"
 import { resolveApplicationRoute } from "@/lib/applications/route"
+import { listApplicationAuditForUser } from "@/lib/applications/audit"
 
 export async function generateMetadata({
   params,
@@ -88,6 +89,7 @@ export default async function ApplicationDetailPage({
     { data: tailoredCvsData },
     { data: generatedCoverLetterData },
     followUpData,
+    activity,
   ] = await Promise.all([
     supabase
       .from("user_cvs")
@@ -122,6 +124,7 @@ export default async function ApplicationDetailPage({
       .where(and(eq(applications.id, applicationId), eq(applications.userId, user.id)))
       .limit(1)
       .then((rows) => rows[0] ?? null),
+    listApplicationAuditForUser(user.id, applicationId),
   ])
 
   return (
@@ -134,6 +137,10 @@ export default async function ApplicationDetailPage({
         generatedCoverLetter={generatedCoverLetterData ?? null}
         followUpDueAt={followUpData?.followUpDueAt?.toISOString() ?? null}
         followUpNotes={followUpData?.followUpNotes ?? null}
+        activity={activity.map((event) => ({
+          ...event,
+          createdAt: event.createdAt.toISOString(),
+        }))}
       />
     </div>
   )

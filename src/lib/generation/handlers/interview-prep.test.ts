@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const { db } = vi.hoisted(() => ({
-  db: { select: vi.fn(), insert: vi.fn(), update: vi.fn() },
+  db: { select: vi.fn(), insert: vi.fn(), update: vi.fn(), transaction: vi.fn() },
 }))
 vi.mock("@/lib/db", () => ({ db }))
+vi.mock("@/lib/applications/audit", () => ({ appendApplicationAuditEvents: vi.fn() }))
 vi.mock("./interview-prep-context", () => ({ loadInterviewPrepContext: vi.fn() }))
 vi.mock("@/lib/ai", () => ({ resolveAiConfig: vi.fn(), generateText: vi.fn() }))
 vi.mock("@/lib/ai/perplexity", () => ({ callPerplexity: vi.fn() }))
@@ -36,6 +37,7 @@ const GENERATED = "## 2. Likely Questions\n**Q1.** Tell me about a time you led 
 describe("interviewPrepHandler", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    db.transaction.mockImplementation((callback) => callback(db))
     vi.mocked(loadInterviewPrepContext).mockResolvedValue(CTX as never)
     vi.mocked(resolveAiConfig).mockReturnValue({ settings: { provider: "openai", model: "gpt-4.1" }, apiKey: "k" } as never)
     vi.mocked(generateText).mockResolvedValue(GENERATED)

@@ -186,6 +186,27 @@ export const applicationStatusEvents = pgTable(
   ]
 )
 
+export const applicationAuditEvents = pgTable(
+  "application_audit_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    // Deliberately not a foreign key: the final deletion event must outlive the application.
+    applicationId: uuid("application_id").notNull(),
+    userId: uuid("user_id").notNull(),
+    eventType: text("event_type").notNull(),
+    metadata: jsonb("metadata").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("application_audit_events_owner_timeline_idx").on(
+      table.userId,
+      table.applicationId,
+      table.createdAt,
+      table.id,
+    ),
+  ],
+)
+
 // ============================================================
 // COVER LETTERS
 // ============================================================

@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const { db } = vi.hoisted(() => ({
-  db: { execute: vi.fn() },
+  db: { execute: vi.fn(), transaction: vi.fn() },
 }))
 
 vi.mock("@/lib/db", () => ({ db }))
+vi.mock("@/lib/applications/audit", () => ({ appendApplicationAuditEvents: vi.fn() }))
 
 import { extractProfileFactDrafts } from "@/lib/interview/profile-facts"
 import { COMMON_INTERVIEW_QUESTIONS_BY_KEY } from "@/lib/interview/question-catalog"
@@ -29,6 +30,7 @@ function sqlText(query: unknown): string {
 describe("loadInterviewWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    db.transaction.mockImplementation((callback) => callback(db))
   })
 
   it("merges built-ins with persisted questions using canonical keys and stable tie ordering", async () => {
