@@ -24,6 +24,7 @@ import type { Json } from "@/lib/supabase/database.types"
 import type { GenerationJob } from "../jobs"
 import { loadCvTailorContext } from "./cv-tailor-context"
 import type { ZodType } from "zod/v4"
+import { appendApplicationAuditEvents } from "@/lib/applications/audit"
 
 function parseStage<T>(raw: string, schema: ZodType<T>, stageName: string): T {
   const extracted = extractJson(raw)
@@ -193,16 +194,28 @@ export async function cvTailorHandler(job: GenerationJob): Promise<string> {
     ats_basis: result.ats_match_estimate?.basis,
   }
 
-  const [inserted] = await db
-    .insert(customizedCvs)
-    .values({
-      userId: ctx.userId,
-      applicationId: ctx.applicationId,
-      cvJson: normalizeObjectStrings(constrainedCv) as unknown as Json,
-      atsScore: result.ats_match_estimate?.score ?? null,
-      skillsGap: skillsGap as unknown as Json,
-    })
-    .returning({ id: customizedCvs.id })
+  return db.transaction(async (tx) => {
+    const [inserted] = await tx
+      .insert(customizedCvs)
+      .values({
+        userId: ctx.userId,
+        applicationId: ctx.applicationId,
+        cvJson: normalizeObjectStrings(constrainedCv) as unknown as Json,
+        atsScore: result.ats_match_estimate?.score ?? null,
+        skillsGap: skillsGap as unknown as Json,
+      })
+      .returning({ id: customizedCvs.id })
 
-  return inserted.id
+    await appendApplicationAuditEvents(tx, {
+      applicationId: ctx.applicationId,
+      userId: ctx.userId,
+      eventType: "application.cv_generated",
+      metadata: {
+        customizedCvId: inserted.id,
+        generationJobId: job.id,
+        atsScore: result.ats_match_estimate?.score ?? null,
+      },
+    })
+    return inserted.id
+  })
 }

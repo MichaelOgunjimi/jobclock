@@ -11,6 +11,10 @@ vi.mock("@/lib/generation/enqueue", () => ({
 vi.mock("@/lib/jobs/persist-job", () => ({
   updateApplicationStatusForUser: vi.fn(),
 }))
+vi.mock("@/lib/applications/audit", () => ({
+  updateApplicationWithAuditForUser: vi.fn(),
+  deleteApplicationWithAuditForUser: vi.fn(),
+}))
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
@@ -19,11 +23,16 @@ import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { enqueueGeneration } from "@/lib/generation/enqueue"
 import { updateApplicationStatusForUser } from "@/lib/jobs/persist-job"
 import {
+  deleteApplicationWithAuditForUser,
+  updateApplicationWithAuditForUser,
+} from "@/lib/applications/audit"
+import {
   deleteApplication,
   generateCoverLetter,
   updateCoverLetter,
   updateCv,
   updateDescription,
+  updateFollowUp,
   updateJobDetail,
   updateNotes,
   updateStatus,
@@ -47,6 +56,8 @@ describe("application actions", () => {
     vi.mocked(createClient).mockResolvedValue(supabaseMock.client as never)
     vi.mocked(isSupabaseConfigured).mockReturnValue(true)
     vi.mocked(enqueueGeneration).mockResolvedValue({ jobId: "j-default", deduped: false })
+    vi.mocked(updateApplicationWithAuditForUser).mockResolvedValue(true)
+    vi.mocked(deleteApplicationWithAuditForUser).mockResolvedValue(true)
   })
 
   it("updateStatus delegates status changes to the transition recorder", async () => {
@@ -103,38 +114,40 @@ describe("application actions", () => {
   it("updateNotes updates notes", async () => {
     await updateNotes(makeFormData({ applicationId: "app-1", notes: "new notes" }))
 
-    const call = supabaseMock
-      .getQueryCalls()
-      .find((query) => query.table === "applications" && query.operation === "update")
-    expect(call?.payload).toEqual({ notes: "new notes" })
+    expect(updateApplicationWithAuditForUser).toHaveBeenCalledWith(
+      mockUser.id,
+      "app-1",
+      { notes: "new notes" },
+      "application.notes_updated",
+    )
     expect(revalidatePath).toHaveBeenCalledWith("/applications/app-1")
   })
 
   it("updateNotes returns early when applicationId is missing", async () => {
     await updateNotes(makeFormData({ notes: "new notes" }))
-    expect(
-      supabaseMock
-        .getQueryCalls()
-        .some((query) => query.table === "applications" && query.operation === "update")
-    ).toBe(false)
+    expect(updateApplicationWithAuditForUser).not.toHaveBeenCalled()
   })
 
   it("updateCv converts empty cv id to null", async () => {
     await updateCv(makeFormData({ applicationId: "app-1", cvId: "" }))
 
-    const call = supabaseMock
-      .getQueryCalls()
-      .find((query) => query.table === "applications" && query.operation === "update")
-    expect(call?.payload).toEqual({ selected_cv_id: null })
+    expect(updateApplicationWithAuditForUser).toHaveBeenCalledWith(
+      mockUser.id,
+      "app-1",
+      { selectedCvId: null },
+      "application.cv_selected",
+    )
   })
 
   it("updateCoverLetter converts empty id to null", async () => {
     await updateCoverLetter(makeFormData({ applicationId: "app-1", coverLetterId: "" }))
 
-    const call = supabaseMock
-      .getQueryCalls()
-      .find((query) => query.table === "applications" && query.operation === "update")
-    expect(call?.payload).toEqual({ cover_letter_id: null })
+    expect(updateApplicationWithAuditForUser).toHaveBeenCalledWith(
+      mockUser.id,
+      "app-1",
+      { coverLetterId: null },
+      "application.cover_letter_selected",
+    )
   })
 
   it("updateWritingStyle writes nullable structure and tone", async () => {
@@ -142,19 +155,35 @@ describe("application actions", () => {
       makeFormData({ applicationId: "app-1", structureId: "", tone: "" })
     )
 
-    const call = supabaseMock
-      .getQueryCalls()
-      .find((query) => query.table === "applications" && query.operation === "update")
-    expect(call?.payload).toEqual({ structure_id: null, cover_letter_tone: null })
+    expect(updateApplicationWithAuditForUser).toHaveBeenCalledWith(
+      mockUser.id,
+      "app-1",
+      { structureId: null, coverLetterTone: null },
+      "application.writing_style_updated",
+    )
+  })
+
+  it("updateFollowUp records due date and safe notes through the audited mutation path", async () => {
+    await updateFollowUp("app-1", {
+      followUpDueAt: "2026-10-10T09:00:00.000Z",
+      followUpNotes: "Ask about the role",
+    })
+
+    expect(updateApplicationWithAuditForUser).toHaveBeenCalledWith(
+      mockUser.id,
+      "app-1",
+      {
+        followUpDueAt: new Date("2026-10-10T09:00:00.000Z"),
+        followUpNotes: "Ask about the role",
+      },
+      "application.follow_up_updated",
+    )
   })
 
   it("deleteApplication deletes record and redirects", async () => {
     await deleteApplication("app-1")
 
-    const deleteCall = supabaseMock
-      .getQueryCalls()
-      .find((query) => query.table === "applications" && query.operation === "delete")
-    expect(deleteCall).toBeTruthy()
+    expect(deleteApplicationWithAuditForUser).toHaveBeenCalledWith(mockUser.id, "app-1")
     expect(revalidatePath).toHaveBeenCalledWith("/applications")
     expect(redirect).toHaveBeenCalledWith("/applications")
   })
@@ -164,16 +193,14 @@ describe("application actions", () => {
       error: "Missing application ID",
     })
 
-    supabaseMock.setQueryResult("applications.update", {
-      error: { message: "write failed" },
-    })
+    vi.mocked(updateApplicationWithAuditForUser).mockRejectedValueOnce(new Error("write failed"))
     expect(
       await updateDescription(
         makeFormData({ applicationId: "app-1", description: "desc" })
       )
     ).toEqual({ error: "write failed" })
 
-    supabaseMock.setQueryResult("applications.update", { error: null })
+    vi.mocked(updateApplicationWithAuditForUser).mockResolvedValueOnce(true)
     expect(
       await updateDescription(
         makeFormData({ applicationId: "app-1", description: "desc" })
@@ -191,10 +218,12 @@ describe("application actions", () => {
       })),
     ).toEqual({ success: true })
 
-    const call = supabaseMock
-      .getQueryCalls()
-      .find((query) => query.table === "applications" && query.operation === "update")
-    expect(call?.payload).toEqual({ custom_company: "Correct Company" })
+    expect(updateApplicationWithAuditForUser).toHaveBeenCalledWith(
+      mockUser.id,
+      "app-1",
+      { customCompany: "Correct Company" },
+      "application.details_updated",
+    )
     expect(revalidatePath).toHaveBeenCalledWith("/applications/app-1")
     expect(revalidatePath).toHaveBeenCalledWith("/applications")
   })
@@ -209,10 +238,12 @@ describe("application actions", () => {
       })),
     ).toEqual({ success: true })
 
-    const call = supabaseMock
-      .getQueryCalls()
-      .find((query) => query.table === "applications" && query.operation === "update")
-    expect(call?.payload).toEqual({ custom_salary_text: null })
+    expect(updateApplicationWithAuditForUser).toHaveBeenCalledWith(
+      mockUser.id,
+      "app-1",
+      { customSalaryText: null },
+      "application.details_updated",
+    )
   })
 
   it("updateJobDetail rejects unknown fields and empty required values", async () => {
@@ -222,7 +253,7 @@ describe("application actions", () => {
     expect(
       await updateJobDetail(makeFormData({ applicationId: "app-1", field: "title", value: " " })),
     ).toEqual({ error: "Role is required" })
-    expect(supabaseMock.getQueryCalls()).toHaveLength(0)
+    expect(updateApplicationWithAuditForUser).not.toHaveBeenCalled()
   })
 
   it("generateCoverLetter enqueues a cover_letter job for the authenticated user", async () => {
@@ -261,7 +292,7 @@ describe("application actions", () => {
   it("returns early for config and auth guards", async () => {
     vi.mocked(isSupabaseConfigured).mockReturnValue(false)
     await updateCv(makeFormData({ applicationId: "app-1", cvId: "cv-1" }))
-    expect(supabaseMock.getQueryCalls()).toHaveLength(0)
+    expect(updateApplicationWithAuditForUser).not.toHaveBeenCalled()
 
     vi.mocked(isSupabaseConfigured).mockReturnValue(true)
     supabaseMock.setUser(null)

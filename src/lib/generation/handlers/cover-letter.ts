@@ -7,6 +7,7 @@ import { normalizeCoverLetterText } from "@/lib/cover-letter/normalize"
 import type { GenerationJob } from "../jobs"
 import { loadCoverLetterContext } from "./cover-letter-context"
 import { composeResearch } from "./company-research"
+import { appendApplicationAuditEvents } from "@/lib/applications/audit"
 
 /**
  * cover_letter generation handler. Runs in the QStash callback (no request
@@ -41,27 +42,38 @@ export async function coverLetterHandler(job: GenerationJob): Promise<string> {
     timeoutMs: 120_000,
   })
 
-  const [inserted] = await db
-    .insert(coverLetters)
-    .values({
-      userId: ctx.userId,
+  return db.transaction(async (tx) => {
+    const [inserted] = await tx
+      .insert(coverLetters)
+      .values({
+        userId: ctx.userId,
+        applicationId: ctx.applicationId,
+        label: `AI — ${ctx.title} at ${ctx.company}`,
+        content: normalizeCoverLetterText(content),
+        tone: ctx.tone,
+      })
+      .returning({ id: coverLetters.id })
+
+    // Replace any previously generated letters for this application.
+    await tx
+      .delete(coverLetters)
+      .where(
+        and(
+          eq(coverLetters.applicationId, ctx.applicationId),
+          eq(coverLetters.userId, ctx.userId),
+          ne(coverLetters.id, inserted.id),
+        ),
+      )
+    await appendApplicationAuditEvents(tx, {
       applicationId: ctx.applicationId,
-      label: `AI — ${ctx.title} at ${ctx.company}`,
-      content: normalizeCoverLetterText(content),
-      tone: ctx.tone,
+      userId: ctx.userId,
+      eventType: "application.cover_letter_generated",
+      metadata: {
+        coverLetterId: inserted.id,
+        generationJobId: job.id,
+        tone: ctx.tone,
+      },
     })
-    .returning({ id: coverLetters.id })
-
-  // Replace any previously generated letters for this application.
-  await db
-    .delete(coverLetters)
-    .where(
-      and(
-        eq(coverLetters.applicationId, ctx.applicationId),
-        eq(coverLetters.userId, ctx.userId),
-        ne(coverLetters.id, inserted.id),
-      ),
-    )
-
-  return inserted.id
+    return inserted.id
+  })
 }

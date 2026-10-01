@@ -5,9 +5,11 @@ const { db } = vi.hoisted(() => ({
     select: vi.fn(),
     insert: vi.fn(),
     update: vi.fn(),
+    transaction: vi.fn(),
   },
 }))
 vi.mock("@/lib/db", () => ({ db }))
+vi.mock("@/lib/applications/audit", () => ({ appendApplicationAuditEvents: vi.fn() }))
 vi.mock("./company-research-context", () => ({ loadCompanyResearchContext: vi.fn() }))
 vi.mock("@/lib/ai", () => ({ resolveAiConfig: vi.fn(), generateText: vi.fn(), generateTextWithWebSearch: vi.fn() }))
 vi.mock("@/lib/ai/perplexity", () => ({ callPerplexity: vi.fn() }))
@@ -42,6 +44,7 @@ const CTX = {
 describe("companyResearchHandler", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    db.transaction.mockImplementation((callback) => callback(db))
     vi.mocked(loadCompanyResearchContext).mockResolvedValue(CTX as never)
     vi.mocked(resolveAiConfig).mockReturnValue({
       settings: { provider: "openai", model: "gpt-4.1" },

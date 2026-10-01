@@ -48,6 +48,7 @@ import {
   getReopenStatusChoices,
   type ApplicationStatusIntent,
 } from "@/lib/applications/status-transitions"
+import { ApplicationActivity, type ApplicationActivityEvent } from "./application-activity"
 
 type ApplicationRow = Database["public"]["Tables"]["applications"]["Row"]
 type JobsCacheRow = Database["public"]["Tables"]["jobs_cache"]["Row"]
@@ -76,6 +77,7 @@ interface Props {
   generatedCoverLetter: GeneratedCoverLetterRow | null
   followUpDueAt: string | null
   followUpNotes: string | null
+  activity: ApplicationActivityEvent[]
 }
 
 // ── Status config ────────────────────────────────────────────────────────────
@@ -1407,6 +1409,7 @@ export function ApplicationDetail({
   generatedCoverLetter,
   followUpDueAt,
   followUpNotes,
+  activity,
 }: Props) {
   const job = application.jobs_cache
   const hasDescription = !!(application.custom_description || job?.description)
@@ -1612,6 +1615,8 @@ export function ApplicationDetail({
           initialFollowUpNotes={followUpNotes}
         />
       </div>
+
+      <ApplicationActivity events={activity} />
 
       {/* AI chat — full width */}
       <ApplicationChat applicationId={application.id} />

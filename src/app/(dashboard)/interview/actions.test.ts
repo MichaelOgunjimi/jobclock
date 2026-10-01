@@ -10,6 +10,7 @@ const { db } = vi.hoisted(() => ({
 }))
 
 vi.mock("@/lib/db", () => ({ db }))
+vi.mock("@/lib/applications/audit", () => ({ appendApplicationAuditEvents: vi.fn() }))
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }))
 vi.mock("@/lib/supabase/config", () => ({ isSupabaseConfigured: vi.fn() }))
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))

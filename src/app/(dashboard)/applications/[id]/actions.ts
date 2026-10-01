@@ -4,11 +4,12 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
-import { and, eq } from "drizzle-orm"
-import { db } from "@/lib/db"
-import { applications } from "@/lib/db/schema"
 import { enqueueGeneration } from "@/lib/generation/enqueue"
 import { updateApplicationStatusForUser } from "@/lib/jobs/persist-job"
+import {
+  deleteApplicationWithAuditForUser,
+  updateApplicationWithAuditForUser,
+} from "@/lib/applications/audit"
 import {
   isApplicationStatus,
   type ApplicationStatusIntent,
@@ -76,11 +77,12 @@ export async function updateNotes(formData: FormData) {
 
   if (!applicationId) return
 
-  await supabase
-    .from("applications")
-    .update({ notes })
-    .eq("id", applicationId)
-    .eq("user_id", user.id)
+  await updateApplicationWithAuditForUser(
+    user.id,
+    applicationId,
+    { notes },
+    "application.notes_updated",
+  )
 
   revalidatePath(`/applications/${applicationId}`)
 }
@@ -99,11 +101,12 @@ export async function updateCv(formData: FormData) {
 
   if (!applicationId) return
 
-  await supabase
-    .from("applications")
-    .update({ selected_cv_id: cvId || null })
-    .eq("id", applicationId)
-    .eq("user_id", user.id)
+  await updateApplicationWithAuditForUser(
+    user.id,
+    applicationId,
+    { selectedCvId: cvId || null },
+    "application.cv_selected",
+  )
 
   revalidatePath(`/applications/${applicationId}`)
 }
@@ -122,11 +125,12 @@ export async function updateCoverLetter(formData: FormData) {
 
   if (!applicationId) return
 
-  await supabase
-    .from("applications")
-    .update({ cover_letter_id: coverLetterId || null })
-    .eq("id", applicationId)
-    .eq("user_id", user.id)
+  await updateApplicationWithAuditForUser(
+    user.id,
+    applicationId,
+    { coverLetterId: coverLetterId || null },
+    "application.cover_letter_selected",
+  )
 
   revalidatePath(`/applications/${applicationId}`)
 }
@@ -146,14 +150,15 @@ export async function updateWritingStyle(formData: FormData) {
 
   if (!applicationId) return
 
-  await supabase
-    .from("applications")
-    .update({
-      structure_id: structureId || null,
-      cover_letter_tone: (tone || null) as "professional" | "enthusiastic" | "conservative" | "story" | null,
-    })
-    .eq("id", applicationId)
-    .eq("user_id", user.id)
+  await updateApplicationWithAuditForUser(
+    user.id,
+    applicationId,
+    {
+      structureId: structureId || null,
+      coverLetterTone: tone || null,
+    },
+    "application.writing_style_updated",
+  )
 
   revalidatePath(`/applications/${applicationId}`)
 }
@@ -167,11 +172,7 @@ export async function deleteApplication(applicationId: string) {
   } = await supabase.auth.getUser()
   if (!user) return
 
-  await supabase
-    .from("applications")
-    .delete()
-    .eq("id", applicationId)
-    .eq("user_id", user.id)
+  await deleteApplicationWithAuditForUser(user.id, applicationId)
 
   revalidatePath("/applications")
   redirect("/applications")
@@ -192,13 +193,17 @@ export async function updateDescription(
   const description = formData.get("description") as string
   if (!applicationId) return { error: "Missing application ID" }
 
-  const { error } = await supabase
-    .from("applications")
-    .update({ custom_description: description })
-    .eq("id", applicationId)
-    .eq("user_id", user.id)
-
-  if (error) return { error: error.message }
+  try {
+    const updated = await updateApplicationWithAuditForUser(
+      user.id,
+      applicationId,
+      { customDescription: description },
+      "application.description_updated",
+    )
+    if (!updated) return { error: "Application not found" }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Failed to update description" }
+  }
 
   revalidatePath(`/applications/${applicationId}`)
   return { success: true }
@@ -234,14 +239,27 @@ export async function updateJobDetail(
     value = parsed.data.value
   }
 
-  const column = jobDetailColumns[field as keyof typeof jobDetailColumns]
-  const { error } = await supabase
-    .from("applications")
-    .update({ [column]: value })
-    .eq("id", applicationId)
-    .eq("user_id", user.id)
-
-  if (error) return { error: error.message }
+  const fieldName = {
+    title: "customTitle",
+    company: "customCompany",
+    location: "customLocation",
+    salary: "customSalaryText",
+  }[field as keyof typeof jobDetailColumns] as
+    | "customTitle"
+    | "customCompany"
+    | "customLocation"
+    | "customSalaryText"
+  try {
+    const updated = await updateApplicationWithAuditForUser(
+      user.id,
+      applicationId,
+      { [fieldName]: value },
+      "application.details_updated",
+    )
+    if (!updated) return { error: "Application not found" }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Failed to update job detail" }
+  }
 
   revalidatePath(`/applications/${applicationId}`)
   revalidatePath("/applications")
@@ -276,13 +294,15 @@ export async function updateFollowUp(applicationId: string, data: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Unauthorized" }
 
-  await db
-    .update(applications)
-    .set({
+  await updateApplicationWithAuditForUser(
+    user.id,
+    applicationId,
+    {
       followUpDueAt: data.followUpDueAt ? new Date(data.followUpDueAt) : null,
       followUpNotes: data.followUpNotes ?? null,
-    })
-    .where(and(eq(applications.id, applicationId), eq(applications.userId, user.id)))
+    },
+    "application.follow_up_updated",
+  )
 
   revalidatePath(`/applications/${applicationId}`)
   return {}

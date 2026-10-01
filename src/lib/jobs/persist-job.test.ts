@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { db, enqueueGeneration } = vi.hoisted(() => ({
+const { db, enqueueGeneration, appendApplicationAuditEvents } = vi.hoisted(() => ({
   db: {
     insert: vi.fn(),
     select: vi.fn(),
@@ -8,10 +8,12 @@ const { db, enqueueGeneration } = vi.hoisted(() => ({
     transaction: vi.fn(),
   },
   enqueueGeneration: vi.fn(),
+  appendApplicationAuditEvents: vi.fn(),
 }))
 
 vi.mock("@/lib/db", () => ({ db }))
 vi.mock("@/lib/generation/enqueue", () => ({ enqueueGeneration }))
+vi.mock("@/lib/applications/audit", () => ({ appendApplicationAuditEvents }))
 
 import { persistJobForUser, updateApplicationStatusForUser } from "./persist-job"
 
@@ -116,6 +118,14 @@ describe("persistJobForUser", () => {
       status: "saved",
     }))
     expect(onConflictDoNothing).toHaveBeenCalled()
+    expect(appendApplicationAuditEvents).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({
+        applicationId: "app-2",
+        userId: "user-1",
+        eventType: "application.created",
+      }),
+    )
   })
 
   it("queues CV tailoring when enabled for a newly saved application", async () => {
@@ -254,6 +264,19 @@ describe("persistJobForUser", () => {
     expect(events[0].createdAt.getTime()).toBeLessThan(events[1].createdAt.getTime())
     expect(events[1].createdAt.getTime()).toBeLessThan(events[2].createdAt.getTime())
     expect(set.mock.calls[0][0].appliedAt).toEqual(events[0].createdAt)
+    expect(appendApplicationAuditEvents).toHaveBeenCalledWith(
+      db,
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventType: "application.status_changed",
+          metadata: expect.objectContaining({ fromStatus: "saved", toStatus: "applied" }),
+        }),
+        expect.objectContaining({
+          eventType: "application.status_changed",
+          metadata: expect.objectContaining({ fromStatus: "screening", toStatus: "interview" }),
+        }),
+      ]),
+    )
   })
 
   it("rejects ordinary backward transitions", async () => {

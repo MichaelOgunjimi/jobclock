@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
+import { and, eq } from "drizzle-orm"
+import { db } from "@/lib/db"
+import { coverLetters } from "@/lib/db/schema"
+import { appendApplicationAuditEvents } from "@/lib/applications/audit"
 
 export async function saveCoverLetterContent({
   applicationId,
@@ -22,13 +26,27 @@ export async function saveCoverLetterContent({
 
   if (!user) return { error: "Unauthorized" }
 
-  const { error } = await supabase
-    .from("cover_letters")
-    .update({ content })
-    .eq("id", coverLetterId)
-    .eq("user_id", user.id)
+  const updated = await db.transaction(async (tx) => {
+    const rows = await tx
+      .update(coverLetters)
+      .set({ content })
+      .where(and(
+        eq(coverLetters.id, coverLetterId),
+        eq(coverLetters.applicationId, applicationId),
+        eq(coverLetters.userId, user.id),
+      ))
+      .returning({ id: coverLetters.id })
+    if (!rows[0]) return false
+    await appendApplicationAuditEvents(tx, {
+      applicationId,
+      userId: user.id,
+      eventType: "application.cover_letter_edited",
+      metadata: { coverLetterId },
+    })
+    return true
+  })
 
-  if (error) return { error: "Failed to save cover letter" }
+  if (!updated) return { error: "Failed to save cover letter" }
 
   revalidatePath(`/applications/${applicationId}`)
   revalidatePath(`/applications/${applicationId}/cover-letter`)

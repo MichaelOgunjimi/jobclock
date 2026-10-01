@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { db } = vi.hoisted(() => ({ db: { insert: vi.fn() } }))
+const { db } = vi.hoisted(() => ({ db: { insert: vi.fn(), transaction: vi.fn() } }))
 vi.mock("@/lib/db", () => ({ db }))
+vi.mock("@/lib/applications/audit", () => ({ appendApplicationAuditEvents: vi.fn() }))
 vi.mock("./cv-tailor-context", () => ({ loadCvTailorContext: vi.fn() }))
 vi.mock("@/lib/ai", () => ({ resolveAiConfig: vi.fn(), generateText: vi.fn() }))
 vi.mock("@/lib/ai/extract-json", () => ({ extractJson: vi.fn((v: unknown) => v) }))
@@ -60,6 +61,7 @@ const TAILOR_RESULT = {
 describe("cvTailorHandler", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    db.transaction.mockImplementation((callback) => callback(db))
     vi.mocked(loadCvTailorContext).mockResolvedValue(CTX as never)
     vi.mocked(resolveAiConfig).mockReturnValue({ settings: { provider: "openai", model: "gpt-4.1" }, apiKey: "k" } as never)
     vi.mocked(generateText).mockResolvedValue("{}")

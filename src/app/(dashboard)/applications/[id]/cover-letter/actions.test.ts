@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { revalidatePath } from "next/cache"
 import { createMockSupabaseClient } from "@/test/supabase-mock"
 
+const { db } = vi.hoisted(() => ({ db: { transaction: vi.fn() } }))
+
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }))
 vi.mock("@/lib/supabase/config", () => ({ isSupabaseConfigured: vi.fn() }))
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
+vi.mock("@/lib/db", () => ({ db }))
+vi.mock("@/lib/applications/audit", () => ({ appendApplicationAuditEvents: vi.fn() }))
 
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
@@ -24,9 +28,7 @@ describe("application cover-letter actions", () => {
   })
 
   it("saveCoverLetterContent handles db error and success", async () => {
-    supabaseMock.setQueryResult("cover_letters.update", {
-      error: { message: "failed" },
-    })
+    db.transaction.mockResolvedValueOnce(false)
     expect(
       await saveCoverLetterContent({
         applicationId: "app-1",
@@ -35,7 +37,7 @@ describe("application cover-letter actions", () => {
       })
     ).toEqual({ error: "Failed to save cover letter" })
 
-    supabaseMock.setQueryResult("cover_letters.update", { error: null })
+    db.transaction.mockResolvedValueOnce(true)
     expect(
       await saveCoverLetterContent({
         applicationId: "app-1",

@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import type { CvData, Json } from "@/lib/supabase/database.types"
+import { and, eq } from "drizzle-orm"
+import { db } from "@/lib/db"
+import { customizedCvs } from "@/lib/db/schema"
+import { appendApplicationAuditEvents } from "@/lib/applications/audit"
 
 export async function saveTemplatePreference(
   template: string,
@@ -53,14 +57,27 @@ export async function saveCustomizedCvData({
 
   if (!user) return { error: "Unauthorized" }
 
-  const { error } = await supabase
-    .from("customized_cvs")
-    .update({ cv_json: data as unknown as Json })
-    .eq("id", customizedCvId)
-    .eq("application_id", applicationId)
-    .eq("user_id", user.id)
+  const updated = await db.transaction(async (tx) => {
+    const rows = await tx
+      .update(customizedCvs)
+      .set({ cvJson: data as unknown as Json })
+      .where(and(
+        eq(customizedCvs.id, customizedCvId),
+        eq(customizedCvs.applicationId, applicationId),
+        eq(customizedCvs.userId, user.id),
+      ))
+      .returning({ id: customizedCvs.id })
+    if (!rows[0]) return false
+    await appendApplicationAuditEvents(tx, {
+      applicationId,
+      userId: user.id,
+      eventType: "application.cv_edited",
+      metadata: { customizedCvId },
+    })
+    return true
+  })
 
-  if (error) return { error: "Failed to save tailored CV" }
+  if (!updated) return { error: "Failed to save tailored CV" }
 
   revalidatePath(`/applications/${applicationId}`)
   revalidatePath(`/applications/${applicationId}/cv`)

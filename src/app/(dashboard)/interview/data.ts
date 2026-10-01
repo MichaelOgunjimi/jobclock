@@ -7,6 +7,7 @@ import type {
   ProfileFactDraft,
   QuestionDefinition,
 } from "@/lib/interview/types"
+import { appendApplicationAuditEvents } from "@/lib/applications/audit"
 
 export type { InterviewQuestionCategory, ProfileFactDraft, QuestionDefinition } from "@/lib/interview/types"
 
@@ -620,34 +621,47 @@ export async function loadInterviewAnswers(userId: string): Promise<PersistedAns
 }
 
 async function importLegacyApplicationQuestions(userId: string): Promise<void> {
-  await db.execute(sql`
-    INSERT INTO interview_questions (
-      user_id,
-      application_id,
-      text,
-      category,
-      source_type,
-      source_ref,
-      created_at,
-      updated_at
-    )
-    SELECT
-      applications.user_id,
-      applications.id,
-      LEFT(BTRIM(legacy_questions.question_text), 2000),
-      'custom',
-      'application_generated',
-      CONCAT(applications.id::text, ':legacy-prep:', legacy_questions.ordinal::text),
-      NOW(),
-      NOW()
-    FROM applications
-    INNER JOIN interview_prep ON interview_prep.application_id = applications.id
-    CROSS JOIN LATERAL UNNEST(COALESCE(interview_prep.questions, ARRAY[]::text[]))
-      WITH ORDINALITY AS legacy_questions(question_text, ordinal)
-    WHERE applications.user_id = ${userId}
-      AND BTRIM(legacy_questions.question_text) <> ''
-    ON CONFLICT DO NOTHING
-  `)
+  await db.transaction(async (tx) => {
+    const inserted = readRows<{ id: string; applicationId: string }>(await tx.execute(sql`
+      INSERT INTO interview_questions (
+        user_id,
+        application_id,
+        text,
+        category,
+        source_type,
+        source_ref,
+        created_at,
+        updated_at
+      )
+      SELECT
+        applications.user_id,
+        applications.id,
+        LEFT(BTRIM(legacy_questions.question_text), 2000),
+        'custom',
+        'application_generated',
+        CONCAT(applications.id::text, ':legacy-prep:', legacy_questions.ordinal::text),
+        NOW(),
+        NOW()
+      FROM applications
+      INNER JOIN interview_prep ON interview_prep.application_id = applications.id
+      CROSS JOIN LATERAL UNNEST(COALESCE(interview_prep.questions, ARRAY[]::text[]))
+        WITH ORDINALITY AS legacy_questions(question_text, ordinal)
+      WHERE applications.user_id = ${userId}
+        AND BTRIM(legacy_questions.question_text) <> ''
+      ON CONFLICT DO NOTHING
+      RETURNING id, application_id AS "applicationId"
+    `))
+    await appendApplicationAuditEvents(tx, inserted.map((question) => ({
+      applicationId: question.applicationId,
+      userId,
+      eventType: "application.interview_question_added" as const,
+      metadata: {
+        questionId: question.id,
+        category: "custom",
+        sourceType: "application_generated",
+      },
+    })))
+  })
 }
 
 export async function loadInterviewAnswerById(userId: string, id: string): Promise<PersistedAnswerRow | null> {

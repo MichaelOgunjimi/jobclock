@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const { db } = vi.hoisted(() => ({
-  db: { insert: vi.fn(), delete: vi.fn() },
+  db: { insert: vi.fn(), delete: vi.fn(), transaction: vi.fn() },
 }))
 vi.mock("@/lib/db", () => ({ db }))
+vi.mock("@/lib/applications/audit", () => ({ appendApplicationAuditEvents: vi.fn() }))
 vi.mock("./cover-letter-context", () => ({ loadCoverLetterContext: vi.fn() }))
 vi.mock("./company-research", () => ({ composeResearch: vi.fn() }))
 vi.mock("@/lib/ai", () => ({ resolveAiConfig: vi.fn(), generateText: vi.fn() }))
@@ -54,6 +55,7 @@ function setupDefaults() {
 describe("coverLetterHandler", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    db.transaction.mockImplementation((callback) => callback(db))
     setupDefaults()
   })
 
