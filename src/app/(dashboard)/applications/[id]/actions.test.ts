@@ -52,7 +52,12 @@ describe("application actions", () => {
   it("updateStatus delegates status changes to the transition recorder", async () => {
     await updateStatus(makeFormData({ applicationId: "app-1", status: "applied" }))
 
-    expect(updateApplicationStatusForUser).toHaveBeenCalledWith(mockUser.id, "app-1", "applied")
+    expect(updateApplicationStatusForUser).toHaveBeenCalledWith(
+      mockUser.id,
+      "app-1",
+      "applied",
+      "progress"
+    )
     expect(revalidatePath).toHaveBeenCalledWith("/applications/app-1")
     expect(revalidatePath).toHaveBeenCalledWith("/applications")
   })
@@ -60,7 +65,27 @@ describe("application actions", () => {
   it("updateStatus accepts ghosted as a closed outcome", async () => {
     await updateStatus(makeFormData({ applicationId: "app-1", status: "ghosted" }))
 
-    expect(updateApplicationStatusForUser).toHaveBeenCalledWith(mockUser.id, "app-1", "ghosted")
+    expect(updateApplicationStatusForUser).toHaveBeenCalledWith(
+      mockUser.id,
+      "app-1",
+      "ghosted",
+      "progress"
+    )
+  })
+
+  it("updateStatus passes explicit correction intent", async () => {
+    await updateStatus(makeFormData({
+      applicationId: "app-1",
+      status: "screening",
+      intent: "correction",
+    }))
+
+    expect(updateApplicationStatusForUser).toHaveBeenCalledWith(
+      mockUser.id,
+      "app-1",
+      "screening",
+      "correction"
+    )
   })
 
   it("updateStatus ignores invalid status", async () => {

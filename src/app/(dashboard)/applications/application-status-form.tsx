@@ -23,6 +23,7 @@ function ApplicationStatusControls({
 }) {
   const { pending } = useFormStatus()
   const selectId = `application-status-${applicationId}`
+  const canChange = statusOptions.some((option) => option.value !== currentStatus)
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -37,7 +38,7 @@ function ApplicationStatusControls({
             id={selectId}
             name="status"
             defaultValue={currentStatus}
-            disabled={pending}
+            disabled={pending || !canChange}
             className="form-select min-w-[15rem] bg-none pl-10 pr-14 disabled:cursor-wait disabled:opacity-60"
           >
             {statusOptions.map((option) => (
@@ -48,14 +49,14 @@ function ApplicationStatusControls({
           </select>
         </div>
       </div>
-      <Button type="submit" size="default" className="w-full sm:w-auto" disabled={pending} aria-live="polite">
+      <Button type="submit" size="default" className="w-full sm:w-auto" disabled={pending || !canChange} aria-live="polite">
         {pending ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
             Updating stage…
           </>
         ) : (
-          "Update stage"
+          canChange ? "Update stage" : "Closed"
         )}
       </Button>
     </div>
@@ -84,7 +85,7 @@ export function ApplicationStatusForm({
           Application status
         </p>
         <p className="text-sm text-muted-foreground">
-          Move this role forward or back and keep the pipeline current.
+          Move this role forward or record a closed outcome.
         </p>
       </div>
       <ApplicationStatusControls

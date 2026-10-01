@@ -991,11 +991,17 @@ describe("extension popup runtime state", () => {
 
     await waitFor(() => {
       expect(document.querySelector(".recent-card")).not.toBe(originalCard)
-      expect(
-        document.querySelector<HTMLSelectElement>(
-          ".recent-card .status-select"
-        )?.value
-      ).toBe("interview")
+      const updatedSelect = document.querySelector<HTMLSelectElement>(
+        ".recent-card .status-select"
+      )
+      expect(updatedSelect?.value).toBe("interview")
+      expect(Array.from(updatedSelect?.options ?? [], (option) => option.value)).toEqual([
+        "interview",
+        "offer",
+        "rejected",
+        "withdrawn",
+        "ghosted",
+      ])
     })
 
     expect(harness.messagesOfType("update-recent-status")).toEqual([

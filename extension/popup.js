@@ -10,7 +10,7 @@ const state = {
   recentApplications: [],
 }
 
-const STATUS_OPTIONS = ["saved", "applied", "screening", "interview", "offer", "rejected", "withdrawn"]
+const STATUS_OPTIONS = ["saved", "applied", "screening", "interview", "offer", "rejected", "withdrawn", "ghosted"]
 const PREVIEW_DESCRIPTION_MAX = 420
 const extensionConfig =
   globalThis.JobClockConfig ||
@@ -420,7 +420,12 @@ function createRecentCard(item) {
   const select = document.createElement("select")
   select.className = "status-select"
 
-  for (const status of STATUS_OPTIONS) {
+  const currentIndex = STATUS_OPTIONS.indexOf(item.status)
+  const availableStatuses = currentIndex >= 0 && currentIndex < 5
+    ? [...STATUS_OPTIONS.slice(currentIndex, 5), ...STATUS_OPTIONS.slice(5)]
+    : [item.status]
+
+  for (const status of availableStatuses) {
     const option = document.createElement("option")
     option.value = status
     option.textContent = status.charAt(0).toUpperCase() + status.slice(1)
@@ -431,7 +436,8 @@ function createRecentCard(item) {
   const button = document.createElement("button")
   button.type = "button"
   button.className = "button primary"
-  button.textContent = "Update stage"
+  button.textContent = availableStatuses.length > 1 ? "Update stage" : "Closed"
+  button.disabled = availableStatuses.length === 1
   button.addEventListener("click", async () => {
     try {
       button.disabled = true

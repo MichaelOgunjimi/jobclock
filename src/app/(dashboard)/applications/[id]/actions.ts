@@ -7,21 +7,15 @@ import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { and, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { applications } from "@/lib/db/schema"
-import type { ApplicationStatus } from "@/lib/supabase/database.types"
 import { enqueueGeneration } from "@/lib/generation/enqueue"
 import { updateApplicationStatusForUser } from "@/lib/jobs/persist-job"
+import {
+  isApplicationStatus,
+  type ApplicationStatusIntent,
+} from "@/lib/applications/status-transitions"
 import { z } from "zod"
 
-const VALID_STATUSES = new Set<ApplicationStatus>([
-  "saved",
-  "applied",
-  "screening",
-  "interview",
-  "offer",
-  "rejected",
-  "withdrawn",
-  "ghosted",
-])
+const VALID_STATUS_INTENTS = new Set<ApplicationStatusIntent>(["progress", "correction", "reopen"])
 
 const jobDetailSchema = z.discriminatedUnion("field", [
   z.object({ field: z.literal("title"), value: z.string().trim().min(1, "Role is required").max(200) }),
@@ -47,11 +41,22 @@ export async function updateStatus(formData: FormData) {
   if (!user) return
 
   const applicationId = formData.get("applicationId") as string
-  const status = formData.get("status") as string
+  const status = formData.get("status")
+  const intent = formData.get("intent") ?? "progress"
 
-  if (!applicationId || !VALID_STATUSES.has(status as ApplicationStatus)) return
+  if (
+    !applicationId ||
+    !isApplicationStatus(status) ||
+    typeof intent !== "string" ||
+    !VALID_STATUS_INTENTS.has(intent as ApplicationStatusIntent)
+  ) return
 
-  await updateApplicationStatusForUser(user.id, applicationId, status as ApplicationStatus)
+  await updateApplicationStatusForUser(
+    user.id,
+    applicationId,
+    status,
+    intent as ApplicationStatusIntent
+  )
 
   revalidatePath(`/applications/${applicationId}`)
   revalidatePath("/applications")
