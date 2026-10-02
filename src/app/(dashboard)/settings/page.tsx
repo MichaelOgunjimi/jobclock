@@ -21,6 +21,16 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth")
 
+  const whatsappConfigured = Boolean(
+    process.env.ENCRYPTION_SECRET &&
+    process.env.WHATSAPP_APP_SECRET &&
+    process.env.WHATSAPP_VERIFY_TOKEN &&
+    process.env.WHATSAPP_ACCESS_TOKEN &&
+    process.env.WHATSAPP_PHONE_NUMBER_ID &&
+    process.env.WHATSAPP_GRAPH_API_VERSION &&
+    process.env.WHATSAPP_BUSINESS_NUMBER
+  )
+
   const [
     { data: profile },
     { data: profileData },
@@ -40,7 +50,7 @@ export default async function SettingsPage() {
       .eq("id", user.id)
       .single(),
     getActivePersonalApiTokenMetadata(user.id),
-    getWhatsAppConnection(user.id),
+    whatsappConfigured ? getWhatsAppConnection(user.id) : Promise.resolve(null),
     getTelegramConnection(user.id),
     listTrackedCompanies(),
   ])
@@ -89,15 +99,7 @@ export default async function SettingsPage() {
           extensionToken={extensionToken}
           whatsappConnection={whatsappConnection}
           whatsappBusinessNumber={process.env.WHATSAPP_BUSINESS_NUMBER ?? null}
-          whatsappConfigured={Boolean(
-            process.env.ENCRYPTION_SECRET &&
-            process.env.WHATSAPP_APP_SECRET &&
-            process.env.WHATSAPP_VERIFY_TOKEN &&
-            process.env.WHATSAPP_ACCESS_TOKEN &&
-            process.env.WHATSAPP_PHONE_NUMBER_ID &&
-            process.env.WHATSAPP_GRAPH_API_VERSION &&
-            process.env.WHATSAPP_BUSINESS_NUMBER
-          )}
+          whatsappConfigured={whatsappConfigured}
           telegramConnection={telegramConnection}
           telegramBotUsername={process.env.TELEGRAM_BOT_USERNAME ?? null}
           telegramConfigured={Boolean(
