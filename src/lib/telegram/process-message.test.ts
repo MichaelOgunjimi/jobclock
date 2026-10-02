@@ -15,9 +15,16 @@ vi.mock("./pairing", () => ({
   touchTelegramConnection: vi.fn(),
 }))
 vi.mock("@/lib/jobs/fetch-job-page", () => ({ fetchJobPage: vi.fn() }))
-vi.mock("@/lib/jobs/import-job", () => ({ parseImportedJobPreview: vi.fn() }))
+vi.mock("@/lib/jobs/import-job", () => ({
+  parseImportedJobPreview: vi.fn(),
+  JobImportError: class JobImportError extends Error {},
+}))
 vi.mock("@/lib/jobs/persist-job", () => ({ persistJobForUser: vi.fn() }))
 
+import { fetchJobPage } from "@/lib/jobs/fetch-job-page"
+import { parseImportedJobPreview } from "@/lib/jobs/import-job"
+import { persistJobForUser } from "@/lib/jobs/persist-job"
+import { findTelegramUser } from "./pairing"
 import { extractFirstJobUrl } from "@/lib/jobs/extract-job-url"
 import { extractTelegramStartToken, processTelegramMessage } from "./process-message"
 
@@ -56,5 +63,40 @@ describe("Telegram commands", () => {
     })
 
     expect(mocks.sendTelegramText).not.toHaveBeenCalled()
+  })
+
+  describe("job import", () => {
+    const update = (body: string) => ({
+      updateId: 1, messageId: 1, chatId: "1", telegramUserId: "1",
+      username: null, displayName: null, body,
+    })
+
+    beforeEach(() => {
+      mocks.insert.mockReturnValue({
+        values: vi.fn(() => ({
+          onConflictDoNothing: vi.fn(() => ({ returning: vi.fn().mockResolvedValue([{ updateId: 1 }]) })),
+        })),
+      })
+      vi.mocked(findTelegramUser).mockResolvedValue("user-1")
+      vi.mocked(parseImportedJobPreview).mockResolvedValue({ title: "Dev", company: "Acme" } as never)
+      vi.mocked(persistJobForUser).mockResolvedValue({ applicationSlug: "dev", alreadySaved: false } as never)
+    })
+
+    it("imports a link with a pasted description without fetching the page", async () => {
+      const text = "Software engineer role. ".repeat(20)
+      await processTelegramMessage(update(`https://blocked.example.com/job ${text}`))
+
+      expect(fetchJobPage).not.toHaveBeenCalled()
+      expect(parseImportedJobPreview).toHaveBeenCalledWith(
+        expect.objectContaining({ url: "https://blocked.example.com/job", pageText: text.trim() })
+      )
+    })
+
+    it("tells the user to paste the description when a site returns 403", async () => {
+      vi.mocked(fetchJobPage).mockRejectedValue(new Error("The job page returned HTTP 403."))
+      await processTelegramMessage(update("https://blocked.example.com/job"))
+
+      expect(mocks.sendTelegramText).toHaveBeenLastCalledWith("1", expect.stringContaining("blocks automated access"))
+    })
   })
 })
