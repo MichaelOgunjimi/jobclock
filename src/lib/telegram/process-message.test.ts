@@ -105,10 +105,14 @@ describe("Telegram commands", () => {
 
     it("lists recent saved jobs for /recent@bot", async () => {
       vi.mocked(listRecentApplicationsForUser).mockResolvedValue([
-        { title: "Dev", company: "Acme", status: "saved", applicationUrl: "https://x.test/applications/dev" },
+        { applicationId: "app-1", title: "Dev", company: "Acme", status: "saved", applicationUrl: "https://x.test/applications/dev" },
       ] as never)
       await processTelegramMessage(update("/recent@jobclock_bot"))
-      expect(mocks.sendTelegramText).toHaveBeenCalledWith("1", "Dev at Acme (saved)\nhttps://x.test/applications/dev")
+      expect(mocks.sendTelegramText).toHaveBeenCalledWith(
+        "1",
+        "Dev at Acme (saved)\nhttps://x.test/applications/dev",
+        [[{ text: "Dev at Acme (saved)", callback_data: "j:app-1" }]]
+      )
     })
 
     it("disconnects on /disconnect and still requires a connection for commands", async () => {
