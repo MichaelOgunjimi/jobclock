@@ -8,6 +8,7 @@ import {
   numeric,
   jsonb,
   integer,
+  bigint,
   date,
   uniqueIndex,
   index,
@@ -110,6 +111,101 @@ export const personalApiTokens = pgTable("personal_api_tokens", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
+})
+
+// ============================================================
+// WHATSAPP INTAKE
+// ============================================================
+
+export const whatsappConnections = pgTable(
+  "whatsapp_connections",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    // The sender ID is keyed with ENCRYPTION_SECRET before persistence. Keeping
+    // only the digest and last four digits is enough for lookup and account UI.
+    waIdHash: text("wa_id_hash").notNull(),
+    phoneLastFour: text("phone_last_four").notNull(),
+    displayName: text("display_name"),
+    connectedAt: timestamp("connected_at", { withTimezone: true }).defaultNow().notNull(),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("whatsapp_connections_user_id_unique").on(table.userId),
+    uniqueIndex("whatsapp_connections_wa_id_hash_unique").on(table.waIdHash),
+  ]
+)
+
+export const whatsappPairingCodes = pgTable(
+  "whatsapp_pairing_codes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("whatsapp_pairing_codes_user_id_unique").on(table.userId),
+    uniqueIndex("whatsapp_pairing_codes_code_hash_unique").on(table.codeHash),
+    index("whatsapp_pairing_codes_expires_at_idx").on(table.expiresAt),
+  ]
+)
+
+export const whatsappMessageReceipts = pgTable("whatsapp_message_receipts", {
+  messageId: text("message_id").primaryKey(),
+  receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow().notNull(),
+})
+
+// ============================================================
+// TELEGRAM INTAKE
+// ============================================================
+
+export const telegramConnections = pgTable(
+  "telegram_connections",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    telegramUserIdHash: text("telegram_user_id_hash").notNull(),
+    telegramUserLastFour: text("telegram_user_last_four").notNull(),
+    username: text("username"),
+    displayName: text("display_name"),
+    connectedAt: timestamp("connected_at", { withTimezone: true }).defaultNow().notNull(),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("telegram_connections_user_id_unique").on(table.userId),
+    uniqueIndex("telegram_connections_user_id_hash_unique").on(table.telegramUserIdHash),
+  ]
+)
+
+export const telegramPairingTokens = pgTable(
+  "telegram_pairing_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("telegram_pairing_tokens_user_id_unique").on(table.userId),
+    uniqueIndex("telegram_pairing_tokens_token_hash_unique").on(table.tokenHash),
+    index("telegram_pairing_tokens_expires_at_idx").on(table.expiresAt),
+  ]
+)
+
+export const telegramUpdateReceipts = pgTable("telegram_update_receipts", {
+  updateId: bigint("update_id", { mode: "number" }).primaryKey(),
+  receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow().notNull(),
 })
 
 // ============================================================
