@@ -92,7 +92,7 @@ export function SettingsTabs({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const validTabs = ["ai", "appearance", "extension", "whatsapp", "telegram", "job-search", "job-sources", "companies"]
+  const validTabs = ["ai", "appearance", "extension", ...(whatsappConfigured ? ["whatsapp"] : []), "telegram", "job-search", "job-sources", "companies"]
   const activeTab = validTabs.includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "ai"
 
   const [roles, setRoles] = useState<string[]>(profilePrefs.desired_roles ?? [])
@@ -141,7 +141,7 @@ export function SettingsTabs({
         <TabsTrigger value="ai" className="shrink-0 px-2.5 sm:px-4">AI</TabsTrigger>
         <TabsTrigger value="appearance" className="shrink-0 px-2.5 sm:px-4">Appearance</TabsTrigger>
         <TabsTrigger value="extension" className="shrink-0 px-2.5 sm:px-4">Extension</TabsTrigger>
-        <TabsTrigger value="whatsapp" className="shrink-0 px-2.5 sm:px-4">WhatsApp</TabsTrigger>
+        {whatsappConfigured && <TabsTrigger value="whatsapp" className="shrink-0 px-2.5 sm:px-4">WhatsApp</TabsTrigger>}
         <TabsTrigger value="telegram" className="shrink-0 px-2.5 sm:px-4">Telegram</TabsTrigger>
         <TabsTrigger value="job-search" className="shrink-0 px-2.5 sm:px-4">Job Search</TabsTrigger>
         <TabsTrigger value="job-sources" className="shrink-0 px-2.5 sm:px-4">Job Sources</TabsTrigger>
@@ -207,13 +207,15 @@ export function SettingsTabs({
         <ExtensionSettingsCard initialToken={extensionToken} />
       </TabsContent>
 
-      <TabsContent value="whatsapp">
-        <WhatsAppSettingsCard
-          initialConnection={whatsappConnection}
-          businessNumber={whatsappBusinessNumber}
-          configured={whatsappConfigured}
-        />
-      </TabsContent>
+      {whatsappConfigured && (
+        <TabsContent value="whatsapp">
+          <WhatsAppSettingsCard
+            initialConnection={whatsappConnection}
+            businessNumber={whatsappBusinessNumber}
+            configured={whatsappConfigured}
+          />
+        </TabsContent>
+      )}
 
       <TabsContent value="telegram">
         <TelegramSettingsCard
