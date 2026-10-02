@@ -13,18 +13,23 @@ vi.mock("./pairing", () => ({
   consumeTelegramPairingToken: vi.fn(),
   findTelegramUser: vi.fn(),
   touchTelegramConnection: vi.fn(),
+  disconnectTelegram: vi.fn(),
+  getTelegramConnection: vi.fn(),
 }))
 vi.mock("@/lib/jobs/fetch-job-page", () => ({ fetchJobPage: vi.fn() }))
 vi.mock("@/lib/jobs/import-job", () => ({
   parseImportedJobPreview: vi.fn(),
   JobImportError: class JobImportError extends Error {},
 }))
-vi.mock("@/lib/jobs/persist-job", () => ({ persistJobForUser: vi.fn() }))
+vi.mock("@/lib/jobs/persist-job", () => ({
+  persistJobForUser: vi.fn(),
+  listRecentApplicationsForUser: vi.fn(),
+}))
 
 import { fetchJobPage } from "@/lib/jobs/fetch-job-page"
 import { parseImportedJobPreview } from "@/lib/jobs/import-job"
-import { persistJobForUser } from "@/lib/jobs/persist-job"
-import { findTelegramUser } from "./pairing"
+import { listRecentApplicationsForUser, persistJobForUser } from "@/lib/jobs/persist-job"
+import { disconnectTelegram, findTelegramUser } from "./pairing"
 import { extractFirstJobUrl } from "@/lib/jobs/extract-job-url"
 import { extractTelegramStartToken, processTelegramMessage } from "./process-message"
 
@@ -90,6 +95,30 @@ describe("Telegram commands", () => {
       expect(parseImportedJobPreview).toHaveBeenCalledWith(
         expect.objectContaining({ url: "https://blocked.example.com/job", pageText: text.trim() })
       )
+    })
+
+    it("answers /help without requiring a connection", async () => {
+      vi.mocked(findTelegramUser).mockResolvedValue(null)
+      await processTelegramMessage(update("/help"))
+      expect(mocks.sendTelegramText).toHaveBeenCalledWith("1", expect.stringContaining("/recent"))
+    })
+
+    it("lists recent saved jobs for /recent@bot", async () => {
+      vi.mocked(listRecentApplicationsForUser).mockResolvedValue([
+        { title: "Dev", company: "Acme", status: "saved", applicationUrl: "https://x.test/applications/dev" },
+      ] as never)
+      await processTelegramMessage(update("/recent@jobclock_bot"))
+      expect(mocks.sendTelegramText).toHaveBeenCalledWith("1", "Dev at Acme (saved)\nhttps://x.test/applications/dev")
+    })
+
+    it("disconnects on /disconnect and still requires a connection for commands", async () => {
+      await processTelegramMessage(update("/disconnect"))
+      expect(disconnectTelegram).toHaveBeenCalledWith("user-1")
+
+      vi.mocked(findTelegramUser).mockResolvedValue(null)
+      vi.mocked(disconnectTelegram).mockClear()
+      await processTelegramMessage(update("/disconnect"))
+      expect(disconnectTelegram).not.toHaveBeenCalled()
     })
 
     it("tells the user to paste the description when a site returns 403", async () => {
