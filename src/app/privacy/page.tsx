@@ -28,14 +28,14 @@ export default function PrivacyPage() {
           <li><strong>Account data:</strong> email address, authentication records, and account identifiers.</li>
           <li><strong>Profile and career data:</strong> name, contact details, work history, skills, preferences, CVs, templates, and uploaded files.</li>
           <li><strong>Job-search data:</strong> saved roles, application stages, notes, generated CVs and cover letters, research, and interview material.</li>
-          <li><strong>Configuration and credentials:</strong> encrypted AI-provider or job-source API keys, hashed extension tokens, and keyed WhatsApp or Telegram identifiers when you connect mobile job capture.</li>
+          <li><strong>Configuration and credentials:</strong> encrypted AI-provider or job-source API keys, hashed extension tokens, and keyed Telegram identifiers when you connect mobile job capture.</li>
           <li><strong>Technical and support data:</strong> security logs, page and device information, error details, and messages you send to support.</li>
         </ul>
       </LegalSection>
 
       <LegalSection number="03" title="How and why data is used">
         <p>
-          JobClock uses this data to create and secure your account, provide the workspace, extension, and optional WhatsApp or Telegram intake, import and organise jobs, generate material you request, troubleshoot problems, prevent abuse, and improve service reliability.
+          JobClock uses this data to create and secure your account, provide the workspace, extension, and optional Telegram intake, import and organise jobs, generate material you request, troubleshoot problems, prevent abuse, and improve service reliability.
         </p>
         <p>
           Depending on the activity, processing is necessary to provide the service you request, pursue legitimate interests in operating and securing JobClock, comply with legal obligations, or act on your consent where consent is required. JobClock does not sell personal data or use it for behavioural advertising.
