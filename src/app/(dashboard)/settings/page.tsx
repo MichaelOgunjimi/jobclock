@@ -5,6 +5,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect } from "next/navigation"
 import { resolveAiSettings, type UserPreferences, type JobSources } from "@/lib/ai"
 import { getActivePersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
+import { getWhatsAppConnection } from "@/lib/whatsapp/pairing"
+import { getTelegramConnection } from "@/lib/telegram/pairing"
 import { listTrackedCompanies } from "./actions"
 import { SettingsTabs } from "./settings-tabs"
 
@@ -19,7 +21,14 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth")
 
-  const [{ data: profile }, { data: profileData }, extensionToken, companies] = await Promise.all([
+  const [
+    { data: profile },
+    { data: profileData },
+    extensionToken,
+    whatsappConnection,
+    telegramConnection,
+    companies,
+  ] = await Promise.all([
     supabase
       .from("profiles")
       .select("preferences, allow_platform_ai_key")
@@ -31,6 +40,8 @@ export default async function SettingsPage() {
       .eq("id", user.id)
       .single(),
     getActivePersonalApiTokenMetadata(user.id),
+    getWhatsAppConnection(user.id),
+    getTelegramConnection(user.id),
     listTrackedCompanies(),
   ])
 
@@ -76,6 +87,25 @@ export default async function SettingsPage() {
           preferredCoverLetterTemplate={preferredCoverLetterTemplate}
           jobSources={jobSources}
           extensionToken={extensionToken}
+          whatsappConnection={whatsappConnection}
+          whatsappBusinessNumber={process.env.WHATSAPP_BUSINESS_NUMBER ?? null}
+          whatsappConfigured={Boolean(
+            process.env.ENCRYPTION_SECRET &&
+            process.env.WHATSAPP_APP_SECRET &&
+            process.env.WHATSAPP_VERIFY_TOKEN &&
+            process.env.WHATSAPP_ACCESS_TOKEN &&
+            process.env.WHATSAPP_PHONE_NUMBER_ID &&
+            process.env.WHATSAPP_GRAPH_API_VERSION &&
+            process.env.WHATSAPP_BUSINESS_NUMBER
+          )}
+          telegramConnection={telegramConnection}
+          telegramBotUsername={process.env.TELEGRAM_BOT_USERNAME ?? null}
+          telegramConfigured={Boolean(
+            process.env.ENCRYPTION_SECRET &&
+            process.env.TELEGRAM_BOT_TOKEN &&
+            process.env.TELEGRAM_BOT_USERNAME &&
+            process.env.TELEGRAM_WEBHOOK_SECRET
+          )}
           profilePrefs={{
             desired_roles: profileData?.desired_roles ?? null,
             locations_uk: profileData?.locations_uk ?? null,

@@ -169,6 +169,13 @@
       "when": 1790802414089,
       "tag": "0023_shiny_kulan_gath",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790949468350,
+      "tag": "0024_material_shocker",
+      "breakpoints": true
     }
   ]
 }

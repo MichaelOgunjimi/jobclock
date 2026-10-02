@@ -43,6 +43,8 @@ location, salary, experience-level, and right-to-work preferences.
   job sources.
 - Track companies and synchronise their open roles.
 - Import a job directly from its URL.
+- Send a job link to the paired JobClock WhatsApp number for mobile capture.
+- Send a job link to the paired JobClock Telegram bot for mobile capture.
 - Capture the active listing with the published
   [JobClock Chrome extension](https://chromewebstore.google.com/detail/jobclock-job-application/albhohoocdlhefihfhiapcmckopbgjhh).
 
@@ -107,6 +109,29 @@ See the [extension guide](extension/README.md),
 [extension privacy policy](https://jobclock.michaelogunjimi.com/extension/privacy)
 for more detail.
 
+## WhatsApp job capture
+
+The WhatsApp intake connects a user's number to their JobClock account with a
+15-minute, single-use pairing code. After pairing, a shared job URL is fetched,
+extracted through the existing import pipeline, deduplicated, and saved to the
+user's application workspace. The webhook verifies Meta's SHA-256 signature,
+and JobClock stores only a keyed sender-ID digest plus the final four digits.
+
+See the [WhatsApp Cloud API setup guide](docs/whatsapp-cloud-api.md) for the
+Meta dashboard, webhook, environment, and launch steps.
+
+## Telegram job capture
+
+The Telegram intake connects a Telegram account to JobClock through a
+15-minute, single-use bot deep link. After pairing, public job URLs use the
+same secure fetch, extraction, deduplication, and persistence pipeline as other
+JobClock imports. The webhook verifies Telegram's configured secret header,
+and JobClock stores only a keyed Telegram user-ID digest plus non-sensitive
+display metadata.
+
+See the [Telegram bot setup guide](docs/telegram-bot-setup.md) for BotFather,
+environment, webhook registration, pairing, testing, and rotation steps.
+
 ## Technology
 
 | Area | Technology |
@@ -120,6 +145,7 @@ for more detail.
 | Rate limiting and jobs | Upstash Redis and QStash |
 | PDF rendering | Puppeteer Core and `@sparticuz/chromium` |
 | Browser extension | Chrome Manifest V3 |
+| Mobile intake | WhatsApp Cloud API and Telegram Bot API |
 | Testing | Vitest, Testing Library, Playwright |
 | Hosting | Vercel |
 
@@ -174,6 +200,11 @@ Optional integrations:
 | `PERPLEXITY_API_KEY` | Company research fallback |
 | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Adzuna job search |
 | `CAREERJET_API_KEY` | CareerJet job search |
+| `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` | WhatsApp webhook verification |
+| `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp Cloud API messaging |
+| `WHATSAPP_GRAPH_API_VERSION`, `WHATSAPP_BUSINESS_NUMBER` | Graph endpoint version and public bot number |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` | Telegram Bot API access and deep-link username |
+| `TELEGRAM_WEBHOOK_SECRET` | Telegram webhook request verification |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Distributed rate limiting |
 | `QSTASH_TOKEN` | Background generation and scheduled work |
 | `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` | QStash request verification |

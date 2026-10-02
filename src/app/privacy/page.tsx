@@ -14,7 +14,7 @@ export default function PrivacyPage() {
       kicker="Privacy"
       title="JobClock privacy policy"
       summary="This policy explains what personal data JobClock handles, why it is needed, who processes it, and the choices available to you."
-      updatedAt="21 July 2026"
+      updatedAt="2 October 2026"
     >
       <LegalSection number="01" title="Who is responsible">
         <p>
@@ -28,14 +28,14 @@ export default function PrivacyPage() {
           <li><strong>Account data:</strong> email address, authentication records, and account identifiers.</li>
           <li><strong>Profile and career data:</strong> name, contact details, work history, skills, preferences, CVs, templates, and uploaded files.</li>
           <li><strong>Job-search data:</strong> saved roles, application stages, notes, generated CVs and cover letters, research, and interview material.</li>
-          <li><strong>Configuration and credentials:</strong> encrypted AI-provider or job-source API keys and hashed extension tokens.</li>
+          <li><strong>Configuration and credentials:</strong> encrypted AI-provider or job-source API keys, hashed extension tokens, and keyed WhatsApp or Telegram identifiers when you connect mobile job capture.</li>
           <li><strong>Technical and support data:</strong> security logs, page and device information, error details, and messages you send to support.</li>
         </ul>
       </LegalSection>
 
       <LegalSection number="03" title="How and why data is used">
         <p>
-          JobClock uses this data to create and secure your account, provide the workspace and extension, import and organise jobs, generate material you request, troubleshoot problems, prevent abuse, and improve service reliability.
+          JobClock uses this data to create and secure your account, provide the workspace, extension, and optional WhatsApp or Telegram intake, import and organise jobs, generate material you request, troubleshoot problems, prevent abuse, and improve service reliability.
         </p>
         <p>
           Depending on the activity, processing is necessary to provide the service you request, pursue legitimate interests in operating and securing JobClock, comply with legal obligations, or act on your consent where consent is required. JobClock does not sell personal data or use it for behavioural advertising.
@@ -44,7 +44,7 @@ export default function PrivacyPage() {
 
       <LegalSection number="04" title="Service providers and transfers">
         <p>
-          JobClock relies on service providers including Supabase for authentication, database and file storage; Vercel for hosting and privacy-focused web analytics; and Upstash for queued background work. Information may also be sent to the AI provider you configure, such as OpenAI or Anthropic, when you request an AI-assisted feature.
+          JobClock relies on service providers including Supabase for authentication, database and file storage; Vercel for hosting and privacy-focused web analytics; Upstash for queued background work; and Meta or Telegram when you use the corresponding optional mobile intake. Information may also be sent to the AI provider you configure, such as OpenAI or Anthropic, when you request an AI-assisted feature.
         </p>
         <p>
           These providers may process data outside the United Kingdom. JobClock uses providers subject to their contractual and legal transfer safeguards. Your own AI-provider account remains governed by that provider&apos;s terms and privacy policy.

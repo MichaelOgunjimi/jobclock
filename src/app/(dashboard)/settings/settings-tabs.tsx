@@ -13,6 +13,8 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { AiSettingsForm } from "./ai-settings-form"
 import { ExtensionSettingsCard } from "./extension-settings-card"
+import { WhatsAppSettingsCard } from "./whatsapp-settings-card"
+import { TelegramSettingsCard } from "./telegram-settings-card"
 import { TemplatePicker } from "./template-picker"
 import { JobSourcesForm } from "./job-sources-form"
 import { TrackedCompaniesForm } from "./tracked-companies-form"
@@ -20,6 +22,8 @@ import { savePreferences } from "../profile/actions"
 import type { AiSettings, JobSources } from "@/lib/ai"
 import type { PersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
 import type { TrackedCompany } from "./actions"
+import type { WhatsAppConnectionMetadata } from "@/lib/whatsapp/pairing"
+import type { TelegramConnectionMetadata } from "@/lib/telegram/pairing"
 
 type KeyStatus = { anthropic: "saved" | "env" | "none"; openai: "saved" | "env" | "none"; perplexity: "saved" | "env" | "none" }
 
@@ -62,6 +66,12 @@ export function SettingsTabs({
   preferredCoverLetterTemplate,
   jobSources,
   extensionToken,
+  whatsappConnection,
+  whatsappBusinessNumber,
+  whatsappConfigured,
+  telegramConnection,
+  telegramBotUsername,
+  telegramConfigured,
   profilePrefs,
   trackedCompanies,
 }: {
@@ -71,12 +81,18 @@ export function SettingsTabs({
   preferredCoverLetterTemplate: string
   jobSources: JobSources
   extensionToken: PersonalApiTokenMetadata | null
+  whatsappConnection: WhatsAppConnectionMetadata | null
+  whatsappBusinessNumber: string | null
+  whatsappConfigured: boolean
+  telegramConnection: TelegramConnectionMetadata | null
+  telegramBotUsername: string | null
+  telegramConfigured: boolean
   profilePrefs: ProfilePrefs
   trackedCompanies: TrackedCompany[]
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const validTabs = ["ai", "appearance", "extension", "job-search", "job-sources", "companies"]
+  const validTabs = ["ai", "appearance", "extension", "whatsapp", "telegram", "job-search", "job-sources", "companies"]
   const activeTab = validTabs.includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "ai"
 
   const [roles, setRoles] = useState<string[]>(profilePrefs.desired_roles ?? [])
@@ -125,6 +141,8 @@ export function SettingsTabs({
         <TabsTrigger value="ai" className="shrink-0 px-2.5 sm:px-4">AI</TabsTrigger>
         <TabsTrigger value="appearance" className="shrink-0 px-2.5 sm:px-4">Appearance</TabsTrigger>
         <TabsTrigger value="extension" className="shrink-0 px-2.5 sm:px-4">Extension</TabsTrigger>
+        <TabsTrigger value="whatsapp" className="shrink-0 px-2.5 sm:px-4">WhatsApp</TabsTrigger>
+        <TabsTrigger value="telegram" className="shrink-0 px-2.5 sm:px-4">Telegram</TabsTrigger>
         <TabsTrigger value="job-search" className="shrink-0 px-2.5 sm:px-4">Job Search</TabsTrigger>
         <TabsTrigger value="job-sources" className="shrink-0 px-2.5 sm:px-4">Job Sources</TabsTrigger>
         <TabsTrigger value="companies" className="shrink-0 px-2.5 sm:px-4">Companies</TabsTrigger>
@@ -187,6 +205,22 @@ export function SettingsTabs({
 
       <TabsContent value="extension">
         <ExtensionSettingsCard initialToken={extensionToken} />
+      </TabsContent>
+
+      <TabsContent value="whatsapp">
+        <WhatsAppSettingsCard
+          initialConnection={whatsappConnection}
+          businessNumber={whatsappBusinessNumber}
+          configured={whatsappConfigured}
+        />
+      </TabsContent>
+
+      <TabsContent value="telegram">
+        <TelegramSettingsCard
+          initialConnection={telegramConnection}
+          botUsername={telegramBotUsername}
+          configured={telegramConfigured}
+        />
       </TabsContent>
 
       {/* Job Search Tab */}
