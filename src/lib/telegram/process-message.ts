@@ -4,8 +4,8 @@ import { telegramUpdateReceipts } from "@/lib/db/schema"
 import { extractFirstJobUrl } from "@/lib/jobs/extract-job-url"
 import { fetchJobPage } from "@/lib/jobs/fetch-job-page"
 import { JobImportError, parseImportedJobPreview } from "@/lib/jobs/import-job"
-import { listRecentApplicationsForUser, persistJobForUser } from "@/lib/jobs/persist-job"
-import { sendTelegramText } from "./client"
+import { persistJobForUser } from "@/lib/jobs/persist-job"
+import { answerTelegramCallback, editTelegramText, sendTelegramText } from "./client"
 import {
   consumeTelegramPairingToken,
   disconnectTelegram,
@@ -13,7 +13,8 @@ import {
   getTelegramConnection,
   touchTelegramConnection,
 } from "./pairing"
-import type { TelegramInboundText } from "./types"
+import { buildRecentList, resolveRecentCallback } from "./recent-jobs"
+import type { TelegramInboundCallback, TelegramInboundText } from "./types"
 
 /** Minimum characters of pasted text (besides the link) to import without fetching. */
 const PASTED_JOB_MIN_CHARS = 300
@@ -61,10 +62,6 @@ async function releaseTelegramUpdate(updateId: number): Promise<void> {
     .where(eq(telegramUpdateReceipts.updateId, updateId))
 }
 
-function appOrigin(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
-}
-
 async function handleCommand(
   update: TelegramInboundText,
   userId: string,
@@ -83,15 +80,8 @@ async function handleCommand(
     return
   }
 
-  const recent = await listRecentApplicationsForUser(userId, appOrigin(), 5)
-  await sendTelegramText(
-    update.chatId,
-    recent.length === 0
-      ? "No saved jobs yet. Send me a job link to add one."
-      : recent
-          .map((item) => `${item.title} at ${item.company} (${item.status})\n${item.applicationUrl}`)
-          .join("\n\n")
-  )
+  const { text, keyboard } = await buildRecentList(userId)
+  await sendTelegramText(update.chatId, text, keyboard)
 }
 
 function applicationUrl(applicationSlug: string): string {
@@ -221,4 +211,17 @@ export async function processTelegramMessage(update: TelegramInboundText): Promi
     await releaseTelegramUpdate(update.updateId)
     throw error
   }
+}
+
+/** Handles a tap on a /recent button: re-renders the message in place. */
+export async function processTelegramCallback(callback: TelegramInboundCallback): Promise<void> {
+  const userId = await findTelegramUser(callback.telegramUserId)
+  if (!userId) {
+    await answerTelegramCallback(callback.callbackId, "Connect your account in JobClock Settings first.")
+    return
+  }
+
+  const view = await resolveRecentCallback(userId, callback.data)
+  await answerTelegramCallback(callback.callbackId, view?.toast)
+  if (view) await editTelegramText(callback.chatId, callback.messageId, view.text, view.keyboard)
 }

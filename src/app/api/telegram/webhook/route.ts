@@ -1,8 +1,8 @@
 import { after } from "next/server"
 import { enqueueTelegramUpdate } from "@/lib/telegram/enqueue"
-import { processTelegramMessage } from "@/lib/telegram/process-message"
+import { processTelegramCallback, processTelegramMessage } from "@/lib/telegram/process-message"
 import { verifyTelegramWebhookSecret } from "@/lib/telegram/security"
-import { parseTelegramInboundText } from "@/lib/telegram/types"
+import { parseTelegramCallback, parseTelegramInboundText } from "@/lib/telegram/types"
 
 export const runtime = "nodejs"
 export const maxDuration = 300
@@ -23,6 +23,21 @@ export async function POST(request: Request) {
     payload = await request.json()
   } catch {
     return Response.json({ error: "Invalid JSON" }, { status: 400 })
+  }
+
+  const callback = parseTelegramCallback(payload)
+  if (callback) {
+    after(async () => {
+      try {
+        await processTelegramCallback(callback)
+      } catch (error) {
+        console.error(
+          "[telegram] callback failed",
+          error instanceof Error ? error.message : "Unknown error"
+        )
+      }
+    })
+    return Response.json({ ok: true })
   }
 
   const update = parseTelegramInboundText(payload)
