@@ -61,3 +61,6 @@ next-env.d.ts
 # drizzle introspection output — reference only; not source of truth
 drizzle/migrations/schema.ts
 drizzle/migrations/relations.ts
+
+# per-worktree dev port (make new-worktree)
+.worktree.env
