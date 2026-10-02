@@ -4,17 +4,32 @@ import { telegramUpdateReceipts } from "@/lib/db/schema"
 import { extractFirstJobUrl } from "@/lib/jobs/extract-job-url"
 import { fetchJobPage } from "@/lib/jobs/fetch-job-page"
 import { JobImportError, parseImportedJobPreview } from "@/lib/jobs/import-job"
-import { persistJobForUser } from "@/lib/jobs/persist-job"
+import { listRecentApplicationsForUser, persistJobForUser } from "@/lib/jobs/persist-job"
 import { sendTelegramText } from "./client"
 import {
   consumeTelegramPairingToken,
+  disconnectTelegram,
   findTelegramUser,
+  getTelegramConnection,
   touchTelegramConnection,
 } from "./pairing"
 import type { TelegramInboundText } from "./types"
 
 /** Minimum characters of pasted text (besides the link) to import without fetching. */
 const PASTED_JOB_MIN_CHARS = 300
+
+const COMMAND_PATTERN = /^\/(start|help|status|recent|disconnect)(?:@[A-Za-z0-9_]{5,32})?\s*$/i
+
+const HELP_TEXT = [
+  "JobClock saves jobs to your applications.",
+  "",
+  "Send me a job link and I'll extract and save it. If a site blocks me, paste the job description together with the link.",
+  "",
+  "/status - your connection status",
+  "/recent - your last 5 saved jobs",
+  "/disconnect - unlink this Telegram account",
+  "/help - show this message",
+].join("\n")
 
 const START_PATTERN = /^\/start(?:@([A-Za-z0-9_]{5,32}))?\s+([A-Za-z0-9_-]{1,64})$/i
 
@@ -44,6 +59,39 @@ async function releaseTelegramUpdate(updateId: number): Promise<void> {
   await db
     .delete(telegramUpdateReceipts)
     .where(eq(telegramUpdateReceipts.updateId, updateId))
+}
+
+function appOrigin(): string {
+  return process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
+}
+
+async function handleCommand(
+  update: TelegramInboundText,
+  userId: string,
+  command: string
+): Promise<void> {
+  if (command === "disconnect") {
+    await disconnectTelegram(userId)
+    await sendTelegramText(update.chatId, "Disconnected. Reconnect any time from JobClock Settings → Telegram.")
+    return
+  }
+
+  if (command === "status") {
+    const connection = await getTelegramConnection(userId)
+    const since = connection ? connection.connectedAt.slice(0, 10) : "unknown"
+    await sendTelegramText(update.chatId, `Connected to JobClock since ${since}.`)
+    return
+  }
+
+  const recent = await listRecentApplicationsForUser(userId, appOrigin(), 5)
+  await sendTelegramText(
+    update.chatId,
+    recent.length === 0
+      ? "No saved jobs yet. Send me a job link to add one."
+      : recent
+          .map((item) => `${item.title} at ${item.company} (${item.status})\n${item.applicationUrl}`)
+          .join("\n\n")
+  )
 }
 
 function applicationUrl(applicationSlug: string): string {
@@ -138,12 +186,23 @@ export async function processTelegramMessage(update: TelegramInboundText): Promi
       return
     }
 
+    const command = update.body.trim().match(COMMAND_PATTERN)?.[1].toLowerCase()
+    if (command === "help" || command === "start") {
+      await sendTelegramText(update.chatId, HELP_TEXT)
+      return
+    }
+
     const userId = await findTelegramUser(update.telegramUserId)
     if (!userId) {
       await sendTelegramText(
         update.chatId,
         "Connect this Telegram account first: open JobClock Settings → Telegram and select Connect Telegram."
       )
+      return
+    }
+
+    if (command) {
+      await handleCommand(update, userId, command)
       return
     }
 
