@@ -219,6 +219,11 @@ export function extractJobPage(html: string): {
   }
 }
 
+/**
+ * Fetches a single user-supplied job link. Sends ordinary browser headers (many job
+ * sites 403 self-identified bots) and replays Set-Cookie across redirects, which
+ * consent/share redirectors need to avoid looping.
+ */
 export async function fetchJobPage(urlValue: string): Promise<{
   finalUrl: string
   pageTitle: string
@@ -226,6 +231,7 @@ export async function fetchJobPage(urlValue: string): Promise<{
   pageHints: JobImportHints
 }> {
   let url = new URL(urlValue)
+  const cookies = new Map<string, string>()
 
   for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
     await assertPublicHttpUrl(url)
@@ -233,10 +239,19 @@ export async function fetchJobPage(urlValue: string): Promise<{
       redirect: "manual",
       signal: AbortSignal.timeout(15_000),
       headers: {
-        Accept: "text/html,application/xhtml+xml",
-        "User-Agent": "JobClockBot/1.0 (+https://jobclock.michaelogunjimi.com)",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-GB,en;q=0.9",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+        ...(cookies.size ? { Cookie: [...cookies].map(([k, v]) => `${k}=${v}`).join("; ") } : {}),
       },
     })
+
+    for (const setCookie of response.headers.getSetCookie()) {
+      const [pair] = setCookie.split(";")
+      const eq = pair.indexOf("=")
+      if (eq > 0) cookies.set(pair.slice(0, eq).trim(), pair.slice(eq + 1).trim())
+    }
 
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get("location")
@@ -249,6 +264,10 @@ export async function fetchJobPage(urlValue: string): Promise<{
     const contentType = response.headers.get("content-type")?.toLowerCase() ?? ""
     if (!contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) {
       throw new Error("That link does not point to a readable job page.")
+    }
+
+    if (/(^|\.)google\.[a-z.]+$/i.test(url.hostname)) {
+      throw new Error("That Google link does not resolve to a job page.")
     }
 
     return { finalUrl: url.toString(), ...extractJobPage(await readLimitedText(response)) }

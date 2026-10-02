@@ -3,7 +3,7 @@ import { db } from "@/lib/db"
 import { telegramUpdateReceipts } from "@/lib/db/schema"
 import { extractFirstJobUrl } from "@/lib/jobs/extract-job-url"
 import { fetchJobPage } from "@/lib/jobs/fetch-job-page"
-import { parseImportedJobPreview } from "@/lib/jobs/import-job"
+import { JobImportError, parseImportedJobPreview } from "@/lib/jobs/import-job"
 import { persistJobForUser } from "@/lib/jobs/persist-job"
 import { sendTelegramText } from "./client"
 import {
@@ -12,6 +12,9 @@ import {
   touchTelegramConnection,
 } from "./pairing"
 import type { TelegramInboundText } from "./types"
+
+/** Minimum characters of pasted text (besides the link) to import without fetching. */
+const PASTED_JOB_MIN_CHARS = 300
 
 const START_PATTERN = /^\/start(?:@([A-Za-z0-9_]{5,32}))?\s+([A-Za-z0-9_-]{1,64})$/i
 
@@ -77,6 +80,19 @@ async function handlePairing(update: TelegramInboundText, token: string): Promis
   )
 }
 
+/** Maps an import failure to advice the user can act on. */
+function importFailureMessage(error: unknown): string {
+  if (error instanceof JobImportError) return error.message
+  const reason = error instanceof Error ? error.message : ""
+  if (/HTTP (401|403)/.test(reason)) {
+    return "That site blocks automated access. Paste the job description here together with the link and I'll import it from your text."
+  }
+  if (/redirected too many times/.test(reason)) {
+    return "That link keeps redirecting. Send the direct job-page URL instead, or paste the job description together with the link."
+  }
+  return "I couldn't read that job page. Paste the job description together with the link and I'll import it from your text."
+}
+
 async function handleJobLink(
   update: TelegramInboundText,
   userId: string,
@@ -85,7 +101,11 @@ async function handleJobLink(
   await sendTelegramText(update.chatId, "Got it — I'm importing that job now.")
 
   try {
-    const page = await fetchJobPage(url)
+    // A link plus a pasted description skips the fetch, so blocked sites still work.
+    const pasted = update.body.replace(url, " ").replace(/\s+/g, " ").trim()
+    const page = pasted.length >= PASTED_JOB_MIN_CHARS
+      ? { finalUrl: url, pageTitle: undefined, pageHints: undefined, pageText: pasted }
+      : await fetchJobPage(url)
     const preview = await parseImportedJobPreview({
       userId,
       url: page.finalUrl,
@@ -104,10 +124,7 @@ async function handleJobLink(
       updateId: update.updateId,
       error: error instanceof Error ? error.message : "Unknown error",
     })
-    await sendTelegramText(
-      update.chatId,
-      "I couldn't read that job page. It may require a login or block automated access. Please open JobClock to add the missing details manually."
-    )
+    await sendTelegramText(update.chatId, importFailureMessage(error))
   }
 }
 
