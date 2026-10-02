@@ -15,11 +15,6 @@ import { db } from "@/lib/db"
 import { trackedCompanies } from "@/lib/db/schema"
 import { detectAtsFromUrl } from "@/lib/jobs/source-detection"
 import {
-  disconnectWhatsApp,
-  generateWhatsAppPairingCode,
-  type WhatsAppConnectionMetadata,
-} from "@/lib/whatsapp/pairing"
-import {
   disconnectTelegram,
   generateTelegramPairingToken,
   type TelegramConnectionMetadata,
@@ -243,38 +238,6 @@ export async function revokeExtensionToken() {
     }
   } catch {
     return { error: "Failed to revoke extension token" }
-  }
-}
-
-export async function generateWhatsAppPairing() {
-  const auth = await getAuthenticatedUserId()
-  if ("error" in auth) return { error: auth.error }
-  if (!isEncryptionConfigured()) {
-    return { error: "ENCRYPTION_SECRET must be configured before pairing WhatsApp." }
-  }
-
-  try {
-    const pairing = await generateWhatsAppPairingCode(auth.userId)
-    revalidatePath("/settings")
-    return { success: true, ...pairing }
-  } catch {
-    return { error: "Failed to generate a WhatsApp pairing code" }
-  }
-}
-
-export async function disconnectWhatsAppAccount() {
-  const auth = await getAuthenticatedUserId()
-  if ("error" in auth) return { error: auth.error }
-
-  try {
-    await disconnectWhatsApp(auth.userId)
-    revalidatePath("/settings")
-    return {
-      success: true,
-      connection: null as WhatsAppConnectionMetadata | null,
-    }
-  } catch {
-    return { error: "Failed to disconnect WhatsApp" }
   }
 }
 

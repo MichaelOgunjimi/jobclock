@@ -13,10 +13,6 @@ vi.mock("@/lib/personal-api-tokens", () => ({
   generatePersonalApiToken: vi.fn(),
   revokePersonalApiTokens: vi.fn(),
 }))
-vi.mock("@/lib/whatsapp/pairing", () => ({
-  generateWhatsAppPairingCode: vi.fn(),
-  disconnectWhatsApp: vi.fn(),
-}))
 vi.mock("@/lib/telegram/pairing", () => ({
   generateTelegramPairingToken: vi.fn(),
   disconnectTelegram: vi.fn(),
@@ -26,14 +22,11 @@ import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { encrypt, isEncryptionConfigured } from "@/lib/crypto"
 import { generatePersonalApiToken, revokePersonalApiTokens } from "@/lib/personal-api-tokens"
-import { disconnectWhatsApp, generateWhatsAppPairingCode } from "@/lib/whatsapp/pairing"
 import { disconnectTelegram, generateTelegramPairingToken } from "@/lib/telegram/pairing"
 import {
   disconnectTelegramAccount,
-  disconnectWhatsAppAccount,
   generateTelegramPairing,
   generateExtensionToken,
-  generateWhatsAppPairing,
   deleteTemplate,
   revokeExtensionToken,
   saveAiSettings,
@@ -249,30 +242,6 @@ describe("settings actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/settings")
   })
 
-  it("generates a separate short-lived WhatsApp pairing code", async () => {
-    vi.mocked(generateWhatsAppPairingCode).mockResolvedValue({
-      code: "2345ABCD",
-      expiresAt: "2026-08-13T10:15:00.000Z",
-    })
-
-    await expect(generateWhatsAppPairing()).resolves.toEqual({
-      success: true,
-      code: "2345ABCD",
-      expiresAt: "2026-08-13T10:15:00.000Z",
-    })
-    expect(generateWhatsAppPairingCode).toHaveBeenCalledWith(mockUser.id)
-    expect(generatePersonalApiToken).not.toHaveBeenCalled()
-  })
-
-  it("disconnects WhatsApp without revoking the extension token", async () => {
-    await expect(disconnectWhatsAppAccount()).resolves.toEqual({
-      success: true,
-      connection: null,
-    })
-    expect(disconnectWhatsApp).toHaveBeenCalledWith(mockUser.id)
-    expect(revokePersonalApiTokens).not.toHaveBeenCalled()
-  })
-
   it("generates a separate short-lived Telegram pairing token", async () => {
     vi.mocked(generateTelegramPairingToken).mockResolvedValue({
       token: "telegram_pairing_token",
@@ -285,17 +254,15 @@ describe("settings actions", () => {
       expiresAt: "2026-08-13T10:15:00.000Z",
     })
     expect(generateTelegramPairingToken).toHaveBeenCalledWith(mockUser.id)
-    expect(generateWhatsAppPairingCode).not.toHaveBeenCalled()
     expect(generatePersonalApiToken).not.toHaveBeenCalled()
   })
 
-  it("disconnects Telegram without touching WhatsApp or extension access", async () => {
+  it("disconnects Telegram without touching extension access", async () => {
     await expect(disconnectTelegramAccount()).resolves.toEqual({
       success: true,
       connection: null,
     })
     expect(disconnectTelegram).toHaveBeenCalledWith(mockUser.id)
-    expect(disconnectWhatsApp).not.toHaveBeenCalled()
     expect(revokePersonalApiTokens).not.toHaveBeenCalled()
   })
 })
