@@ -11,6 +11,8 @@ import {
   disconnectTelegram,
   findTelegramUser,
   getTelegramConnection,
+  isTelegramDigestEnabled,
+  setTelegramDigest,
   touchTelegramConnection,
 } from "./pairing"
 import { buildRecentList, resolveRecentCallback } from "./recent-jobs"
@@ -20,7 +22,7 @@ import type { TelegramInboundCallback, TelegramInboundText } from "./types"
 /** Minimum characters of pasted text (besides the link) to import without fetching. */
 const PASTED_JOB_MIN_CHARS = 300
 
-const COMMAND_PATTERN = /^\/(start|help|status|recent|stats|disconnect)(?:@[A-Za-z0-9_]{5,32})?\s*$/i
+const COMMAND_PATTERN = /^\/(start|help|status|recent|stats|digest|disconnect)(?:@[A-Za-z0-9_]{5,32})?(?:\s+(on|off))?\s*$/i
 
 const HELP_TEXT = [
   "JobClock saves jobs to your applications.",
@@ -30,6 +32,7 @@ const HELP_TEXT = [
   "/status - your connection status",
   "/recent - your last 5 saved jobs",
   "/stats - your application stats",
+  "/digest on|off - weekly follow-ups and stats message",
   "/disconnect - unlink this Telegram account",
   "/help - show this message",
 ].join("\n")
@@ -67,8 +70,25 @@ async function releaseTelegramUpdate(updateId: number): Promise<void> {
 async function handleCommand(
   update: TelegramInboundText,
   userId: string,
-  command: string
+  command: string,
+  argument?: string
 ): Promise<void> {
+  if (command === "digest") {
+    if (argument === "on" || argument === "off") {
+      await setTelegramDigest(userId, argument === "on" ? update.chatId : null)
+      await sendTelegramText(
+        update.chatId,
+        argument === "on"
+          ? "Weekly digest on. I'll message you every Monday morning with follow-ups due and your stats. Turn it off with /digest off."
+          : "Weekly digest off. I've removed your chat id from our records."
+      )
+      return
+    }
+    const enabled = await isTelegramDigestEnabled(userId)
+    await sendTelegramText(update.chatId, `Weekly digest is ${enabled ? "on" : "off"}. Use /digest ${enabled ? "off" : "on"} to switch it.`)
+    return
+  }
+
   if (command === "disconnect") {
     await disconnectTelegram(userId)
     await sendTelegramText(update.chatId, "Disconnected. Reconnect any time from JobClock Settings → Telegram.")
@@ -183,7 +203,8 @@ export async function processTelegramMessage(update: TelegramInboundText): Promi
       return
     }
 
-    const command = update.body.trim().match(COMMAND_PATTERN)?.[1].toLowerCase()
+    const commandMatch = update.body.trim().match(COMMAND_PATTERN)
+    const command = commandMatch?.[1].toLowerCase()
     if (command === "help" || command === "start") {
       await sendTelegramText(update.chatId, HELP_TEXT)
       return
@@ -199,7 +220,7 @@ export async function processTelegramMessage(update: TelegramInboundText): Promi
     }
 
     if (command) {
-      await handleCommand(update, userId, command)
+      await handleCommand(update, userId, command, commandMatch?.[2]?.toLowerCase())
       return
     }
 

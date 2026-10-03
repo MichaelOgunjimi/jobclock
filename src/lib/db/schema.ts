@@ -178,6 +178,9 @@ export const telegramConnections = pgTable(
     displayName: text("display_name"),
     connectedAt: timestamp("connected_at", { withTimezone: true }).defaultNow().notNull(),
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    /** AES-encrypted private chat id; stored only while the weekly digest is enabled. */
+    chatIdEncrypted: text("chat_id_encrypted"),
+    digestEnabled: boolean("digest_enabled").default(false).notNull(),
   },
   (table) => [
     uniqueIndex("telegram_connections_user_id_unique").on(table.userId),

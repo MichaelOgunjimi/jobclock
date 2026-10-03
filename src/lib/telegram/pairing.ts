@@ -2,6 +2,7 @@ import { randomBytes } from "crypto"
 import { and, eq, gt } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { telegramConnections, telegramPairingTokens } from "@/lib/db/schema"
+import { decrypt, encrypt } from "@/lib/crypto"
 import { hashTelegramIdentity } from "./security"
 
 const PAIRING_TTL_MINUTES = 15
@@ -143,4 +144,39 @@ export async function touchTelegramConnection(userId: string): Promise<void> {
     .update(telegramConnections)
     .set({ lastMessageAt: new Date() })
     .where(eq(telegramConnections.userId, userId))
+}
+
+/**
+ * Turns the weekly digest on or off. The private chat id is stored (encrypted) only
+ * while the digest is enabled, and cleared when it is disabled.
+ */
+export async function setTelegramDigest(userId: string, chatId: string | null): Promise<void> {
+  await db
+    .update(telegramConnections)
+    .set({
+      digestEnabled: chatId !== null,
+      chatIdEncrypted: chatId === null ? null : encrypt(chatId),
+    })
+    .where(eq(telegramConnections.userId, userId))
+}
+
+export async function isTelegramDigestEnabled(userId: string): Promise<boolean> {
+  const [connection] = await db
+    .select({ enabled: telegramConnections.digestEnabled })
+    .from(telegramConnections)
+    .where(eq(telegramConnections.userId, userId))
+    .limit(1)
+  return connection?.enabled ?? false
+}
+
+/** Everyone who opted in to the digest, with their decrypted chat id. */
+export async function listDigestSubscribers(): Promise<Array<{ userId: string; chatId: string }>> {
+  const rows = await db
+    .select({ userId: telegramConnections.userId, chatIdEncrypted: telegramConnections.chatIdEncrypted })
+    .from(telegramConnections)
+    .where(eq(telegramConnections.digestEnabled, true))
+
+  return rows.flatMap((row) =>
+    row.chatIdEncrypted ? [{ userId: row.userId, chatId: decrypt(row.chatIdEncrypted) }] : []
+  )
 }
