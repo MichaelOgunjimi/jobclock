@@ -15,6 +15,11 @@ async function callTelegram(method: string, payload: Record<string, unknown>): P
   if (!response.ok) throw new Error(`Telegram ${method} failed (${response.status})`)
 }
 
+/** Escapes text for use inside a Telegram HTML message. */
+export function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
 export async function sendTelegramText(
   chatId: string,
   body: string,
@@ -25,6 +30,19 @@ export async function sendTelegramText(
     text: body.slice(0, 4096),
     link_preview_options: { is_disabled: true },
     ...(keyboard ? { reply_markup: { inline_keyboard: keyboard } } : {}),
+  })
+}
+
+/**
+ * Sends a message formatted with Telegram's HTML subset (b, i, pre, a). Callers must
+ * escapeHtml() any user-controlled text before interpolating it.
+ */
+export async function sendTelegramHtml(chatId: string, html: string): Promise<void> {
+  await callTelegram("sendMessage", {
+    chat_id: chatId,
+    text: html.slice(0, 4096),
+    parse_mode: "HTML",
+    link_preview_options: { is_disabled: true },
   })
 }
 

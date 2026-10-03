@@ -3,12 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const mocks = vi.hoisted(() => ({
   insert: vi.fn(),
   sendTelegramText: vi.fn(),
+  sendTelegramHtml: vi.fn(),
 }))
 
 vi.mock("@/lib/db", () => ({
   db: { insert: mocks.insert },
 }))
-vi.mock("./client", () => ({ sendTelegramText: mocks.sendTelegramText }))
+vi.mock("./client", () => ({
+  sendTelegramText: mocks.sendTelegramText,
+  sendTelegramHtml: mocks.sendTelegramHtml,
+  editTelegramText: vi.fn(),
+  answerTelegramCallback: vi.fn(),
+}))
 vi.mock("./stats", () => ({
   getApplicationStats: vi.fn().mockResolvedValue({ byStatus: { saved: 1 }, savedThisWeek: 1, appliedThisWeek: 0 }),
   formatStats: () => "STATS TEXT",
@@ -106,7 +112,7 @@ describe("Telegram commands", () => {
     it("answers /help without requiring a connection", async () => {
       vi.mocked(findTelegramUser).mockResolvedValue(null)
       await processTelegramMessage(update("/help"))
-      expect(mocks.sendTelegramText).toHaveBeenCalledWith("1", expect.stringContaining("/recent"))
+      expect(mocks.sendTelegramHtml).toHaveBeenCalledWith("1", expect.stringContaining("/recent"))
     })
 
     it("stores the chat id on /digest on and clears it on /digest off", async () => {
@@ -125,7 +131,7 @@ describe("Telegram commands", () => {
 
     it("replies to /stats with the formatted summary", async () => {
       await processTelegramMessage(update("/stats"))
-      expect(mocks.sendTelegramText).toHaveBeenCalledWith("1", "STATS TEXT")
+      expect(mocks.sendTelegramHtml).toHaveBeenCalledWith("1", "STATS TEXT")
     })
 
     it("lists recent saved jobs for /recent@bot", async () => {

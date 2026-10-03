@@ -12,7 +12,15 @@ export interface ApplicationStats {
   appliedThisWeek: number
 }
 
-/** Renders stats as the plain-text /stats reply. */
+const BAR_WIDTH = 10
+const STATUS_ROWS = ["saved", "applied", "screening", "interview", "offer", "rejected", "withdrawn", "ghosted"]
+
+function bar(value: number, max: number): string {
+  const filled = value === 0 ? 0 : Math.max(1, Math.round((value / max) * BAR_WIDTH))
+  return "█".repeat(filled) + "░".repeat(BAR_WIDTH - filled)
+}
+
+/** Renders stats as the /stats reply (Telegram HTML: send with sendTelegramHtml). */
 export function formatStats({ byStatus, savedThisWeek, appliedThisWeek }: ApplicationStats): string {
   const total = Object.values(byStatus).reduce((sum, n) => sum + n, 0)
   if (total === 0) return "No saved jobs yet. Send me a job link to add one."
@@ -20,17 +28,23 @@ export function formatStats({ byStatus, savedThisWeek, appliedThisWeek }: Applic
   const n = (status: string) => byStatus[status] ?? 0
   const submitted = total - n("saved")
   const replied = REPLIED.reduce((sum, status) => sum + n(status), 0)
-  const rate = submitted > 0 ? `${Math.round((replied / submitted) * 100)}% (${replied} of ${submitted} applications got a reply)` : "no applications sent yet"
+  const max = Math.max(...STATUS_ROWS.map(n))
+  const rows = STATUS_ROWS.map(
+    (status) => `${status.padEnd(9)} ${String(n(status)).padStart(3)} ${bar(n(status), max)}`
+  ).join("\n")
+  const rate = submitted > 0
+    ? `🎯 <b>Response rate: ${Math.round((replied / submitted) * 100)}%</b>\n<i>${replied} of ${submitted} applications got a reply</i>`
+    : "🎯 <i>No applications sent yet</i>"
 
   return [
-    `Your JobClock stats — ${total} application${total === 1 ? "" : "s"}`,
+    "📊 <b>Your JobClock stats</b>",
+    `<i>${total} application${total === 1 ? "" : "s"} tracked</i>`,
     "",
-    `saved ${n("saved")} · applied ${n("applied")} · screening ${n("screening")} · interview ${n("interview")} · offer ${n("offer")}`,
-    `rejected ${n("rejected")} · withdrawn ${n("withdrawn")} · ghosted ${n("ghosted")}`,
+    `<pre>${rows}</pre>`,
     "",
-    `Saved this week: ${savedThisWeek}`,
-    `Applied this week: ${appliedThisWeek}`,
-    `Response rate: ${rate}`,
+    `🗓 <b>This week</b>\n📌 Saved ${savedThisWeek}  ·  📨 Applied ${appliedThisWeek}`,
+    "",
+    rate,
   ].join("\n")
 }
 

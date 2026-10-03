@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/cron/verify-cron-request", () => ({ verifyCronRequest: mocks.verify }))
 vi.mock("@/lib/telegram/pairing", () => ({ listDigestSubscribers: mocks.list, setTelegramDigest: mocks.setDigest }))
 vi.mock("@/lib/telegram/digest", () => ({ buildDigest: mocks.build }))
-vi.mock("@/lib/telegram/client", () => ({ sendTelegramText: mocks.send }))
+vi.mock("@/lib/telegram/client", () => ({ sendTelegramHtml: mocks.send }))
 
 import { POST } from "./route"
 
