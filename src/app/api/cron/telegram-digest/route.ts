@@ -1,6 +1,6 @@
 import { verifyCronRequest } from "@/lib/cron/verify-cron-request"
 import { buildDigest } from "@/lib/telegram/digest"
-import { sendTelegramHtml } from "@/lib/telegram/client"
+import { sendTelegramText } from "@/lib/telegram/client"
 import { listDigestSubscribers, setTelegramDigest } from "@/lib/telegram/pairing"
 
 export const runtime = "nodejs"
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     try {
       const digest = await buildDigest(userId)
       if (!digest) continue
-      await sendTelegramHtml(chatId, digest)
+      await sendTelegramText(chatId, digest)
       sent += 1
     } catch (error) {
       failed += 1

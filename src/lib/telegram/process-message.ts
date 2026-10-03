@@ -5,7 +5,7 @@ import { extractFirstJobUrl } from "@/lib/jobs/extract-job-url"
 import { fetchJobPage } from "@/lib/jobs/fetch-job-page"
 import { JobImportError, parseImportedJobPreview } from "@/lib/jobs/import-job"
 import { persistJobForUser } from "@/lib/jobs/persist-job"
-import { answerTelegramCallback, editTelegramText, sendTelegramHtml, sendTelegramText } from "./client"
+import { answerTelegramCallback, editTelegramText, escapeHtml, sendTelegramText } from "./client"
 import {
   consumeTelegramPairingToken,
   disconnectTelegram,
@@ -80,31 +80,31 @@ async function handleCommand(
       await sendTelegramText(
         update.chatId,
         argument === "on"
-          ? "Weekly digest on. I'll message you every Monday morning with follow-ups due and your stats. Turn it off with /digest off."
-          : "Weekly digest off. I've removed your chat id from our records."
+          ? "☀️ <b>Weekly digest on.</b>\nI'll message you every Monday morning with follow-ups due and your stats.\n\n<i>Turn it off with /digest off.</i>"
+          : "🌙 <b>Weekly digest off.</b>\nI've removed your chat id from our records."
       )
       return
     }
     const enabled = await isTelegramDigestEnabled(userId)
-    await sendTelegramText(update.chatId, `Weekly digest is ${enabled ? "on" : "off"}. Use /digest ${enabled ? "off" : "on"} to switch it.`)
+    await sendTelegramText(update.chatId, `${enabled ? "☀️" : "🌙"} Weekly digest is <b>${enabled ? "on" : "off"}</b>.\nUse /digest ${enabled ? "off" : "on"} to switch it.`)
     return
   }
 
   if (command === "disconnect") {
     await disconnectTelegram(userId)
-    await sendTelegramText(update.chatId, "Disconnected. Reconnect any time from JobClock Settings → Telegram.")
+    await sendTelegramText(update.chatId, "👋 <b>Disconnected.</b>\nReconnect any time from JobClock Settings → Telegram.")
     return
   }
 
   if (command === "status") {
     const connection = await getTelegramConnection(userId)
     const since = connection ? connection.connectedAt.slice(0, 10) : "unknown"
-    await sendTelegramText(update.chatId, `Connected to JobClock since ${since}.`)
+    await sendTelegramText(update.chatId, `✅ <b>Connected</b> to JobClock since ${since}.`)
     return
   }
 
   if (command === "stats") {
-    await sendTelegramHtml(update.chatId, formatStats(await getApplicationStats(userId)))
+    await sendTelegramText(update.chatId, formatStats(await getApplicationStats(userId)))
     return
   }
 
@@ -128,35 +128,35 @@ async function handlePairing(update: TelegramInboundText, token: string): Promis
   if (result.status === "connected") {
     await sendTelegramText(
       update.chatId,
-      "You're connected to JobClock. Send me a public job link and I'll extract and save it to your applications."
+      "✅ <b>You're connected to JobClock.</b>\nSend me a public job link and I'll extract and save it to your applications."
     )
     return
   }
   if (result.status === "already_connected_elsewhere") {
     await sendTelegramText(
       update.chatId,
-      "This Telegram account is already connected to another JobClock account. Disconnect it there before trying again."
+      "⚠️ <b>Already connected elsewhere.</b>\nThis Telegram account is linked to another JobClock account. Disconnect it there before trying again."
     )
     return
   }
 
   await sendTelegramText(
     update.chatId,
-    "That pairing link is invalid or has expired. Generate a new one in JobClock Settings → Telegram."
+    "⌛ <b>That pairing link is invalid or has expired.</b>\nGenerate a new one in JobClock Settings → Telegram."
   )
 }
 
 /** Maps an import failure to advice the user can act on. */
 function importFailureMessage(error: unknown): string {
-  if (error instanceof JobImportError) return error.message
+  if (error instanceof JobImportError) return `⚠️ ${escapeHtml(error.message)}`
   const reason = error instanceof Error ? error.message : ""
   if (/HTTP (401|403)/.test(reason)) {
-    return "That site blocks automated access. Paste the job description here together with the link and I'll import it from your text."
+    return "🚧 <b>That site blocks automated access.</b>\nPaste the job description here together with the link and I'll import it from your text."
   }
   if (/redirected too many times/.test(reason)) {
-    return "That link keeps redirecting. Send the direct job-page URL instead, or paste the job description together with the link."
+    return "🔁 <b>That link keeps redirecting.</b>\nSend the direct job-page URL instead, or paste the job description together with the link."
   }
-  return "I couldn't read that job page. Paste the job description together with the link and I'll import it from your text."
+  return "⚠️ <b>I couldn't read that job page.</b>\nPaste the job description together with the link and I'll import it from your text."
 }
 
 async function handleJobLink(
@@ -164,7 +164,7 @@ async function handleJobLink(
   userId: string,
   url: string
 ): Promise<void> {
-  await sendTelegramText(update.chatId, "Got it — I'm importing that job now.")
+  await sendTelegramText(update.chatId, "⏳ Got it — importing that job now…")
 
   try {
     // A link plus a pasted description skips the fetch, so blocked sites still work.
@@ -180,10 +180,10 @@ async function handleJobLink(
       pageText: page.pageText,
     })
     const saved = await persistJobForUser(userId, preview)
-    const prefix = saved.alreadySaved ? "Already saved" : "Saved"
+    const heading = saved.alreadySaved ? "📌 <b>Already saved</b>" : "✅ <b>Saved</b>"
     await sendTelegramText(
       update.chatId,
-      `${prefix}: ${preview.title} at ${preview.company}\n\nView in JobClock: ${applicationUrl(saved.applicationSlug)}`
+      `${heading}\n<b>${escapeHtml(preview.title)}</b> at ${escapeHtml(preview.company)}\n\n🔗 <a href="${escapeHtml(applicationUrl(saved.applicationSlug))}">View in JobClock</a>`
     )
   } catch (error) {
     console.error("[telegram] job import failed", {
@@ -207,7 +207,7 @@ export async function processTelegramMessage(update: TelegramInboundText): Promi
     const commandMatch = update.body.trim().match(COMMAND_PATTERN)
     const command = commandMatch?.[1].toLowerCase()
     if (command === "help" || command === "start") {
-      await sendTelegramHtml(update.chatId, HELP_TEXT)
+      await sendTelegramText(update.chatId, HELP_TEXT)
       return
     }
 
@@ -215,7 +215,7 @@ export async function processTelegramMessage(update: TelegramInboundText): Promi
     if (!userId) {
       await sendTelegramText(
         update.chatId,
-        "Connect this Telegram account first: open JobClock Settings → Telegram and select Connect Telegram."
+        "🔒 <b>Connect this Telegram account first.</b>\nOpen JobClock Settings → Telegram and select Connect Telegram."
       )
       return
     }
@@ -230,7 +230,7 @@ export async function processTelegramMessage(update: TelegramInboundText): Promi
     if (!url) {
       await sendTelegramText(
         update.chatId,
-        "Send me a public job listing link beginning with https:// and I'll save it to JobClock."
+        "🔗 Send me a public job listing link beginning with <code>https://</code> and I'll save it to JobClock."
       )
       return
     }

@@ -5,7 +5,7 @@ import {
   type RecentApplicationItem,
 } from "@/lib/jobs/persist-job"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
-import type { TelegramKeyboard } from "./client"
+import { escapeHtml, type TelegramKeyboard } from "./client"
 import type { TelegramInboundCallback } from "./types"
 
 /** How many recent jobs the /recent list and its buttons show. */
@@ -13,6 +13,16 @@ const RECENT_LIMIT = 5
 
 export function appOrigin(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
+}
+
+const STATUS_EMOJI: Record<string, string> = {
+  saved: "📌", applied: "📨", screening: "🔍", interview: "🎤",
+  offer: "🎉", rejected: "❌", withdrawn: "↩️", ghosted: "👻",
+}
+
+/** Status with its emoji, e.g. "📨 applied". */
+export function statusLabel(status: string): string {
+  return `${STATUS_EMOJI[status] ?? "•"} ${status}`
 }
 
 function label(item: RecentApplicationItem): string {
@@ -25,11 +35,17 @@ export async function buildRecentList(
 ): Promise<{ text: string; keyboard?: TelegramKeyboard }> {
   const recent = await listRecentApplicationsForUser(userId, appOrigin(), RECENT_LIMIT)
   if (recent.length === 0) {
-    return { text: "No saved jobs yet. Send me a job link to add one." }
+    return { text: "📭 <b>No saved jobs yet.</b>\nSend me a job link to add one." }
   }
 
   return {
-    text: recent.map((item) => `${label(item)}\n${item.applicationUrl}`).join("\n\n"),
+    text: [
+      "🗂 <b>Your recent jobs</b>",
+      ...recent.map(
+        (item) =>
+          `<b>${escapeHtml(item.title)}</b> at ${escapeHtml(item.company)}\n${statusLabel(item.status)} · <a href="${escapeHtml(item.applicationUrl)}">Open in JobClock</a>`
+      ),
+    ].join("\n\n"),
     keyboard: recent.map((item) => [{ text: label(item).slice(0, 60), callback_data: `j:${item.applicationId}` }]),
   }
 }
@@ -47,7 +63,7 @@ function buildDetail(item: RecentApplicationItem): { text: string; keyboard: Tel
   rows.push([{ text: "← Back", callback_data: "r" }])
 
   return {
-    text: `${item.title}\n${item.company}${item.location ? ` · ${item.location}` : ""}\nStatus: ${item.status}`,
+    text: `<b>${escapeHtml(item.title)}</b>\n🏢 ${escapeHtml(item.company)}${item.location ? `\n📍 ${escapeHtml(item.location)}` : ""}\n${statusLabel(item.status)}`,
     keyboard: rows,
   }
 }
@@ -74,7 +90,7 @@ export async function resolveRecentCallback(
 
   const recent = await listRecentApplicationsForUser(userId, appOrigin(), RECENT_LIMIT)
   const item = recent.find((candidate) => candidate.applicationId === applicationId)
-  if (!item) return { text: "That job is no longer in your recent list.", toast }
+  if (!item) return { text: "🫥 <b>That job is no longer in your recent list.</b>", toast }
 
   return { ...buildDetail(item), toast }
 }
