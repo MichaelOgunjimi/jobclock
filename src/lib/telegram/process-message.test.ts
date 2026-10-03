@@ -9,6 +9,10 @@ vi.mock("@/lib/db", () => ({
   db: { insert: mocks.insert },
 }))
 vi.mock("./client", () => ({ sendTelegramText: mocks.sendTelegramText }))
+vi.mock("./stats", () => ({
+  getApplicationStats: vi.fn().mockResolvedValue({ byStatus: { saved: 1 }, savedThisWeek: 1, appliedThisWeek: 0 }),
+  formatStats: () => "STATS TEXT",
+}))
 vi.mock("./pairing", () => ({
   consumeTelegramPairingToken: vi.fn(),
   findTelegramUser: vi.fn(),
@@ -101,6 +105,11 @@ describe("Telegram commands", () => {
       vi.mocked(findTelegramUser).mockResolvedValue(null)
       await processTelegramMessage(update("/help"))
       expect(mocks.sendTelegramText).toHaveBeenCalledWith("1", expect.stringContaining("/recent"))
+    })
+
+    it("replies to /stats with the formatted summary", async () => {
+      await processTelegramMessage(update("/stats"))
+      expect(mocks.sendTelegramText).toHaveBeenCalledWith("1", "STATS TEXT")
     })
 
     it("lists recent saved jobs for /recent@bot", async () => {
