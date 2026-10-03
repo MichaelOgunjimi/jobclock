@@ -2,7 +2,7 @@
 export type TelegramButton = { text: string; callback_data: string } | { text: string; url: string }
 export type TelegramKeyboard = TelegramButton[][]
 
-async function callTelegram(method: string, payload: Record<string, unknown>): Promise<void> {
+async function callTelegram(method: string, payload: Record<string, unknown>): Promise<Response> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN
   if (!botToken) throw new Error("Telegram Bot API configuration is incomplete")
 
@@ -12,6 +12,26 @@ async function callTelegram(method: string, payload: Record<string, unknown>): P
     body: JSON.stringify(payload),
   })
 
+  return response
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+}
+
+/**
+ * Calls a Telegram method with an HTML text payload. If Telegram rejects the markup
+ * (400), resends the message as plain text so the user still gets it.
+ */
+async function callTelegramHtml(method: string, payload: { text: string } & Record<string, unknown>): Promise<void> {
+  let response = await callTelegram(method, { ...payload, parse_mode: "HTML" })
+  if (response.status === 400) {
+    response = await callTelegram(method, { ...payload, text: stripHtml(payload.text) })
+  }
   if (!response.ok) throw new Error(`Telegram ${method} failed (${response.status})`)
 }
 
@@ -20,29 +40,20 @@ export function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 }
 
+/**
+ * Sends a message in Telegram's HTML subset (b, i, code, pre, a). Every bot message is
+ * HTML, so callers must escapeHtml() any user-controlled text they interpolate.
+ */
 export async function sendTelegramText(
   chatId: string,
   body: string,
   keyboard?: TelegramKeyboard
 ): Promise<void> {
-  await callTelegram("sendMessage", {
+  await callTelegramHtml("sendMessage", {
     chat_id: chatId,
     text: body.slice(0, 4096),
     link_preview_options: { is_disabled: true },
     ...(keyboard ? { reply_markup: { inline_keyboard: keyboard } } : {}),
-  })
-}
-
-/**
- * Sends a message formatted with Telegram's HTML subset (b, i, pre, a). Callers must
- * escapeHtml() any user-controlled text before interpolating it.
- */
-export async function sendTelegramHtml(chatId: string, html: string): Promise<void> {
-  await callTelegram("sendMessage", {
-    chat_id: chatId,
-    text: html.slice(0, 4096),
-    parse_mode: "HTML",
-    link_preview_options: { is_disabled: true },
   })
 }
 
@@ -53,7 +64,7 @@ export async function editTelegramText(
   body: string,
   keyboard?: TelegramKeyboard
 ): Promise<void> {
-  await callTelegram("editMessageText", {
+  await callTelegramHtml("editMessageText", {
     chat_id: chatId,
     message_id: messageId,
     text: body.slice(0, 4096),
@@ -64,5 +75,6 @@ export async function editTelegramText(
 
 /** Stops the button's loading spinner; optional toast text shown to the user. */
 export async function answerTelegramCallback(callbackId: string, text?: string): Promise<void> {
-  await callTelegram("answerCallbackQuery", { callback_query_id: callbackId, ...(text ? { text } : {}) })
+  const response = await callTelegram("answerCallbackQuery", { callback_query_id: callbackId, ...(text ? { text } : {}) })
+  if (!response.ok) throw new Error(`Telegram answerCallbackQuery failed (${response.status})`)
 }

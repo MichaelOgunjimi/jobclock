@@ -25,7 +25,7 @@ describe("formatStats", () => {
   })
 
   it("handles no applications and none sent yet", () => {
-    expect(formatStats({ byStatus: {}, savedThisWeek: 0, appliedThisWeek: 0 })).toContain("No saved jobs yet")
+    expect(formatStats({ byStatus: {}, savedThisWeek: 0, appliedThisWeek: 0 })).toContain("No saved jobs yet.")
     expect(formatStats({ byStatus: { saved: 1 }, savedThisWeek: 1, appliedThisWeek: 0 })).toContain("1 application tracked")
     expect(formatStats({ byStatus: { saved: 1 }, savedThisWeek: 1, appliedThisWeek: 0 })).toContain("No applications sent yet")
   })

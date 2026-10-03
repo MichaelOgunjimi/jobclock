@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const mocks = vi.hoisted(() => ({
   insert: vi.fn(),
   sendTelegramText: vi.fn(),
-  sendTelegramHtml: vi.fn(),
 }))
 
 vi.mock("@/lib/db", () => ({
@@ -11,8 +10,8 @@ vi.mock("@/lib/db", () => ({
 }))
 vi.mock("./client", () => ({
   sendTelegramText: mocks.sendTelegramText,
-  sendTelegramHtml: mocks.sendTelegramHtml,
   editTelegramText: vi.fn(),
+  escapeHtml: (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"),
   answerTelegramCallback: vi.fn(),
 }))
 vi.mock("./stats", () => ({
@@ -112,7 +111,7 @@ describe("Telegram commands", () => {
     it("answers /help without requiring a connection", async () => {
       vi.mocked(findTelegramUser).mockResolvedValue(null)
       await processTelegramMessage(update("/help"))
-      expect(mocks.sendTelegramHtml).toHaveBeenCalledWith("1", expect.stringContaining("/recent"))
+      expect(mocks.sendTelegramText).toHaveBeenCalledWith("1", expect.stringContaining("/recent"))
     })
 
     it("stores the chat id on /digest on and clears it on /digest off", async () => {
@@ -126,12 +125,12 @@ describe("Telegram commands", () => {
     it("reports the digest state for a bare /digest without changing it", async () => {
       await processTelegramMessage(update("/digest"))
       expect(setTelegramDigest).not.toHaveBeenCalled()
-      expect(mocks.sendTelegramText).toHaveBeenCalledWith("1", expect.stringContaining("digest is off"))
+      expect(mocks.sendTelegramText).toHaveBeenCalledWith("1", expect.stringContaining("<b>off</b>"))
     })
 
     it("replies to /stats with the formatted summary", async () => {
       await processTelegramMessage(update("/stats"))
-      expect(mocks.sendTelegramHtml).toHaveBeenCalledWith("1", "STATS TEXT")
+      expect(mocks.sendTelegramText).toHaveBeenCalledWith("1", "STATS TEXT")
     })
 
     it("lists recent saved jobs for /recent@bot", async () => {
@@ -141,7 +140,7 @@ describe("Telegram commands", () => {
       await processTelegramMessage(update("/recent@jobclock_bot"))
       expect(mocks.sendTelegramText).toHaveBeenCalledWith(
         "1",
-        "Dev at Acme (saved)\nhttps://x.test/applications/dev",
+        "🗂 <b>Your recent jobs</b>\n\n<b>Dev</b> at Acme\n📌 saved · <a href=\"https://x.test/applications/dev\">Open in JobClock</a>",
         [[{ text: "Dev at Acme (saved)", callback_data: "j:app-1" }]]
       )
     })
@@ -154,6 +153,16 @@ describe("Telegram commands", () => {
       vi.mocked(disconnectTelegram).mockClear()
       await processTelegramMessage(update("/disconnect"))
       expect(disconnectTelegram).not.toHaveBeenCalled()
+    })
+
+    it("escapes user-controlled job titles in the saved reply", async () => {
+      vi.mocked(parseImportedJobPreview).mockResolvedValue({ title: "<b>Dev</b> & co", company: "A<c>" } as never)
+      vi.mocked(fetchJobPage).mockResolvedValue({ finalUrl: "https://x.test/j", pageTitle: "t", pageText: "x", pageHints: {} } as never)
+      await processTelegramMessage(update("https://x.test/j"))
+
+      const saved = mocks.sendTelegramText.mock.calls.at(-1)![1] as string
+      expect(saved).toContain("<b>&lt;b&gt;Dev&lt;/b&gt; &amp; co</b> at A&lt;c&gt;")
+      expect(saved).toContain("✅ <b>Saved</b>")
     })
 
     it("tells the user to paste the description when a site returns 403", async () => {

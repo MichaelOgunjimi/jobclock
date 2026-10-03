@@ -23,7 +23,7 @@ function bar(value: number, max: number): string {
 /** Renders stats as the /stats reply (Telegram HTML: send with sendTelegramHtml). */
 export function formatStats({ byStatus, savedThisWeek, appliedThisWeek }: ApplicationStats): string {
   const total = Object.values(byStatus).reduce((sum, n) => sum + n, 0)
-  if (total === 0) return "No saved jobs yet. Send me a job link to add one."
+  if (total === 0) return "📭 <b>No saved jobs yet.</b>\nSend me a job link to add one."
 
   const n = (status: string) => byStatus[status] ?? 0
   const submitted = total - n("saved")
