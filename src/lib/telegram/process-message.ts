@@ -14,12 +14,13 @@ import {
   touchTelegramConnection,
 } from "./pairing"
 import { buildRecentList, resolveRecentCallback } from "./recent-jobs"
+import { formatStats, getApplicationStats } from "./stats"
 import type { TelegramInboundCallback, TelegramInboundText } from "./types"
 
 /** Minimum characters of pasted text (besides the link) to import without fetching. */
 const PASTED_JOB_MIN_CHARS = 300
 
-const COMMAND_PATTERN = /^\/(start|help|status|recent|disconnect)(?:@[A-Za-z0-9_]{5,32})?\s*$/i
+const COMMAND_PATTERN = /^\/(start|help|status|recent|stats|disconnect)(?:@[A-Za-z0-9_]{5,32})?\s*$/i
 
 const HELP_TEXT = [
   "JobClock saves jobs to your applications.",
@@ -28,6 +29,7 @@ const HELP_TEXT = [
   "",
   "/status - your connection status",
   "/recent - your last 5 saved jobs",
+  "/stats - your application stats",
   "/disconnect - unlink this Telegram account",
   "/help - show this message",
 ].join("\n")
@@ -77,6 +79,11 @@ async function handleCommand(
     const connection = await getTelegramConnection(userId)
     const since = connection ? connection.connectedAt.slice(0, 10) : "unknown"
     await sendTelegramText(update.chatId, `Connected to JobClock since ${since}.`)
+    return
+  }
+
+  if (command === "stats") {
+    await sendTelegramText(update.chatId, formatStats(await getApplicationStats(userId)))
     return
   }
 
