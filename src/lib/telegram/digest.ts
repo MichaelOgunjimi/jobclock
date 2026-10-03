@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, isNotNull, lte } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { applications, jobsCache } from "@/lib/db/schema"
+import { escapeHtml } from "./client"
 import { appOrigin } from "./recent-jobs"
 import { formatStats, getApplicationStats } from "./stats"
 
@@ -15,17 +16,20 @@ export interface FollowUpItem {
   url: string
 }
 
-/** Renders the weekly digest: overdue follow-ups first, then the week's stats. */
-export function formatDigest(followUps: FollowUpItem[], statsText: string): string {
-  const parts = ["Your weekly JobClock digest"]
+/** Renders the weekly digest (Telegram HTML): overdue follow-ups first, then stats. */
+export function formatDigest(followUps: FollowUpItem[], statsHtml: string): string {
+  const parts = ["☀️ <b>Your weekly JobClock digest</b>"]
   if (followUps.length > 0) {
     parts.push(
-      `Follow-ups due:\n${followUps
-        .map((item) => `• ${item.title} at ${item.company} (due ${item.dueAt.slice(0, 10)})\n  ${item.url}`)
+      `⏰ <b>Follow-ups due</b>\n${followUps
+        .map(
+          (item) =>
+            `• <a href="${escapeHtml(item.url)}">${escapeHtml(item.title)}</a> at ${escapeHtml(item.company)} <i>(due ${item.dueAt.slice(0, 10)})</i>`
+        )
         .join("\n")}`
     )
   }
-  parts.push(statsText, "Turn this off any time with /digest off.")
+  parts.push(statsHtml, "<i>Turn this off any time with /digest off.</i>")
   return parts.join("\n\n")
 }
 

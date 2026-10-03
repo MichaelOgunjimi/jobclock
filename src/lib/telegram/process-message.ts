@@ -5,7 +5,7 @@ import { extractFirstJobUrl } from "@/lib/jobs/extract-job-url"
 import { fetchJobPage } from "@/lib/jobs/fetch-job-page"
 import { JobImportError, parseImportedJobPreview } from "@/lib/jobs/import-job"
 import { persistJobForUser } from "@/lib/jobs/persist-job"
-import { answerTelegramCallback, editTelegramText, sendTelegramText } from "./client"
+import { answerTelegramCallback, editTelegramText, sendTelegramHtml, sendTelegramText } from "./client"
 import {
   consumeTelegramPairingToken,
   disconnectTelegram,
@@ -25,16 +25,17 @@ const PASTED_JOB_MIN_CHARS = 300
 const COMMAND_PATTERN = /^\/(start|help|status|recent|stats|digest|disconnect)(?:@[A-Za-z0-9_]{5,32})?(?:\s+(on|off))?\s*$/i
 
 const HELP_TEXT = [
-  "JobClock saves jobs to your applications.",
+  "👋 <b>JobClock</b> saves jobs to your applications.",
   "",
-  "Send me a job link and I'll extract and save it. If a site blocks me, paste the job description together with the link.",
+  "🔗 <b>Send a job link</b> and I'll extract and save it. If a site blocks me, paste the job description together with the link.",
   "",
-  "/status - your connection status",
-  "/recent - your last 5 saved jobs",
-  "/stats - your application stats",
-  "/digest on|off - weekly follow-ups and stats message",
-  "/disconnect - unlink this Telegram account",
-  "/help - show this message",
+  "<b>Commands</b>",
+  "/recent – your last 5 saved jobs",
+  "/stats – your application stats",
+  "/digest on|off – weekly follow-ups and stats",
+  "/status – your connection status",
+  "/disconnect – unlink this Telegram account",
+  "/help – show this message",
 ].join("\n")
 
 const START_PATTERN = /^\/start(?:@([A-Za-z0-9_]{5,32}))?\s+([A-Za-z0-9_-]{1,64})$/i
@@ -103,7 +104,7 @@ async function handleCommand(
   }
 
   if (command === "stats") {
-    await sendTelegramText(update.chatId, formatStats(await getApplicationStats(userId)))
+    await sendTelegramHtml(update.chatId, formatStats(await getApplicationStats(userId)))
     return
   }
 
@@ -206,7 +207,7 @@ export async function processTelegramMessage(update: TelegramInboundText): Promi
     const commandMatch = update.body.trim().match(COMMAND_PATTERN)
     const command = commandMatch?.[1].toLowerCase()
     if (command === "help" || command === "start") {
-      await sendTelegramText(update.chatId, HELP_TEXT)
+      await sendTelegramHtml(update.chatId, HELP_TEXT)
       return
     }
 
