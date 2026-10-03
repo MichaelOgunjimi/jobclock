@@ -27,6 +27,11 @@ const schedules = [
     destination: `${appUrl}/api/cron/sync-companies`,
     cron: "0 */2 * * *", // every 2 hours
   },
+  {
+    name: "telegram-digest",
+    destination: `${appUrl}/api/cron/telegram-digest`,
+    cron: "0 8 * * 1", // Mondays 08:00 UTC
+  },
 ]
 
 async function main() {

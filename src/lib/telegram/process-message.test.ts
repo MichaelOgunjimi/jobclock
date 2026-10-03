@@ -19,6 +19,8 @@ vi.mock("./pairing", () => ({
   touchTelegramConnection: vi.fn(),
   disconnectTelegram: vi.fn(),
   getTelegramConnection: vi.fn(),
+  isTelegramDigestEnabled: vi.fn().mockResolvedValue(false),
+  setTelegramDigest: vi.fn(),
 }))
 vi.mock("@/lib/jobs/fetch-job-page", () => ({ fetchJobPage: vi.fn() }))
 vi.mock("@/lib/jobs/import-job", () => ({
@@ -33,7 +35,7 @@ vi.mock("@/lib/jobs/persist-job", () => ({
 import { fetchJobPage } from "@/lib/jobs/fetch-job-page"
 import { parseImportedJobPreview } from "@/lib/jobs/import-job"
 import { listRecentApplicationsForUser, persistJobForUser } from "@/lib/jobs/persist-job"
-import { disconnectTelegram, findTelegramUser } from "./pairing"
+import { disconnectTelegram, findTelegramUser, setTelegramDigest } from "./pairing"
 import { extractFirstJobUrl } from "@/lib/jobs/extract-job-url"
 import { extractTelegramStartToken, processTelegramMessage } from "./process-message"
 
@@ -105,6 +107,20 @@ describe("Telegram commands", () => {
       vi.mocked(findTelegramUser).mockResolvedValue(null)
       await processTelegramMessage(update("/help"))
       expect(mocks.sendTelegramText).toHaveBeenCalledWith("1", expect.stringContaining("/recent"))
+    })
+
+    it("stores the chat id on /digest on and clears it on /digest off", async () => {
+      await processTelegramMessage(update("/digest on"))
+      expect(setTelegramDigest).toHaveBeenLastCalledWith("user-1", "1")
+
+      await processTelegramMessage(update("/digest off"))
+      expect(setTelegramDigest).toHaveBeenLastCalledWith("user-1", null)
+    })
+
+    it("reports the digest state for a bare /digest without changing it", async () => {
+      await processTelegramMessage(update("/digest"))
+      expect(setTelegramDigest).not.toHaveBeenCalled()
+      expect(mocks.sendTelegramText).toHaveBeenCalledWith("1", expect.stringContaining("digest is off"))
     })
 
     it("replies to /stats with the formatted summary", async () => {
