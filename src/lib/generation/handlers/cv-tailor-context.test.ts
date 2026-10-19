@@ -2,6 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const { db } = vi.hoisted(() => ({ db: { select: vi.fn() } }))
 vi.mock("@/lib/db", () => ({ db }))
+vi.mock("@/lib/candidate-evidence", () => ({
+  loadConfirmedProfileFacts: vi.fn().mockResolvedValue([
+    { category: "certification", label: "AWS", detail: "AWS certified" },
+  ]),
+  formatConfirmedProfileEvidence: vi.fn(() => "- [certification] AWS: AWS certified"),
+}))
 
 import { loadCvTailorContext } from "./cv-tailor-context"
 
@@ -45,6 +51,7 @@ describe("loadCvTailorContext", () => {
     expect(ctx.location).toBe("London")
     expect(ctx.description).toBe("JD text")
     expect(ctx.cvJson).toContain("TypeScript")
+    expect(ctx.confirmedEvidence).toContain("AWS certified")
     expect(ctx.preferences).toEqual({
       ai_provider: "openai",
       allow_platform_ai_key: false,

@@ -4,6 +4,12 @@ const { db } = vi.hoisted(() => ({
   db: { select: vi.fn() },
 }))
 vi.mock("@/lib/db", () => ({ db }))
+vi.mock("@/lib/candidate-evidence", () => ({
+  loadConfirmedProfileFacts: vi.fn().mockResolvedValue([
+    { category: "education", label: "MSc AI", detail: "Distinction" },
+  ]),
+  formatConfirmedProfileEvidence: vi.fn(() => "- [education] MSc AI: Distinction"),
+}))
 vi.mock("@/lib/cover-letter/cv-context", () => ({
   buildCvContext: vi.fn((cv) => (cv ? "cv-text" : "")),
 }))
@@ -65,6 +71,7 @@ describe("loadCoverLetterContext", () => {
     expect(ctx.templateSnippet).toBe("template content")
     expect(ctx.companyResearch).toBe("ACME ships APIs")
     expect(ctx.cvContext).toBe("cv-text")
+    expect(ctx.confirmedEvidence).toContain("MSc AI")
     expect(ctx.preferences).toEqual({
       ai_provider: "openai",
       allow_platform_ai_key: false,

@@ -12,6 +12,10 @@ import { buildCvContext } from "@/lib/cover-letter/cv-context"
 import type { CvData } from "@/lib/supabase/database.types"
 import { withPlatformAiKeyAccess, type UserPreferences } from "@/lib/ai"
 import type { GenerationJob } from "../jobs"
+import {
+  formatConfirmedProfileEvidence,
+  loadConfirmedProfileFacts,
+} from "@/lib/candidate-evidence"
 
 export interface CoverLetterContext {
   userId: string
@@ -20,6 +24,7 @@ export interface CoverLetterContext {
   company: string
   description: string
   cvContext: string
+  confirmedEvidence: string
   templateSnippet: string
   companyResearch: string | undefined
   tone: string
@@ -33,7 +38,7 @@ export async function loadCoverLetterContext(
   const userId = job.userId
 
   // Round 1: application + profile in parallel
-  const [appRows, profileRows] = await Promise.all([
+  const [appRows, profileRows, profileFacts] = await Promise.all([
     db
       .select({
         selectedCvId: applications.selectedCvId,
@@ -56,6 +61,7 @@ export async function loadCoverLetterContext(
       })
       .from(profiles)
       .where(eq(profiles.id, userId)),
+    loadConfirmedProfileFacts(userId),
   ])
 
   const app = appRows[0]
@@ -117,6 +123,7 @@ export async function loadCoverLetterContext(
     company: app.customCompany ?? app.company ?? "the company",
     description,
     cvContext: buildCvContext(cvParsed),
+    confirmedEvidence: formatConfirmedProfileEvidence(profileFacts),
     templateSnippet: structure?.content ?? "",
     companyResearch,
     tone,

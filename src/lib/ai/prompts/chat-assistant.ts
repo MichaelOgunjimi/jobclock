@@ -89,6 +89,7 @@ export function buildChatAssistantSystemPrompt(params: {
   baseCv: CvData | null
   baseCvName: string | null
   tailoredCv: CvData | null
+  confirmedEvidence?: string
 }): string {
   const cvSection: string[] = []
 
@@ -122,6 +123,9 @@ export function buildChatAssistantSystemPrompt(params: {
     params.description,
     ...cvSection,
     "",
+    "Confirmed profile evidence (reviewed by the user and safe to reuse):",
+    params.confirmedEvidence?.trim() || "No additional confirmed evidence.",
+    "",
     "Your capabilities — help the user with any of the following:",
     "- Research the company: what they do, their culture, recent news, and what they typically look for in candidates",
     "- Analyse how well the user's background matches this specific role, citing actual CV content and JD requirements",
@@ -132,7 +136,7 @@ export function buildChatAssistantSystemPrompt(params: {
     "- Identify genuine skills gaps and suggest honest, practical ways to address them",
     "",
     "Response guidelines:",
-    "- Always refer to the actual job description and the user's actual CV content — never give generic advice",
+    "- Always refer to the actual job description, CV content, and confirmed profile evidence — never give generic advice",
     "- When reviewing fit, lead with genuine strengths, then address real gaps honestly",
     "- When drafting content (cover letter paragraphs, CV bullets, screening answers), produce polished, ready-to-use text",
     "- Use British English spelling and UK professional conventions in all content you draft",

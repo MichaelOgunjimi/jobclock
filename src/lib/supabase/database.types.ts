@@ -108,6 +108,99 @@ export type Database = {
 				};
 				Relationships: [];
 			};
+			profile_documents: {
+				Row: {
+					id: string;
+					user_id: string;
+					type: string;
+					name: string;
+					issuer: string | null;
+					issued_at: string | null;
+					expires_at: string | null;
+					credential_id: string | null;
+					credential_url: string | null;
+					original_file_path: string;
+					mime_type: string;
+					file_size: number;
+					created_at: string;
+					updated_at: string;
+				};
+				Insert: {
+					id?: string;
+					user_id: string;
+					type: string;
+					name: string;
+					issuer?: string | null;
+					issued_at?: string | null;
+					expires_at?: string | null;
+					credential_id?: string | null;
+					credential_url?: string | null;
+					original_file_path: string;
+					mime_type: string;
+					file_size: number;
+					created_at?: string;
+					updated_at?: string;
+				};
+				Update: {
+					id?: string;
+					user_id?: string;
+					type?: string;
+					name?: string;
+					issuer?: string | null;
+					issued_at?: string | null;
+					expires_at?: string | null;
+					credential_id?: string | null;
+					credential_url?: string | null;
+					original_file_path?: string;
+					mime_type?: string;
+					file_size?: number;
+					created_at?: string;
+					updated_at?: string;
+				};
+				Relationships: [];
+			};
+			interview_profile_facts: {
+				Row: {
+					id: string;
+					user_id: string;
+					category: string;
+					label: string;
+					detail: string;
+					source_type: string;
+					source_ref: string | null;
+					source_document_id: string | null;
+					confirmed_at: string | null;
+					created_at: string;
+					updated_at: string;
+				};
+				Insert: {
+					id?: string;
+					user_id: string;
+					category: string;
+					label: string;
+					detail: string;
+					source_type: string;
+					source_ref?: string | null;
+					source_document_id?: string | null;
+					confirmed_at?: string | null;
+					created_at?: string;
+					updated_at?: string;
+				};
+				Update: {
+					id?: string;
+					user_id?: string;
+					category?: string;
+					label?: string;
+					detail?: string;
+					source_type?: string;
+					source_ref?: string | null;
+					source_document_id?: string | null;
+					confirmed_at?: string | null;
+					created_at?: string;
+					updated_at?: string;
+				};
+				Relationships: [];
+			};
 			jobs_cache: {
 				Row: {
 					id: string;

@@ -124,9 +124,14 @@ function FactRow({
           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             {formatCategory(fact.category)}
           </p>
-          {fact.isCurrentSource && (
+          {fact.sourceType === "cv" && fact.isCurrentSource && (
             <span className="mt-2 inline-flex border border-border bg-card px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-foreground">
               Current CV
+            </span>
+          )}
+          {fact.sourceType === "document" && (
+            <span className="mt-2 inline-flex border border-border bg-card px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-foreground">
+              Profile document
             </span>
           )}
         </div>
