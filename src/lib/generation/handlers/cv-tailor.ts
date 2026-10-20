@@ -81,6 +81,7 @@ export function selectTailoredSkills(
   cvJson: string,
   tailoringPlan: CvTailoringPlan,
   generatedSkills: string[] | undefined,
+  confirmedSkills: string[] = [],
 ): string[] {
   const originalSkills: string[] = []
   try {
@@ -95,6 +96,7 @@ export function selectTailoredSkills(
             Array.isArray(project?.technologies) ? project.technologies : []
           )
         : []),
+      ...confirmedSkills,
     ]
     const seen = new Set<string>()
     for (const skill of explicitSkills) {
@@ -151,7 +153,7 @@ export async function cvTailorHandler(job: GenerationJob): Promise<string> {
   const ctx = await loadCvTailorContext(job)
   const { settings, apiKey } = resolveAiConfig(ctx.preferences)
 
-  const { title, company, location, description, cvJson } = ctx
+  const { title, company, location, description, cvJson, confirmedEvidence } = ctx
 
   const jobAnalysis: JobAnalysis = parseStage(
     await generateText(settings, apiKey, STAGE_B_SYSTEM_PROMPT, buildStageBUserPrompt({ title, company, location, description })),
@@ -160,20 +162,20 @@ export async function cvTailorHandler(job: GenerationJob): Promise<string> {
   )
 
   const matchAnalysis: CvMatchAnalysis = parseStage(
-    await generateText(settings, apiKey, STAGE_C_SYSTEM_PROMPT, buildStageCUserPrompt({ jobAnalysis, cvJson })),
+    await generateText(settings, apiKey, STAGE_C_SYSTEM_PROMPT, buildStageCUserPrompt({ jobAnalysis, cvJson, confirmedEvidence })),
     cvMatchAnalysisSchema,
     "Stage C",
   )
 
   const tailoringPlan: CvTailoringPlan = parseStage(
-    await generateText(settings, apiKey, STAGE_D_SYSTEM_PROMPT, buildStageDUserPrompt({ jobAnalysis, matchAnalysis, cvJson })),
+    await generateText(settings, apiKey, STAGE_D_SYSTEM_PROMPT, buildStageDUserPrompt({ jobAnalysis, matchAnalysis, cvJson, confirmedEvidence })),
     cvTailoringPlanSchema,
     "Stage D",
   )
 
   const result = parseStage(
     // Stage E can stream up to ~16k tokens of tailored CV; allow more headroom than the default 60s cap.
-    await generateText(settings, apiKey, STAGE_E_SYSTEM_PROMPT, buildStageEUserPrompt({ jobAnalysis, cvJson, tailoringPlan, title, company, location }), 16384, { timeoutMs: 180_000 }),
+    await generateText(settings, apiKey, STAGE_E_SYSTEM_PROMPT, buildStageEUserPrompt({ jobAnalysis, cvJson, tailoringPlan, title, company, location, confirmedEvidence }), 16384, { timeoutMs: 180_000 }),
     tailoredCvResultSchema,
     "Stage E",
   )
@@ -182,7 +184,14 @@ export async function cvTailorHandler(job: GenerationJob): Promise<string> {
 
   const constrainedCv = {
     ...result.cv,
-    skills: selectTailoredSkills(ctx.cvJson, tailoringPlan, result.cv.skills),
+    skills: selectTailoredSkills(
+      ctx.cvJson,
+      tailoringPlan,
+      result.cv.skills,
+      (ctx.profileFacts ?? [])
+        .filter((fact) => fact.category === "skill")
+        .map((fact) => fact.label),
+    ),
   }
 
   const skillsGap: StoredSkillsGap = {

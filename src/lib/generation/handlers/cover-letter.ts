@@ -31,6 +31,7 @@ export async function coverLetterHandler(job: GenerationJob): Promise<string> {
     company: ctx.company,
     description: ctx.description,
     cvContext: ctx.cvContext,
+    confirmedEvidence: ctx.confirmedEvidence,
     templateSnippet: ctx.templateSnippet,
     companyResearch,
   })

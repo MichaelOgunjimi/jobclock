@@ -77,6 +77,7 @@ export function buildCoverLetterUserPrompt(params: {
 	company: string;
 	description: string;
 	cvContext: string;
+	confirmedEvidence?: string;
 	templateSnippet?: string;
 	companyResearch?: string;
 }): string {
@@ -89,6 +90,9 @@ ${params.description}
 
 ### CANDIDATE BACKGROUND
 ${params.cvContext}
+
+### CONFIRMED PROFILE EVIDENCE
+${params.confirmedEvidence?.trim() || "No additional confirmed evidence."}
 
 ${
 	params.companyResearch?.trim() ?

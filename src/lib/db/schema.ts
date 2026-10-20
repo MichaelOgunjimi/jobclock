@@ -73,6 +73,33 @@ export const userCvs = pgTable("user_cvs", {
 })
 
 // ============================================================
+// PROFILE DOCUMENTS
+// ============================================================
+
+export const profileDocuments = pgTable(
+  "profile_documents",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    name: text("name").notNull(),
+    issuer: text("issuer"),
+    issuedAt: date("issued_at"),
+    expiresAt: date("expires_at"),
+    credentialId: text("credential_id"),
+    credentialUrl: text("credential_url"),
+    originalFilePath: text("original_file_path").notNull(),
+    mimeType: text("mime_type").notNull(),
+    fileSize: integer("file_size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("profile_documents_user_id_idx").on(table.userId)],
+)
+
+// ============================================================
 // JOBS CACHE
 // ============================================================
 
@@ -464,12 +491,17 @@ export const interviewProfileFacts = pgTable(
     detail: text("detail").notNull(),
     sourceType: text("source_type").notNull(),
     sourceRef: text("source_ref"),
+    sourceDocumentId: uuid("source_document_id").references(
+      () => profileDocuments.id,
+      { onDelete: "cascade" },
+    ),
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("interview_profile_facts_user_id_idx").on(table.userId),
+    index("interview_profile_facts_source_document_id_idx").on(table.sourceDocumentId),
     uniqueIndex("interview_profile_facts_user_source_unique")
       .on(table.userId, table.sourceType, table.sourceRef),
   ],

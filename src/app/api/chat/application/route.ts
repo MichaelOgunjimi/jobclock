@@ -5,6 +5,7 @@ import type { AiSettings, UserPreferences } from "@/lib/ai"
 import type { AppWithJob, CvData } from "@/lib/supabase/database.types"
 import { buildChatAssistantSystemPrompt } from "@/lib/ai/prompts"
 import { chatRateLimit } from "@/lib/rate-limit"
+import { formatConfirmedProfileEvidence } from "@/lib/candidate-evidence"
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null
@@ -65,7 +66,12 @@ export async function POST(request: NextRequest) {
   // applications.selected_cv_id = FK to user_cvs.id (user-selected base CV).
   // Tailored CV lives in customized_cvs keyed by application_id.
   const selectedCvId = typedApp.selected_cv_id
-  const [{ data: profile }, { data: tailoredCvRow }, { data: baseCvRow }] = await Promise.all([
+  const [
+    { data: profile },
+    { data: tailoredCvRow },
+    { data: baseCvRow },
+    { data: profileFacts },
+  ] = await Promise.all([
     supabase
       .from("profiles")
       .select("preferences, allow_platform_ai_key")
@@ -84,6 +90,11 @@ export async function POST(request: NextRequest) {
     selectedCvId
       ? supabase.from("user_cvs").select("parsed_json, name").eq("id", selectedCvId).eq("user_id", user.id).single()
       : supabase.from("user_cvs").select("parsed_json, name").eq("user_id", user.id).eq("is_primary", true).maybeSingle(),
+    supabase
+      .from("interview_profile_facts")
+      .select("category, label, detail")
+      .eq("user_id", user.id)
+      .neq("confirmed_at", null),
   ])
 
   const prefs = withPlatformAiKeyAccess(
@@ -127,6 +138,7 @@ export async function POST(request: NextRequest) {
     baseCv: (baseCvRow?.parsed_json ?? null) as CvData | null,
     baseCvName: baseCvRow?.name ?? null,
     tailoredCv: (tailoredCvRow?.cv_json ?? null) as CvData | null,
+    confirmedEvidence: formatConfirmedProfileEvidence(profileFacts ?? []),
   })
 
   try {

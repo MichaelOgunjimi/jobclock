@@ -1,10 +1,14 @@
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
+import { and, desc, eq, isNotNull } from "drizzle-orm"
 import { Code2, ExternalLink, Globe, Link2, Mail, Phone } from "lucide-react"
+import { db } from "@/lib/db"
+import { interviewProfileFacts, profileDocuments } from "@/lib/db/schema"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AccountForm } from "./account-form"
+import { ProfileDocuments } from "./profile-documents"
 import { toExternalProfileHref } from "./account-link-utils"
 
 export const metadata: Metadata = { title: "Account" }
@@ -19,11 +23,27 @@ export default async function AccountPage() {
 
   if (!user) redirect("/auth")
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, phone, linkedin_url, github_url, portfolio_url, avatar_url")
-    .eq("id", user.id)
-    .single()
+  const [{ data: profile }, documents, documentFacts] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name, phone, linkedin_url, github_url, portfolio_url, avatar_url")
+      .eq("id", user.id)
+      .single(),
+    db
+      .select()
+      .from(profileDocuments)
+      .where(eq(profileDocuments.userId, user.id))
+      .orderBy(desc(profileDocuments.createdAt)),
+    db
+      .select()
+      .from(interviewProfileFacts)
+      .where(
+        and(
+          eq(interviewProfileFacts.userId, user.id),
+          isNotNull(interviewProfileFacts.sourceDocumentId),
+        ),
+      ),
+  ])
 
   const summaryItems = [
     { label: "Email", value: user.email ?? null, placeholder: "Not set", icon: Mail, href: user.email ? `mailto:${user.email}` : null },
@@ -92,6 +112,23 @@ export default async function AccountPage() {
           }}
         />
       </div>
+
+      <ProfileDocuments
+        initialDocuments={documents.map((document) => ({
+          ...document,
+          createdAt: document.createdAt.toISOString(),
+          updatedAt: document.updatedAt.toISOString(),
+          facts: documentFacts
+            .filter((fact) => fact.sourceDocumentId === document.id)
+            .map((fact) => ({
+              id: fact.id,
+              category: fact.category,
+              label: fact.label,
+              detail: fact.detail,
+              confirmedAt: fact.confirmedAt?.toISOString() ?? null,
+            })),
+        }))}
+      />
     </div>
   )
 }
