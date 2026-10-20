@@ -173,7 +173,7 @@ export function PipelineSankeyCanvas({ metrics, links, maxLinkCount, focusedStat
 
   return (
     <div className="relative overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-border bg-secondary/20 px-4 py-3">
+      <div className="flex flex-col items-start justify-between gap-3 border-b border-border bg-secondary/20 px-4 py-3 sm:flex-row sm:items-center">
         <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             <Move className="h-3.5 w-3.5" />
@@ -185,7 +185,7 @@ export function PipelineSankeyCanvas({ metrics, links, maxLinkCount, focusedStat
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex max-w-full flex-wrap items-center gap-2">
           <div className="inline-flex items-center border border-border bg-background">
             <button
               type="button"

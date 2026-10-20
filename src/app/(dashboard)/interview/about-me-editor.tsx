@@ -392,7 +392,7 @@ export function AboutMeEditor({
               <select
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
-                className="h-11 w-full border border-border bg-background px-3 text-sm capitalize"
+                className="form-select h-11 capitalize"
               >
                 {[
                   "summary",

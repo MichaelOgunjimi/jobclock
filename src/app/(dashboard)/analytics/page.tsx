@@ -184,11 +184,11 @@ export default async function AnalyticsPage({
               <CardContent className="p-0">
                 <div className="border-b border-border px-6 py-5">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="inline-flex h-9 w-9 items-center justify-center border border-border bg-secondary/60">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center border border-border bg-secondary/60">
                         <GitBranch className="h-4 w-4 text-muted-foreground" />
                       </span>
-                      <div>
+                      <div className="min-w-0">
                         <CardTitle className="text-base">Application flow</CardTitle>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {focusOption
@@ -254,7 +254,7 @@ export default async function AnalyticsPage({
                 )
               })}
             </div>
-            <div className="mt-5 flex gap-8 border-t border-border pt-4">
+            <div className="mt-5 grid grid-cols-2 gap-4 border-t border-border pt-4 sm:flex sm:gap-8">
               {(["rejected", "withdrawn", "ghosted"] as ApplicationStatus[]).map((s) => (
                 <div key={s}>
                   <p className="text-xs text-muted-foreground">{STATUS_LABELS[s]}</p>
@@ -262,7 +262,7 @@ export default async function AnalyticsPage({
                 </div>
               ))}
               {avgDaysToApply !== null && (
-                <div className="ml-auto">
+                <div className="col-span-2 sm:ml-auto">
                   <p className="text-xs text-muted-foreground">Avg. days saved &gt; applied</p>
                   <p className="font-heading text-2xl">{avgDaysToApply}</p>
                 </div>

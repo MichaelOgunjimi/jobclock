@@ -125,7 +125,7 @@ export function QuestionLibrary({
             onChange={(event) =>
               setCategory(event.target.value as InterviewQuestionCategory)
             }
-            className="h-9 w-full border border-border bg-background px-3 text-sm"
+            className="form-select h-9"
           >
             {Object.entries(categoryLabels).map(([value, label]) => (
               <option key={value} value={value}>
@@ -153,7 +153,7 @@ export function QuestionLibrary({
         </div>
       )}
 
-      <div className="max-h-[640px] overflow-y-auto p-2">
+      <div className="p-2 xl:max-h-[640px] xl:overflow-y-auto">
         {filtered.map((question, index) => (
           <button
             type="button"
