@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { SelectInput } from "@/components/ui/select"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { saveJob, ignoreJob } from "./actions"
@@ -47,6 +48,12 @@ const JOBS_PER_PAGE = 20
 // requests triggered their rate-limiter). Pool still grows globally sorted
 // as the user loads more — each load appends one new page per source.
 const BATCH_SIZE = 1
+
+const JOB_SORT_OPTIONS = [
+  { value: "relevance", label: "Relevance" },
+  { value: "date", label: "Most recent" },
+  { value: "salary", label: "Salary" },
+] as const
 
 function sortJobsBy(jobs: Job[], by: "relevance" | "date" | "salary"): Job[] {
   if (by === "date") {
@@ -366,20 +373,15 @@ export function JobsFeed({
 
           <div className="space-y-2">
             <Label htmlFor="sort">Sort by</Label>
-            <select
+            <SelectInput
               id="sort"
               value={sortBy}
-              onChange={(e) => {
-                const val = e.target.value as typeof sortBy
-                setSortBy(val)
-                if (hasSearched) void fetchBatch(1, false, [], val)
+              onValueChange={(value) => {
+                setSortBy(value)
+                if (hasSearched) void fetchBatch(1, false, [], value)
               }}
-              className="form-select"
-            >
-              <option value="relevance">Relevance</option>
-              <option value="date">Most recent</option>
-              <option value="salary">Salary</option>
-            </select>
+              options={JOB_SORT_OPTIONS}
+            />
           </div>
 
           {/* Experience level chips */}

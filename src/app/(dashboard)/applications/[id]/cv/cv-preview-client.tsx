@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { SelectInput } from "@/components/ui/select"
 import { GenerationProgress } from "@/components/generation-progress"
 import { useGenerationJobsContext } from "@/contexts/generation-jobs-context"
 import { useDownloadPdf } from "@/hooks/use-download-pdf"
@@ -23,6 +24,11 @@ import {
 } from "@/components/cv/templates/cv-template-renderer"
 import { saveCustomizedCvData, saveTemplatePreference } from "./actions"
 import { applicationPath } from "@/lib/applications/path"
+
+const TEMPLATE_OPTIONS = CV_TEMPLATE_NAMES.map((value) => ({
+  value,
+  label: CV_TEMPLATE_LABELS[value],
+}))
 
 interface Props {
   customizedCvId: string
@@ -180,18 +186,13 @@ function TemplateSwitcher({
       </div>
 
       <div className="sm:hidden">
-        <select
+        <SelectInput
           value={value}
-          onChange={(event) => onChange(event.target.value as CvTemplateName)}
-          className="form-select h-10 min-w-[10rem] bg-background text-[12px]"
+          onValueChange={onChange}
+          options={TEMPLATE_OPTIONS}
+          className="h-10 min-w-[10rem] bg-background text-[12px]"
           aria-label="Select CV template"
-        >
-          {CV_TEMPLATE_NAMES.map((template) => (
-            <option key={template} value={template}>
-              {CV_TEMPLATE_LABELS[template]}
-            </option>
-          ))}
-        </select>
+        />
       </div>
     </>
   )

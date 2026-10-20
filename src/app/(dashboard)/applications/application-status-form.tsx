@@ -1,9 +1,10 @@
 "use client"
 
 import { useFormStatus } from "react-dom"
-import { ChevronDown, CircleDot, Loader2 } from "lucide-react"
+import { CircleDot, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { SelectInput } from "@/components/ui/select"
 
 interface StatusOption {
   value: string
@@ -32,21 +33,15 @@ function ApplicationStatusControls({
           Stage
         </Label>
         <div className="relative">
-          <CircleDot className="pointer-events-none absolute top-1/2 left-3.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <ChevronDown className="pointer-events-none absolute top-1/2 right-4 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <select
+          <CircleDot className="pointer-events-none absolute top-1/2 left-3.5 z-10 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <SelectInput
             id={selectId}
             name="status"
             defaultValue={currentStatus}
             disabled={pending || !canChange}
-            className="form-select min-w-[15rem] bg-none pl-10 pr-14 disabled:cursor-wait disabled:opacity-60"
-          >
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            options={statusOptions}
+            className="min-w-[15rem] pl-10 disabled:cursor-wait disabled:opacity-60"
+          />
         </div>
       </div>
       <Button type="submit" size="default" className="w-full sm:w-auto" disabled={pending || !canChange} aria-live="polite">

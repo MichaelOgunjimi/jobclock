@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SelectInput } from "@/components/ui/select"
 import {
   PROFILE_DOCUMENT_ACCEPTED_TYPES,
   PROFILE_DOCUMENT_MAX_BYTES,
@@ -35,6 +36,16 @@ const FACT_CATEGORIES = [
   "experience",
   "project",
 ] as const
+
+const PROFILE_DOCUMENT_TYPE_OPTIONS = PROFILE_DOCUMENT_TYPES.map((value) => ({
+  value,
+  label: PROFILE_DOCUMENT_TYPE_LABELS[value],
+}))
+
+const FACT_CATEGORY_OPTIONS = FACT_CATEGORIES.map((value) => ({
+  value,
+  label: value,
+}))
 
 interface DocumentFact {
   id?: string
@@ -202,16 +213,13 @@ function DocumentEditor({
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-1.5">
               <Label htmlFor={`${document.id}-type`}>Document type</Label>
-              <select
+              <SelectInput
                 id={`${document.id}-type`}
                 value={draft.type}
-                onChange={(event) => setDraft({ ...draft, type: event.target.value })}
-                className="h-10 w-full border border-border bg-background px-3 text-sm"
-              >
-                {PROFILE_DOCUMENT_TYPES.map((type) => (
-                  <option key={type} value={type}>{PROFILE_DOCUMENT_TYPE_LABELS[type]}</option>
-                ))}
-              </select>
+                onValueChange={(value) => setDraft({ ...draft, type: value })}
+                options={PROFILE_DOCUMENT_TYPE_OPTIONS}
+                className="h-10 bg-background px-3 text-sm"
+              />
             </div>
             <div className="space-y-1.5 md:col-span-2">
               <Label htmlFor={`${document.id}-name`}>Name</Label>
@@ -251,14 +259,13 @@ function DocumentEditor({
             </div>
             {draft.facts.map((fact, index) => (
               <div key={fact.id ?? index} className="grid gap-3 border border-border bg-secondary/40 p-3 lg:grid-cols-[180px_0.8fr_1.5fr_auto]">
-                <select
+                <SelectInput
                   aria-label={`Fact ${index + 1} category`}
                   value={fact.category}
-                  onChange={(event) => updateFact(index, { category: event.target.value })}
-                  className="h-10 border border-border bg-background px-3 text-sm capitalize"
-                >
-                  {FACT_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
-                </select>
+                  onValueChange={(value) => updateFact(index, { category: value })}
+                  options={FACT_CATEGORY_OPTIONS}
+                  className="h-10 bg-background px-3 text-sm capitalize"
+                />
                 <Input value={fact.label} onChange={(event) => updateFact(index, { label: event.target.value })} aria-label={`Fact ${index + 1} title`} />
                 <Input value={fact.detail} onChange={(event) => updateFact(index, { detail: event.target.value })} aria-label={`Fact ${index + 1} detail`} />
                 <Button
@@ -341,9 +348,13 @@ export function ProfileDocuments({ initialDocuments }: { initialDocuments: Profi
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <select value={type} onChange={(event) => setType(event.target.value as ProfileDocumentType)} className="h-10 border border-border bg-background px-3 text-sm">
-              {PROFILE_DOCUMENT_TYPES.map((value) => <option key={value} value={value}>{PROFILE_DOCUMENT_TYPE_LABELS[value]}</option>)}
-            </select>
+            <SelectInput
+              value={type}
+              onValueChange={setType}
+              options={PROFILE_DOCUMENT_TYPE_OPTIONS}
+              className="h-10 w-auto min-w-52 bg-background px-3 text-sm"
+              aria-label="Document type"
+            />
             <Button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}>
               {uploading ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : <Upload className="mr-1.5 size-4" />}
               {uploading ? "Extracting evidence…" : "Upload document"}
