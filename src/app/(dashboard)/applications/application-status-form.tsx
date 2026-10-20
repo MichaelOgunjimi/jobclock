@@ -26,20 +26,20 @@ function ApplicationStatusControls({
   const canChange = statusOptions.some((option) => option.value !== currentStatus)
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-      <div className="space-y-2">
+    <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-end">
+      <div className="w-full space-y-2 sm:w-auto">
         <Label htmlFor={selectId} className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           Stage
         </Label>
-        <div className="relative">
+        <div className="relative w-full">
           <CircleDot className="pointer-events-none absolute top-1/2 left-3.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <ChevronDown className="pointer-events-none absolute top-1/2 right-4 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <ChevronDown className="pointer-events-none absolute top-1/2 right-6 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <select
             id={selectId}
             name="status"
             defaultValue={currentStatus}
             disabled={pending || !canChange}
-            className="form-select min-w-[15rem] bg-none pl-10 pr-14 disabled:cursor-wait disabled:opacity-60"
+            className="form-select min-w-0 bg-none pl-10 pr-16 disabled:cursor-wait disabled:opacity-60 sm:min-w-[15rem]"
           >
             {statusOptions.map((option) => (
               <option key={option.value} value={option.value}>

@@ -200,7 +200,7 @@ export default async function ApplicationsPage({
             </p>
           </div>
         </div>
-        <Link href="/jobs" className={buttonVariants({ size: "default" })}>
+        <Link href="/jobs" className={cn(buttonVariants({ size: "default" }), "w-full justify-center md:w-auto")}>
             <Plus className="h-4 w-4" />
             Find roles
         </Link>
@@ -221,7 +221,7 @@ export default async function ApplicationsPage({
         <div className="space-y-4">
           <ApplicationsFilterBar
             counts={statusCounts}
-            total={totalApplications ?? 0}
+            total={(applicationStatuses ?? []).length}
             activeStatus={activeStatus}
             activeSort={activeSort}
             activeSearch={activeSearch}
@@ -293,19 +293,19 @@ export default async function ApplicationsPage({
                 />
 
                 <div className="space-y-0">
-                  <div className="pointer-events-none space-y-5 px-6 py-6 sm:px-7">
+                  <div className="pointer-events-none space-y-5 px-5 py-6 sm:px-7">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                          <span>{company}</span>
+                      <div className="min-w-0 space-y-3">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                          <span className="min-w-0 break-words">{company}</span>
                           {app.source && (
                             <>
                               <span className="text-border">/</span>
-                              <span>via {app.source}</span>
+                              <span className="min-w-0 break-words">via {app.source}</span>
                             </>
                           )}
                         </div>
-                        <CardTitle className="max-w-3xl text-[1.45rem] leading-[1.04] transition-colors group-hover:text-foreground/82 sm:text-[1.65rem]">
+                        <CardTitle className="max-w-3xl break-words text-[1.45rem] leading-[1.04] transition-colors group-hover:text-foreground/82 sm:text-[1.65rem]">
                           {title}
                         </CardTitle>
                       </div>
@@ -318,15 +318,15 @@ export default async function ApplicationsPage({
 
                     <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
                       {location && (
-                        <span className="inline-flex items-center gap-1.5 border border-border bg-secondary/45 px-3 py-1.5">
-                          <MapPin className="h-3.5 w-3.5" />
-                          {location}
+                        <span className="inline-flex max-w-full items-center gap-1.5 border border-border bg-secondary/45 px-3 py-1.5">
+                          <MapPin className="h-3.5 w-3.5 shrink-0" />
+                          <span className="min-w-0 break-words">{location}</span>
                         </span>
                       )}
                       {salaryLabel && (
-                        <span className="inline-flex items-center gap-1.5 border border-border bg-secondary/45 px-3 py-1.5">
-                          <Wallet className="h-3.5 w-3.5" />
-                          {salaryLabel}
+                        <span className="inline-flex max-w-full items-center gap-1.5 border border-border bg-secondary/45 px-3 py-1.5">
+                          <Wallet className="h-3.5 w-3.5 shrink-0" />
+                          <span className="min-w-0 break-words">{salaryLabel}</span>
                         </span>
                       )}
                       <span className="inline-flex items-center gap-1.5 border border-border bg-secondary/45 px-3 py-1.5">
@@ -382,7 +382,7 @@ export default async function ApplicationsPage({
                     </div>
                   </div>
 
-                  <div className="pointer-events-auto relative z-20 border-t border-border bg-secondary/35 px-6 py-5 sm:px-7">
+                  <div className="pointer-events-auto relative z-20 border-t border-border bg-secondary/35 px-5 py-5 sm:px-7">
                     <ApplicationStatusForm
                       applicationId={app.id}
                       currentStatus={app.status}

@@ -171,12 +171,12 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
         </div>
 
         {/* Sort dropdown */}
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:shrink-0">
           <span className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted-foreground">Sort</span>
           <select
             value={activeSort}
             onChange={handleSortChange}
-            className="border border-border bg-background px-3 py-1.5 text-[12px] text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
+            className="form-select h-9 min-w-0 flex-1 bg-background text-[12px] sm:w-auto sm:min-w-[8rem] sm:flex-none"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>

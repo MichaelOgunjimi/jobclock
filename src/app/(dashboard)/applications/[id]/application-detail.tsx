@@ -564,15 +564,32 @@ function ApplicationChatPanel({
         )}
         <div ref={messagesEndRef} />
       </div>
-      <form onSubmit={onSubmit} className="flex gap-2 border-t pt-4">
-        <Input
+      <form onSubmit={onSubmit} className="flex items-end gap-2 border-t pt-4">
+        <textarea
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return
+            event.preventDefault()
+            event.currentTarget.form?.requestSubmit()
+          }}
           placeholder="Ask about the company, role, or application…"
           aria-label="Message"
-          className="flex-1"
+          aria-describedby="application-chat-input-hint"
+          rows={1}
+          maxLength={10_000}
+          enterKeyHint="send"
+          className="field-sizing-content max-h-40 min-h-11 flex-1 resize-none overflow-y-auto border border-input bg-muted px-4 py-3 text-[13px] leading-5 tracking-[0.02em] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/15"
         />
-        <Button type="submit" size="default" disabled={isLoading || !input.trim()}>
+        <span id="application-chat-input-hint" className="sr-only">
+          Press Enter to send. Press Shift and Enter for a new line.
+        </span>
+        <Button
+          type="submit"
+          size="default"
+          disabled={isLoading || !input.trim()}
+          aria-label={isLoading ? "Sending message" : "Send message"}
+        >
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
@@ -703,7 +720,7 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
             </Button>
           </CardAction>
         </CardHeader>
-        <CardContent className="flex h-[560px] flex-col pt-0 md:h-[640px]">
+        <CardContent className="flex h-[420px] flex-col pt-0 sm:h-[560px] md:h-[640px]">
           {!isExpanded && (
             <ApplicationChatPanel
               messages={messages}
@@ -725,7 +742,7 @@ function ApplicationChat({ applicationId }: { applicationId: string }) {
             role="dialog"
             aria-modal="true"
             aria-labelledby="expanded-application-chat-title"
-            className="flex h-[85vh] w-full max-w-5xl flex-col border border-border bg-background shadow-lg"
+            className="flex h-[85dvh] w-full max-w-5xl flex-col border border-border bg-background shadow-lg"
           >
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div>
@@ -1085,7 +1102,7 @@ function CoverLetterCard({
         <div className="space-y-2">
           <div className="space-y-1.5">
             <Label htmlFor="writing-style-select">Writing Style</Label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
               <select
                 id="writing-style-select"
                 value={selectedStructureId}
@@ -1103,7 +1120,7 @@ function CoverLetterCard({
               <button
                 type="button"
                 onClick={() => setShowToneOverride((v) => !v)}
-                className="shrink-0 text-[11px] text-muted-foreground hover:text-foreground transition-colors border border-border px-2 py-1.5"
+                className="w-full shrink-0 border border-border px-2 py-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground sm:w-auto"
               >
                 {TONES.find((t) => t.value === selectedTone)?.label ?? "Tone"}
               </button>
@@ -1132,7 +1149,7 @@ function CoverLetterCard({
 
         {/* AI generation section */}
         <div className="border-t pt-4 space-y-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             {!activeJob && (
               <Button
                 type="button"
@@ -1229,12 +1246,12 @@ function DeleteButton({ applicationId }: { applicationId: string }) {
 
   if (confirming) {
     return (
-      <div className="flex w-full gap-2 sm:w-auto">
+      <div className="flex w-full gap-2 xl:w-auto">
         <Button
           type="button"
           size="sm"
           variant="destructive"
-          className="flex-1 sm:flex-none"
+          className="flex-1 xl:flex-none"
           disabled={pending}
           onClick={() => startTransition(async () => { await deleteApplication(applicationId) })}
         >
@@ -1259,7 +1276,7 @@ function DeleteButton({ applicationId }: { applicationId: string }) {
       type="button"
       size="sm"
       variant="ghost"
-      className="w-full justify-center text-muted-foreground hover:text-destructive sm:w-auto"
+      className="w-full justify-center text-muted-foreground hover:text-destructive xl:w-auto"
       onClick={() => setConfirming(true)}
     >
       <Trash2 className="h-3.5 w-3.5" />
@@ -1382,7 +1399,7 @@ export function InlineJobDetail({
       aria-label={`Edit ${label}: ${effectiveValue || fallback}`}
       title={`Edit ${label}`}
     >
-      <span className="min-w-0 truncate">{effectiveValue || fallback}</span>
+      <span className="min-w-0 break-words">{effectiveValue || fallback}</span>
       <Pencil className="h-3.5 w-3.5 shrink-0 opacity-45 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
     </button>
   )
@@ -1454,8 +1471,8 @@ export function ApplicationDetail({
   return (
     <div className="page-shell">
       {/* Page header */}
-      <div className="page-header">
-        <div className="space-y-3">
+      <div className="flex flex-col gap-5 border-b pb-6 xl:flex-row xl:items-end xl:justify-between">
+        <div className="min-w-0 flex-1 space-y-3">
           <p className="page-kicker">Application</p>
           <div className="space-y-2">
             <InlineJobDetail
@@ -1465,9 +1482,9 @@ export function ApplicationDetail({
               extractedValue={job?.title ?? null}
               initialOverride={application.custom_title}
               fallback="Unknown Role"
-              displayClassName="page-title"
+              displayClassName="page-title text-[clamp(2rem,9vw,3rem)]"
             />
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
+            <div className="flex flex-col items-start gap-1 text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2">
               <InlineJobDetail
                 applicationId={application.id}
                 field="company"
@@ -1477,7 +1494,7 @@ export function ApplicationDetail({
                 fallback="Unknown company"
                 displayClassName="page-lede"
               />
-              <span aria-hidden="true">·</span>
+              <span aria-hidden="true" className="hidden sm:inline">·</span>
               <InlineJobDetail
                 applicationId={application.id}
                 field="location"
@@ -1504,24 +1521,24 @@ export function ApplicationDetail({
             </Badge>
           </div>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:w-auto xl:max-w-[40rem] xl:flex-wrap xl:items-center xl:justify-end">
           <Link
             href="/applications"
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-center sm:w-auto")}
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-center xl:w-auto")}
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to pipeline
           </Link>
           <Link
             href={`/interview?application=${application.slug}`}
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center sm:w-auto")}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center xl:w-auto")}
           >
             <BookOpen className="h-3.5 w-3.5" />
             Interview Prep
           </Link>
           <a
             href={`/api/applications/${application.id}/export`}
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center sm:w-auto")}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center xl:w-auto")}
           >
             <Download className="h-3.5 w-3.5" />
             Export JSON
@@ -1531,7 +1548,7 @@ export function ApplicationDetail({
               href={job.url}
               target="_blank"
               rel="noopener noreferrer"
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center sm:w-auto")}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center xl:w-auto")}
             >
               <ExternalLink className="h-3.5 w-3.5" />
               View posting
@@ -1585,7 +1602,7 @@ export function ApplicationDetail({
       />
 
       {/* 2-col card grid */}
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-2">
         <CvCard
           applicationId={application.id}
           applicationSlug={application.slug}

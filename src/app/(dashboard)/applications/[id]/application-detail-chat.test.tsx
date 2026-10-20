@@ -119,6 +119,34 @@ describe("ApplicationDetail chat", () => {
     chat.close()
   })
 
+  it("sends on Enter and keeps Shift+Enter for a new line", async () => {
+    const chat = mockStreamingChat()
+    renderApplicationDetail()
+
+    const input = screen.getByLabelText("Message")
+    fireEvent.change(input, { target: { value: "First line" } })
+
+    expect(fireEvent.keyDown(input, { key: "Enter", shiftKey: true })).toBe(true)
+    expect(chat.fetchMock).not.toHaveBeenCalled()
+
+    expect(fireEvent.keyDown(input, { key: "Enter" })).toBe(false)
+    await waitFor(() => expect(chat.fetchMock).toHaveBeenCalledTimes(1))
+
+    chat.close()
+  })
+
+  it("does not send while an input method is composing text", () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal("fetch", fetchMock)
+    renderApplicationDetail()
+
+    const input = screen.getByLabelText("Message")
+    fireEvent.change(input, { target: { value: "Composing" } })
+    fireEvent.keyDown(input, { key: "Enter", isComposing: true })
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it("does not force-scroll streaming content after the user scrolls up", async () => {
     const scrollIntoView = vi.fn()
     Element.prototype.scrollIntoView = scrollIntoView
