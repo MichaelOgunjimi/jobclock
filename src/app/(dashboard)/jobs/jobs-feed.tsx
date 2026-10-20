@@ -12,6 +12,7 @@ import { EXPERIENCE_LEVELS } from "@/app/(dashboard)/profile/profile-tabs"
 import type { Job } from "@/lib/jobs/types"
 import { deduplicateJobs } from "@/lib/jobs/dedup"
 import {
+  AlertCircle,
   Search,
   MapPin,
   Briefcase,
@@ -21,6 +22,7 @@ import {
   BookmarkCheck,
   Loader2,
   EyeOff,
+  SlidersHorizontal,
   Wifi,
 } from "lucide-react"
 import { formatDistanceToNow, differenceInDays } from "date-fns"
@@ -123,6 +125,9 @@ export function JobsFeed({
   const [hasSearched, setHasSearched] = useState(false)
   const [titleIncludes, setTitleIncludes] = useState("")
   const [titleExcludes, setTitleExcludes] = useState("")
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const resultsPanelRef = useRef<HTMLDivElement>(null)
 
   // Auto-search on first mount when preferences are pre-filled
   const didAutoSearch = useRef(false)
@@ -166,6 +171,7 @@ export function JobsFeed({
   ): Promise<{ newJobsAdded: number }> {
     if (append) setLoadingMore(true)
     else setSearching(true)
+    setSearchError(null)
 
     if (!append) seenUrlsRef.current = new Set()
 
@@ -185,8 +191,11 @@ export function JobsFeed({
           if (selectedSources.length > 0) params.set("sources", selectedSources.join(","))
           params.set("page", String(startApiPage + i))
           params.set("per_page", String(JOBS_PER_PAGE))
-          return fetch(`/api/jobs/search?${params.toString()}`)
-            .then(r => r.json() as Promise<{ jobs?: Job[]; error?: string }>)
+          return fetch(`/api/jobs/search?${params.toString()}`).then(async (response) => {
+            const data = await response.json() as { jobs?: Job[]; error?: string }
+            if (!response.ok || data.error) throw new Error(data.error ?? "Job search failed")
+            return data
+          })
         })
       )
 
@@ -217,12 +226,13 @@ export function JobsFeed({
 
       if (!append) {
         setDisplayPage(1)
-        resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+        scrollResultsToTop()
       }
 
       return { newJobsAdded: uniqueNew.length }
     } catch {
       toast.error("Failed to fetch jobs")
+      setSearchError("The search service did not respond. Check your connection and try again.")
       return { newJobsAdded: 0 }
     } finally {
       setSearching(false)
@@ -232,7 +242,13 @@ export function JobsFeed({
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
+    setFiltersOpen(false)
     void fetchBatch(1, false, [])
+  }
+
+  function scrollResultsToTop() {
+    resultsScrollRef.current?.scrollTo?.({ top: 0, behavior: "auto" })
+    resultsPanelRef.current?.scrollIntoView({ block: "start", behavior: "auto" })
   }
 
   function toggleSource(source: string) {
@@ -273,13 +289,25 @@ export function JobsFeed({
 
   async function handleIgnoreJob(job: Job) {
     setIgnoredUrls((prev) => new Set([...prev, job.url]))
-    await ignoreJob(job.url)
+    try {
+      const result = await ignoreJob(job.url)
+      if (!result?.error) return
+    } catch {
+      // Restore the card below when the server action itself fails.
+    }
+
+    setIgnoredUrls((prev) => {
+      const next = new Set(prev)
+      next.delete(job.url)
+      return next
+    })
+    toast.error("Could not hide this role")
   }
 
   async function handlePrevPage() {
     if (displayPage > 1) {
       setDisplayPage(p => p - 1)
-      resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+      scrollResultsToTop()
     }
   }
 
@@ -287,20 +315,41 @@ export function JobsFeed({
     const nextPage = displayPage + 1
     if (nextPage <= totalDisplayPages) {
       setDisplayPage(nextPage)
-      resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+      scrollResultsToTop()
     } else if (hasMoreServer && !loadingMore && !searching) {
       const { newJobsAdded } = await fetchBatch(apiBatch + 1, true, poolJobs)
       if (newJobsAdded > 0) {
         setDisplayPage(nextPage)
-        resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" })
+        scrollResultsToTop()
       }
     }
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] xl:gap-8">
+    <div className="grid min-w-0 gap-4 sm:gap-6 xl:grid-cols-[320px_minmax(0,1fr)] xl:gap-8">
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full justify-between xl:hidden"
+        aria-expanded={filtersOpen}
+        aria-controls="job-search-filters"
+        onClick={() => setFiltersOpen((open) => !open)}
+      >
+        <span className="inline-flex items-center gap-2">
+          <SlidersHorizontal className="h-4 w-4" />
+          Filters and search
+        </span>
+        <span className="text-xs text-muted-foreground">{filtersOpen ? "Hide" : "Show"}</span>
+      </Button>
+
       {/* Sidebar */}
-      <aside className="space-y-6 border bg-secondary p-6">
+      <aside
+        id="job-search-filters"
+        className={cn(
+          "space-y-6 border bg-secondary p-5 sm:p-6 xl:block",
+          filtersOpen ? "block" : "hidden"
+        )}
+      >
         <div className="space-y-2">
           <p className="section-label">Filters</p>
           <h2 className="font-heading text-[1.9rem] leading-none tracking-[-0.03em]">
@@ -383,8 +432,8 @@ export function JobsFeed({
           </div>
 
           {/* Experience level chips */}
-          <div className="space-y-2">
-            <Label>Experience Level</Label>
+          <div className="space-y-2" role="group" aria-labelledby="experience-level-label">
+            <Label id="experience-level-label">Experience Level</Label>
             <div className="flex flex-wrap gap-1.5">
               {EXPERIENCE_LEVELS.map((level) => {
                 const active = experienceLevels.includes(level.value)
@@ -409,11 +458,12 @@ export function JobsFeed({
           </div>
 
           {/* Source selector */}
-          <div className="space-y-2">
-            <Label>Sources</Label>
+          <div className="space-y-2" role="group" aria-labelledby="sources-label">
+            <Label id="sources-label">Sources</Label>
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
+                aria-pressed={selectedSources.length === enabledSources.length}
                 onClick={() => setSelectedSources([...enabledSources])}
                 className={cn(
                   "border px-2.5 py-1 text-xs font-medium transition-colors",
@@ -430,6 +480,7 @@ export function JobsFeed({
                   <button
                     key={source}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => toggleSource(source)}
                     className={cn(
                       "border px-2.5 py-1 text-xs font-medium transition-colors",
@@ -491,7 +542,7 @@ export function JobsFeed({
       </aside>
 
       {/* Results */}
-      <div className="min-h-0 border">
+      <div ref={resultsPanelRef} className="min-h-0 min-w-0 scroll-mt-20 border">
         <div className="flex flex-col gap-3 border-b px-4 py-5 sm:px-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="section-label">Open roles</p>
@@ -504,9 +555,23 @@ export function JobsFeed({
           </p>
         </div>
 
-        <ScrollArea className="h-[calc(100vh-16rem)] lg:h-[calc(100vh-22rem)]" viewportRef={resultsScrollRef}>
+        <ScrollArea className="h-auto xl:h-[calc(100dvh-22rem)]" viewportRef={resultsScrollRef}>
           <div className="space-y-3 p-4 md:p-6">
-            {!hasSearched && !searching ? (
+            {searchError && !searching ? (
+              <div className="border border-destructive/30 bg-destructive/5 px-5 py-12 text-center text-muted-foreground sm:px-6">
+                <AlertCircle className="mx-auto mb-4 h-10 w-10 text-destructive" />
+                <p className="font-medium text-foreground">Couldn&apos;t load roles</p>
+                <p className="mx-auto mt-2 max-w-md text-sm">{searchError}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-5 w-full sm:w-auto"
+                  onClick={() => void fetchBatch(1, false, [])}
+                >
+                  Try again
+                </Button>
+              </div>
+            ) : !hasSearched && !searching ? (
               <div className="border bg-secondary px-6 py-14 text-center text-muted-foreground">
                 <Search className="mx-auto mb-4 h-10 w-10 opacity-30" />
                 <p className="font-medium text-foreground">Run a search</p>
@@ -577,7 +642,7 @@ export function JobsFeed({
                     type="button"
                     size="sm"
                     variant={entry === safePage ? "default" : "outline"}
-                    onClick={() => { setDisplayPage(entry); resultsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" }) }}
+                    onClick={() => { setDisplayPage(entry); scrollResultsToTop() }}
                     disabled={searching || loadingMore}
                     aria-current={entry === safePage ? "page" : undefined}
                   >
@@ -637,7 +702,7 @@ function JobCard({
   isSaved: boolean
   isHidden: boolean
   onSave: () => Promise<void>
-  onHide: () => void
+  onHide: () => Promise<void>
 }) {
   const [isPending, startTransition] = useTransition()
   const freshness = freshnessInfo(job.lastSeenAt)
@@ -649,14 +714,14 @@ function JobCard({
   }
 
   return (
-    <div className={cn("border bg-card transition-colors hover:border-foreground/30", isHidden && "opacity-50")}>
-      <div className="border-b px-5 py-4">
+    <article className={cn("min-w-0 border bg-card transition-colors hover:border-foreground/30", isHidden && "opacity-50")}>
+      <div className="border-b px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
-            <p className="text-[1.1rem] font-semibold leading-tight">{job.title}</p>
-            <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+            <p className="break-words text-[1.1rem] font-semibold leading-tight">{job.title}</p>
+            <p className="mt-1 flex min-w-0 items-start gap-1 text-sm text-muted-foreground">
               <Briefcase className="h-3 w-3 shrink-0" />
-              {job.company}
+              <span className="min-w-0 break-words">{job.company}</span>
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -688,12 +753,12 @@ function JobCard({
         </div>
       </div>
 
-      <div className="space-y-3 px-5 py-4">
+      <div className="space-y-3 px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
           {job.location && (
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3 w-3" />
-              {job.location}
+            <span className="flex max-w-full min-w-0 items-start gap-1">
+              <MapPin className="h-3 w-3 shrink-0" />
+              <span className="min-w-0 break-words">{job.location}</span>
             </span>
           )}
           {job.salaryMin && (
@@ -745,7 +810,7 @@ function JobCard({
               size="sm"
               variant="ghost"
               className="w-full text-muted-foreground hover:text-foreground sm:w-auto"
-              onClick={onHide}
+              onClick={() => void onHide()}
             >
               <EyeOff className="h-3.5 w-3.5" />
               Hide
@@ -753,6 +818,6 @@ function JobCard({
           )}
         </div>
       </div>
-    </div>
+    </article>
   )
 }
