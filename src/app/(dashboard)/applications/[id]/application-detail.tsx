@@ -25,6 +25,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { MarkdownContent } from "@/components/ui/markdown-content"
+import { SelectInput } from "@/components/ui/select"
 import { GenerationProgress } from "@/components/generation-progress"
 import { cn } from "@/lib/utils"
 import {
@@ -846,20 +847,18 @@ function CvCard({
           <input type="hidden" name="applicationId" value={applicationId} />
           <div className="flex-1 space-y-1.5 min-w-0">
             <Label htmlFor="cv-select">Select CV</Label>
-            <select
+            <SelectInput
               id="cv-select"
               name="cvId"
               defaultValue={defaultValue}
-              className="form-select bg-background"
-            >
-              <option value="">— None —</option>
-              {cvs.map((cv) => (
-                <option key={cv.id} value={cv.id}>
-                  {cv.name ?? "Untitled CV"}
-                  {cv.is_primary ? " (primary)" : ""}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "— None —" },
+                ...cvs.map((cv) => ({
+                  value: cv.id,
+                  label: `${cv.name ?? "Untitled CV"}${cv.is_primary ? " (primary)" : ""}`,
+                })),
+              ]}
+            />
           </div>
           <Button type="submit" size="default" variant="outline" disabled={savePending} className="w-full sm:w-auto">
             {savePending ? "Saving…" : "Save"}
@@ -1086,20 +1085,17 @@ function CoverLetterCard({
           <div className="space-y-1.5">
             <Label htmlFor="writing-style-select">Writing Style</Label>
             <div className="flex items-center gap-2">
-              <select
+              <SelectInput
                 id="writing-style-select"
                 value={selectedStructureId}
-                onChange={(e) => handleStructureChange(e.target.value)}
+                onValueChange={handleStructureChange}
                 disabled={savePending}
-                className="form-select bg-background flex-1"
-              >
-                {writingStyles.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label}
-                    {s.is_built_in ? "" : " (custom)"}
-                  </option>
-                ))}
-              </select>
+                options={writingStyles.map((style) => ({
+                  value: style.id,
+                  label: `${style.label}${style.is_built_in ? "" : " (custom)"}`,
+                }))}
+                className="flex-1"
+              />
               <button
                 type="button"
                 onClick={() => setShowToneOverride((v) => !v)}
