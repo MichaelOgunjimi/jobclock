@@ -14,6 +14,7 @@ import { useGenerationJobsContext } from "@/contexts/generation-jobs-context"
 import { markJobsSeen } from "@/app/(dashboard)/generation-actions"
 import { formatRelativeTime } from "@/lib/relative-time"
 import type { GenerationKind, GenerationStatus } from "@/lib/generation/jobs"
+import { GlobalSearch } from "@/components/global-search"
 
 function kindLabel(kind: GenerationKind): string {
   switch (kind) {
@@ -378,6 +379,7 @@ export function DashboardTopbar({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <GlobalSearch />
           <ThemeToggle />
           <NotificationsDropdown />
           <AvatarDropdown userProfile={userProfile} />

@@ -10,9 +10,11 @@ const generationMock = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => navigationMock.pathname,
+  useRouter: () => ({ push: vi.fn() }),
 }))
 vi.mock("@/contexts/generation-jobs-context", () => ({
   useGenerationJobsContext: () => ({
+    userId: "user-1",
     recentJobs: [],
     unseenJobs: [],
     unseenCount: 0,

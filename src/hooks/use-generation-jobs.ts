@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import type { GenerationKind, GenerationStatus } from "@/lib/generation/jobs"
+import type { GlobalSearchItem } from "@/lib/global-search"
 
 export interface GenerationJobRow {
   id: string
@@ -69,6 +70,9 @@ export function useGenerationJobs(userId: string) {
     new Map(),
   )
   const [cvLabels, setCvLabels] = useState<Map<string, string>>(new Map())
+  const [searchItems, setSearchItems] = useState<GlobalSearchItem[]>([])
+  const [searchItemsLoading, setSearchItemsLoading] = useState(true)
+  const [searchItemsError, setSearchItemsError] = useState(false)
   const prevStatusRef = useRef<Map<string, GenerationStatus>>(new Map())
   const jobsRef = useRef<GenerationJobRow[]>([])
 
@@ -228,10 +232,12 @@ export function useGenerationJobs(userId: string) {
           .eq("user_id", userId),
         supabase
           .from("user_cvs")
-          .select("id, name, parsed_json")
+          .select("id, name, parsed_json, is_primary")
           .eq("user_id", userId),
       ])
       if (!mounted) return
+      setSearchItemsError(Boolean(applicationsResult.error || cvsResult.error))
+      const nextSearchItems: GlobalSearchItem[] = []
 
       if (applicationsResult.data) {
         const nextAppLabels = new Map<string, ApplicationLabel>()
@@ -252,6 +258,14 @@ export function useGenerationJobs(userId: string) {
             }
             nextAppLabels.set(row.id, label)
             nextAppLabels.set(row.slug, label)
+            nextSearchItems.push({
+              id: `application:${row.id}`,
+              type: "application",
+              label: role ?? "Unknown role",
+              description: company ?? "Unknown company",
+              href: `/applications/${row.slug}`,
+              keywords: [role ?? "", company ?? ""],
+            })
           }
         }
         setAppLabels(nextAppLabels)
@@ -263,16 +277,33 @@ export function useGenerationJobs(userId: string) {
           id: string
           name: string | null
           parsed_json: { name?: unknown } | null
+          is_primary: boolean | null
         }>) {
           const parsedName = typeof row.parsed_json?.name === "string"
             ? row.parsed_json.name.trim()
             : ""
           const label = row.name?.trim() || parsedName
-          if (label) nextCvLabels.set(row.id, label)
+          if (label) {
+            nextCvLabels.set(row.id, label)
+            nextSearchItems.push({
+              id: `cv:${row.id}`,
+              type: "cv",
+              label,
+              description: row.is_primary ? "Primary CV" : "Saved CV",
+              href: `/profile/${row.id}`,
+              keywords: ["resume", "curriculum vitae"],
+            })
+          }
         }
         setCvLabels(nextCvLabels)
       }
-    })()
+      setSearchItems(nextSearchItems)
+      setSearchItemsLoading(false)
+    })().catch(() => {
+      if (!mounted) return
+      setSearchItemsError(true)
+      setSearchItemsLoading(false)
+    })
     return () => {
       mounted = false
     }
@@ -305,6 +336,7 @@ export function useGenerationJobs(userId: string) {
   const unseenJobs = selectUnseenJobs(jobs)
 
   return {
+    userId,
     jobs,
     getActiveJob,
     getApplicationLabel,
@@ -313,5 +345,8 @@ export function useGenerationJobs(userId: string) {
     recentJobs,
     unseenJobs,
     unseenCount: unseenJobs.length,
+    searchItems,
+    searchItemsLoading,
+    searchItemsError,
   }
 }

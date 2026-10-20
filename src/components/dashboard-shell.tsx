@@ -29,16 +29,13 @@ export function DashboardShell({
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
   return (
-    <div className="flex min-h-screen bg-background lg:fixed lg:inset-0 lg:min-h-0 lg:overflow-hidden">
+    <div className="flex min-h-screen bg-background">
       <AppSidebar
         isMobileOpen={isMobileSidebarOpen}
         onMobileOpenChange={setIsMobileSidebarOpen}
         userProfile={userProfile}
       />
-      <main
-        data-scroll-restoration-target
-        className="min-w-0 flex-1 overflow-x-hidden lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden"
-      >
+      <main className="min-w-0 flex-1 overflow-x-hidden">
         <DashboardTopbar
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
           userProfile={userProfile}
