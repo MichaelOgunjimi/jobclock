@@ -1,5 +1,6 @@
 "use client"
 
+import { Dialog } from "@base-ui/react/dialog"
 import Image from "next/image"
 import { useRef, useState, useCallback, useTransition } from "react"
 import Link from "next/link"
@@ -15,6 +16,7 @@ import { markJobsSeen } from "@/app/(dashboard)/generation-actions"
 import { formatRelativeTime } from "@/lib/relative-time"
 import type { GenerationKind, GenerationStatus } from "@/lib/generation/jobs"
 import { GlobalSearch } from "@/components/global-search"
+import { cn } from "@/lib/utils"
 
 function kindLabel(kind: GenerationKind): string {
   switch (kind) {
@@ -90,11 +92,17 @@ function NotificationsDropdown() {
         )}
       </button>
 
-      {open && (
-        <div
-          ref={panelRef}
-          className="absolute right-0 top-full z-50 mt-2 w-80 border bg-card shadow-lg"
-        >
+      <div
+        ref={panelRef}
+        inert={!open}
+        aria-hidden={!open}
+        className={cn(
+          "absolute right-0 top-full z-50 mt-2 w-80 origin-top-right border bg-card shadow-lg transition-[opacity,transform,visibility] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+          open
+            ? "visible translate-y-0 scale-100 opacity-100"
+            : "pointer-events-none invisible -translate-y-1 scale-[0.98] opacity-0"
+        )}
+      >
           <div className="border-b px-4 py-3">
             <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
               Generations
@@ -141,8 +149,7 @@ function NotificationsDropdown() {
               })}
             </div>
           )}
-        </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -231,11 +238,17 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
         )}
       </button>
 
-      {open && (
-        <div
-          ref={panelRef}
-          className="absolute right-0 top-full z-50 mt-2 w-60 border bg-card shadow-lg"
-        >
+      <div
+        ref={panelRef}
+        inert={!open}
+        aria-hidden={!open}
+        className={cn(
+          "absolute right-0 top-full z-50 mt-2 w-60 origin-top-right border bg-card shadow-lg transition-[opacity,transform,visibility] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+          open
+            ? "visible translate-y-0 scale-100 opacity-100"
+            : "pointer-events-none invisible -translate-y-1 scale-[0.98] opacity-0"
+        )}
+      >
           {/* User identity */}
           <div className="border-b px-4 py-4">
             <div className="flex items-center gap-3">
@@ -290,23 +303,27 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
               Sign out
             </button>
           </div>
-        </div>
-      )}
+      </div>
 
-      {showLogoutDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm border border-border bg-background shadow-lg">
-            <div className="px-5 py-4">
-              <h2 className="text-sm font-medium">Sign out?</h2>
-              <p className="mt-1 text-xs text-muted-foreground">You will be returned to the login page.</p>
-            </div>
-            <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
-              <Button variant="outline" size="sm" onClick={() => setShowLogoutDialog(false)}>Cancel</Button>
-              <Button variant="destructive" size="sm" onClick={confirmSignOut}>Sign out</Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog.Root open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 opacity-100 transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 motion-reduce:transition-none" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <Dialog.Popup className="w-full max-w-sm translate-y-0 scale-100 border border-border bg-background opacity-100 shadow-lg transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] data-[ending-style]:translate-y-2 data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:translate-y-2 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 motion-reduce:transition-none">
+              <div className="px-5 py-4">
+                <Dialog.Title className="text-sm font-medium">Sign out?</Dialog.Title>
+                <Dialog.Description className="mt-1 text-xs text-muted-foreground">
+                  You will be returned to the login page.
+                </Dialog.Description>
+              </div>
+              <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
+                <Dialog.Close render={<Button variant="outline" size="sm" />}>Cancel</Dialog.Close>
+                <Button variant="destructive" size="sm" onClick={confirmSignOut}>Sign out</Button>
+              </div>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   )
 }

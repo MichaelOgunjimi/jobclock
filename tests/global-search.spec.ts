@@ -71,6 +71,46 @@ test("uses document scrolling for long dashboard pages", async ({ page }) => {
   expect(layout.nestedMainScroll).toBe(false)
 })
 
+test("applies the persisted sidebar width before hydration", async ({ context }) => {
+  const coldPage = await context.newPage()
+  await coldPage.addInitScript(() => {
+    try {
+      localStorage.setItem("sidebar-collapsed", "true")
+    } catch {
+      // The script runs again with normal storage access on the app origin.
+    }
+  })
+  await coldPage.route("**/_next/static/chunks/**/*.js", (route) => route.abort())
+  await coldPage.goto(fixturePath, { waitUntil: "domcontentloaded" })
+
+  const initialState = await coldPage.locator('aside[aria-label="Primary navigation"]').evaluate((sidebar) => ({
+    collapsed: document.documentElement.dataset.sidebarCollapsed,
+    width: sidebar.getBoundingClientRect().width,
+    copyOpacity: getComputedStyle(sidebar.querySelector(".dashboard-sidebar-copy")!).opacity,
+  }))
+
+  expect(initialState).toEqual({ collapsed: "true", width: 88, copyOpacity: "0" })
+  await coldPage.close()
+})
+
+test("animates the desktop sidebar between expanded and collapsed states", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.evaluate(() => {
+    localStorage.setItem("sidebar-collapsed", "false")
+  })
+  await page.reload()
+
+  const sidebar = page.locator('aside[aria-label="Primary navigation"]')
+  await expect(sidebar).toHaveCSS("width", "280px")
+  expect(await sidebar.evaluate((element) => getComputedStyle(element).transitionDuration)).not.toBe("0s")
+
+  await page.getByRole("button", { name: "Collapse sidebar" }).click()
+  await expect(sidebar).toHaveCSS("width", "88px")
+
+  await page.getByRole("button", { name: "Expand sidebar" }).click()
+  await expect(sidebar).toHaveCSS("width", "280px")
+})
+
 test("keeps the shared select chevron away from the border", async ({ page }) => {
   const spacing = await page.getByRole("combobox", { name: "Fixture select" }).evaluate((select) => {
     const chevron = select.querySelector("svg")

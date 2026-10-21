@@ -18,11 +18,13 @@ interface UserProfile {
 export function DashboardShell({
   children,
   aiKeyBanner,
+  initialSidebarCollapsed = false,
   showExtensionBanner,
   userProfile,
 }: {
   children: React.ReactNode
   aiKeyBanner?: { providerLabel: string } | null
+  initialSidebarCollapsed?: boolean
   showExtensionBanner: boolean
   userProfile: UserProfile
 }) {
@@ -31,6 +33,7 @@ export function DashboardShell({
   return (
     <div className="flex min-h-screen bg-background">
       <AppSidebar
+        initialCollapsed={initialSidebarCollapsed}
         isMobileOpen={isMobileSidebarOpen}
         onMobileOpenChange={setIsMobileSidebarOpen}
         userProfile={userProfile}

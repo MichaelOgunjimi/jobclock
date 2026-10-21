@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { Drawer } from "@base-ui/react/drawer"
+import { Dialog } from "@base-ui/react/dialog"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -25,6 +26,10 @@ import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { isSupabaseConfigured, SUPABASE_SETUP_MESSAGE } from "@/lib/supabase/config"
 import { cn } from "@/lib/utils"
+import {
+  SIDEBAR_COLLAPSED_EVENT,
+  SIDEBAR_COLLAPSED_KEY,
+} from "@/lib/sidebar-preference"
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -34,9 +39,6 @@ const navItems = [
   { href: "/analytics", label: "Analytics", icon: BarChart2 },
   { href: "/profile", label: "My CV", icon: FileText },
 ]
-
-const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed"
-const SIDEBAR_COLLAPSED_EVENT = "sidebar-collapsed-change"
 
 export interface SidebarUserProfile {
   email: string
@@ -58,6 +60,39 @@ function getInitials(fullName: string | null, email: string): string {
 
 function isRouteActive(pathname: string, href: string) {
   return pathname === href || (href !== "/" && pathname.startsWith(href))
+}
+
+function subscribeToSidebarPreference(onStoreChange: () => void) {
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === null || event.key === SIDEBAR_COLLAPSED_KEY) onStoreChange()
+  }
+
+  window.addEventListener("storage", handleStorage)
+  window.addEventListener(SIDEBAR_COLLAPSED_EVENT, onStoreChange)
+  return () => {
+    window.removeEventListener("storage", handleStorage)
+    window.removeEventListener(SIDEBAR_COLLAPSED_EVENT, onStoreChange)
+  }
+}
+
+function getSidebarPreference() {
+  try {
+    const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
+    if (stored === "true" || stored === "false") return stored === "true"
+  } catch {
+    // Fall through to the server-provided document state.
+  }
+  return document.documentElement.dataset.sidebarCollapsed === "true"
+}
+
+function applySidebarPreference(collapsed: boolean) {
+  try {
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed))
+  } catch {
+    // The cookie and current page still preserve the preference.
+  }
+  document.cookie = `${SIDEBAR_COLLAPSED_KEY}=${collapsed}; path=/; max-age=31536000; samesite=lax`
+  document.documentElement.dataset.sidebarCollapsed = String(collapsed)
 }
 
 function UserIdentity({ userProfile }: { userProfile: SidebarUserProfile }) {
@@ -146,7 +181,7 @@ function MobileNavigationSheet({
       <Drawer.Portal>
         <Drawer.Backdrop className="fixed inset-0 z-40 bg-black/55 opacity-100 transition-opacity duration-300 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 motion-reduce:transition-none lg:hidden" />
         <Drawer.Viewport className="fixed inset-0 z-50 flex items-end px-3 lg:hidden">
-          <Drawer.Popup className="flex h-[90dvh] max-h-[calc(100dvh-2rem)] w-full translate-y-0 flex-col overflow-hidden border border-b-0 border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[0_-18px_60px_rgba(0,0,0,0.28)] transition-transform duration-300 ease-out data-[ending-style]:translate-y-full data-[starting-style]:translate-y-full motion-reduce:transition-none">
+          <Drawer.Popup className="flex h-[90dvh] max-h-[calc(100dvh-2rem)] w-full translate-y-0 flex-col overflow-hidden border border-b-0 border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[0_-18px_60px_rgba(0,0,0,0.28)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] data-[ending-style]:translate-y-full data-[starting-style]:translate-y-full motion-reduce:transition-none">
             <Drawer.Title className="sr-only">Navigation</Drawer.Title>
             <Drawer.Description className="sr-only">
               User context, workspace navigation, and account actions.
@@ -157,7 +192,7 @@ function MobileNavigationSheet({
             <div className="min-h-0 flex-1 overflow-hidden">
               <div
                 className={cn(
-                  "flex h-full w-[200%] transition-transform duration-300 ease-out motion-reduce:transition-none",
+                  "flex h-full w-[200%] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
                   panel === "sign-out" && "-translate-x-1/2"
                 )}
               >
@@ -189,7 +224,7 @@ function MobileNavigationSheet({
                             onClick={closeSheet}
                             aria-current={isActive ? "page" : undefined}
                             className={cn(
-                              "flex min-h-12 items-center gap-3 border border-transparent px-4 py-3 text-[14px] font-medium tracking-[0.01em] transition-colors active:translate-y-px",
+                              "flex min-h-12 items-center gap-3 border border-transparent px-4 py-3 text-[14px] font-medium tracking-[0.01em] transition-[color,background-color,border-color,transform] duration-200 hover:translate-x-0.5 active:translate-y-px motion-reduce:transform-none",
                               isActive
                                 ? "border-white/10 bg-sidebar-primary text-white"
                                 : "text-sidebar-foreground hover:border-white/10 hover:bg-white/5 hover:text-white"
@@ -209,7 +244,7 @@ function MobileNavigationSheet({
                       onClick={closeSheet}
                       aria-current={pathname.startsWith("/account") ? "page" : undefined}
                       className={cn(
-                        "flex min-h-12 items-center gap-3 border border-transparent px-4 py-3 text-[14px] font-medium transition-colors active:translate-y-px",
+                        "flex min-h-12 items-center gap-3 border border-transparent px-4 py-3 text-[14px] font-medium transition-[color,background-color,border-color,transform] duration-200 hover:translate-x-0.5 active:translate-y-px motion-reduce:transform-none",
                         pathname.startsWith("/account")
                           ? "border-white/10 bg-sidebar-primary text-white"
                           : "text-sidebar-foreground hover:border-white/10 hover:bg-white/5 hover:text-white"
@@ -223,7 +258,7 @@ function MobileNavigationSheet({
                       onClick={closeSheet}
                       aria-current={pathname.startsWith("/settings") ? "page" : undefined}
                       className={cn(
-                        "flex min-h-12 items-center gap-3 border border-transparent px-4 py-3 text-[14px] font-medium transition-colors active:translate-y-px",
+                        "flex min-h-12 items-center gap-3 border border-transparent px-4 py-3 text-[14px] font-medium transition-[color,background-color,border-color,transform] duration-200 hover:translate-x-0.5 active:translate-y-px motion-reduce:transform-none",
                         pathname.startsWith("/settings")
                           ? "border-white/10 bg-sidebar-primary text-white"
                           : "text-sidebar-foreground hover:border-white/10 hover:bg-white/5 hover:text-white"
@@ -236,7 +271,7 @@ function MobileNavigationSheet({
                       ref={signOutButtonRef}
                       type="button"
                       onClick={() => setPanel("sign-out")}
-                      className="flex min-h-12 w-full items-center gap-3 border border-transparent px-4 py-3 text-[14px] font-medium text-sidebar-foreground transition-colors hover:border-white/10 hover:bg-white/5 hover:text-white active:translate-y-px"
+                      className="flex min-h-12 w-full items-center gap-3 border border-transparent px-4 py-3 text-[14px] font-medium text-sidebar-foreground transition-[color,background-color,border-color,transform] duration-200 hover:translate-x-0.5 hover:border-white/10 hover:bg-white/5 hover:text-white active:translate-y-px motion-reduce:transform-none"
                     >
                       <LogOut className="size-4 shrink-0" />
                       Sign out
@@ -305,10 +340,12 @@ function MobileNavigationSheet({
 }
 
 export function AppSidebar({
+  initialCollapsed = false,
   isMobileOpen,
   onMobileOpenChange,
   userProfile,
 }: {
+  initialCollapsed?: boolean
   isMobileOpen: boolean
   onMobileOpenChange: (open: boolean) => void
   userProfile: SidebarUserProfile
@@ -317,23 +354,20 @@ export function AppSidebar({
   const supabase = isSupabaseConfigured() ? createClient() : null
   const isPreviewPage = pathname.endsWith("/cv") || pathname.endsWith("/cover-letter")
   const userCollapsed = useSyncExternalStore(
-    (onStoreChange) => {
-      window.addEventListener("storage", onStoreChange)
-      window.addEventListener(SIDEBAR_COLLAPSED_EVENT, onStoreChange)
-      return () => {
-        window.removeEventListener("storage", onStoreChange)
-        window.removeEventListener(SIDEBAR_COLLAPSED_EVENT, onStoreChange)
-      }
-    },
-    () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true",
-    () => false
+    subscribeToSidebarPreference,
+    getSidebarPreference,
+    () => initialCollapsed
   )
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
   const isCollapsed = isPreviewPage || userCollapsed
 
+  useEffect(() => {
+    applySidebarPreference(getSidebarPreference())
+  }, [])
+
   function toggleCollapsed() {
     const next = !userCollapsed
-    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next))
+    applySidebarPreference(next)
     window.dispatchEvent(new Event(SIDEBAR_COLLAPSED_EVENT))
   }
 
@@ -359,20 +393,31 @@ export function AppSidebar({
       <div
         aria-hidden="true"
         className={cn(
-          "hidden h-[100dvh] shrink-0 lg:block",
+          "dashboard-sidebar-spacer hidden h-[100dvh] shrink-0 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:block",
           isCollapsed ? "w-[88px]" : "w-[280px]"
         )}
       />
 
       <aside
         aria-label="Primary navigation"
+        data-collapsed={isCollapsed ? "" : undefined}
         className={cn(
-          "fixed inset-y-0 left-0 z-20 hidden flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 lg:flex",
+          "dashboard-sidebar fixed inset-y-0 left-0 z-20 hidden flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] motion-reduce:transition-none lg:flex",
           isCollapsed ? "w-[88px]" : "w-[280px]"
         )}
       >
-        <div className="flex h-[73px] items-center justify-between gap-3 border-b border-sidebar-border px-5">
-          <div className="flex items-center gap-3 overflow-hidden">
+        <div
+          className={cn(
+            "dashboard-sidebar-header flex h-[73px] items-center justify-between gap-3 border-b border-sidebar-border px-5 transition-[padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+            isCollapsed && "lg:justify-center lg:px-2"
+          )}
+        >
+          <div
+            className={cn(
+              "dashboard-sidebar-brand flex max-w-[200px] items-center gap-3 overflow-hidden opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+              isCollapsed && "lg:pointer-events-none lg:max-w-0 lg:-translate-x-2 lg:opacity-0"
+            )}
+          >
             <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-[8px] border border-white/10 bg-sidebar-primary">
               <Image
                 src="/logo-mark-light-white.svg"
@@ -384,7 +429,7 @@ export function AppSidebar({
                 className="size-full object-contain"
               />
             </div>
-            <div className={cn("min-w-0 transition-opacity", isCollapsed && "lg:hidden")}>
+            <div className="min-w-0">
               <p className="section-label text-white/45">Job Assistant</p>
               <p className="font-heading text-[1.55rem] leading-none text-white">Workspace</p>
             </div>
@@ -394,11 +439,24 @@ export function AppSidebar({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="hidden border-0 text-sidebar-foreground hover:bg-white/5 hover:text-white lg:inline-flex"
+            className="dashboard-sidebar-toggle hidden shrink-0 border-0 text-sidebar-foreground transition-[color,background-color,transform] duration-200 hover:bg-white/5 hover:text-white active:scale-90 motion-reduce:transform-none lg:inline-flex"
             onClick={toggleCollapsed}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {isCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+            <span className="relative size-4" aria-hidden="true">
+              <PanelLeftClose
+                className={cn(
+                  "absolute inset-0 size-4 transition-[opacity,transform] duration-200 motion-reduce:transition-none",
+                  isCollapsed ? "rotate-90 scale-75 opacity-0" : "rotate-0 scale-100 opacity-100"
+                )}
+              />
+              <PanelLeftOpen
+                className={cn(
+                  "absolute inset-0 size-4 transition-[opacity,transform] duration-200 motion-reduce:transition-none",
+                  isCollapsed ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-75 opacity-0"
+                )}
+              />
+            </span>
           </Button>
         </div>
 
@@ -414,7 +472,7 @@ export function AppSidebar({
                 title={item.label}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "group flex items-center gap-3 border border-transparent px-4 py-3 text-[13px] font-medium tracking-[0.02em] text-sidebar-foreground transition-colors",
+                  "dashboard-sidebar-link group flex items-center gap-3 border border-transparent px-4 py-3 text-[13px] font-medium tracking-[0.02em] text-sidebar-foreground transition-[color,background-color,border-color,transform,width,padding,margin] duration-200 motion-reduce:transition-none",
                   isActive
                     ? "border-white/10 bg-sidebar-primary text-sidebar-primary-foreground"
                     : "hover:border-white/10 hover:bg-white/5 hover:text-white",
@@ -422,7 +480,14 @@ export function AppSidebar({
                 )}
               >
                 <Icon className="size-4 shrink-0" />
-                <span className={cn("truncate", isCollapsed && "lg:hidden")}>{item.label}</span>
+                <span
+                  className={cn(
+                    "dashboard-sidebar-copy max-w-[180px] overflow-hidden truncate opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+                    isCollapsed && "lg:max-w-0 lg:-translate-x-2 lg:opacity-0"
+                  )}
+                >
+                  {item.label}
+                </span>
               </Link>
             )
           })}
@@ -434,56 +499,84 @@ export function AppSidebar({
             title="Account"
             aria-current={pathname.startsWith("/account") ? "page" : undefined}
             className={cn(
-              "mb-2 flex items-center gap-3 border border-transparent px-4 py-3 text-[13px] font-medium tracking-[0.02em] text-sidebar-foreground transition-colors hover:border-white/10 hover:bg-white/5 hover:text-white",
+              "dashboard-sidebar-link mb-2 flex items-center gap-3 border border-transparent px-4 py-3 text-[13px] font-medium tracking-[0.02em] text-sidebar-foreground transition-[color,background-color,border-color,transform,width,padding,margin] duration-200 hover:border-white/10 hover:bg-white/5 hover:text-white motion-reduce:transition-none",
               pathname.startsWith("/account") && "border-white/10 bg-sidebar-primary text-sidebar-primary-foreground",
               isCollapsed && "lg:mx-auto lg:w-12 lg:justify-center lg:px-0"
             )}
           >
             <UserCircle className="size-4 shrink-0" />
-            <span className={cn(isCollapsed && "lg:hidden")}>Account</span>
+            <span
+              className={cn(
+                "dashboard-sidebar-copy max-w-[180px] overflow-hidden opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+                isCollapsed && "lg:max-w-0 lg:-translate-x-2 lg:opacity-0"
+              )}
+            >
+              Account
+            </span>
           </Link>
           <Link
             href="/settings"
             title="Settings"
             aria-current={pathname.startsWith("/settings") ? "page" : undefined}
             className={cn(
-              "mb-2 flex items-center gap-3 border border-transparent px-4 py-3 text-[13px] font-medium tracking-[0.02em] text-sidebar-foreground transition-colors hover:border-white/10 hover:bg-white/5 hover:text-white",
+              "dashboard-sidebar-link mb-2 flex items-center gap-3 border border-transparent px-4 py-3 text-[13px] font-medium tracking-[0.02em] text-sidebar-foreground transition-[color,background-color,border-color,transform,width,padding,margin] duration-200 hover:border-white/10 hover:bg-white/5 hover:text-white motion-reduce:transition-none",
               pathname.startsWith("/settings") && "border-white/10 bg-sidebar-primary text-sidebar-primary-foreground",
               isCollapsed && "lg:mx-auto lg:w-12 lg:justify-center lg:px-0"
             )}
           >
             <Settings className="size-4 shrink-0" />
-            <span className={cn(isCollapsed && "lg:hidden")}>Settings</span>
+            <span
+              className={cn(
+                "dashboard-sidebar-copy max-w-[180px] overflow-hidden opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+                isCollapsed && "lg:max-w-0 lg:-translate-x-2 lg:opacity-0"
+              )}
+            >
+              Settings
+            </span>
           </Link>
           <button
             type="button"
             onClick={() => setShowLogoutDialog(true)}
             className={cn(
-              "flex w-full items-center gap-3 border border-transparent px-4 py-3 text-[13px] font-medium tracking-[0.02em] text-sidebar-foreground transition-colors hover:border-white/10 hover:bg-white/5 hover:text-white",
+              "dashboard-sidebar-link flex w-full items-center gap-3 border border-transparent px-4 py-3 text-[13px] font-medium tracking-[0.02em] text-sidebar-foreground transition-[color,background-color,border-color,transform,width,padding,margin] duration-200 hover:border-white/10 hover:bg-white/5 hover:text-white motion-reduce:transition-none",
               isCollapsed && "lg:mx-auto lg:w-12 lg:justify-center lg:px-0"
             )}
             title="Sign Out"
           >
             <LogOut className="size-4 shrink-0" />
-            <span className={cn(isCollapsed && "lg:hidden")}>Sign Out</span>
+            <span
+              className={cn(
+                "dashboard-sidebar-copy max-w-[180px] overflow-hidden opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+                isCollapsed && "lg:max-w-0 lg:-translate-x-2 lg:opacity-0"
+              )}
+            >
+              Sign Out
+            </span>
           </button>
         </div>
       </aside>
 
-      {showLogoutDialog && (
-        <div className="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4 lg:flex">
-          <div className="w-full max-w-sm border border-border bg-background shadow-lg">
-            <div className="px-5 py-4">
-              <h2 className="text-sm font-medium">Sign out?</h2>
-              <p className="mt-1 text-xs text-muted-foreground">You will be returned to the login page.</p>
-            </div>
-            <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
-              <Button variant="outline" size="sm" onClick={() => setShowLogoutDialog(false)}>Cancel</Button>
-              <Button variant="destructive" size="sm" onClick={() => void confirmSignOut()}>Sign out</Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog.Root open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-50 hidden bg-black/50 opacity-100 transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 motion-reduce:transition-none lg:block" />
+          <Dialog.Viewport className="fixed inset-0 z-50 hidden items-center justify-center p-4 lg:flex">
+            <Dialog.Popup className="w-full max-w-sm translate-y-0 scale-100 border border-border bg-background opacity-100 shadow-lg transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] data-[ending-style]:translate-y-2 data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:translate-y-2 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 motion-reduce:transition-none">
+              <div className="px-5 py-4">
+                <Dialog.Title className="text-sm font-medium">Sign out?</Dialog.Title>
+                <Dialog.Description className="mt-1 text-xs text-muted-foreground">
+                  You will be returned to the login page.
+                </Dialog.Description>
+              </div>
+              <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
+                <Dialog.Close render={<Button variant="outline" size="sm" />}>Cancel</Dialog.Close>
+                <Button variant="destructive" size="sm" onClick={() => void confirmSignOut()}>
+                  Sign out
+                </Button>
+              </div>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
     </>
   )
 }

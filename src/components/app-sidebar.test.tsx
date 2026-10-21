@@ -3,7 +3,7 @@ import { act } from "react"
 import { hydrateRoot } from "react-dom/client"
 import { renderToString } from "react-dom/server"
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { AppSidebar } from "@/components/app-sidebar"
 
 const userProfile = {
@@ -40,12 +40,20 @@ vi.mock("@/lib/supabase/config", () => ({
   SUPABASE_SETUP_MESSAGE: "Supabase is not configured",
 }))
 
+beforeEach(() => {
+  localStorage.clear()
+  document.cookie = "sidebar-collapsed=; path=/; max-age=0"
+  delete document.documentElement.dataset.sidebarCollapsed
+})
+
 describe("AppSidebar hydration", () => {
-  it("hydrates without mismatch when persisted state is collapsed", async () => {
+  it("renders the persisted collapsed state before hydration", async () => {
     localStorage.setItem("sidebar-collapsed", "true")
+    document.documentElement.dataset.sidebarCollapsed = "true"
 
     const serverHtml = renderToString(
       <AppSidebar
+        initialCollapsed
         isMobileOpen={false}
         onMobileOpenChange={() => {}}
         userProfile={userProfile}
@@ -56,14 +64,16 @@ describe("AppSidebar hydration", () => {
     container.innerHTML = serverHtml
 
     const serverDesktopAside = container.querySelector('aside[aria-label="Primary navigation"]')
-    expect(serverDesktopAside?.className).toContain("w-[280px]")
+    expect(serverDesktopAside?.className).toContain("w-[88px]")
 
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
 
+    let root: ReturnType<typeof hydrateRoot> | null = null
     await act(async () => {
-      hydrateRoot(
+      root = hydrateRoot(
         container,
         <AppSidebar
+          initialCollapsed
           isMobileOpen={false}
           onMobileOpenChange={() => {}}
           userProfile={userProfile}
@@ -83,6 +93,25 @@ describe("AppSidebar hydration", () => {
     ).toBe(false)
 
     consoleErrorSpy.mockRestore()
+    await act(async () => root?.unmount())
+  })
+
+  it("persists collapse changes for the next server render", async () => {
+    render(
+      <AppSidebar
+        isMobileOpen={false}
+        onMobileOpenChange={() => {}}
+        userProfile={userProfile}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }))
+
+    await waitFor(() => {
+      expect(localStorage.getItem("sidebar-collapsed")).toBe("true")
+      expect(document.cookie).toContain("sidebar-collapsed=true")
+      expect(document.documentElement.dataset.sidebarCollapsed).toBe("true")
+    })
   })
 })
 

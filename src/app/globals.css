@@ -153,6 +153,33 @@
   }
 }
 
+@media (min-width: 1024px) {
+  html[data-sidebar-collapsed="true"] .dashboard-sidebar,
+  html[data-sidebar-collapsed="true"] .dashboard-sidebar-spacer {
+    width: 88px;
+  }
+
+  html[data-sidebar-collapsed="true"] .dashboard-sidebar-header {
+    justify-content: center;
+    padding-inline: 0.5rem;
+  }
+
+  html[data-sidebar-collapsed="true"] .dashboard-sidebar-brand,
+  html[data-sidebar-collapsed="true"] .dashboard-sidebar-copy {
+    max-width: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-0.5rem);
+  }
+
+  html[data-sidebar-collapsed="true"] .dashboard-sidebar-link {
+    width: 3rem;
+    justify-content: center;
+    margin-inline: auto;
+    padding-inline: 0;
+  }
+}
+
 @layer components {
   .page-shell {
     @apply mx-auto flex w-full max-w-[1440px] flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8 md:gap-10 md:px-10 md:py-10 xl:px-12;

@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
@@ -6,6 +7,7 @@ import { DashboardShell } from "@/components/dashboard-shell"
 import { GenerationJobsProvider } from "@/components/generation-jobs-provider"
 import { resolveAiSettings, type UserPreferences } from "@/lib/ai"
 import { hasPersonalApiTokenHistory } from "@/lib/personal-api-tokens"
+import { isSidebarCollapsed, SIDEBAR_COLLAPSED_KEY } from "@/lib/sidebar-preference"
 
 // Every page under (dashboard) is behind auth. Tell crawlers not to
 // index them so accidental URL leaks (shared links, referer headers)
@@ -30,6 +32,11 @@ export default async function DashboardLayout({
     redirect("/auth")
   }
 
+  const cookieStore = await cookies()
+  const initialSidebarCollapsed = isSidebarCollapsed(
+    cookieStore.get(SIDEBAR_COLLAPSED_KEY)?.value
+  )
+
   const [{ data: profile }, hasExtensionTokenHistory] = await Promise.all([
     supabase
       .from("profiles")
@@ -50,6 +57,7 @@ export default async function DashboardLayout({
   return (
     <GenerationJobsProvider userId={user.id}>
       <DashboardShell
+        initialSidebarCollapsed={initialSidebarCollapsed}
         aiKeyBanner={
           hasSelectedProviderKey ? null : { providerLabel }
         }

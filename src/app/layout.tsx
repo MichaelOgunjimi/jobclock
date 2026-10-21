@@ -7,6 +7,11 @@ import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 import { NavigationScrollRestoration } from "@/components/navigation-scroll-restoration"
 import { Analytics } from "@vercel/analytics/next"
+import {
+  isSidebarCollapsed,
+  SIDEBAR_COLLAPSED_KEY,
+  SIDEBAR_PREFERENCE_SCRIPT,
+} from "@/lib/sidebar-preference"
 
 const uiSans = IBM_Plex_Sans({
   variable: "--font-ui-sans",
@@ -82,15 +87,22 @@ export default async function RootLayout({
   const cookieStore = await cookies()
   const cookieTheme = cookieStore.get("job-assistant-theme")?.value
   const initialTheme = cookieTheme === "dark" ? "dark" : "light"
+  const initialSidebarCollapsed = isSidebarCollapsed(
+    cookieStore.get(SIDEBAR_COLLAPSED_KEY)?.value
+  )
 
   return (
     <html
       lang="en"
       className={initialTheme === "dark" ? "dark" : undefined}
       data-theme={initialTheme}
+      data-sidebar-collapsed={String(initialSidebarCollapsed)}
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SIDEBAR_PREFERENCE_SCRIPT }} />
+      </head>
       <body
         className={`${uiSans.variable} ${uiSerif.variable} ${geistMono.variable} font-sans antialiased`}
         suppressHydrationWarning
