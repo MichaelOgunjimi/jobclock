@@ -57,7 +57,7 @@ describe("settings actions", () => {
       await saveAiSettings(
         makeFormData({
           provider: "openai",
-          model: "gpt-4o-mini",
+          model: "gpt-6-luna",
           anthropic_api_key: "",
           openai_api_key: "",
         })
@@ -70,7 +70,7 @@ describe("settings actions", () => {
       await saveAiSettings(
         makeFormData({
           provider: "openai",
-          model: "gpt-4o-mini",
+          model: "gpt-6-luna",
           anthropic_api_key: "",
           openai_api_key: "",
         })
@@ -82,7 +82,7 @@ describe("settings actions", () => {
       await saveAiSettings(
         makeFormData({
           provider: "invalid",
-          model: "gpt-4o-mini",
+          model: "gpt-6-luna",
           anthropic_api_key: "",
           openai_api_key: "",
         })
@@ -106,7 +106,7 @@ describe("settings actions", () => {
     const result = await saveAiSettings(
       makeFormData({
         provider: "openai",
-        model: "gpt-4o-mini",
+        model: "gpt-6-luna",
         anthropic_api_key: "a-key",
         openai_api_key: "o-key",
       })
