@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SelectInput } from "@/components/ui/select"
 import { PROVIDER_MODELS, type AiProvider, type AiSettings } from "@/lib/ai"
 import { saveAiSettings } from "./actions"
 import { toast } from "sonner"
@@ -161,19 +162,16 @@ export function AiSettingsForm({
 
       <div className="space-y-2">
         <Label htmlFor="model">Model</Label>
-        <select
+        <SelectInput
           id="model"
           name="model"
           value={model}
-          onChange={(e) => setModel(e.target.value)}
-          className="form-select"
-        >
-          {PROVIDER_MODELS[provider].map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label}
-            </option>
-          ))}
-        </select>
+          onValueChange={setModel}
+          options={PROVIDER_MODELS[provider].map((modelOption) => ({
+            value: modelOption.id,
+            label: modelOption.label,
+          }))}
+        />
       </div>
 
       <div className="space-y-4 rounded border border-border p-4">

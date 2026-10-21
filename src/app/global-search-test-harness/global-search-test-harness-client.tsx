@@ -1,6 +1,7 @@
 "use client"
 
 import { DashboardShell } from "@/components/dashboard-shell"
+import { SelectInput } from "@/components/ui/select"
 import { GenerationJobsContext } from "@/contexts/generation-jobs-context"
 import { ApplicationDetail } from "@/app/(dashboard)/applications/[id]/application-detail"
 
@@ -141,9 +142,12 @@ export function GlobalSearchTestHarnessClient({ view }: { view?: string }) {
         ) : (
           <div className="page-shell">
             <h1 className="page-title">Layout fixture</h1>
-            <select aria-label="Fixture select" className="form-select max-w-xs">
-              <option>First option</option>
-            </select>
+            <SelectInput
+              aria-label="Fixture select"
+              className="max-w-xs"
+              defaultValue="first"
+              options={[{ value: "first", label: "First option" }]}
+            />
             <div data-testid="scroll-probe" className="h-[1800px] border" />
           </div>
         )}

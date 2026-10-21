@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { SelectInput } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
 	Plus,
@@ -44,6 +45,11 @@ export const TONES: { value: WritingStyleTone; label: string; description: strin
 		description: "Narrative about your journey",
 	},
 ];
+
+const TONE_OPTIONS = TONES.map((tone) => ({
+	value: tone.value,
+	label: `${tone.label} — ${tone.description}`,
+}));
 
 function FileUploadZone({ onContent }: { onContent: (text: string) => void }) {
 	const [parsing, setParsing] = useState(false);
@@ -229,17 +235,11 @@ function StyleForm({
 				</div>
 				<div className="space-y-1.5">
 					<Label>Default Tone</Label>
-					<select
+					<SelectInput
 						name="default_tone"
 						defaultValue={initial?.default_tone ?? "professional"}
-						className="form-select"
-					>
-						{TONES.map((t) => (
-							<option key={t.value} value={t.value}>
-								{t.label} — {t.description}
-							</option>
-						))}
-					</select>
+						options={TONE_OPTIONS}
+					/>
 				</div>
 			</div>
 

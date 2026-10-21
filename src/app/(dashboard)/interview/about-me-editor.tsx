@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { Pencil, Plus, Trash2, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SelectInput } from "@/components/ui/select"
 import {
   confirmProfileFacts,
   createProfileFact,
@@ -47,6 +48,18 @@ const categoryOrder = [
   "goals",
   "personal_context",
 ]
+
+const profileFactCategoryOptions = [
+  "summary",
+  "education",
+  "experience",
+  "project",
+  "skill",
+  "achievement",
+  "strengths",
+  "goals",
+  "personal_context",
+].map((value) => ({ value, label: formatCategory(value) }))
 
 function categoryLabel(value: string) {
   return categoryLabels[value] ?? formatCategory(value)
@@ -124,9 +137,14 @@ function FactRow({
           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             {formatCategory(fact.category)}
           </p>
-          {fact.isCurrentSource && (
+          {fact.sourceType === "cv" && fact.isCurrentSource && (
             <span className="mt-2 inline-flex border border-border bg-card px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-foreground">
               Current CV
+            </span>
+          )}
+          {fact.sourceType === "document" && (
+            <span className="mt-2 inline-flex border border-border bg-card px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-foreground">
+              Profile document
             </span>
           )}
         </div>
@@ -389,27 +407,13 @@ export function AboutMeEditor({
               </p>
             </div>
             <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
-              <select
+              <SelectInput
                 value={category}
-                onChange={(event) => setCategory(event.target.value)}
-                className="form-select h-11 capitalize"
-              >
-                {[
-                  "summary",
-                  "education",
-                  "experience",
-                  "project",
-                  "skill",
-                  "achievement",
-                  "strengths",
-                  "goals",
-                  "personal_context",
-                ].map((value) => (
-                  <option key={value} value={value}>
-                    {formatCategory(value)}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setCategory}
+                options={profileFactCategoryOptions}
+                className="bg-background px-3 text-sm capitalize"
+                aria-label="Evidence category"
+              />
               <Input
                 value={label}
                 onChange={(event) => setLabel(event.target.value)}

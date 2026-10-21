@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { SelectInput } from "@/components/ui/select"
 import { GenerationProgress } from "@/components/generation-progress"
 import { useGenerationJobsContext } from "@/contexts/generation-jobs-context"
 import { generateCoverLetter } from "../actions"
@@ -26,6 +27,11 @@ import {
   saveCoverLetterTemplatePreference,
 } from "./actions"
 import { applicationPath } from "@/lib/applications/path"
+
+const TEMPLATE_OPTIONS = CL_TEMPLATE_NAMES.map((value) => ({
+  value,
+  label: CL_TEMPLATE_LABELS[value],
+}))
 
 interface Props {
   applicationId: string
@@ -74,20 +80,13 @@ function TemplateSwitcher({
       </div>
 
       <div className="sm:hidden">
-        <select
+        <SelectInput
           value={value}
-          onChange={(event) =>
-            onChange(event.target.value as CoverLetterTemplateName)
-          }
-          className="form-select h-10 min-w-[10rem] bg-background text-[12px]"
+          onValueChange={onChange}
+          options={TEMPLATE_OPTIONS}
+          className="h-10 min-w-[10rem] bg-background text-[12px]"
           aria-label="Select cover letter template"
-        >
-          {CL_TEMPLATE_NAMES.map((template) => (
-            <option key={template} value={template}>
-              {CL_TEMPLATE_LABELS[template]}
-            </option>
-          ))}
-        </select>
+        />
       </div>
     </>
   )

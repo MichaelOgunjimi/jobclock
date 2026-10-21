@@ -72,16 +72,15 @@ test("uses document scrolling for long dashboard pages", async ({ page }) => {
 })
 
 test("keeps the shared select chevron away from the border", async ({ page }) => {
-  const styles = await page.getByRole("combobox", { name: "Fixture select" }).evaluate((select) => {
-    const computed = getComputedStyle(select)
+  const spacing = await page.getByRole("combobox", { name: "Fixture select" }).evaluate((select) => {
+    const chevron = select.querySelector("svg")
+    if (!chevron) throw new Error("Select chevron was not rendered")
+    const selectBox = select.getBoundingClientRect()
+    const chevronBox = chevron.getBoundingClientRect()
     return {
-      appearance: computed.appearance,
-      backgroundPosition: computed.backgroundPosition,
-      paddingRight: Number.parseFloat(computed.paddingRight),
+      rightGap: selectBox.right - chevronBox.right,
     }
   })
 
-  expect(styles.appearance).toBe("none")
-  expect(styles.backgroundPosition).toContain("24px")
-  expect(styles.paddingRight).toBeGreaterThanOrEqual(64)
+  expect(spacing.rightGap).toBeGreaterThanOrEqual(20)
 })

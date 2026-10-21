@@ -4,6 +4,11 @@ import { applications, jobsCache, profiles, userCvs } from "@/lib/db/schema"
 import { withPlatformAiKeyAccess, type UserPreferences } from "@/lib/ai"
 import type { CvData } from "@/lib/supabase/database.types"
 import type { GenerationJob } from "../jobs"
+import {
+  formatConfirmedProfileEvidence,
+  loadConfirmedProfileFacts,
+  type ConfirmedProfileFact,
+} from "@/lib/candidate-evidence"
 
 export interface CvTailorContext {
   userId: string
@@ -13,6 +18,8 @@ export interface CvTailorContext {
   location: string | null
   description: string
   cvJson: string
+  confirmedEvidence: string
+  profileFacts: ConfirmedProfileFact[]
   preferences: UserPreferences
 }
 
@@ -20,7 +27,7 @@ export async function loadCvTailorContext(job: GenerationJob): Promise<CvTailorC
   const applicationId = job.applicationId!
   const userId = job.userId
 
-  const [appRows, profileRows] = await Promise.all([
+  const [appRows, profileRows, profileFacts] = await Promise.all([
     db
       .select({
         selectedCvId: applications.selectedCvId,
@@ -43,6 +50,7 @@ export async function loadCvTailorContext(job: GenerationJob): Promise<CvTailorC
       })
       .from(profiles)
       .where(eq(profiles.id, userId)),
+    loadConfirmedProfileFacts(userId),
   ])
 
   const app = appRows[0]
@@ -77,6 +85,8 @@ export async function loadCvTailorContext(job: GenerationJob): Promise<CvTailorC
     location: app.customLocation ?? app.location ?? null,
     description,
     cvJson: JSON.stringify(cvParsed, null, 2),
+    confirmedEvidence: formatConfirmedProfileEvidence(profileFacts),
+    profileFacts,
     preferences: withPlatformAiKeyAccess(
       (profile?.preferences ?? null) as UserPreferences | null,
       profile?.allowPlatformAiKey,

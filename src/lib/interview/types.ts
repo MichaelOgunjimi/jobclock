@@ -47,7 +47,7 @@ export interface ProfileFactEvidence {
   tags: string[]
   confirmedAt: string | null
   updatedAt: string
-  sourceType: "cv" | "manual" | "discovery"
+  sourceType: "cv" | "document" | "manual" | "discovery"
   sourceRef: string | null
   // Only CV facts use this to mark stale imported versions.
   isCurrentSource: boolean

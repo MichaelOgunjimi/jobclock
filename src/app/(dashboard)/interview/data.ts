@@ -12,7 +12,7 @@ import { appendApplicationAuditEvents } from "@/lib/applications/audit"
 export type { InterviewQuestionCategory, ProfileFactDraft, QuestionDefinition } from "@/lib/interview/types"
 
 export type InterviewQuestionSourceType = "built_in" | "custom" | "application_generated"
-export type InterviewFactSourceType = "cv" | "manual" | "discovery"
+export type InterviewFactSourceType = "cv" | "document" | "manual" | "discovery"
 export type StorySourceType = "manual" | "discovery"
 
 export interface EvidenceSnapshot {
@@ -318,7 +318,13 @@ function buildFactView(row: PersistedFactRow, currentCvRefs: Set<string>): Inter
     category: row.category,
     label: row.label,
     detail: row.detail,
-    sourceType: row.sourceType === "cv" || row.sourceType === "manual" || row.sourceType === "discovery" ? row.sourceType : "manual",
+    sourceType:
+      row.sourceType === "cv" ||
+      row.sourceType === "document" ||
+      row.sourceType === "manual" ||
+      row.sourceType === "discovery"
+        ? row.sourceType
+        : "manual",
     sourceRef: row.sourceRef,
     confirmedAt: toIso(row.confirmedAt),
     createdAt: toIso(row.createdAt) ?? new Date(0).toISOString(),

@@ -259,6 +259,10 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars', 'avatars', true)
 ON CONFLICT (id) DO NOTHING;
 
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('profile-documents', 'profile-documents', false)
+ON CONFLICT (id) DO NOTHING;
+
 DROP POLICY IF EXISTS "Users can upload own CV" ON storage.objects;
 CREATE POLICY "Users can upload own CV" ON storage.objects
   FOR INSERT WITH CHECK (bucket_id = 'cvs' AND auth.uid()::text = (storage.foldername(name))[1]);
@@ -313,6 +317,21 @@ CREATE POLICY "avatars: owner delete" ON storage.objects
   FOR DELETE TO authenticated
   USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
 
+DROP POLICY IF EXISTS "profile documents: owner select" ON storage.objects;
+CREATE POLICY "profile documents: owner select" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (bucket_id = 'profile-documents' AND (select auth.uid())::text = (storage.foldername(name))[1]);
+
+DROP POLICY IF EXISTS "profile documents: owner insert" ON storage.objects;
+CREATE POLICY "profile documents: owner insert" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'profile-documents' AND (select auth.uid())::text = (storage.foldername(name))[1]);
+
+DROP POLICY IF EXISTS "profile documents: owner delete" ON storage.objects;
+CREATE POLICY "profile documents: owner delete" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'profile-documents' AND (select auth.uid())::text = (storage.foldername(name))[1]);
+
 -- ============================================================
 -- GENERATION JOBS (async generation lifecycle + Realtime)
 -- ============================================================
@@ -357,6 +376,45 @@ DROP POLICY IF EXISTS "Users can update own api tokens" ON public.personal_api_t
 CREATE POLICY "Users can update own api tokens" ON public.personal_api_tokens FOR UPDATE USING (auth.uid() = user_id);
 DROP POLICY IF EXISTS "Users can delete own api tokens" ON public.personal_api_tokens;
 CREATE POLICY "Users can delete own api tokens" ON public.personal_api_tokens FOR DELETE USING (auth.uid() = user_id);
+
+ALTER TABLE public.profile_documents ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.profile_documents FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.profile_documents TO authenticated;
+DROP POLICY IF EXISTS "Users can view own profile documents" ON public.profile_documents;
+CREATE POLICY "Users can view own profile documents" ON public.profile_documents FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id);
+DROP POLICY IF EXISTS "Users can insert own profile documents" ON public.profile_documents;
+CREATE POLICY "Users can insert own profile documents" ON public.profile_documents FOR INSERT TO authenticated
+  WITH CHECK ((select auth.uid()) = user_id);
+DROP POLICY IF EXISTS "Users can update own profile documents" ON public.profile_documents;
+CREATE POLICY "Users can update own profile documents" ON public.profile_documents FOR UPDATE TO authenticated
+  USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id);
+DROP POLICY IF EXISTS "Users can delete own profile documents" ON public.profile_documents;
+CREATE POLICY "Users can delete own profile documents" ON public.profile_documents FOR DELETE TO authenticated
+  USING ((select auth.uid()) = user_id);
+
+ALTER TABLE public.interview_profile_facts ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.interview_profile_facts FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.interview_profile_facts TO authenticated;
+DROP POLICY IF EXISTS "Users can view own profile facts" ON public.interview_profile_facts;
+CREATE POLICY "Users can view own profile facts" ON public.interview_profile_facts FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id);
+DROP POLICY IF EXISTS "Users can insert own profile facts" ON public.interview_profile_facts;
+CREATE POLICY "Users can insert own profile facts" ON public.interview_profile_facts FOR INSERT TO authenticated
+  WITH CHECK ((select auth.uid()) = user_id);
+DROP POLICY IF EXISTS "Users can update own profile facts" ON public.interview_profile_facts;
+CREATE POLICY "Users can update own profile facts" ON public.interview_profile_facts FOR UPDATE TO authenticated
+  USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id);
+DROP POLICY IF EXISTS "Users can delete own profile facts" ON public.interview_profile_facts;
+CREATE POLICY "Users can delete own profile facts" ON public.interview_profile_facts FOR DELETE TO authenticated
+  USING ((select auth.uid()) = user_id);
+
+ALTER TABLE public.application_audit_events ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.application_audit_events FROM anon, authenticated;
+GRANT SELECT ON TABLE public.application_audit_events TO authenticated;
+DROP POLICY IF EXISTS "Users can view own application audit events" ON public.application_audit_events;
+CREATE POLICY "Users can view own application audit events" ON public.application_audit_events FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id);
 
 ALTER TABLE public.story_bank ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view own stories" ON public.story_bank;

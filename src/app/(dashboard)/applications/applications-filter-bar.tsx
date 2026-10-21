@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useEffect, useRef } from "react"
 import type { ChangeEvent } from "react"
 import { Search } from "lucide-react"
+import { SelectInput } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
 import {
@@ -117,8 +118,8 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
     return qs ? `/applications?${qs}` : "/applications"
   }
 
-  function handleSortChange(e: ChangeEvent<HTMLSelectElement>) {
-    const href = buildUrl({ sort: e.target.value === "saved_desc" ? null : e.target.value })
+  function handleSortChange(value: string) {
+    const href = buildUrl({ sort: value === "saved_desc" ? null : value })
     persistFilterHref(href)
     router.push(href, { scroll: false })
   }
@@ -173,17 +174,13 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
         {/* Sort dropdown */}
         <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:shrink-0">
           <span className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted-foreground">Sort</span>
-          <select
+          <SelectInput
             value={activeSort}
-            onChange={handleSortChange}
-            className="form-select h-9 min-w-0 flex-1 bg-background text-[12px] sm:w-auto sm:min-w-[8rem] sm:flex-none"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={handleSortChange}
+            options={SORT_OPTIONS}
+            className="h-9 min-w-0 flex-1 bg-background px-3 text-[12px] sm:w-auto sm:min-w-[8rem] sm:flex-none"
+            aria-label="Sort applications"
+          />
         </div>
       </div>
     </div>

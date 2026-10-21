@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { Plus, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SelectInput } from "@/components/ui/select"
 import { createQuestion } from "./actions"
 import type {
   InterviewQuestionCategory,
@@ -22,6 +23,11 @@ const categoryLabels: Record<InterviewQuestionCategory, string> = {
   mistakes: "Learning",
   custom: "Custom",
 }
+
+const categoryOptions = Object.entries(categoryLabels).map(([value, label]) => ({
+  value: value as InterviewQuestionCategory,
+  label,
+}))
 
 export function QuestionLibrary({
   questions,
@@ -120,19 +126,13 @@ export function QuestionLibrary({
             rows={3}
             className="w-full resize-none border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
           />
-          <select
+          <SelectInput
             value={category}
-            onChange={(event) =>
-              setCategory(event.target.value as InterviewQuestionCategory)
-            }
-            className="form-select h-9"
-          >
-            {Object.entries(categoryLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+            onValueChange={setCategory}
+            options={categoryOptions}
+            className="h-9 bg-background px-3 text-sm"
+            aria-label="Question category"
+          />
           {error && <p className="text-xs text-destructive">{error}</p>}
           <div className="flex gap-2">
             <Button
