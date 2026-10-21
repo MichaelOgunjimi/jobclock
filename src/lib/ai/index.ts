@@ -4,23 +4,21 @@ export type AiProvider = "anthropic" | "openai"
 
 export const PROVIDER_MODELS: Record<AiProvider, { id: string; label: string }[]> = {
   anthropic: [
-    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (Recommended)" },
-    { id: "claude-opus-4-6", label: "Claude Opus 4.6 (Most Capable)" },
-    { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5 (Fastest)" },
+    { id: "claude-sonnet-5-5", label: "Claude Sonnet 5.5 (Recommended)" },
+    { id: "claude-opus-5-5", label: "Claude Opus 5.5 (Advanced)" },
+    { id: "claude-fable-5-1", label: "Claude Fable 5.1 (Deep Reasoning)" },
+    { id: "claude-haiku-5-5", label: "Claude Haiku 5.5 (Fastest)" },
   ],
   openai: [
-    { id: "gpt-4.1", label: "GPT-4.1 (Recommended)" },
-    { id: "o3", label: "o3 (Best reasoning)" },
-    { id: "o4-mini", label: "o4-mini (Fast reasoning)" },
-    { id: "gpt-4.1-mini", label: "GPT-4.1 Mini (Fast & affordable)" },
-    { id: "gpt-4o", label: "GPT-4o" },
-    { id: "gpt-4o-mini", label: "GPT-4o Mini" },
+    { id: "gpt-6.1-sol", label: "GPT-6.1 Sol (Recommended)" },
+    { id: "gpt-6-astra", label: "GPT-6 Astra (Most Capable)" },
+    { id: "gpt-6-luna", label: "GPT-6 Luna (Fastest & Affordable)" },
   ],
 }
 
 export const DEFAULT_MODELS: Record<AiProvider, string> = {
-  anthropic: "claude-sonnet-4-6",
-  openai: "gpt-4.1",
+  anthropic: "claude-sonnet-5-5",
+  openai: "gpt-6.1-sol",
 }
 
 export interface AiSettings {
@@ -79,7 +77,9 @@ export function withPlatformAiKeyAccess(
 
 export function resolveAiSettings(preferences: UserPreferences | null): AiSettings {
   const provider = preferences?.ai_provider ?? "openai"
-  const model = preferences?.ai_model ?? DEFAULT_MODELS[provider]
+  const model =
+    PROVIDER_MODELS[provider].find(({ id }) => id === preferences?.ai_model)?.id ??
+    DEFAULT_MODELS[provider]
   return { provider, model }
 }
 
@@ -202,14 +202,20 @@ export async function generateText(
       system,
       messages: [{ role: "user", content: user }],
     })
-    const block = message.content[0]
-    if (block.type !== "text") throw new Error("Unexpected Anthropic response type")
-    return block.text
+    const text = message.content
+      .filter((block) => block.type === "text")
+      .map((block) => block.text)
+      .join("\n")
+    if (!text) throw new Error("Unexpected Anthropic response type")
+    return text
   } else {
     const { default: OpenAI } = await import("openai")
     const client = new OpenAI({ apiKey, timeout, maxRetries })
-    // o3/o4-mini use max_completion_tokens; other models use max_tokens.
-    const isReasoning = settings.model.startsWith("o3") || settings.model.startsWith("o4")
+    // GPT-6 and o-series models use max_completion_tokens.
+    const isReasoning =
+      settings.model.startsWith("gpt-6") ||
+      settings.model.startsWith("o3") ||
+      settings.model.startsWith("o4")
     const tokenParam = maxTokens != null
       ? (isReasoning ? { max_completion_tokens: maxTokens } : { max_tokens: maxTokens })
       : {}
