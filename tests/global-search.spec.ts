@@ -111,6 +111,54 @@ test("animates the desktop sidebar between expanded and collapsed states", async
   await expect(sidebar).toHaveCSS("width", "280px")
 })
 
+test("animates every topbar dropdown with movement and opacity", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+
+  async function recordTransitions(panel: ReturnType<typeof page.locator>) {
+    await panel.evaluate((element) => {
+      element.dataset.transitions = ""
+      element.addEventListener("transitionrun", (event) => {
+        if (!(event instanceof TransitionEvent)) return
+        const properties = new Set(element.dataset.transitions?.split(",").filter(Boolean))
+        properties.add(event.propertyName)
+        element.dataset.transitions = [...properties].join(",")
+      })
+    })
+  }
+
+  async function recordedTransitions(panel: ReturnType<typeof page.locator>) {
+    return panel.evaluate((element) => element.dataset.transitions?.split(",").filter(Boolean) ?? [])
+  }
+
+  const notifications = page.getByRole("button", { name: "Notifications" })
+  const notificationsPanel = notifications.locator("..").locator(":scope > [aria-hidden]")
+  await recordTransitions(notificationsPanel)
+  await notifications.click()
+  await expect.poll(() => recordedTransitions(notificationsPanel)).toEqual(
+    expect.arrayContaining(["opacity", "translate", "scale"])
+  )
+  await page.waitForTimeout(250)
+  await notificationsPanel.evaluate((element) => { element.dataset.transitions = "" })
+  await notifications.click()
+  await expect.poll(() => recordedTransitions(notificationsPanel)).toEqual(
+    expect.arrayContaining(["opacity", "translate", "scale"])
+  )
+
+  const account = page.getByRole("button", { name: "Open account menu" })
+  const accountPanel = account.locator("..").locator(":scope > [aria-hidden]").first()
+  await recordTransitions(accountPanel)
+  await account.hover()
+  await expect.poll(() => recordedTransitions(accountPanel)).toEqual(
+    expect.arrayContaining(["opacity", "translate", "scale"])
+  )
+  await page.waitForTimeout(250)
+  await accountPanel.evaluate((element) => { element.dataset.transitions = "" })
+  await page.mouse.move(0, 200)
+  await expect.poll(() => recordedTransitions(accountPanel)).toEqual(
+    expect.arrayContaining(["opacity", "translate", "scale"])
+  )
+})
+
 test("keeps the shared select chevron away from the border", async ({ page }) => {
   const spacing = await page.getByRole("combobox", { name: "Fixture select" }).evaluate((select) => {
     const chevron = select.querySelector("svg")
