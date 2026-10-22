@@ -74,7 +74,6 @@ export function ThemeProvider({
 
   function setTheme(theme: Theme) {
     window.localStorage.setItem(STORAGE_KEY, theme)
-    document.cookie = `${STORAGE_KEY}=${theme}; path=/; max-age=31536000; samesite=lax`
     applyTheme(theme)
     window.dispatchEvent(new Event("job-assistant-theme-change"))
   }

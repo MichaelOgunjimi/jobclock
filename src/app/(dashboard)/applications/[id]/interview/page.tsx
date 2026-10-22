@@ -1,5 +1,5 @@
 import { notFound, permanentRedirect, redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { applicationPath } from "@/lib/applications/path"
 import { resolveApplicationRoute } from "@/lib/applications/route"
@@ -12,10 +12,7 @@ export default async function InterviewPrepRedirectPage({
   if (!isSupabaseConfigured()) redirect("/auth")
 
   const { id } = await params
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   if (!user) redirect("/auth")
 

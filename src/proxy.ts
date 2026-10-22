@@ -31,13 +31,20 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  await supabase.auth.getClaims()
 
   return supabaseResponse
 }
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|(?:extension|privacy|terms|cookies)(?:/|$)|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    {
+      source: "/((?!api|_next/static|_next/image|favicon.ico|(?:extension|privacy|terms|cookies)(?:/|$)|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
+        { type: "header", key: "next-action" },
+      ],
+    },
   ],
 }

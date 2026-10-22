@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { asc, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
@@ -50,8 +50,7 @@ export default async function AnalyticsPage({
 }) {
   if (!isSupabaseConfigured()) redirect("/auth")
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/auth")
 
   const [rows, transitionRows] = await Promise.all([

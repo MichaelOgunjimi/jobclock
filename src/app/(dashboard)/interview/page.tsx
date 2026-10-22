@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { loadInterviewWorkspace } from "./data"
 import { InterviewWorkspace } from "./interview-workspace"
@@ -16,8 +16,7 @@ export default async function InterviewPage({
 }) {
   if (!isSupabaseConfigured()) redirect("/auth")
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/auth")
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined

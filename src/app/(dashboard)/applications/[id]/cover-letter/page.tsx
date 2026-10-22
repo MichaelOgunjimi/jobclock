@@ -1,5 +1,5 @@
 import { notFound, permanentRedirect, redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, getCurrentUser } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import type { CvData } from "@/lib/supabase/database.types"
 import type { Metadata } from "next"
@@ -15,7 +15,7 @@ export async function generateMetadata({
   const { id } = await params
   if (!isSupabaseConfigured()) return { title: "Cover Letter" }
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) return { title: "Cover Letter" }
   const route = await resolveApplicationRoute(user.id, id)
   if (!route) return { title: "Cover Letter" }
@@ -41,9 +41,7 @@ export default async function CoverLetterPreviewPage({
   const { id } = await params
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/auth")
 
   const route = await resolveApplicationRoute(user.id, id)

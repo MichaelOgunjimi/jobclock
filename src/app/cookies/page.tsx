@@ -27,7 +27,7 @@ export default function CookiePolicyPage() {
 
       <LegalSection number="03" title="Preference storage">
         <p>
-          The <code>job-assistant-theme</code> preference is stored in a cookie and local storage so JobClock can remember light or dark appearance. The cookie lasts up to one year unless you remove it sooner.
+          The <code>job-assistant-theme</code> preference is stored in local storage so JobClock can remember light or dark appearance.
         </p>
         <p>
           JobClock may also use local storage for interface preferences such as sidebar state or analytics-view layout. These values stay on your device until the application or you remove them. They are not used for advertising or cross-site tracking.

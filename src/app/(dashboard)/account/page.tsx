@@ -4,7 +4,7 @@ import { and, desc, eq, isNotNull } from "drizzle-orm"
 import { Code2, ExternalLink, Globe, Link2, Mail, Phone } from "lucide-react"
 import { db } from "@/lib/db"
 import { interviewProfileFacts, profileDocuments } from "@/lib/db/schema"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, getCurrentUser } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AccountForm } from "./account-form"
@@ -17,9 +17,7 @@ export default async function AccountPage() {
   if (!isSupabaseConfigured()) redirect("/auth")
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   if (!user) redirect("/auth")
 

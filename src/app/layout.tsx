@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import { cookies } from "next/headers"
 import { Geist_Mono, IBM_Plex_Sans, IBM_Plex_Serif } from "next/font/google"
 import { Suspense } from "react"
 import "./globals.css"
@@ -7,11 +6,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 import { NavigationScrollRestoration } from "@/components/navigation-scroll-restoration"
 import { Analytics } from "@vercel/analytics/next"
-import {
-  isSidebarCollapsed,
-  SIDEBAR_COLLAPSED_KEY,
-  SIDEBAR_PREFERENCE_SCRIPT,
-} from "@/lib/sidebar-preference"
+import { SIDEBAR_PREFERENCE_SCRIPT } from "@/lib/sidebar-preference"
 
 const uiSans = IBM_Plex_Sans({
   variable: "--font-ui-sans",
@@ -40,6 +35,8 @@ const siteUrl =
 const siteName = "Jobclock"
 const siteDescription =
   "AI-powered job search assistant for UK roles. Save jobs from any site, tailor your CV per role, draft cover letters, and prep for interviews — all in one workspace."
+
+const themeScript = `(function(){try{var t=localStorage.getItem("job-assistant-theme");if(t!=="light"&&t!=="dark")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";var d=document.documentElement;d.classList.toggle("dark",t==="dark");d.dataset.theme=t}catch(e){}})()`
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -79,35 +76,27 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const cookieStore = await cookies()
-  const cookieTheme = cookieStore.get("job-assistant-theme")?.value
-  const initialTheme = cookieTheme === "dark" ? "dark" : "light"
-  const initialSidebarCollapsed = isSidebarCollapsed(
-    cookieStore.get(SIDEBAR_COLLAPSED_KEY)?.value
-  )
-
   return (
     <html
       lang="en"
-      className={initialTheme === "dark" ? "dark" : undefined}
-      data-theme={initialTheme}
-      data-sidebar-collapsed={String(initialSidebarCollapsed)}
+      data-theme="light"
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_PREFERENCE_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body
         className={`${uiSans.variable} ${uiSerif.variable} ${geistMono.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
-        <ThemeProvider initialTheme={initialTheme}>
+        <ThemeProvider initialTheme="light">
           <Suspense fallback={null}>
             <NavigationScrollRestoration />
           </Suspense>
