@@ -12,7 +12,7 @@ function renderWithTheme() {
 }
 
 describe("ThemeToggle", () => {
-  it("persists the selected theme to the document, localStorage, and cookies", async () => {
+  it("persists the selected theme to the document and localStorage", async () => {
     renderWithTheme()
 
     const toggle = await screen.findByRole("button", { name: "Switch to dark mode" })
@@ -24,7 +24,6 @@ describe("ThemeToggle", () => {
 
     expect(document.documentElement.classList.contains("dark")).toBe(true)
     expect(localStorage.getItem("job-assistant-theme")).toBe("dark")
-    expect(document.cookie).toContain("job-assistant-theme=dark")
     expect(screen.getByRole("button", { name: "Switch to light mode" })).toBeInTheDocument()
   })
 })

@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Briefcase, FileText, Search, Send } from "lucide-react"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, getCurrentUser } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button-styles"
@@ -29,9 +29,7 @@ export default async function DashboardPage() {
   if (!isSupabaseConfigured()) redirect("/auth")
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   if (!user) redirect("/auth")
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, getCurrentUser } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect, notFound } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
@@ -18,7 +18,7 @@ export async function generateMetadata({
   const { cvId } = await params
   if (!isSupabaseConfigured()) return { title: "CV" }
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) return { title: "CV" }
   const { data } = await supabase
     .from("user_cvs")
@@ -46,7 +46,7 @@ export default async function CvDetailPage({
   }
 
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/auth")
 
   const { data: cv } = await supabase

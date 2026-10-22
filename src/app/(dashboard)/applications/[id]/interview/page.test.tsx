@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { createMockSupabaseClient } from "@/test/supabase-mock"
 
 vi.mock("@/lib/supabase/config", () => ({ isSupabaseConfigured: vi.fn() }))
-vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }))
+vi.mock("@/lib/supabase/server", () => ({ getCurrentUser: vi.fn() }))
 vi.mock("@/lib/applications/route", () => ({ resolveApplicationRoute: vi.fn() }))
 
 const redirectMock = vi.hoisted(() => vi.fn((href: string) => {
@@ -22,18 +21,15 @@ vi.mock("next/navigation", () => ({
 }))
 
 import { isSupabaseConfigured } from "@/lib/supabase/config"
-import { createClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { resolveApplicationRoute } from "@/lib/applications/route"
 import InterviewPrepRedirectPage from "./page"
 
 describe("InterviewPrepRedirectPage", () => {
-  let supabaseMock: ReturnType<typeof createMockSupabaseClient>
-
   beforeEach(() => {
     vi.clearAllMocks()
-    supabaseMock = createMockSupabaseClient()
     vi.mocked(isSupabaseConfigured).mockReturnValue(true)
-    vi.mocked(createClient).mockResolvedValue(supabaseMock.client as never)
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: "user-123" } as never)
   })
 
   it("redirects canonical application links to the central interview workspace", async () => {

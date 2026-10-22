@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { notFound, permanentRedirect, redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, getCurrentUser } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { eq, and } from "drizzle-orm"
 import { db } from "@/lib/db"
@@ -19,7 +19,7 @@ export async function generateMetadata({
   const { id } = await params
   if (!isSupabaseConfigured()) return { title: "Application" }
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) return { title: "Application" }
   const route = await resolveApplicationRoute(user.id, id)
   if (!route) return { title: "Application" }
@@ -58,9 +58,7 @@ export default async function ApplicationDetailPage({
   const { id } = await params
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/auth")
 
   const route = await resolveApplicationRoute(user.id, id)

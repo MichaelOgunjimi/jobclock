@@ -9,6 +9,7 @@ const allowedDevOrigins =
 
 const nextConfig: NextConfig = {
 	reactCompiler: true,
+	deploymentId: process.env.VERCEL_DEPLOYMENT_ID?.replace(/^dpl_/, ""),
 	output: process.env.NEXT_STANDALONE === "1" ? "standalone" : undefined,
 	serverExternalPackages: [
 		"pdf-parse",

@@ -27,6 +27,11 @@ export default function GlobalError({
         <p className="text-[15px] leading-7 text-muted-foreground">
           An unexpected error occurred. Try refreshing or head back home.
         </p>
+        {error.digest && (
+          <p className="font-mono text-xs text-muted-foreground">
+            Error reference: {error.digest}
+          </p>
+        )}
         <div className="flex flex-col justify-center gap-3 sm:flex-row">
           <Button onClick={reset} variant="outline" size="lg">
             <RefreshCw className="h-4 w-4" />
