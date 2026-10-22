@@ -23,6 +23,11 @@ export default function ApplicationError({
       <p className="max-w-md text-sm text-muted-foreground">
         We could not load this application. This might be a temporary issue.
       </p>
+      {error.digest && (
+        <p className="font-mono text-xs text-muted-foreground">
+          Error reference: {error.digest}
+        </p>
+      )}
       <div className="flex gap-3">
         <Button onClick={reset} variant="outline">
           Try again
