@@ -38,7 +38,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-title"
       className={cn(
-        "font-heading text-[1.35rem] leading-none font-medium tracking-[-0.03em] group-data-[size=sm]/card:text-lg",
+        "flex min-h-6 items-center font-heading text-[1.35rem] leading-none font-medium tracking-[-0.03em] group-data-[size=sm]/card:text-lg",
         className
       )}
       {...props}
@@ -61,7 +61,7 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-action"
       className={cn(
-        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        "col-start-2 row-start-1 self-start justify-self-end",
         className
       )}
       {...props}

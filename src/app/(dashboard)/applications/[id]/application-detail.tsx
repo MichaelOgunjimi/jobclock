@@ -1113,13 +1113,14 @@ function CoverLetterCard({
                 }))}
                 className="flex-1"
               />
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => setShowToneOverride((v) => !v)}
-                className="w-full shrink-0 border border-border px-2 py-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground sm:w-auto"
+                className="w-full shrink-0 px-3 text-[11px] text-muted-foreground hover:text-foreground sm:w-auto"
               >
                 {TONES.find((t) => t.value === selectedTone)?.label ?? "Tone"}
-              </button>
+              </Button>
             </div>
           </div>
           {showToneOverride && (

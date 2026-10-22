@@ -214,6 +214,15 @@ function SelectInput<Value extends string>({
 
   return (
     <>
+      {name ? (
+        <input
+          type="hidden"
+          name={name}
+          value={selectedValue ?? ""}
+          disabled={disabled}
+        />
+      ) : null}
+
       <button
         ref={triggerRef}
         id={id}
@@ -245,15 +254,6 @@ function SelectInput<Value extends string>({
           <ChevronDown className="size-4 transition-transform duration-150 group-data-[popup-open]:rotate-180" />
         </span>
       </button>
-
-      {name ? (
-        <input
-          type="hidden"
-          name={name}
-          value={selectedValue ?? ""}
-          disabled={disabled}
-        />
-      ) : null}
 
       {open && position
         ? createPortal(

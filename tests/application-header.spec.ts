@@ -94,6 +94,41 @@ test("stacks document cards through small laptop widths", async ({ page }) => {
   expect(coverLetter!.y).toBeGreaterThan(baseCv!.y + baseCv!.height)
 })
 
+test("aligns paired document card headers and controls on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(fixturePath)
+
+  const cards = page.locator('[data-slot="card"]')
+  const baseCv = cards.filter({ has: page.getByText("Base CV", { exact: true }) })
+  const coverLetter = cards.filter({ has: page.getByText("Cover Letter", { exact: true }) })
+
+  const measurements = await Promise.all(
+    [
+      { card: baseCv, actionName: "Save" },
+      { card: coverLetter, actionName: "Professional" },
+    ].map(async ({ card, actionName }) => {
+      const header = await card.locator('[data-slot="card-header"]').boundingBox()
+      const label = await card.locator("label").first().boundingBox()
+      const select = await card.locator('[data-slot="select-trigger"]').first().boundingBox()
+      const action = await card.getByRole("button", { name: actionName }).boundingBox()
+      return { header, label, select, action }
+    })
+  )
+
+  const [cv, letter] = measurements
+  for (const measurement of measurements) {
+    expect(measurement.header).not.toBeNull()
+    expect(measurement.label).not.toBeNull()
+    expect(measurement.select).not.toBeNull()
+    expect(measurement.action).not.toBeNull()
+    expect(Math.abs(measurement.select!.y - measurement.action!.y)).toBeLessThan(2)
+    expect(Math.abs(measurement.select!.height - measurement.action!.height)).toBeLessThan(2)
+  }
+  expect(Math.abs(cv.header!.height - letter.header!.height)).toBeLessThan(2)
+  expect(Math.abs(cv.label!.y - letter.label!.y)).toBeLessThan(2)
+  expect(Math.abs(cv.select!.y - letter.select!.y)).toBeLessThan(2)
+})
+
 test("stacks the writing-style controls and shortens chat on small phones", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 })
   await page.goto(fixturePath)
