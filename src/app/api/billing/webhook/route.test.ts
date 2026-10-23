@@ -79,7 +79,7 @@ describe("POST /api/billing/webhook", () => {
 
   describe("credit pack payments", () => {
     const session = (overrides: Record<string, unknown> = {}) => ({
-      id: "cs_1", mode: "payment", payment_status: "paid", customer: "cus_1", currency: "gbp", amount_total: 750,
+      id: "cs_1", mode: "payment", payment_status: "paid", customer: "cus_1", currency: "gbp", amount_total: 400,
       metadata: { jobclock_kind: "credit_pack", jobclock_user_id: "user-1", pack: "credits_50" },
       ...overrides,
     })
@@ -97,7 +97,7 @@ describe("POST /api/billing/webhook", () => {
     it("grants the pack once the payment is verified", async () => {
       expect((await deliver(session())).status).toBe(200)
       expect(mocks.grant).toHaveBeenCalledWith({
-        userId: "user-1", checkoutSessionId: "cs_1", pack: "credits_50", credits: 50, amountPence: 750,
+        userId: "user-1", checkoutSessionId: "cs_1", pack: "credits_50", credits: 50, amountPence: 400,
       })
       expect(mocks.finish).toHaveBeenCalledWith("evt_2", "processed")
     })

@@ -63,7 +63,7 @@ describe("POST /api/billing/credits", () => {
     expect(mocks.createCheckout).toHaveBeenCalledWith(expect.objectContaining({
       mode: "payment",
       customer: "cus_1",
-      line_items: [expect.objectContaining({ price_data: expect.objectContaining({ currency: "gbp", unit_amount: 2_100 }) })],
+      line_items: [expect.objectContaining({ price_data: expect.objectContaining({ currency: "gbp", unit_amount: 1_000 }) })],
       metadata: { jobclock_kind: "credit_pack", jobclock_user_id: "user-1", pack: "credits_150" },
     }))
   })

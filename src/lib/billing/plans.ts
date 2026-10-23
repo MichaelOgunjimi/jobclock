@@ -1,19 +1,16 @@
 import "server-only"
 
-export const PRO_CREDIT_LIMIT = 300
+import { PRO_CREDIT_LIMIT, PRO_PRICES, type BillingCadence } from "./pro-plan"
+
+export { PRO_CREDIT_LIMIT, PRO_PRICES }
+export type { BillingCadence }
+
 export const PRO_COST_LIMIT_MICROUSD = 6_000_000
 
-export const PRO_PRICES = {
-  monthly: { amountPence: 1_200, interval: "month" },
-  annual: { amountPence: 12_000, interval: "year" },
-} as const
-
-export type BillingCadence = keyof typeof PRO_PRICES
-
-// One-off top-ups for Pro subscribers. Priced above the Pro rate (£0.12 a credit) so subscribing stays the better deal.
+// One-off top-ups for Pro subscribers. Priced well above the Pro rate (£0.04 a credit) so subscribing stays the better deal.
 export const CREDIT_PACKS = {
-  credits_50: { credits: 50, amountPence: 750 },
-  credits_150: { credits: 150, amountPence: 2_100 },
+  credits_50: { credits: 50, amountPence: 400 },
+  credits_150: { credits: 150, amountPence: 1_000 },
 } as const
 
 export type CreditPackId = keyof typeof CREDIT_PACKS
@@ -26,8 +23,8 @@ export const AI_CREDIT_WEIGHTS = {
   interview_answer: 2,
   interview_preparation: 4,
   cover_letter: 4,
-  company_research: 6,
-  cv_tailoring: 10,
+  company_research: 8,
+  cv_tailoring: 6,
 } as const
 
 export type AiFeature = keyof typeof AI_CREDIT_WEIGHTS

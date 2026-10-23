@@ -38,10 +38,10 @@ describe("billing plan configuration", () => {
       interview_answer: 2,
       interview_preparation: 4,
       cover_letter: 4,
-      company_research: 6,
-      cv_tailoring: 10,
+      company_research: 8,
+      cv_tailoring: 6,
     })
-    expect(getCreditWeight("cv_tailoring")).toBe(10)
+    expect(getCreditWeight("cv_tailoring")).toBe(6)
   })
 
   it("maps cadence only to server-owned Price IDs", () => {
