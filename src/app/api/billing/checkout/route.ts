@@ -5,7 +5,9 @@ import { checkoutIntegrationIdentifier, getBillingOrigin, getStripe } from "@/li
 import { findStripeCustomerId, hasPurchasableSubscription, saveStripeCustomer } from "@/lib/billing/store"
 import { getProPriceId } from "@/lib/billing/plans"
 
-const requestSchema = z.object({ cadence: z.enum(["monthly", "annual"]) })
+// Where to send the user if they back out of Checkout: a path on our own site only, never another origin.
+const returnPathSchema = z.string().max(200).regex(/^\/(?!\/)[A-Za-z0-9\-._~/?=&%]*$/)
+const requestSchema = z.object({ cadence: z.enum(["monthly", "annual"]), returnPath: returnPathSchema.optional() })
 
 const LIVE_STATUSES = new Set(["active", "trialing", "past_due", "unpaid", "paused"])
 
@@ -56,9 +58,10 @@ export async function POST(request: Request) {
     client_reference_id: user.id,
     integration_identifier: checkoutIntegrationIdentifier(),
     line_items: [{ price: priceId, quantity: 1 }],
-    allow_promotion_codes: true,
+    // Promotion codes are off at launch; turn on here (and test one) before offering any discount.
+    allow_promotion_codes: false,
     success_url: `${origin}/settings?tab=billing&checkout=success`,
-    cancel_url: `${origin}/pricing?checkout=canceled`,
+    cancel_url: `${origin}${parsed.data.returnPath ?? "/pricing?checkout=canceled"}`,
   })
   if (!session.url) throw new Error("Stripe Checkout did not return a URL")
   return Response.json({ url: session.url })

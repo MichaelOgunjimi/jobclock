@@ -5,6 +5,7 @@ import { useState } from "react"
 import { KeyRound } from "lucide-react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { DashboardTopbar } from "@/components/dashboard-topbar"
+import { UpgradeDialog } from "@/components/upgrade-dialog"
 import { ExtensionAvailabilityBanner } from "@/components/extension-availability-banner"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { cn } from "@/lib/utils"
@@ -65,12 +66,9 @@ export function DashboardShell({
               >
                 Configure AI key
               </Link>
-              <Link
-                href="/pricing"
-                className={cn(buttonVariants({ size: "sm", variant: "ghost" }))}
-              >
+              <UpgradeDialog className={cn(buttonVariants({ size: "sm", variant: "ghost" }))}>
                 See Pro
-              </Link>
+              </UpgradeDialog>
             </div>
           </div>
         )}

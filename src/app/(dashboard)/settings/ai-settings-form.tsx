@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
+import { UpgradeDialog } from "@/components/upgrade-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SelectInput } from "@/components/ui/select"
@@ -156,7 +157,7 @@ export function AiSettingsForm({
             <p className="mt-1 text-xs text-muted-foreground">Use your own provider account and exact model choice.</p>
           </button>
         </div>
-        {!canUseJobclock && <p className="text-xs text-muted-foreground">JobClock allowance is available with Pro. <a href="/pricing" className="underline underline-offset-2">See pricing</a>.</p>}
+        {!canUseJobclock && <p className="text-xs text-muted-foreground">JobClock allowance is available with Pro. <UpgradeDialog className="underline underline-offset-2">Upgrade to Pro</UpgradeDialog>.</p>}
       </div>
 
       {source === "personal" ? <>

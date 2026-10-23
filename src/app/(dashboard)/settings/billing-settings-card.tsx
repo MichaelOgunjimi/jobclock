@@ -1,9 +1,9 @@
 "use client"
 
-import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { AlertTriangle, CheckCircle2 } from "lucide-react"
 import { BillingActionButton } from "@/components/billing-action-button"
+import { UpgradeDialog } from "@/components/upgrade-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button-styles"
@@ -114,7 +114,7 @@ export function BillingSettingsCard({ summary }: { summary: BillingSummary }) {
             </div>
             <div className="flex flex-wrap gap-3">
               {summary.cancelAtPeriodEnd ? (
-                <BillingActionButton action="portal">Resume subscription</BillingActionButton>
+                <BillingActionButton action="resume">Resume subscription</BillingActionButton>
               ) : (
                 <>
                   <BillingActionButton action="portal" flow="switch" variant="outline">
@@ -132,7 +132,7 @@ export function BillingSettingsCard({ summary }: { summary: BillingSummary }) {
               {recoverable ? "Update payment details" : "Payment method & invoices"}
             </BillingActionButton>
           ) : (
-            <Link href="/pricing" className={buttonVariants()}>Upgrade to Pro</Link>
+            <UpgradeDialog className={buttonVariants()}>Upgrade to Pro</UpgradeDialog>
           )}
         </div>
       </CardContent>

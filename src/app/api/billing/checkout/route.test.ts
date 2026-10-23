@@ -55,8 +55,29 @@ describe("POST /api/billing/checkout", () => {
     expect(mocks.createCheckout).toHaveBeenCalledWith(expect.objectContaining({
       customer: "cus_1",
       line_items: [{ price: "price_month", quantity: 1 }],
-      allow_promotion_codes: true,
+      allow_promotion_codes: false,
     }))
+  })
+
+  it("sends a user who backs out of Checkout to the page they came from", async () => {
+    const response = await POST(new Request("http://localhost/api/billing/checkout", {
+      method: "POST", body: JSON.stringify({ cadence: "monthly", returnPath: "/settings?tab=ai" }),
+    }))
+    expect(response.status).toBe(200)
+    expect(mocks.createCheckout).toHaveBeenCalledWith(expect.objectContaining({ cancel_url: "https://jobclock.test/settings?tab=ai" }))
+  })
+
+  it("falls back to pricing when no return path is given", async () => {
+    await POST(new Request("http://localhost/api/billing/checkout", { method: "POST", body: JSON.stringify({ cadence: "monthly" }) }))
+    expect(mocks.createCheckout).toHaveBeenCalledWith(expect.objectContaining({ cancel_url: "https://jobclock.test/pricing?checkout=canceled" }))
+  })
+
+  it.each(["https://evil.test/", "//evil.test", "javascript:alert(1)", "/\\evil.test"])("rejects the return path %s", async (returnPath) => {
+    const response = await POST(new Request("http://localhost/api/billing/checkout", {
+      method: "POST", body: JSON.stringify({ cadence: "monthly", returnPath }),
+    }))
+    expect(response.status).toBe(400)
+    expect(mocks.createCheckout).not.toHaveBeenCalled()
   })
 
   it("rejects a duplicate subscription", async () => {
