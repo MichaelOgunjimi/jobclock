@@ -37,7 +37,7 @@ export type AiActionClient = {
 const ESTIMATED_COSTS: Record<AiFeature, number> = {
   job_import: 20_000, qualification_document_extraction: 30_000, cv_parse_review: 80_000,
   application_chat: 100_000, interview_answer: 60_000, interview_preparation: 120_000,
-  cover_letter: 120_000, company_research: 300_000, cv_tailoring: 500_000,
+  cover_letter: 120_000, company_research: 500_000, cv_tailoring: 500_000,
 }
 
 // An unmetered grant (null credit limit) still gets a backstop so a runaway loop cannot spend without bound.
