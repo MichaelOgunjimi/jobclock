@@ -8,7 +8,7 @@ import { getActivePersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
 import { getTelegramConnection } from "@/lib/telegram/pairing"
 import { listTrackedCompanies } from "./actions"
 import { SettingsTabs } from "./settings-tabs"
-import { allowanceWindow, CREDIT_PACKS } from "@/lib/billing/plans"
+import { allowanceWindow, CREDIT_PACKS, PRO_CREDIT_LIMIT } from "@/lib/billing/plans"
 import { resolveEntitlement, SUBSCRIPTION_STATUSES, type SubscriptionStatus } from "@/lib/billing/entitlements"
 
 export const metadata: Metadata = {
@@ -149,7 +149,8 @@ export default async function SettingsPage() {
             allowanceResetsAt: allowance?.end.toISOString() ?? null,
             cancelAtPeriodEnd: subscription?.cancel_at_period_end ?? false,
             creditsUsed: Number(usagePeriod?.credits_used ?? 0),
-            creditLimit: Number(usagePeriod?.credit_limit ?? 100),
+            monthlyCredits: PRO_CREDIT_LIMIT,
+            creditLimit: Number(usagePeriod?.credit_limit ?? PRO_CREDIT_LIMIT),
             purchasedCredits: Number(creditBalance?.credits ?? 0),
             creditPacks: Object.entries(CREDIT_PACKS).map(([id, pack]) => ({ id, ...pack })),
           }}

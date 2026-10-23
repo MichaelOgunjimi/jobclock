@@ -17,6 +17,7 @@ export type BillingSummary = {
   allowanceResetsAt: string | null
   cancelAtPeriodEnd: boolean
   creditsUsed: number
+  monthlyCredits: number
   creditLimit: number
   purchasedCredits: number
   creditPacks: { id: string; credits: number; amountPence: number }[]
@@ -40,7 +41,7 @@ export function BillingSettingsCard({ summary }: { summary: BillingSummary }) {
             <p className="section-label">Billing</p>
             <CardTitle className="mt-2">{summary.plan === "pro" ? "JobClock Pro" : "Free"}</CardTitle>
             <CardDescription className="mt-2">
-              {summary.plan === "pro" ? `${summary.cadence === "year" ? "£120 a year" : "£12 a month"} · 100 AI credits every month` : "The complete workspace, with AI generation using your own provider key."}
+              {summary.plan === "pro" ? `${summary.cadence === "year" ? "£120 a year" : "£12 a month"} · ${summary.monthlyCredits} AI credits every month` : "The complete workspace, with AI generation using your own provider key."}
             </CardDescription>
           </div>
           <Badge variant={recoverable ? "destructive" : "outline"}>{summary.status ?? "free"}</Badge>
@@ -73,7 +74,7 @@ export function BillingSettingsCard({ summary }: { summary: BillingSummary }) {
             </div>
             {summary.allowanceResetsAt && (
               <p className="text-xs text-muted-foreground">
-                Your 100 credits refresh on {formatDate(summary.allowanceResetsAt)}
+                Your {summary.monthlyCredits} credits refresh on {formatDate(summary.allowanceResetsAt)}
                 {summary.cadence === "year" ? ", and every month of your year" : ""}. Unused credits don&apos;t roll over.
               </p>
             )}

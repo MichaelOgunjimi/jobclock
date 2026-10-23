@@ -25,7 +25,7 @@ describe("billing plan configuration", () => {
       monthly: { amountPence: 1_200, interval: "month" },
       annual: { amountPence: 12_000, interval: "year" },
     })
-    expect(PRO_CREDIT_LIMIT).toBe(100)
+    expect(PRO_CREDIT_LIMIT).toBe(300)
     expect(PRO_COST_LIMIT_MICROUSD).toBe(4_000_000)
   })
 

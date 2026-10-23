@@ -3,13 +3,13 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { PricingPlans } from "./pricing-plans"
-import { AI_CREDIT_WEIGHTS, CREDIT_PACKS } from "@/lib/billing/plans"
+import { AI_CREDIT_WEIGHTS, CREDIT_PACKS, PRO_CREDIT_LIMIT } from "@/lib/billing/plans"
 import { formatPounds } from "@/lib/format-pounds"
 import { resolveEntitlement, SUBSCRIPTION_STATUSES, type SubscriptionStatus } from "@/lib/billing/entitlements"
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: "Use JobClock for free with your own AI key, or upgrade to Pro for 100 monthly AI credits, with extra credits available any time.",
+  description: `Use JobClock for free with your own AI key, or upgrade to Pro for ${PRO_CREDIT_LIMIT} monthly AI credits, with extra credits available any time.`,
 }
 
 const pricePacks = Object.values(CREDIT_PACKS)
@@ -49,14 +49,14 @@ export default async function PricingPage() {
           <h1 className="page-title text-4xl sm:text-6xl">Your workspace stays useful for free.</h1>
           <p className="page-lede">Connect your own AI key whenever you want, or let Pro handle AI provider access for you.</p>
         </div>
-        <PricingPlans signedIn={signedIn} isPro={isPro} />
+        <PricingPlans signedIn={signedIn} isPro={isPro} monthlyCredits={PRO_CREDIT_LIMIT} />
         <p className="mx-auto mt-8 max-w-3xl text-center text-sm leading-6 text-muted-foreground">No surprise charges. If you use your monthly allowance, Pro members can buy extra credits ({pricePacks}) or keep working with their own AI-provider key until it renews.</p>
         <section className="mt-16 border-t pt-12">
           <p className="page-kicker text-center">Questions</p>
           <div className="mt-6 grid gap-px border bg-border md:grid-cols-2">
             {[
               ["Do I need an API key?", "Free AI generation uses your own OpenAI or Anthropic key. Pro can generate with JobClock credits instead."],
-              ["How do credits work?", "Pro includes 100 credits every month, including on the yearly plan, and unused monthly credits do not roll over. Pro members can also buy extra credits that never expire and are used after the monthly allowance."],
+              ["How do credits work?", `Pro includes ${PRO_CREDIT_LIMIT} credits every month, including on the yearly plan, and unused monthly credits do not roll over. Pro members can also buy extra credits that never expire and are used after the monthly allowance.`],
               ["What does each action cost?", `Importing a job costs ${w.job_import} credit, a chat message ${w.application_chat}, an interview answer ${w.interview_answer}, a cover letter ${w.cover_letter}, company research ${w.company_research} and a tailored CV ${w.cv_tailoring}.`],
               ["Can I cancel?", "Yes, any time from Settings → Billing. You keep Pro through the end of your paid period, then move to Free with all your data."],
               ["What happens to my data?", "Nothing is deleted or hidden when you return to Free. Your workspace and BYOK generation remain available."],

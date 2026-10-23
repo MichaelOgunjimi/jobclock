@@ -1,6 +1,6 @@
 import "server-only"
 
-export const PRO_CREDIT_LIMIT = 100
+export const PRO_CREDIT_LIMIT = 300
 export const PRO_COST_LIMIT_MICROUSD = 4_000_000
 
 export const PRO_PRICES = {
@@ -61,7 +61,7 @@ function addMonths(date: Date, months: number) {
   return result
 }
 
-/** The monthly credit window inside a Stripe period, so a yearly subscriber gets 100 credits a month, not 100 a year. */
+/** The monthly credit window inside a Stripe period, so a yearly subscriber gets a full allowance every month, not one for the whole year. */
 export function allowanceWindow(periodStart: Date, periodEnd: Date, now = new Date()) {
   let month = 0
   while (addMonths(periodStart, month + 1) <= now && addMonths(periodStart, month + 1) < periodEnd) month += 1

@@ -15,7 +15,7 @@ const features = [
   "AI generation with your own OpenAI or Anthropic key",
 ]
 
-export function PricingPlans({ signedIn, isPro }: { signedIn: boolean; isPro: boolean }) {
+export function PricingPlans({ signedIn, isPro, monthlyCredits }: { signedIn: boolean; isPro: boolean; monthlyCredits: number }) {
   const [cadence, setCadence] = useState<"monthly" | "annual">("monthly")
 
   return (
@@ -53,7 +53,7 @@ export function PricingPlans({ signedIn, isPro }: { signedIn: boolean; isPro: bo
           <CardHeader className="border-b pb-6">
             <Badge>{isPro ? "Your plan" : "Pro"}</Badge>
             <CardTitle className="mt-4 text-3xl">{cadence === "monthly" ? "£12/month" : "£120/year"}</CardTitle>
-            <p className="text-sm text-muted-foreground">Everything in Free, plus 100 JobClock AI credits every month.</p>
+            <p className="text-sm text-muted-foreground">Everything in Free, plus {monthlyCredits} JobClock AI credits every month.</p>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
             <ul className="space-y-3 text-sm">

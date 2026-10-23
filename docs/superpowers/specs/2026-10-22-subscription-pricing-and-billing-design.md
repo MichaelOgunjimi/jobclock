@@ -11,7 +11,7 @@
 JobClock will launch with two plans only:
 
 - **Free — £0 forever.** The complete core job-search workspace remains usable. AI generation requires the user's own OpenAI or Anthropic API key.
-- **Pro — £12 monthly or £120 annually.** Everything in Free, plus 100 JobClock AI credits per billing month so AI generation works without the user supplying a provider key.
+- **Pro — £12 monthly or £120 annually.** Everything in Free, plus 300 JobClock AI credits per billing month so AI generation works without the user supplying a provider key.
 
 The annual price is the same Pro plan on a different billing cadence, not a third plan. It is equivalent to £10 per month and gives two months free compared with monthly billing.
 
@@ -49,7 +49,7 @@ This model preserves the current bring-your-own-key workflow, avoids taking feat
 | Core job search and application tracking | Included | Included |
 | CVs, cover letters, profile evidence, interview prep, exports | Included | Included |
 | AI with a personal OpenAI or Anthropic key | Included | Included |
-| AI without a personal provider key | Not included | 100 JobClock AI credits per billing month |
+| AI without a personal provider key | Not included | 300 JobClock AI credits per billing month |
 | Premium AI models | Available with personal key | Available with personal key |
 | Automatic generation on save | Available with personal key | Available with personal key or JobClock credits |
 | Billing management | — | Stripe Customer Portal |
@@ -62,7 +62,7 @@ Free:
 
 Pro:
 
-> Everything in Free, plus 100 JobClock AI credits each month. Generate tailored CVs, cover letters, research, and interview answers without setting up a separate AI account.
+> Everything in Free, plus 300 JobClock AI credits each month. Generate tailored CVs, cover letters, research, and interview answers without setting up a separate AI account.
 
 Required clarifier below the plan cards:
 
@@ -83,7 +83,7 @@ Pricing should be reviewed after at least 30 paying customers or three complete 
 
 ### User-Facing Credits
 
-Pro includes **100 JobClock AI credits per billing month**. Credits reset at the start of the Stripe subscription period. They do not roll over, transfer, or have cash value.
+Pro includes **300 JobClock AI credits per billing month**. Credits reset at the start of the Stripe subscription period. They do not roll over, transfer, or have cash value.
 
 Credits are charged per user-visible operation, not per underlying provider call:
 
@@ -105,7 +105,7 @@ The weights live in one server-only plan configuration module and may change for
 
 ### Provider-Cost Safety Ceiling
 
-Credits are the customer promise; the provider-cost ceiling is a private risk control. Each Pro billing period has a **$4.00 USD platform-AI cost ceiling** in addition to the 100-credit limit.
+Credits are the customer promise; the provider-cost ceiling is a private risk control. Each Pro billing period has a **$4.00 USD platform-AI cost ceiling** in addition to the 300-credit limit.
 
 Before a platform-funded request starts, JobClock atomically reserves both:
 
@@ -506,7 +506,7 @@ In JobClock mode, show provider preference and automatic routing; do not show pr
 ### In-Flow States
 
 - Near 80 credits used: non-blocking allowance warning.
-- At 100 credits or internal ceiling: blocking message that preserves user input.
+- At 300 credits or internal ceiling: blocking message that preserves user input.
 - Missing personal key on Free: current configure-key message plus a secondary “See Pro” action.
 - Premium model selected without a matching personal key: explain that the model requires the user's own key.
 - Checkout pending webhook: neutral pending state, never an optimistic Pro badge.
@@ -621,7 +621,7 @@ Use Stripe test clocks for renewal, failed-payment, grace-period, and cancellati
 
 ### Phase 0 — Commercial and Stripe Setup
 
-1. Approve £12 monthly, £120 annual, 100 credits, and the fixed credit weights.
+1. Approve £12 monthly, £120 annual, 300 credits, and the fixed credit weights.
 2. Complete tax/legal decisions.
 3. Create dedicated Stripe sandbox and live accounts/configuration.
 4. Create the Pro Product and monthly/yearly Prices.
