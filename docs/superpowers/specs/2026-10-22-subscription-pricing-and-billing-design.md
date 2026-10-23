@@ -699,17 +699,16 @@ Use Stripe test clocks for renewal, failed-payment, grace-period, and cancellati
 - Existing `allow_platform_ai_key` users retain controlled access during migration.
 - The app passes `make check`, route tests, migration verification, and the documented Stripe sandbox journeys.
 
-## Launch Decisions Still Requiring Human Approval
+## Launch Decisions
 
-These do not block engineering in a sandbox, but they block production sales:
+Resolved 2026-10-23. These are working defaults for launch; items 1-3 should be confirmed with an accountant before production sales.
 
-1. Selling entity and Stripe account owner.
-2. VAT/tax registrations and inclusive-versus-exclusive price display.
-3. Refund and cancellation wording.
-4. Final approval of the 100-credit weights after a representative workload cost test.
-5. Whether promotional codes are enabled at launch.
-
-Everything else in this specification is the implementation default.
+1. **Selling entity:** a UK sole trader trading under the owner's name, with the Stripe account held in the same name. Move to a limited company later if needed.
+2. **Tax:** assume annual turnover stays under the UK VAT registration threshold (GBP 90,000). JobClock is not VAT-registered and charges no VAT, so displayed prices are final. Stripe automatic tax stays off. Review at GBP 85,000 of trailing-12-month turnover.
+3. **Territory:** launch for UK customers only. Selling digital services to EU consumers from outside the EU carries separate VAT obligations (EU OSS non-Union scheme), so non-UK sales are out of scope until an accountant has confirmed the position.
+4. **Refunds and cancellation:** cancel any time from Settings -> Billing; access continues to the end of the paid period. A refund is offered within 14 days of purchase if fewer than 10 credits have been used. No other pro-rata refunds.
+5. **Credit weights:** unchanged until measured. Only `cv_tailoring` has real data (about USD 0.075 per run, 10 credits, so roughly USD 0.0075 per credit against the USD 0.04 per-credit ceiling). Run one full application (import, CV, cover letter, research), re-run `make usage-report`, then set final weights and allowance. At current weights one application without interview prep is 21 credits, so Pro covers about 4 applications a month; this is likely too few for the price.
+6. **Promotional codes:** disabled at launch. Beta users get a one-off 100% Stripe coupon applied by hand.
 
 ## Sources
 
