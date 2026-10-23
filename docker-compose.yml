@@ -18,3 +18,14 @@ services:
       # Polling-based file watching for reliable HMR across Docker volumes on macOS
       WATCHPACK_POLLING: "true"
     restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    command: tunnel --config /etc/cloudflared/config.yml run
+    restart: unless-stopped
+    depends_on:
+      - app
+    volumes:
+      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - ./cloudflared/credentials.json:/etc/cloudflared/credentials.json:ro

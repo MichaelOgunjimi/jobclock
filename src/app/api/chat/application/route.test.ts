@@ -6,7 +6,23 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }))
 vi.mock("@/lib/rate-limit", () => ({
   chatRateLimit: { limit: vi.fn() },
 }))
+const { record } = vi.hoisted(() => ({ record: vi.fn() }))
+// runAiAction is covered in lib/ai/action.test.ts; here it resolves config from the mocked resolveAiConfig and runs the operation.
+vi.mock("@/lib/ai/action", async () => {
+  const ai = await import("@/lib/ai")
+  return {
+    runAiAction: async (request: { preferences: unknown }, operation: (client: unknown) => unknown) => {
+      const { settings, apiKey } = ai.resolveAiConfig(request.preferences as never)
+      return operation({ settings, apiKey, record })
+    },
+  }
+})
+vi.mock("@/lib/billing/usage", () => ({
+  AiAllowanceExhaustedError: class extends Error { code = "ai_allowance_exhausted" },
+}))
 vi.mock("@/lib/ai", () => ({
+  MissingAiApiKeyError: class extends Error { code = "missing_ai_api_key" },
+  WEB_SEARCH_COST_MICROUSD: 25_000,
   resolveAiConfig: vi.fn(),
   withPlatformAiKeyAccess: vi.fn((preferences, allowPlatformAiKey) => ({
     ...(preferences ?? {}),
@@ -22,7 +38,8 @@ vi.mock("@anthropic-ai/sdk", () => ({
 
 import { createClient } from "@/lib/supabase/server"
 import { chatRateLimit } from "@/lib/rate-limit"
-import { resolveAiConfig } from "@/lib/ai"
+import { MissingAiApiKeyError, resolveAiConfig } from "@/lib/ai"
+import { AiAllowanceExhaustedError } from "@/lib/billing/usage"
 import { buildChatAssistantSystemPrompt } from "@/lib/ai/prompts"
 import Anthropic from "@anthropic-ai/sdk"
 import { POST } from "./route"
@@ -70,12 +87,18 @@ describe("POST /api/chat/application", () => {
       data: { preferences: {} },
     })
 
-    anthropicStreamMock = vi.fn().mockReturnValue((async function* () {
+    anthropicStreamMock = vi.fn().mockReturnValue(Object.assign((async function* () {
       yield {
         type: "content_block_delta",
         delta: { type: "text_delta", text: "ok" },
       }
-    })())
+    })(), {
+      controller: { abort: vi.fn() },
+      finalMessage: async () => ({
+        id: "msg-1",
+        usage: { input_tokens: 10, output_tokens: 5, server_tool_use: { web_search_requests: 2 } },
+      }),
+    }))
     vi.mocked(Anthropic).mockImplementation(function MockAnthropic() {
       return {
         messages: { stream: anthropicStreamMock },
@@ -142,7 +165,7 @@ describe("POST /api/chat/application", () => {
 
   it("returns 422 when AI config resolution fails", async () => {
     vi.mocked(resolveAiConfig).mockImplementation(() => {
-      throw new Error("No API key configured.")
+      throw new (MissingAiApiKeyError as new (message: string) => Error)("No API key configured.")
     })
 
     const response = await POST(
@@ -154,7 +177,34 @@ describe("POST /api/chat/application", () => {
     const body = await response.json()
 
     expect(response.status).toBe(422)
-    expect(body).toEqual({ error: "No API key configured." })
+    expect(body).toEqual({ error: "No API key configured.", code: "missing_ai_api_key" })
+  })
+
+  it("returns 402 when the hosted AI allowance is exhausted", async () => {
+    vi.mocked(resolveAiConfig).mockImplementation(() => {
+      throw new AiAllowanceExhaustedError(new Date())
+    })
+
+    const response = await POST(
+      createChatRequest({ applicationId: "app-1", messages: [{ role: "user", content: "hello" }] })
+    )
+
+    expect(response.status).toBe(402)
+    expect(await response.json()).toMatchObject({ code: "ai_allowance_exhausted" })
+  })
+
+  it("streams the reply, then reports provider usage including web search cost", async () => {
+    const response = await POST(
+      createChatRequest({ applicationId: "app-1", messages: [{ role: "user", content: "hello" }] })
+    )
+
+    expect(await response.text()).toBe("ok")
+    expect(record).toHaveBeenCalledWith(expect.objectContaining({
+      providerRequestId: "msg-1",
+      inputTokens: 10,
+      outputTokens: 5,
+      toolCostMicrousd: 50_000,
+    }))
   })
 
   it("caps messages to the last 20", async () => {
@@ -265,5 +315,38 @@ describe("POST /api/chat/application", () => {
 
     expect(response.status).toBe(500)
     expect(body).toEqual({ error: "AI request failed" })
+  })
+
+  it("returns a readable error, not a blank reply, when the provider fails while streaming", async () => {
+    anthropicStreamMock.mockReturnValue(Object.assign((async function* () {
+      throw Object.assign(new Error("Your credit balance is too low to access the Anthropic API."), { status: 400 })
+    })(), { controller: { abort: vi.fn() }, finalMessage: async () => ({}) }))
+
+    const response = await POST(
+      createChatRequest({ applicationId: "app-1", messages: [{ role: "user", content: "hello" }] })
+    )
+
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({
+      error: "The AI provider account has no credit left. Add credit or use a different API key in Settings.",
+    })
+    expect(record).not.toHaveBeenCalled()
+  })
+
+  it("returns an error when the model streams no text", async () => {
+    anthropicStreamMock.mockReturnValue(Object.assign((async function* () {
+      yield { type: "message_start" }
+    })(), {
+      controller: { abort: vi.fn() },
+      finalMessage: async () => ({ id: "msg-2", usage: { input_tokens: 10, output_tokens: 0 } }),
+    }))
+
+    const response = await POST(
+      createChatRequest({ applicationId: "app-1", messages: [{ role: "user", content: "hello" }] })
+    )
+
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({ error: "The AI returned an empty response. Please try again." })
+    expect(record).toHaveBeenCalledWith(expect.objectContaining({ providerRequestId: "msg-2", inputTokens: 10 }))
   })
 })

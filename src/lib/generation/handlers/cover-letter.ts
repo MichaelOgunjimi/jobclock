@@ -1,7 +1,7 @@
 import { and, eq, ne } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { coverLetters } from "@/lib/db/schema"
-import { resolveAiConfig, generateText } from "@/lib/ai"
+import { runAiAction } from "@/lib/ai/action"
 import { buildCoverLetterSystemPrompt, buildCoverLetterUserPrompt } from "@/lib/ai/prompts"
 import { normalizeCoverLetterText } from "@/lib/cover-letter/normalize"
 import type { GenerationJob } from "../jobs"
@@ -24,7 +24,6 @@ export async function coverLetterHandler(job: GenerationJob): Promise<string> {
   // Research failure must not block letter generation — it's supplementary context.
   const companyResearch = ctx.companyResearch ?? await composeResearch(job).catch(() => undefined)
 
-  const { settings, apiKey } = resolveAiConfig(ctx.preferences)
   const systemPrompt = buildCoverLetterSystemPrompt(`Write in a ${ctx.tone} tone.`)
   const userPrompt = buildCoverLetterUserPrompt({
     title: ctx.title,
@@ -39,9 +38,8 @@ export async function coverLetterHandler(job: GenerationJob): Promise<string> {
   // Cover letters can be 400-600 words with detailed reasoning; the 60s
   // default sometimes trips on Anthropic tail latency. Bump to 120s to
   // give the model headroom without letting it hang forever.
-  const content = await generateText(settings, apiKey, systemPrompt, userPrompt, undefined, {
-    timeoutMs: 120_000,
-  })
+  const content = await runAiAction({ userId: ctx.userId, actionId: job.id, feature: "cover_letter", preferences: ctx.preferences },
+    (ai) => ai.generate(systemPrompt, userPrompt, undefined, { timeoutMs: 120_000 }))
 
   return db.transaction(async (tx) => {
     const [inserted] = await tx

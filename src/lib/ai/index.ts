@@ -26,16 +26,28 @@ export interface AiSettings {
   model: string
 }
 
+/** Why JobClock's own AI was not an option when no personal key was found. */
+export type MissingAiApiKeyReason = "payment_paused" | "not_subscribed"
+
+const MISSING_KEY_MESSAGES: Record<MissingAiApiKeyReason, string> = {
+  payment_paused: "Your payment needs attention, so JobClock AI is paused. Update your billing details in Settings → Billing to restore it, or add your own API key in Settings → AI.",
+  not_subscribed: "No API key is set up. Add your own key in Settings → AI, or upgrade to Pro to use JobClock AI credits.",
+}
+
 export class MissingAiApiKeyError extends Error {
   code = "missing_ai_api_key" as const
   provider: AiProvider
+  reason?: MissingAiApiKeyReason
 
-  constructor(provider: AiProvider) {
+  constructor(provider: AiProvider, reason?: MissingAiApiKeyReason) {
     super(
-      `No API key configured for ${provider}. Add one in Settings → AI Configuration.`
+      reason
+        ? MISSING_KEY_MESSAGES[reason]
+        : `No API key configured for ${provider}. Add one in Settings → AI Configuration.`
     )
     this.name = "MissingAiApiKeyError"
     this.provider = provider
+    this.reason = reason
   }
 }
 
@@ -56,6 +68,8 @@ export interface JobSources {
 export interface UserPreferences {
   ai_provider?: AiProvider
   ai_model?: string
+  ai_billing_source?: "jobclock" | "personal"
+  hosted_provider_preference?: "automatic" | AiProvider
   auto_generate_cv_on_job_add?: boolean
   auto_generate_cover_letter_on_job_add?: boolean
   anthropic_api_key?: string
@@ -126,11 +140,23 @@ export interface GenerateTextOptions {
   maxRetries?: number
 }
 
+export interface GeneratedText {
+  text: string
+  providerRequestId?: string
+  inputTokens: number
+  cachedInputTokens: number
+  outputTokens: number
+  toolCostMicrousd?: number
+}
+
 // Defaults chosen to bound worst-case latency. Both SDKs default to
 // maxRetries=2 + ~10-minute timeouts, which silently turns one tail-latency
 // spike into a multi-minute hang (seen in the extension preview path).
 const DEFAULT_TIMEOUT_MS = 60_000
 const DEFAULT_MAX_RETRIES = 1
+
+// Conservative flat price per web search (microUSD), above both providers' list prices; revisit with AI_PRICE_VERSION.
+export const WEB_SEARCH_COST_MICROUSD = 25_000
 
 export async function generateTextWithWebSearch(
   settings: AiSettings,
@@ -140,6 +166,17 @@ export async function generateTextWithWebSearch(
   maxTokens?: number,
   options?: GenerateTextOptions,
 ): Promise<string> {
+  return (await generateTextWithWebSearchResult(settings, apiKey, system, user, maxTokens, options)).text
+}
+
+export async function generateTextWithWebSearchResult(
+  settings: AiSettings,
+  apiKey: string,
+  system: string,
+  user: string,
+  maxTokens?: number,
+  options?: GenerateTextOptions,
+): Promise<GeneratedText> {
   // Web search calls are slow (search + synthesis). 240 s gives headroom
   // inside the 300 s Vercel maxDuration on the generate route.
   const timeout = options?.timeoutMs ?? 240_000
@@ -159,11 +196,19 @@ export async function generateTextWithWebSearch(
         },
         { headers: { "anthropic-beta": "web-search-2025-03-05" } },
       )
+      const searches = (message.usage as { server_tool_use?: { web_search_requests?: number } }).server_tool_use?.web_search_requests ?? 0
       // Response may include server_tool_use blocks alongside text blocks — extract text only.
-      return message.content
-        .filter((b) => b.type === "text")
-        .map((b) => (b as { type: "text"; text: string }).text)
-        .join("\n")
+      return {
+        text: message.content
+          .filter((b) => b.type === "text")
+          .map((b) => (b as { type: "text"; text: string }).text)
+          .join("\n"),
+        providerRequestId: message.id,
+        inputTokens: message.usage.input_tokens,
+        cachedInputTokens: message.usage.cache_read_input_tokens ?? 0,
+        outputTokens: message.usage.output_tokens,
+        toolCostMicrousd: searches * WEB_SEARCH_COST_MICROUSD,
+      }
     } else {
       const { default: OpenAI } = await import("openai")
       const client = new OpenAI({ apiKey, timeout, maxRetries })
@@ -174,11 +219,19 @@ export async function generateTextWithWebSearch(
         tools: [{ type: "web_search_preview" }],
         ...(maxTokens != null ? { max_output_tokens: maxTokens } : {}),
       })
-      return response.output_text
+      const searches = response.output.filter((item) => item.type === "web_search_call").length
+      return {
+        text: response.output_text,
+        providerRequestId: response.id,
+        inputTokens: response.usage?.input_tokens ?? 0,
+        cachedInputTokens: response.usage?.input_tokens_details?.cached_tokens ?? 0,
+        outputTokens: response.usage?.output_tokens ?? 0,
+        toolCostMicrousd: searches * WEB_SEARCH_COST_MICROUSD,
+      }
     }
   } catch {
     // Web search not supported by this model or API error — fall back to plain generation.
-    return generateText(settings, apiKey, system, user, maxTokens, options)
+    return generateTextResult(settings, apiKey, system, user, maxTokens, options)
   }
 }
 
@@ -190,6 +243,17 @@ export async function generateText(
   maxTokens?: number,
   options?: GenerateTextOptions,
 ): Promise<string> {
+  return (await generateTextResult(settings, apiKey, system, user, maxTokens, options)).text
+}
+
+export async function generateTextResult(
+  settings: AiSettings,
+  apiKey: string,
+  system: string,
+  user: string,
+  maxTokens?: number,
+  options?: GenerateTextOptions,
+): Promise<GeneratedText> {
   const timeout = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES
 
@@ -207,7 +271,13 @@ export async function generateText(
       .map((block) => block.text)
       .join("\n")
     if (!text) throw new Error("Unexpected Anthropic response type")
-    return text
+    return {
+      text,
+      providerRequestId: message.id,
+      inputTokens: message.usage.input_tokens,
+      cachedInputTokens: message.usage.cache_read_input_tokens ?? 0,
+      outputTokens: message.usage.output_tokens,
+    }
   } else {
     const { default: OpenAI } = await import("openai")
     const client = new OpenAI({ apiKey, timeout, maxRetries })
@@ -227,6 +297,12 @@ export async function generateText(
       ],
       ...tokenParam,
     })
-    return completion.choices[0]?.message?.content ?? ""
+    return {
+      text: completion.choices[0]?.message?.content ?? "",
+      providerRequestId: completion.id,
+      inputTokens: completion.usage?.prompt_tokens ?? 0,
+      cachedInputTokens: completion.usage?.prompt_tokens_details?.cached_tokens ?? 0,
+      outputTokens: completion.usage?.completion_tokens ?? 0,
+    }
   }
 }

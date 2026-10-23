@@ -27,6 +27,8 @@ export async function POST(request: NextRequest) {
   const intent = String(formData.get("intent") ?? "signin")
   const email = String(formData.get("email") ?? "").trim()
   const password = String(formData.get("password") ?? "")
+  const rawNext = String(formData.get("next") ?? "/dashboard")
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard"
   const origin = new URL(request.url).origin
 
   if (!email) {
@@ -56,21 +58,21 @@ export async function POST(request: NextRequest) {
       console.error("[auth/signin] error:", error.status, error.message)
       return json({ ok: false, message: "Invalid email or password." }, pendingCookies)
     }
-    return json({ ok: true, redirect: "/dashboard" }, pendingCookies)
+    return json({ ok: true, redirect: next }, pendingCookies)
   }
 
   if (intent === "signup") {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${origin}/auth/callback` },
+      options: { emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}` },
     })
     if (error) {
       console.error("[auth/signup] error:", error.status, error.message)
       return json({ ok: false, message: "Could not create account. Please try again." })
     }
     if (data.session) {
-      return json({ ok: true, redirect: "/dashboard" }, pendingCookies)
+      return json({ ok: true, redirect: next }, pendingCookies)
     }
     return json({ ok: true, message: "Check your email for a confirmation link." }, pendingCookies)
   }
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest) {
   if (intent === "magic_link") {
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${origin}/auth/callback` },
+      options: { emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}` },
     })
     if (error) {
       console.error("[auth/magic_link] error:", error.status, error.message)

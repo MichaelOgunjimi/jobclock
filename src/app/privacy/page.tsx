@@ -14,7 +14,7 @@ export default function PrivacyPage() {
       kicker="Privacy"
       title="JobClock privacy policy"
       summary="This policy explains what personal data JobClock handles, why it is needed, who processes it, and the choices available to you."
-      updatedAt="2 October 2026"
+      updatedAt="23 October 2026"
     >
       <LegalSection number="01" title="Who is responsible">
         <p>
@@ -29,6 +29,7 @@ export default function PrivacyPage() {
           <li><strong>Profile and career data:</strong> name, contact details, work history, skills, preferences, CVs, templates, and uploaded files.</li>
           <li><strong>Job-search data:</strong> saved roles, application stages, notes, generated CVs and cover letters, research, and interview material.</li>
           <li><strong>Configuration and credentials:</strong> encrypted AI-provider or job-source API keys, hashed extension tokens, and keyed Telegram identifiers when you connect mobile job capture.</li>
+          <li><strong>Billing and usage data:</strong> your Stripe customer and subscription identifiers, plan and payment status, payment dates and amounts, purchased credits, and a record of each JobClock AI action (the feature used, credits spent, token counts, and estimated provider cost) so your allowance can be metered. Card details are collected and stored by Stripe; JobClock does not see or store your full card number.</li>
           <li><strong>Technical and support data:</strong> security logs, page and device information, error details, and messages you send to support.</li>
         </ul>
       </LegalSection>
@@ -44,7 +45,7 @@ export default function PrivacyPage() {
 
       <LegalSection number="04" title="Service providers and transfers">
         <p>
-          JobClock relies on service providers including Supabase for authentication, database and file storage; Vercel for hosting and privacy-focused web analytics; Upstash for queued background work; and Meta or Telegram when you use the corresponding optional mobile intake. Information may also be sent to the AI provider you configure, such as OpenAI or Anthropic, when you request an AI-assisted feature.
+          JobClock relies on service providers including Supabase for authentication, database and file storage; Vercel for hosting and privacy-focused web analytics; Stripe for payments and subscription billing; Upstash for queued background work; and Meta or Telegram when you use the corresponding optional mobile intake. Information may also be sent to an AI provider when you request an AI-assisted feature: the provider you configure with your own key, or OpenAI or Anthropic when you use JobClock AI credits under a Pro plan.
         </p>
         <p>
           These providers may process data outside the United Kingdom. JobClock uses providers subject to their contractual and legal transfer safeguards. Your own AI-provider account remains governed by that provider&apos;s terms and privacy policy.
@@ -56,7 +57,7 @@ export default function PrivacyPage() {
           Access is restricted by account authentication and database access controls. Provider API keys are encrypted before storage, and extension tokens are stored as hashes by JobClock. No internet service can guarantee absolute security, so you should also protect your password, mailbox, and provider keys.
         </p>
         <p>
-          Account and workspace data is generally retained while your account is active. You can delete individual content where the product provides a delete control, or request account and associated data deletion by email. Limited records may be retained where required for security, dispute resolution, backups, or legal compliance.
+          Account and workspace data is generally retained while your account is active. You can delete individual content where the product provides a delete control, or request account and associated data deletion by email. Limited records may be retained where required for security, dispute resolution, backups, or legal compliance, and billing records are kept for as long as tax and accounting rules require.
         </p>
       </LegalSection>
 

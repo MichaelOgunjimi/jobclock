@@ -8,6 +8,7 @@ vi.mock("@/lib/applications/audit", () => ({ appendApplicationAuditEvents: vi.fn
 vi.mock("./cover-letter-context", () => ({ loadCoverLetterContext: vi.fn() }))
 vi.mock("./company-research", () => ({ composeResearch: vi.fn() }))
 vi.mock("@/lib/ai", () => ({ resolveAiConfig: vi.fn(), generateText: vi.fn() }))
+vi.mock("@/lib/ai/action", async () => (await import("@/test/ai-action-mock")).aiActionMock())
 vi.mock("@/lib/ai/prompts", () => ({
   buildCoverLetterSystemPrompt: vi.fn(() => "sys"),
   buildCoverLetterUserPrompt: vi.fn(() => "usr"),

@@ -5,6 +5,10 @@
       "schedule": "0 8 * * *"
     },
     {
+      "path": "/api/cron/reconcile-billing",
+      "schedule": "0 4 * * *"
+    },
+    {
       "path": "/api/cron/sync-presets",
       "schedule": "0 3 * * *"
     }

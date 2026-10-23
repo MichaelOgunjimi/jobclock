@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { interviewPrep } from "@/lib/db/schema"
-import { resolveAiConfig, generateText } from "@/lib/ai"
+import { runAiAction } from "@/lib/ai/action"
 import { interviewAnswerSystemPrompt, interviewAnswerPrompt } from "@/lib/prompts/interview"
 import type { GenerationJob } from "../jobs"
 import { loadInterviewAnswerContext } from "./interview-answer-context"
@@ -15,7 +15,6 @@ import { appendApplicationAuditEvents } from "@/lib/applications/audit"
 export async function interviewAnswerHandler(job: GenerationJob): Promise<string> {
   const ctx = await loadInterviewAnswerContext(job)
 
-  const { settings, apiKey } = resolveAiConfig(ctx.preferences)
   const systemPrompt = interviewAnswerSystemPrompt()
   const userPrompt = interviewAnswerPrompt({
     question: ctx.questionText,
@@ -23,7 +22,8 @@ export async function interviewAnswerHandler(job: GenerationJob): Promise<string
     jdContext: ctx.jdContext,
   })
 
-  const answer = (await generateText(settings, apiKey, systemPrompt, userPrompt)).trim()
+  const answer = (await runAiAction({ userId: ctx.userId, actionId: job.id, feature: "interview_answer", preferences: ctx.preferences },
+    (ai) => ai.generate(systemPrompt, userPrompt))).trim()
 
   return db.transaction(async (tx) => {
     const existing = await tx

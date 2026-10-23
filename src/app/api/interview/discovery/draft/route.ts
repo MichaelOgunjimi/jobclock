@@ -1,12 +1,10 @@
+import { randomUUID } from "node:crypto"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { aiGenerateRateLimit } from "@/lib/rate-limit"
-import {
-  generateText,
-  resolveAiConfig,
-  withPlatformAiKeyAccess,
-  type UserPreferences,
-} from "@/lib/ai"
+import { withPlatformAiKeyAccess, type UserPreferences } from "@/lib/ai"
+import { runAiAction } from "@/lib/ai/action"
+import { aiErrorResponse } from "@/lib/ai/http"
 import { parseDiscoveryDraft } from "@/lib/interview/parse-generation"
 import { loadInterviewQuestionById } from "@/app/(dashboard)/interview/data"
 
@@ -77,25 +75,10 @@ export async function POST(request: Request) {
     .eq("id", user.id)
     .single()
 
-  let aiConfig: ReturnType<typeof resolveAiConfig>
-  try {
-    aiConfig = resolveAiConfig(
-      withPlatformAiKeyAccess(
-        (profile?.preferences ?? {}) as UserPreferences,
-        profile?.allow_platform_ai_key === true,
-      ),
-    )
-  } catch (error) {
-    return Response.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "No AI API key configured",
-      },
-      { status: 422 },
-    )
-  }
+  const preferences = withPlatformAiKeyAccess(
+    (profile?.preferences ?? {}) as UserPreferences,
+    profile?.allow_platform_ai_key === true,
+  )
 
   const responseText = parsed.data.responses
     .map(
@@ -112,24 +95,12 @@ ${responseText}
 Decide whether these responses contain a real, usable story. Preserve the candidate's meaning and return JSON only.`
 
   try {
-    const generated = await generateText(
-      aiConfig.settings,
-      aiConfig.apiKey,
-      SYSTEM_PROMPT,
-      userPrompt,
-      1_200,
-      { timeoutMs: 180_000 },
+    const generated = await runAiAction(
+      { userId: user.id, actionId: randomUUID(), feature: "interview_answer", preferences },
+      (ai) => ai.generate(SYSTEM_PROMPT, userPrompt, 1_200, { timeoutMs: 180_000 }),
     )
     return Response.json(parseDiscoveryDraft(generated))
   } catch (error) {
-    return Response.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Evidence discovery failed",
-      },
-      { status: 502 },
-    )
+    return aiErrorResponse(error, "Evidence discovery failed", 502)
   }
 }

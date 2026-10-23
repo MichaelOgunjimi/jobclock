@@ -19,3 +19,12 @@ check: ## Type-check, lint and run unit tests
 
 migrate: ## Apply database migrations (uses DATABASE_URL from .env.local)
 	set -a && . ./.env.local && set +a && npm run db:migrate
+
+refund-quote: ## Quote a usage-based refund for an account (read-only; pass EMAIL=someone@example.com)
+	set -a && . ./.env.local && set +a && npm run refund:quote -- $(EMAIL)
+
+usage-report: ## Report real hosted-AI spend per feature and per application (read-only; pass ARGS="--days=30 --gbp-usd=1.30")
+	set -a && . ./.env.local && set +a && npm run usage:report -- $(ARGS)
+
+grant-plan: ## Grant or revoke a plan without Stripe (dry run unless ARGS has --yes): make grant-plan ARGS="you@example.com --kind=lifetime"
+	set -a && . ./.env.local && set +a && npm run billing:grant -- $(ARGS)

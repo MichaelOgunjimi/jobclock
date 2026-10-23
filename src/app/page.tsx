@@ -1,48 +1,32 @@
 import Link from "next/link"
-import { ArrowRight, BadgeCheck, BriefcaseBusiness, FileCheck2, FolderKanban, KeyRound, Search, ShieldCheck, Sparkles } from "lucide-react"
+import { ArrowRight, Check } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { LandingAnchorLink } from "@/components/landing-anchor-link"
 import { LandingNavbar } from "@/components/landing-navbar"
 import { ExtensionAvailabilityBanner } from "@/components/extension-availability-banner"
+import { ApplicationLedger } from "@/components/landing/application-ledger"
+import { ClockDial } from "@/components/landing/clock-dial"
+import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { PRO_CREDIT_LIMIT, PRO_PRICES } from "@/lib/billing/plans"
+import { formatPounds } from "@/lib/format-pounds"
 import { cn } from "@/lib/utils"
 
-const featureCards = [
-  {
-    icon: Search,
-    kicker: "Search",
-    title: "Curate roles with more signal.",
-    body: "Search the market, narrow by salary and location, and save only the roles worth tailoring for.",
-  },
-  {
-    icon: FileCheck2,
-    kicker: "Profile",
-    title: "Keep every CV variation current.",
-    body: "Manage multiple CVs, refine sections quickly, and keep your profile aligned with the work you want.",
-  },
-  {
-    icon: FolderKanban,
-    kicker: "Pipeline",
-    title: "Track the application story clearly.",
-    body: "Move from saved to applied to interview without losing the thread of what happened and what comes next.",
-  },
-]
+const steps = [
+  ["01", "Save", "Capture a role from any job site without retyping the listing."],
+  ["02", "Tailor", "Shape your CV around the role using evidence you have confirmed."],
+  ["03", "Write", "Draft a cover letter and research the company before you apply."],
+  ["04", "Prepare", "Build interview answers from your experience and practise them."],
+  ["05", "Track", "Keep every role, document and next step in one application timeline."],
+] as const
 
-const workflowSteps = [
-  ["01", "Collect", "Bring promising roles into one place instead of scattering them across tabs, notes, and screenshots."],
-  ["02", "Tailor", "Update the CV that fits the role and keep your materials precise before you send anything."],
-  ["03", "Track", "Watch every application move through your pipeline with less ambiguity and less admin."],
-]
-
-const proofPoints = [
-  "Role search with salary and location filters",
-  "Multiple CV management and inline editing",
-  "Bring your own AI provider key for generation",
-  "Application pipeline for saved, applied, and interview stages",
-  "Document templates for CV and cover letter output",
-]
+const planFeatures = [
+  "The full job-search workspace",
+  "CVs, cover letters, interview prep, and exports",
+  "AI generation with your own provider key",
+] as const
 
 export default async function HomePage() {
   let userProfile = null
@@ -51,279 +35,152 @@ export default async function HomePage() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, avatar_url")
-        .eq("id", user.id)
-        .single()
-      userProfile = {
-        email: user.email ?? "",
-        fullName: profile?.full_name ?? null,
-        avatarUrl: profile?.avatar_url ?? null,
-      }
+      const { data: profile } = await supabase.from("profiles").select("full_name, avatar_url").eq("id", user.id).single()
+      userProfile = { email: user.email ?? "", fullName: profile?.full_name ?? null, avatarUrl: profile?.avatar_url ?? null }
     }
   }
 
+  const primaryHref = userProfile ? "/dashboard" : "/auth"
+
   return (
-    <main className="landing-page min-h-screen overflow-x-hidden bg-background text-foreground">
+    <main className="min-h-screen overflow-x-hidden bg-background text-foreground">
       <LandingNavbar userProfile={userProfile} />
 
-      <section className="relative isolate border-b">
-        <div className="landing-glow landing-glow-one" aria-hidden="true" />
-        <div className="landing-glow landing-glow-two" aria-hidden="true" />
-        <div className="landing-grid absolute inset-0 opacity-60" aria-hidden="true" />
-
-        <div className="relative mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 pb-12 pt-24 sm:px-6 sm:pt-28 md:px-10 md:pb-16 md:pt-28 xl:px-12">
-          <div className="grid flex-1 items-start gap-12 py-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16 lg:py-12">
-            <div className="space-y-10">
-              <div className="landing-reveal landing-delay-1 space-y-6">
-                <div className="inline-flex items-center gap-2 border bg-secondary px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Free workspace. Configure an AI key.
-                </div>
-
-                <div className="space-y-5">
-                  <h1 className="landing-hero-title max-w-[12ch] text-[3.4rem] leading-[0.9] tracking-[-0.07em] sm:text-[4.5rem] md:text-[5.5rem]">
-                    Turn the job hunt into a deliberate system.
-                  </h1>
-                  <p className="max-w-2xl text-[16px] leading-7 text-muted-foreground sm:text-[17px]">
-                    Search roles, tailor your CV, save the opportunities worth pursuing, and track every application from one restrained workspace. AI generation uses the provider key you configure.
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <Link href="/auth" className={cn(buttonVariants({ size: "lg" }), "landing-cta-primary")}>
-                    Start with your workspace
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                  <LandingAnchorLink href="#features" className={buttonVariants({ size: "lg", variant: "outline" })}>
-                    Explore the flow
-                  </LandingAnchorLink>
-                </div>
-
-                <div className="grid max-w-2xl gap-4 border bg-background/75 p-4 sm:grid-cols-[auto_minmax(0,1fr)]">
-                  <div className="flex size-11 items-center justify-center border bg-secondary">
-                    <KeyRound className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">Bring your own AI provider key.</p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      Add your OpenAI or Anthropic key in Settings for CV tailoring, cover letters, research, and interview prep.
-                    </p>
-                  </div>
-                </div>
-
-                <ExtensionAvailabilityBanner />
-              </div>
-
-              <div className="landing-reveal landing-delay-2 grid gap-px border bg-border sm:grid-cols-3">
-                {workflowSteps.map(([index, title, body]) => (
-                  <div key={index} className="bg-background px-5 py-6">
-                    <p className="page-kicker">{index}</p>
-                    <p className="mt-5 text-[1.05rem] font-medium tracking-[-0.02em] text-foreground">{title}</p>
-                    <p className="mt-2 text-[13px] leading-6 text-muted-foreground">{body}</p>
-                  </div>
-                ))}
-              </div>
+      <section className="relative overflow-hidden border-b pt-24">
+        <div className="relative mx-auto grid min-h-[42rem] w-full max-w-[1200px] gap-10 px-4 pb-12 pt-16 sm:px-6 md:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:pb-16">
+          <div className="relative z-10 max-w-2xl lg:pb-12">
+            <p className="page-kicker">Your job search, on the clock</p>
+            <h1 className="page-title mt-5 text-[clamp(3.4rem,6vw,5.5rem)] leading-[0.92]">
+              Every application.<br />
+              <span className="text-muted-foreground">Right on time.</span>
+            </h1>
+            <p className="page-lede mt-7 max-w-lg">Save the role, tailor your CV, prepare for the interview, and always know what needs your attention next.</p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Link href={primaryHref} className={cn(buttonVariants({ size: "lg" }), "group")}>
+                {userProfile ? "Open your workspace" : "Start free"}
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+              <Link href="/pricing" className={buttonVariants({ variant: "outline", size: "lg" })}>See pricing</Link>
             </div>
+            <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 border-t pt-5 text-sm text-muted-foreground">
+              <span>Free forever</span>
+              <span>No card required</span>
+              <span>Pro from {formatPounds(PRO_PRICES.monthly.amountPence)}/month</span>
+            </div>
+          </div>
 
-            <div className="landing-reveal landing-delay-3 relative">
-              <div className="landing-orb landing-orb-left" aria-hidden="true" />
-              <div className="landing-orb landing-orb-right" aria-hidden="true" />
-
-              <div className="relative space-y-4">
-                <Card className="landing-card-float border-foreground/10 bg-card/95 backdrop-blur-sm">
-                  <CardHeader className="border-b pb-5">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="page-kicker">Overview</p>
-                        <CardTitle className="mt-2 text-[1.7rem] tracking-[-0.04em]">
-                          One workspace, three decisions.
-                        </CardTitle>
-                      </div>
-                      <div className="flex size-11 items-center justify-center border bg-secondary">
-                        <BriefcaseBusiness className="h-5 w-5" />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6 pt-6">
-                    <div className="grid gap-px border bg-border sm:grid-cols-3">
-                      {[
-                        ["148", "Roles reviewed"],
-                        ["23", "Saved for tailoring"],
-                        ["8", "Active interviews"],
-                      ].map(([value, label], index) => (
-                        <div key={label} className={`bg-card px-5 py-5 landing-delay-${index + 1}`}>
-                          <p className="metric-value text-[2.4rem]">{value}</p>
-                          <p className="metric-label mt-2">{label}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="space-y-3">
-                      {[
-                        "Search the market without drowning in noise.",
-                        "Keep your working CV versions precise and current.",
-                        "Track progress without a spreadsheet sidecar.",
-                      ].map((item) => (
-                        <div key={item} className="flex items-start gap-3 border border-border/80 bg-secondary/40 px-4 py-3 text-sm text-muted-foreground">
-                          <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                          <span>{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="landing-card-float-alt ml-auto w-full max-w-[26rem] border-foreground/10 bg-sidebar text-white">
-                  <CardHeader className="border-b border-white/10 pb-5">
-                    <p className="page-kicker text-white/45">Signal</p>
-                    <CardTitle className="mt-2 text-[1.45rem] text-white">
-                      Built for disciplined applications, not tab hoarding.
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="space-y-3 text-sm text-white/72">
-                      {proofPoints.map((item) => (
-                        <div key={item} className="flex items-start gap-3 border border-white/10 bg-white/5 px-4 py-3">
-                          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-white" />
-                          <span>{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+          <div className="relative min-h-[32rem] lg:min-h-[38rem]">
+            <ClockDial className="lp-dial pointer-events-none absolute left-1/2 top-1/2 w-[34rem] max-w-none -translate-x-1/2 -translate-y-1/2 text-foreground/20 sm:w-[40rem] lg:w-[44rem]" />
+            <div className="absolute left-1/2 top-1/2 z-10 w-[calc(100%-1rem)] max-w-[31rem] -translate-x-1/2 -translate-y-1/2 lg:translate-x-[-46%] lg:translate-y-[-42%]">
+              <div className="mb-3 flex items-center justify-between border border-b-0 bg-background/95 px-4 py-3 backdrop-blur">
+                <span className="page-kicker">Today · 09:41</span>
+                <span className="size-2 bg-accent" aria-hidden="true" />
               </div>
+              <ApplicationLedger className="bg-background/95 shadow-[0_30px_80px_-24px_rgba(0,0,0,0.24)] backdrop-blur" />
             </div>
           </div>
         </div>
+        <div className="relative mx-auto w-full max-w-[1200px] px-4 pb-12 sm:px-6"><ExtensionAvailabilityBanner compact /></div>
       </section>
 
       <section id="features" className="border-b">
-        <div className="mx-auto w-full max-w-[1440px] px-4 py-16 sm:px-6 md:px-10 md:py-20 xl:px-12">
-          <div className="landing-reveal max-w-3xl space-y-4">
-            <p className="page-kicker">Features</p>
-            <h2 className="text-[2.5rem] leading-[0.95] tracking-[-0.06em] sm:text-[3.25rem]">
-              A calmer interface for a high-friction process.
-            </h2>
-            <p className="max-w-2xl text-[15px] leading-7 text-muted-foreground">
-              The product is built around fewer, better actions: search, tailor, track. Everything else stays subordinate to that flow.
-            </p>
+        <div className="mx-auto max-w-[1100px] px-4 py-16 sm:px-6 md:py-24">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="page-kicker">How it works</p>
+            <h2 className="page-title mt-4 text-4xl sm:text-6xl">From saved role to interview.</h2>
+            <p className="page-lede mt-4">A simple loop for the repetitive work around a serious job search.</p>
           </div>
-
-          <div className="mt-10 grid gap-5 lg:grid-cols-3">
-            {featureCards.map(({ icon: Icon, kicker, title, body }, index) => (
-              <Card key={title} className={`landing-reveal landing-delay-${index + 1} border-foreground/10`}>
-                <CardHeader className="border-b pb-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-3">
-                      <p className="page-kicker">{kicker}</p>
-                      <CardTitle className="text-[1.6rem] leading-[1] tracking-[-0.04em]">
-                        {title}
-                      </CardTitle>
-                    </div>
-                    <div className="flex size-11 shrink-0 items-center justify-center border bg-secondary">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <p className="text-[14px] leading-7 text-muted-foreground">{body}</p>
-                </CardContent>
-              </Card>
+          <ol className="mt-12 grid gap-px border bg-border md:grid-cols-2">
+            {steps.map(([number, title, body], index) => (
+              <li key={number} className={cn("bg-background p-6 sm:p-8", index === steps.length - 1 && "md:col-span-2")}>
+                <p className="page-kicker">{number}</p>
+                <h3 className="mt-4 text-xl font-medium tracking-[-0.03em]">{title}</h3>
+                <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">{body}</p>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
       </section>
 
-      <section id="workflow" className="relative overflow-hidden">
-        <div className="landing-grid absolute inset-0 opacity-35" aria-hidden="true" />
-        <div className="mx-auto grid w-full max-w-[1440px] gap-10 px-4 py-16 sm:px-6 md:px-10 md:py-20 lg:grid-cols-[0.95fr_1.05fr] xl:px-12">
-          <div className="landing-reveal space-y-4">
-            <p className="page-kicker">Why it works</p>
-            <h2 className="text-[2.35rem] leading-[0.95] tracking-[-0.06em] sm:text-[3rem]">
-              Less interface noise, more application quality.
-            </h2>
-            <p className="max-w-xl text-[15px] leading-7 text-muted-foreground">
-              Most job tools overload the process. This one compresses it. You get a tighter loop between the role, the CV, and the application outcome.
-            </p>
+      <section id="why" className="border-b bg-secondary/35">
+        <div className="mx-auto grid max-w-[1100px] gap-12 px-4 py-16 sm:px-6 md:py-24 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+          <div>
+            <p className="page-kicker">Grounded in your experience</p>
+            <h2 className="page-title mt-4 text-4xl sm:text-6xl">Your evidence stays in charge.</h2>
+            <p className="page-lede mt-5 max-w-md">JobClock works from the CVs, achievements, and stories you approve. It helps you present the truth clearly instead of inventing experience you do not have.</p>
+            <Link href={primaryHref} className="mt-7 inline-flex items-center gap-2 text-sm font-medium underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground">
+              Add your experience <ArrowRight className="size-4" />
+            </Link>
           </div>
 
-          <div className="grid gap-px border bg-border sm:grid-cols-2">
-            {[
-              ["Search faster", "Narrow the market before you start tailoring."],
-              ["Edit cleaner", "Keep the right CV variation close to the role you want."],
-              ["Track better", "See what is saved, sent, or moving toward interview."],
-              ["Control AI cost", "Use your own provider key for AI generation instead of hidden usage."],
-            ].map(([title, body], index) => (
-              <div key={title} className={`landing-reveal landing-delay-${(index % 3) + 1} bg-background px-6 py-8`}>
-                <p className="text-[1.1rem] font-medium tracking-[-0.03em] text-foreground">{title}</p>
-                <p className="mt-3 text-[14px] leading-7 text-muted-foreground">{body}</p>
+          <div className="border bg-background">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <span className="page-kicker">Evidence trail</span>
+              <span className="font-mono text-[11px] text-muted-foreground">3 sources · verified</span>
+            </div>
+            <div className="grid gap-px bg-border sm:grid-cols-[0.9fr_1.1fr]">
+              <div className="space-y-3 bg-background p-5">
+                <p className="text-xs text-muted-foreground">Your source material</p>
+                {["Led a checkout redesign", "Reduced support tickets by 18%", "Mentored two junior designers"].map((item) => (
+                  <div key={item} className="border bg-secondary/40 px-4 py-3 text-sm">{item}</div>
+                ))}
               </div>
-            ))}
+              <div className="bg-background p-5">
+                <p className="text-xs text-muted-foreground">Tailored for Product Designer · Northgate Health</p>
+                <p className="mt-5 text-lg font-medium leading-7 tracking-[-0.02em]">“Led the redesign of a high-volume checkout flow, reducing related support tickets by 18% while mentoring two junior designers.”</p>
+                <div className="mt-8 flex flex-wrap gap-2">
+                  {['CV', 'Cover letter', 'Interview answer'].map((item) => <span key={item} className="border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{item}</span>)}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <section id="start" className="border-t bg-sidebar text-white">
-        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8 px-4 py-16 sm:px-6 md:px-10 md:py-20 lg:flex-row lg:items-end lg:justify-between xl:px-12">
-          <div className="landing-reveal max-w-3xl space-y-4">
-            <p className="page-kicker text-white/45">Start</p>
-            <h2 className="text-[2.6rem] leading-[0.94] tracking-[-0.06em] text-white sm:text-[3.3rem]">
-              Build a more deliberate application workflow.
-            </h2>
-            <p className="max-w-2xl text-[15px] leading-7 text-white/68">
-              Open the workspace, import your CV, and stop treating your job search like a pile of browser tabs.
-            </p>
+      <section id="ai" className="border-b">
+        <div className="mx-auto max-w-[1100px] px-4 py-16 sm:px-6 md:py-24">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="page-kicker">Simple pricing</p>
+            <h2 className="page-title mt-4 text-4xl sm:text-6xl">Your workspace stays useful for free.</h2>
+            <p className="page-lede mt-4">Bring your own AI key, or let Pro handle provider access for you.</p>
           </div>
+          <div className="mt-12 grid gap-5 lg:grid-cols-2">
+            <Card>
+              <CardHeader className="border-b pb-6"><Badge variant="outline">Free forever</Badge><CardTitle className="mt-4 text-3xl">£0</CardTitle><p className="text-sm text-muted-foreground">The complete workspace, using your own AI provider key.</p></CardHeader>
+              <CardContent className="flex h-full flex-col gap-6 pt-6">
+                <ul className="space-y-3 text-sm">{planFeatures.map((feature) => <li key={feature} className="flex gap-3"><Check className="mt-0.5 size-4 shrink-0" />{feature}</li>)}</ul>
+                <Link href={primaryHref} className={cn(buttonVariants({ variant: "outline" }), "mt-auto w-full")}>Open Free workspace</Link>
+              </CardContent>
+            </Card>
+            <Card className="border-foreground/30">
+              <CardHeader className="border-b pb-6"><Badge>Pro</Badge><CardTitle className="mt-4 text-3xl">{formatPounds(PRO_PRICES.monthly.amountPence)}/month</CardTitle><p className="text-sm text-muted-foreground">Everything in Free, plus {PRO_CREDIT_LIMIT} JobClock AI credits each month.</p></CardHeader>
+              <CardContent className="flex h-full flex-col gap-6 pt-6">
+                <ul className="space-y-3 text-sm">{[...planFeatures, "AI generation without a separate provider account", "Extra credits available when you need them"].map((feature) => <li key={feature} className="flex gap-3"><Check className="mt-0.5 size-4 shrink-0" />{feature}</li>)}</ul>
+                <Link href="/pricing" className={cn(buttonVariants(), "mt-auto w-full")}>Compare plans</Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
 
-          <div className="landing-reveal landing-delay-1 flex flex-col gap-3 sm:flex-row">
-            <Link href="/auth" className={buttonVariants({ size: "lg", variant: "secondary" })}>
-              Open workspace
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/auth"
-              className={cn(
-                buttonVariants({ size: "lg", variant: "ghost" }),
-                "border border-white/12 bg-transparent text-white hover:bg-white/8 hover:text-white"
-              )}
-            >
-              Sign in
-            </Link>
-          </div>
+      <section id="start" className="relative overflow-hidden bg-sidebar text-white">
+        <ClockDial className="pointer-events-none absolute -bottom-72 right-[-10rem] w-[48rem] max-w-none text-white/15" />
+        <div className="relative mx-auto max-w-[1100px] px-4 py-20 sm:px-6 md:py-28">
+          <p className="page-kicker text-white/55">Start</p>
+          <h2 className="mt-4 max-w-3xl text-4xl font-medium tracking-[-0.05em] sm:text-6xl">Put your next application on the clock.</h2>
+          <p className="mt-5 max-w-xl text-base leading-7 text-white/70">Import your CV, save your first role, and see the whole search laid out in one place.</p>
+          <Link href={primaryHref} className={cn(buttonVariants({ size: "lg", variant: "secondary" }), "mt-8 group")}>
+            {userProfile ? "Open your workspace" : "Start free"}<ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+          </Link>
         </div>
       </section>
 
       <footer className="border-t bg-background">
-        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-4 py-8 sm:px-6 md:flex-row md:items-end md:justify-between md:px-10 xl:px-12">
-          <div className="space-y-2">
-            <p className="page-kicker">Job Assistant</p>
-            <p className="max-w-xl text-sm leading-6 text-muted-foreground">
-              Search roles, tailor your materials, and track applications from one calmer workspace.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:gap-6">
-            <LandingAnchorLink className="transition-colors hover:text-foreground" href="#features">
-              Features
-            </LandingAnchorLink>
-            <LandingAnchorLink className="transition-colors hover:text-foreground" href="#workflow">
-              Workflow
-            </LandingAnchorLink>
-            <Link className="transition-colors hover:text-foreground" href="/auth">
-              Open workspace
-            </Link>
-            <Link className="transition-colors hover:text-foreground" href="/privacy">
-              Privacy
-            </Link>
-            <Link className="transition-colors hover:text-foreground" href="/terms">
-              Terms
-            </Link>
-            <Link className="transition-colors hover:text-foreground" href="/cookies">
-              Cookies
-            </Link>
-          </div>
+        <div className="mx-auto flex max-w-[1200px] flex-col gap-6 px-4 py-8 sm:px-6 md:flex-row md:items-end md:justify-between">
+          <div><p className="font-heading text-xl tracking-[-0.03em]">JobClock</p><p className="mt-2 text-sm text-muted-foreground">Your job search, in one workspace.</p></div>
+          <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground">
+            <LandingAnchorLink className="hover:text-foreground" href="#features">How it works</LandingAnchorLink><Link className="hover:text-foreground" href="/pricing">Pricing</Link><Link className="hover:text-foreground" href="/privacy">Privacy</Link><Link className="hover:text-foreground" href="/terms">Terms</Link><Link className="hover:text-foreground" href="/cookies">Cookies</Link>
+          </nav>
         </div>
       </footer>
     </main>

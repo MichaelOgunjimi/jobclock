@@ -13,7 +13,7 @@ export default function TermsPage() {
       kicker="Terms"
       title="JobClock terms of service"
       summary="These terms set the ground rules for using JobClock’s website, workspace, and browser extension."
-      updatedAt="21 July 2026"
+      updatedAt="23 October 2026"
     >
       <LegalSection number="01" title="Agreement and operator">
         <p>
@@ -65,7 +65,31 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection number="07" title="Suspension, termination, and liability">
+      <LegalSection number="07" title="Paid plans, credits, and payments">
+        <p>
+          JobClock is free to use with your own AI-provider key. JobClock Pro is an optional paid plan, billed monthly or yearly in pounds sterling, that includes a monthly allowance of JobClock AI credits so you do not need a separate provider account. The price, billing period, and credit allowance are shown before you pay. JobClock is not VAT-registered, so no VAT is added to the price shown. Paid plans are currently offered to customers in the United Kingdom.
+        </p>
+        <p>
+          Your subscription renews automatically at the end of each billing period until you cancel. Payments are taken and managed by Stripe, which stores your payment details; JobClock never sees or stores your full card number. Prices may change for future billing periods, and we will give you notice before a change affects you.
+        </p>
+        <p>
+          Each AI action uses a number of credits, shown on the pricing page. Your monthly allowance refreshes each month, and unused allowance does not roll over. You can also buy extra credits: they are used after your monthly allowance, do not expire while your account is open, have no cash value, and cannot be transferred. If a payment fails, JobClock AI credits are paused after a short grace period until the payment is fixed; your data stays in your account, and you can still use JobClock with your own provider key.
+        </p>
+      </LegalSection>
+
+      <LegalSection number="08" title="Cancellation and refunds">
+        <p>
+          You can cancel at any time from Settings → Billing. Your plan then stays active until the end of the period you have paid for, after which your account moves to the free plan. Nothing is deleted when you cancel, and you can resume before the period ends.
+        </p>
+        <p>
+          You have 14 days from buying a subscription or a credit pack to ask for a refund. We refund what you paid minus the value of the credits you have used, worked out at the price per credit of what you bought: £12 for 300 credits on the monthly plan (£0.04 a credit), £120 for 3,600 credits across the year on the yearly plan (about £0.033 a credit), and the pack price divided by the pack size for extra credits. For example, if you used 50 credits of a monthly plan, you would get £10 back. If you have used none, you get everything back. After the 14 days we do not offer refunds, apart from where the law requires it or where a charge was made in error. Contact <a href="mailto:support@jobclock.michaelogunjimi.com">support@jobclock.michaelogunjimi.com</a> with the email address on your account.
+        </p>
+        <p>
+          Nothing in this section affects your statutory rights, including your rights if the service is not as described or is not provided with reasonable care and skill.
+        </p>
+      </LegalSection>
+
+      <LegalSection number="09" title="Suspension, termination, and liability">
         <p>
           You may stop using JobClock at any time. Access may be suspended or terminated where reasonably necessary to protect users or the service, investigate misuse, comply with law, or address a material breach.
         </p>
@@ -74,7 +98,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection number="08" title="Changes and governing law">
+      <LegalSection number="10" title="Changes and governing law">
         <p>
           These terms may change as JobClock develops. Material changes will be identified by a revised date and, when appropriate, an additional notice. Continued use after an update means the revised terms apply.
         </p>

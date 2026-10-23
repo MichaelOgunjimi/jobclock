@@ -283,89 +283,6 @@
     background-size: 72px 72px;
     mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent 88%);
   }
-
-  .landing-glow {
-    pointer-events: none;
-    position: absolute;
-    border-radius: 9999px;
-    filter: blur(72px);
-    opacity: 0.55;
-  }
-
-  .landing-glow-one {
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
-    height: 18rem;
-    right: -4rem;
-    top: 7rem;
-    width: 18rem;
-  }
-
-  .landing-glow-two {
-    background: color-mix(in srgb, var(--foreground) 9%, transparent);
-    height: 14rem;
-    left: -3rem;
-    top: 18rem;
-    width: 14rem;
-  }
-
-  .landing-hero-title {
-    text-wrap: balance;
-  }
-
-  .landing-cta-primary {
-    box-shadow: 0 18px 48px color-mix(in srgb, var(--foreground) 14%, transparent);
-  }
-
-  .landing-card-float {
-    animation: landingFloat 10s ease-in-out infinite;
-  }
-
-  .landing-card-float-alt {
-    animation: landingFloatAlt 12s ease-in-out infinite;
-  }
-
-  .landing-orb {
-    pointer-events: none;
-    position: absolute;
-    border-radius: 9999px;
-    filter: blur(34px);
-    opacity: 0.4;
-  }
-
-  .landing-orb-left {
-    background: color-mix(in srgb, var(--accent) 22%, transparent);
-    height: 7rem;
-    left: -1.5rem;
-    top: 4rem;
-    width: 7rem;
-    animation: landingDrift 12s ease-in-out infinite;
-  }
-
-  .landing-orb-right {
-    background: color-mix(in srgb, var(--foreground) 8%, transparent);
-    bottom: 2rem;
-    height: 6rem;
-    right: 0;
-    width: 6rem;
-    animation: landingDriftReverse 14s ease-in-out infinite;
-  }
-
-  .landing-reveal {
-    animation: landingReveal 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
-    will-change: transform, opacity;
-  }
-
-  .landing-delay-1 {
-    animation-delay: 120ms;
-  }
-
-  .landing-delay-2 {
-    animation-delay: 220ms;
-  }
-
-  .landing-delay-3 {
-    animation-delay: 320ms;
-  }
 }
 
 @media print {
@@ -419,72 +336,166 @@
   }
 }
 
-@keyframes landingReveal {
-  from {
-    opacity: 0;
-    transform: translateY(22px) scale(0.985);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes landingFloat {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
-
-  50% {
-    transform: translate3d(0, -10px, 0);
-  }
-}
-
-@keyframes landingFloatAlt {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
-
-  50% {
-    transform: translate3d(0, 10px, 0);
-  }
-}
-
-@keyframes landingDrift {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-
-  50% {
-    transform: translate3d(10px, -12px, 0) scale(1.06);
-  }
-}
-
-@keyframes landingDriftReverse {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-
-  50% {
-    transform: translate3d(-12px, 10px, 0) scale(0.96);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
+}
 
-  .landing-card-float,
-  .landing-card-float-alt,
-  .landing-orb-left,
-  .landing-orb-right,
-  .landing-reveal {
+/* ---------- Landing page ("application ledger") ---------- */
+
+/* Warm paper in light mode; dark mode keeps the app's own tokens. */
+:root:not(.dark) .lp {
+  --background: #f4efe4;
+  --card: #faf6ec;
+  --secondary: #ebe4d3;
+  --border: #d8cfba;
+  --muted-foreground: #5c5446;
+}
+
+.lp-display {
+  font-family: var(--font-lp-display), Georgia, serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.lp-display em {
+  font-style: italic;
+  letter-spacing: -0.02em;
+}
+
+/* Paper grain; multiply on light, screen on dark. */
+.lp-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.09;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+.dark .lp-grain::after {
+  mix-blend-mode: screen;
+  opacity: 0.05;
+}
+
+.lp-leader {
+  border-bottom: 1px dotted currentColor;
+  opacity: 0.35;
+  transform: translateY(-3px);
+}
+
+.lp-underline {
+  background: linear-gradient(currentColor, currentColor) 0 100% / 100% 1px no-repeat;
+  transition: background-size 0.3s ease;
+}
+
+.lp-underline:hover {
+  background-size: 0% 1px;
+  background-position: 100% 100%;
+}
+
+.lp-cta {
+  box-shadow: 0 18px 40px -16px color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+
+.lp-step::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 2px;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lp-step:hover::before {
+  width: 100%;
+}
+
+.lp-second-hand {
+  animation: lpTick 60s steps(60) infinite;
+}
+
+.lp-rise {
+  animation: lpRise 0.95s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--d, 0) * 110ms);
+}
+
+.lp-row {
+  animation: lpRowIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(500ms + var(--i, 0) * 140ms);
+}
+
+.lp-stamp {
+  animation: lpStamp 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) 1.3s both;
+}
+
+/* Sections below the fold rise as they scroll into view; browsers without scroll timelines just show them. */
+@supports (animation-timeline: view()) {
+  .lp-scroll {
+    animation: lpRise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 40%;
+  }
+}
+
+@keyframes lpTick {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes lpRise {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lpRowIn {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes lpStamp {
+  from {
+    opacity: 0;
+    transform: rotate(-9deg) scale(1.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: rotate(-4deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-second-hand,
+  .lp-rise,
+  .lp-row,
+  .lp-stamp,
+  .lp-scroll {
     animation: none !important;
+  }
+
+  .lp-stamp {
+    transform: rotate(-4deg);
   }
 }

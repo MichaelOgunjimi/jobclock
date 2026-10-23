@@ -5,6 +5,7 @@ vi.mock("@/lib/db", () => ({ db }))
 vi.mock("@/lib/applications/audit", () => ({ appendApplicationAuditEvents: vi.fn() }))
 vi.mock("./cv-tailor-context", () => ({ loadCvTailorContext: vi.fn() }))
 vi.mock("@/lib/ai", () => ({ resolveAiConfig: vi.fn(), generateText: vi.fn() }))
+vi.mock("@/lib/ai/action", async () => (await import("@/test/ai-action-mock")).aiActionMock())
 vi.mock("@/lib/ai/extract-json", () => ({ extractJson: vi.fn((v: unknown) => v) }))
 vi.mock("@/lib/cv/normalize", () => ({ normalizeObjectStrings: vi.fn((v: unknown) => v) }))
 vi.mock("@/lib/ai/prompts", () => ({

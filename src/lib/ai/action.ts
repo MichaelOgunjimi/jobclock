@@ -1,0 +1,145 @@
+import "server-only"
+
+import { and, eq } from "drizzle-orm"
+import { db } from "@/lib/db"
+import { billingGrants, billingSubscriptions } from "@/lib/db/schema"
+import { isGrantActive, resolveEntitlement, type SubscriptionStatus } from "@/lib/billing/entitlements"
+import { AI_PRICE_VERSION, calculateProviderCostMicrousd, type HostedModel } from "@/lib/billing/provider-costs"
+import { allowanceWindow, getCreditWeight, getHostedModel, PRO_COST_LIMIT_MICROUSD, PRO_CREDIT_LIMIT, type AiFeature } from "@/lib/billing/plans"
+import { releaseHostedAiAction, reserveHostedAiAction, settleHostedAiAction, type ProviderUsage } from "@/lib/billing/usage"
+import {
+  MissingAiApiKeyError,
+  generateTextResult,
+  generateTextWithWebSearchResult,
+  resolveAiConfig,
+  type AiSettings,
+  type GeneratedText,
+  type GenerateTextOptions,
+  type UserPreferences,
+} from "./index"
+
+export type AiActionRequest = {
+  userId: string
+  actionId: string
+  feature: AiFeature
+  preferences: UserPreferences | null
+}
+
+export type AiActionClient = {
+  generate(system: string, user: string, maxTokens?: number, options?: GenerateTextOptions): Promise<string>
+  generateWithWebSearch(system: string, user: string, maxTokens?: number, options?: GenerateTextOptions): Promise<string>
+  /** For callers that use a provider SDK directly (e.g. file attachments): resolved model and key, plus usage reporting. */
+  settings: AiSettings
+  apiKey: string
+  record(usage: GeneratedText): void
+}
+
+const ESTIMATED_COSTS: Record<AiFeature, number> = {
+  job_import: 20_000, qualification_document_extraction: 30_000, cv_parse_review: 80_000,
+  application_chat: 100_000, interview_answer: 60_000, interview_preparation: 120_000,
+  cover_letter: 120_000, company_research: 500_000, cv_tailoring: 500_000,
+}
+
+// An unmetered grant (null credit limit) still gets a backstop so a runaway loop cannot spend without bound.
+const UNMETERED_CREDITS = 1_000_000
+const UNMETERED_COST_MICROUSD = 500_000_000
+
+// With no personal key, tell the user why JobClock AI isn't covering them instead of blaming their provider settings.
+function resolvePersonalConfig(preferences: UserPreferences | null, subscriptionStatus: string | undefined) {
+  try {
+    return resolveAiConfig({ ...preferences, allow_platform_ai_key: false })
+  } catch (error) {
+    if (!(error instanceof MissingAiApiKeyError)) throw error
+    const paymentPaused = subscriptionStatus === "past_due" || subscriptionStatus === "unpaid"
+    throw new MissingAiApiKeyError(error.provider, paymentPaused ? "payment_paused" : "not_subscribed")
+  }
+}
+
+export async function runAiAction<T>(request: AiActionRequest, operation: (ai: AiActionClient) => Promise<T>): Promise<T> {
+  const [[subscription], [grant]] = await Promise.all([
+    db.select().from(billingSubscriptions).where(and(eq(billingSubscriptions.userId, request.userId))).limit(1),
+    db.select().from(billingGrants).where(eq(billingGrants.userId, request.userId)).limit(1),
+  ])
+  const planGrant = grant ? { kind: grant.kind as "lifetime" | "comp", expiresAt: grant.expiresAt } : null
+  const entitlement = resolveEntitlement(subscription ? {
+    status: subscription.status as SubscriptionStatus,
+    graceEndsAt: subscription.graceEndsAt,
+  } : null, request.preferences?.allow_platform_ai_key, new Date(), planGrant)
+
+  const hasPersonalKey = Boolean(request.preferences?.openai_api_key || request.preferences?.anthropic_api_key)
+  const wantsHosted = request.preferences?.ai_billing_source === "jobclock"
+    || (!request.preferences?.ai_billing_source && entitlement.hostedAi && !hasPersonalKey)
+
+  if (!wantsHosted || !entitlement.hostedAi) {
+    const { settings, apiKey } = resolvePersonalConfig(request.preferences, subscription?.status)
+    return operation({
+      generate: async (system, user, maxTokens, options) =>
+        (await generateTextResult(settings, apiKey, system, user, maxTokens, options)).text,
+      generateWithWebSearch: async (system, user, maxTokens, options) =>
+        (await generateTextWithWebSearchResult(settings, apiKey, system, user, maxTokens, options)).text,
+      settings,
+      apiKey,
+      record: () => {},
+    })
+  }
+
+  const settings = getHostedModel(request.feature, request.preferences?.hosted_provider_preference)
+  const apiKey = settings.provider === "openai" ? process.env.OPENAI_API_KEY : process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error(`JobClock ${settings.provider} API key is not configured`)
+  const now = new Date()
+  const granted = isGrantActive(planGrant, now)
+  const unmetered = granted && grant.creditLimit === null
+  const period = granted
+    // Granted plans get the same monthly windows, anchored on the grant date and never ending a Stripe period.
+    ? allowanceWindow(grant.createdAt, new Date(Date.UTC(grant.createdAt.getUTCFullYear() + 100, 0, 1)), now)
+    : subscription && ["active", "trialing"].includes(subscription.status)
+    ? allowanceWindow(subscription.currentPeriodStart, subscription.currentPeriodEnd, now)
+    : { start: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)), end: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)) }
+  const action = await reserveHostedAiAction({
+    userId: request.userId, idempotencyKey: request.actionId, feature: request.feature,
+    credits: getCreditWeight(request.feature), estimatedCostMicrousd: ESTIMATED_COSTS[request.feature],
+    period: {
+      ...period,
+      creditLimit: granted ? grant.creditLimit ?? UNMETERED_CREDITS : PRO_CREDIT_LIMIT,
+      costLimitMicrousd: unmetered ? UNMETERED_COST_MICROUSD : PRO_COST_LIMIT_MICROUSD,
+    },
+  })
+  if (action.status !== "reserved") throw new Error("AI action has already been processed")
+
+  const events: ProviderUsage[] = []
+  const record = (generated: GeneratedText) => {
+    events.push({
+      provider: settings.provider,
+      model: settings.model,
+      providerRequestId: generated.providerRequestId,
+      inputTokens: generated.inputTokens,
+      cachedInputTokens: generated.cachedInputTokens,
+      outputTokens: generated.outputTokens,
+      toolCostMicrousd: generated.toolCostMicrousd ?? 0,
+      totalCostMicrousd: calculateProviderCostMicrousd({ model: settings.model as HostedModel, ...generated }),
+      priceVersion: AI_PRICE_VERSION,
+    })
+  }
+  try {
+    const result = await operation({
+      generate: async (system, user, maxTokens, options) => {
+        const generated = await generateTextResult(settings, apiKey, system, user, maxTokens, options)
+        record(generated)
+        return generated.text
+      },
+      generateWithWebSearch: async (system, user, maxTokens, options) => {
+        const generated = await generateTextWithWebSearchResult(settings, apiKey, system, user, maxTokens, options)
+        record(generated)
+        return generated.text
+      },
+      settings,
+      apiKey,
+      record,
+    })
+    await settleHostedAiAction(action.id, events)
+    return result
+  } catch (error) {
+    await releaseHostedAiAction(action.id, events)
+    throw error
+  }
+}

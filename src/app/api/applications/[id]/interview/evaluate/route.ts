@@ -1,11 +1,9 @@
+import { randomUUID } from "node:crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import {
-  generateText,
-  resolveAiConfig,
-  withPlatformAiKeyAccess,
-  type UserPreferences,
-} from "@/lib/ai"
+import { withPlatformAiKeyAccess, type UserPreferences } from "@/lib/ai"
+import { runAiAction } from "@/lib/ai/action"
+import { aiErrorResponse } from "@/lib/ai/http"
 import type { AppWithJob } from "@/lib/supabase/database.types"
 import { aiGenerateRateLimit } from "@/lib/rate-limit"
 
@@ -58,19 +56,6 @@ export async function POST(
     (profileData?.preferences ?? {}) as UserPreferences,
     profileData?.allow_platform_ai_key === true,
   )
-  let settings: ReturnType<typeof resolveAiConfig>["settings"]
-  let apiKey: string
-  try {
-    const resolved = resolveAiConfig(preferences)
-    settings = resolved.settings
-    apiKey = resolved.apiKey
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "No AI API key configured" },
-      { status: 422 }
-    )
-  }
-
   const systemPrompt = `You are a tough but fair interview coach. Be direct — if an answer is weak, say so clearly. If it's strong, acknowledge that too. Focus on what the candidate can act on immediately.`
 
   const userPrompt = `The candidate is practising for a **${title}** interview at **${company}**.
@@ -103,9 +88,12 @@ Was the answer STAR-structured (Situation → Task → Action → Result)? If no
 Rewrite just the opening of their answer to show how it could land better. Don't write a full answer — just enough to show the pattern they should follow.`
 
   try {
-    const feedback = await generateText(settings, apiKey, systemPrompt, userPrompt, 1200)
+    const feedback = await runAiAction(
+      { userId: user.id, actionId: randomUUID(), feature: "interview_answer", preferences },
+      (ai) => ai.generate(systemPrompt, userPrompt, 1200),
+    )
     return NextResponse.json({ feedback })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Evaluation failed" }, { status: 500 })
+    return aiErrorResponse(err, "Evaluation failed")
   }
 }
