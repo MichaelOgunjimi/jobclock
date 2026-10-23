@@ -13,9 +13,8 @@ import { LandingAnchorLink } from "@/components/landing-anchor-link"
 import { cn } from "@/lib/utils"
 
 const sections = [
-  { id: "features", label: "Features" },
-  { id: "workflow", label: "Workflow" },
-  { id: "start", label: "Start" },
+  { id: "features", label: "How it works" },
+  { id: "why", label: "Why JobClock" },
 ]
 
 interface UserProfile {
@@ -105,10 +104,10 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
   }, [])
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40">
-      <div className="mx-auto w-full max-w-[1440px] px-4 pt-3 sm:px-6 md:px-10 xl:px-12">
-        <div className="border bg-background/94 shadow-[0_18px_48px_rgba(0,0,0,0.06)] backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-4 border-b px-4 py-4 md:grid md:grid-cols-[auto_1fr_auto] md:px-6">
+    <header className="fixed inset-x-0 top-0 z-40 border-b bg-background/95 backdrop-blur">
+      <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6">
+        <div>
+          <div className="flex items-center justify-between gap-4 py-4 md:grid md:grid-cols-[auto_1fr_auto]">
             <Link href="/" className="flex min-w-0 items-center gap-3">
               <div className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden border bg-primary">
                 <Image
@@ -121,14 +120,11 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
                   className="size-full object-contain"
                 />
               </div>
-              <div className="min-w-0">
-                <p className="page-kicker">Job Assistant</p>
-                <p className="truncate text-sm text-muted-foreground">Editorial career workflow</p>
-              </div>
+              <p className="font-heading text-xl tracking-[-0.03em]">JobClock</p>
             </Link>
 
             <nav className="hidden items-center justify-center md:flex">
-              <div className="flex items-center border-l">
+              <div className="flex items-center">
                 {sections.map((section) => {
                   const isActive = activeSection === section.id
 
@@ -137,16 +133,22 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
                       key={section.id}
                       href={`#${section.id}`}
                       className={cn(
-                        "border-r px-5 py-4 text-sm tracking-[0.02em] transition-colors",
+                        "relative px-4 py-2 text-sm transition-colors after:absolute after:inset-x-4 after:-bottom-1 after:h-px after:origin-left after:bg-foreground after:transition-transform",
                         isActive
-                          ? "bg-secondary text-foreground shadow-[inset_0_-2px_0_0_var(--color-foreground)]"
-                          : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
+                          ? "text-foreground after:scale-x-100"
+                          : "text-muted-foreground after:scale-x-0 hover:text-foreground"
                       )}
                     >
                       {section.label}
                     </LandingAnchorLink>
                   )
                 })}
+                <Link
+                  href="/pricing"
+                  className="relative px-4 py-2 text-sm text-muted-foreground transition-colors after:absolute after:inset-x-4 after:-bottom-1 after:h-px after:origin-left after:scale-x-0 after:bg-foreground after:transition-transform hover:text-foreground hover:after:scale-x-100"
+                >
+                  Pricing
+                </Link>
               </div>
             </nav>
 
@@ -205,8 +207,8 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
                     Sign in
                   </Link>
                   <Link href="/auth" className={cn(buttonVariants({ size: "sm" }), "hidden sm:inline-flex")}>
-                    <span className="hidden sm:inline">Open workspace</span>
-                    <span className="sm:hidden">Open</span>
+                    <span className="hidden sm:inline">Start free</span>
+                    <span className="sm:hidden">Start</span>
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </>
@@ -218,6 +220,13 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
             <div ref={mobileMenuRef} className="border-b md:hidden">
               {userProfile ? (
                 <div className="flex flex-col gap-2 px-4 py-4">
+                  <Link
+                    href="/pricing"
+                    className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-center")}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Pricing
+                  </Link>
                   <Link
                     href="/dashboard"
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center")}
@@ -260,6 +269,13 @@ export function LandingNavbar({ userProfile }: { userProfile: UserProfile | null
                   </nav>
 
                   <div className="flex flex-col gap-2 border-t px-4 py-4">
+                    <Link
+                      href="/pricing"
+                      className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-center")}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Pricing
+                    </Link>
                     <Link
                       href="/auth"
                       className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-center")}
