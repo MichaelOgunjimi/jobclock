@@ -51,6 +51,24 @@ export const PREMIUM_PERSONAL_KEY_MODELS = [
   "claude-fable-5-1",
 ] as const
 
+function addMonths(date: Date, months: number) {
+  const result = new Date(date)
+  const day = result.getUTCDate()
+  result.setUTCDate(1)
+  result.setUTCMonth(result.getUTCMonth() + months)
+  const lastDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate()
+  result.setUTCDate(Math.min(day, lastDay))
+  return result
+}
+
+/** The monthly credit window inside a Stripe period, so a yearly subscriber gets 100 credits a month, not 100 a year. */
+export function allowanceWindow(periodStart: Date, periodEnd: Date, now = new Date()) {
+  let month = 0
+  while (addMonths(periodStart, month + 1) <= now && addMonths(periodStart, month + 1) < periodEnd) month += 1
+  const end = addMonths(periodStart, month + 1)
+  return { start: addMonths(periodStart, month), end: end < periodEnd ? end : periodEnd }
+}
+
 export function getCreditWeight(feature: AiFeature) {
   return AI_CREDIT_WEIGHTS[feature]
 }

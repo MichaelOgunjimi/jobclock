@@ -5,7 +5,7 @@ import { db } from "@/lib/db"
 import { billingSubscriptions } from "@/lib/db/schema"
 import { resolveEntitlement, type SubscriptionStatus } from "@/lib/billing/entitlements"
 import { AI_PRICE_VERSION, calculateProviderCostMicrousd, type HostedModel } from "@/lib/billing/provider-costs"
-import { getCreditWeight, getHostedModel, PRO_COST_LIMIT_MICROUSD, PRO_CREDIT_LIMIT, type AiFeature } from "@/lib/billing/plans"
+import { allowanceWindow, getCreditWeight, getHostedModel, PRO_COST_LIMIT_MICROUSD, PRO_CREDIT_LIMIT, type AiFeature } from "@/lib/billing/plans"
 import { releaseHostedAiAction, reserveHostedAiAction, settleHostedAiAction, type ProviderUsage } from "@/lib/billing/usage"
 import {
   generateTextResult,
@@ -70,7 +70,7 @@ export async function runAiAction<T>(request: AiActionRequest, operation: (ai: A
   if (!apiKey) throw new Error(`JobClock ${settings.provider} API key is not configured`)
   const now = new Date()
   const period = subscription && ["active", "trialing"].includes(subscription.status)
-    ? { start: subscription.currentPeriodStart, end: subscription.currentPeriodEnd }
+    ? allowanceWindow(subscription.currentPeriodStart, subscription.currentPeriodEnd, now)
     : { start: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)), end: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)) }
   const action = await reserveHostedAiAction({
     userId: request.userId, idempotencyKey: request.actionId, feature: request.feature,

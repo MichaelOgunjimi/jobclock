@@ -12,6 +12,7 @@ import {
   PRO_COST_LIMIT_MICROUSD,
   PRO_CREDIT_LIMIT,
   PRO_PRICES,
+  allowanceWindow,
 } from "./plans"
 
 describe("billing plan configuration", () => {
@@ -71,5 +72,29 @@ describe("billing plan configuration", () => {
     ])
     for (const model of PREMIUM_PERSONAL_KEY_MODELS) expect(isHostedModel(model)).toBe(false)
     expect(isHostedModel("gpt-6.1-sol")).toBe(true)
+  })
+})
+
+describe("allowanceWindow", () => {
+  const d = (iso: string) => new Date(iso)
+
+  it("keeps a monthly subscription's whole period as its window", () => {
+    expect(allowanceWindow(d("2026-10-23T02:00:00Z"), d("2026-11-23T02:00:00Z"), d("2026-11-01T00:00:00Z")))
+      .toEqual({ start: d("2026-10-23T02:00:00Z"), end: d("2026-11-23T02:00:00Z") })
+  })
+
+  it("gives a yearly subscriber a fresh window each month", () => {
+    const start = d("2026-10-23T02:00:00Z")
+    const end = d("2027-10-23T02:00:00Z")
+    expect(allowanceWindow(start, end, d("2026-11-22T00:00:00Z")).end).toEqual(d("2026-11-23T02:00:00Z"))
+    expect(allowanceWindow(start, end, d("2026-11-23T02:00:00Z")))
+      .toEqual({ start: d("2026-11-23T02:00:00Z"), end: d("2026-12-23T02:00:00Z") })
+    expect(allowanceWindow(start, end, d("2027-10-22T00:00:00Z")))
+      .toEqual({ start: d("2027-09-23T02:00:00Z"), end: end })
+  })
+
+  it("clamps month-end anchors instead of overflowing into the next month", () => {
+    expect(allowanceWindow(d("2026-01-31T00:00:00Z"), d("2027-01-31T00:00:00Z"), d("2026-02-28T00:00:00Z")))
+      .toEqual({ start: d("2026-02-28T00:00:00Z"), end: d("2026-03-31T00:00:00Z") })
   })
 })
