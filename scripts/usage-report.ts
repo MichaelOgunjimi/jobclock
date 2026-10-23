@@ -9,7 +9,7 @@
 import postgres from "postgres"
 
 const CREDIT_LIMIT = 300
-const COST_LIMIT_USD = 4
+const COST_LIMIT_USD = 6
 const STRIPE_FEE_PCT = 0.015
 const STRIPE_FEE_FIXED_GBP = 0.2
 

@@ -19,6 +19,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "usage:report": "tsx scripts/usage-report.ts",
+    "refund:quote": "tsx scripts/refund-quote.ts",
     "billing:grant": "tsx scripts/grant-plan.ts"
   },
   "dependencies": {
