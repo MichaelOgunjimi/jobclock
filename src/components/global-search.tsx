@@ -206,7 +206,7 @@ export function GlobalSearch() {
         <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 pb-4 pt-[10vh] sm:pt-[14vh]">
           <Dialog.Popup
             initialFocus={inputRef}
-            className="w-full max-w-2xl translate-y-0 scale-100 overflow-hidden border border-border bg-background opacity-100 shadow-2xl transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] data-[ending-style]:-translate-y-2 data-[ending-style]:scale-[0.985] data-[ending-style]:opacity-0 data-[starting-style]:-translate-y-2 data-[starting-style]:scale-[0.985] data-[starting-style]:opacity-0 motion-reduce:transition-none"
+            className="w-full max-w-2xl translate-y-0 scale-100 overflow-hidden border border-border bg-background opacity-100 shadow-2xl transition-[opacity,translate,scale] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] data-[ending-style]:-translate-y-2 data-[ending-style]:scale-[0.985] data-[ending-style]:opacity-0 data-[starting-style]:-translate-y-2 data-[starting-style]:scale-[0.985] data-[starting-style]:opacity-0 motion-reduce:transition-none"
           >
             <Dialog.Title className="sr-only">Global search</Dialog.Title>
             <Dialog.Description className="sr-only">

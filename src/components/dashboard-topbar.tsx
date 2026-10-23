@@ -97,10 +97,10 @@ function NotificationsDropdown() {
         inert={!open}
         aria-hidden={!open}
         className={cn(
-          "absolute right-0 top-full z-50 mt-2 w-80 origin-top-right border bg-card shadow-lg transition-[opacity,transform,visibility] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+          "absolute right-0 top-full z-50 mt-2 w-80 origin-top-right border bg-card shadow-lg transition-[opacity,translate,scale,visibility] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity,translate,scale] motion-reduce:translate-y-0 motion-reduce:scale-100 motion-reduce:transition-none",
           open
             ? "visible translate-y-0 scale-100 opacity-100"
-            : "pointer-events-none invisible -translate-y-1 scale-[0.98] opacity-0"
+            : "pointer-events-none invisible -translate-y-2 scale-[0.96] opacity-0"
         )}
       >
           <div className="border-b px-4 py-3">
@@ -243,10 +243,10 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
         inert={!open}
         aria-hidden={!open}
         className={cn(
-          "absolute right-0 top-full z-50 mt-2 w-60 origin-top-right border bg-card shadow-lg transition-[opacity,transform,visibility] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+          "absolute right-0 top-full z-50 mt-2 w-60 origin-top-right border bg-card shadow-lg transition-[opacity,translate,scale,visibility] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity,translate,scale] motion-reduce:translate-y-0 motion-reduce:scale-100 motion-reduce:transition-none",
           open
             ? "visible translate-y-0 scale-100 opacity-100"
-            : "pointer-events-none invisible -translate-y-1 scale-[0.98] opacity-0"
+            : "pointer-events-none invisible -translate-y-2 scale-[0.96] opacity-0"
         )}
       >
           {/* User identity */}
@@ -309,7 +309,7 @@ function AvatarDropdown({ userProfile }: { userProfile: UserProfile }) {
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 opacity-100 transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 motion-reduce:transition-none" />
           <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <Dialog.Popup className="w-full max-w-sm translate-y-0 scale-100 border border-border bg-background opacity-100 shadow-lg transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] data-[ending-style]:translate-y-2 data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:translate-y-2 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 motion-reduce:transition-none">
+            <Dialog.Popup className="w-full max-w-sm translate-y-0 scale-100 border border-border bg-background opacity-100 shadow-lg transition-[opacity,translate,scale] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] data-[ending-style]:translate-y-2 data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:translate-y-2 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 motion-reduce:transition-none">
               <div className="px-5 py-4">
                 <Dialog.Title className="text-sm font-medium">Sign out?</Dialog.Title>
                 <Dialog.Description className="mt-1 text-xs text-muted-foreground">
