@@ -37,6 +37,7 @@ import {
 
 function makeFormData(values: Record<string, string>) {
   const formData = new FormData()
+  if (!("hosted_provider_preference" in values)) formData.append("hosted_provider_preference", "automatic")
   for (const [key, value] of Object.entries(values)) formData.append(key, value)
   return formData
 }

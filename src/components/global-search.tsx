@@ -41,6 +41,7 @@ const ACTION_ITEMS: GlobalSearchItem[] = [
   { id: "action:interview", type: "action", label: "Prepare for an interview", description: "Practise answers from your own evidence", href: "/interview", keywords: ["grill", "practice", "questions"] },
   { id: "action:manage-cvs", type: "action", label: "Upload or manage CVs", description: "Open your CV workspace", href: "/profile", keywords: ["resume", "document"] },
   { id: "action:configure-ai", type: "action", label: "Configure AI provider", description: "Choose a model and API key", href: "/settings?tab=ai", keywords: ["anthropic", "openai", "model"] },
+  { id: "action:manage-subscription", type: "action", label: "Manage subscription", description: "Review your plan and AI allowance", href: "/settings?tab=billing", keywords: ["billing", "plan", "pro", "credits"] },
   { id: "action:appearance", type: "action", label: "Change document appearance", description: "Choose CV and cover-letter layouts", href: "/settings?tab=appearance", keywords: ["template", "theme", "layout"] },
 ]
 

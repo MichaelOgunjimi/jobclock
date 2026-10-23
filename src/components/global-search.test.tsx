@@ -62,6 +62,17 @@ describe("GlobalSearch", () => {
     ])
   })
 
+  it("opens subscription management from search", async () => {
+    render(<GlobalSearch />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Search or run a command" }))
+    const input = await screen.findByRole("combobox", { name: "Global search" })
+    fireEvent.change(input, { target: { value: "manage subscription" } })
+    fireEvent.keyDown(input, { key: "Enter" })
+
+    await waitFor(() => expect(routerMock.push).toHaveBeenCalledWith("/settings?tab=billing"))
+  })
+
   it("restores and clears recent searches", async () => {
     localStorage.setItem(recentSearchKey, JSON.stringify(["platform engineer"]))
     render(<GlobalSearch />)

@@ -19,6 +19,7 @@ export function AuthPageClient() {
   const [mode, setMode] = useState<"signin" | "signup" | "forgot_password">("signin")
   const [pendingIntent, setPendingIntent] = useState<string | null>(null)
   const isConfigured = isSupabaseConfigured()
+  const next = searchParams.get("next")
 
   // Callback errors (e.g. expired magic link) arrive via URL params — read once then clean URL.
   const [feedback, setFeedback] = useState<{ status: string; message: string } | null>(() => {
@@ -29,7 +30,7 @@ export function AuthPageClient() {
 
   useEffect(() => {
     if (searchParams.get("message")) {
-      router.replace("/auth", { scroll: false })
+      router.replace(next ? `/auth?next=${encodeURIComponent(next)}` : "/auth", { scroll: false })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -42,6 +43,7 @@ export function AuthPageClient() {
     const body = new FormData()
     body.set("intent", intent)
     body.set("email", email)
+    if (next) body.set("next", next)
     if (password) body.set("password", password)
 
     try {

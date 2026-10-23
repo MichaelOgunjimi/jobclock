@@ -17,6 +17,7 @@ import { TelegramSettingsCard } from "./telegram-settings-card"
 import { TemplatePicker } from "./template-picker"
 import { JobSourcesForm } from "./job-sources-form"
 import { TrackedCompaniesForm } from "./tracked-companies-form"
+import { BillingSettingsCard, type BillingSummary } from "./billing-settings-card"
 import { savePreferences } from "../profile/actions"
 import type { AiSettings, JobSources } from "@/lib/ai"
 import type { PersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
@@ -69,6 +70,10 @@ export function SettingsTabs({
   telegramConfigured,
   profilePrefs,
   trackedCompanies,
+  billingSummary,
+  aiBillingSource,
+  canUseJobclockAi,
+  hostedProviderPreference,
 }: {
   aiSettings: AiSettings
   keyStatus: KeyStatus
@@ -81,10 +86,14 @@ export function SettingsTabs({
   telegramConfigured: boolean
   profilePrefs: ProfilePrefs
   trackedCompanies: TrackedCompany[]
+  billingSummary: BillingSummary
+  aiBillingSource: "jobclock" | "personal"
+  canUseJobclockAi: boolean
+  hostedProviderPreference: "automatic" | "openai" | "anthropic"
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const validTabs = ["ai", "appearance", "extension", "telegram", "job-search", "job-sources", "companies"]
+  const validTabs = ["ai", "billing", "appearance", "extension", "telegram", "job-search", "job-sources", "companies"]
   const activeTab = validTabs.includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "ai"
 
   const [roles, setRoles] = useState<string[]>(profilePrefs.desired_roles ?? [])
@@ -131,6 +140,7 @@ export function SettingsTabs({
     <Tabs value={activeTab} onValueChange={handleTabChange}>
       <TabsList className="mb-6 shrink-0 flex-wrap gap-1 sm:mb-8 sm:flex-nowrap sm:overflow-x-auto sm:whitespace-nowrap sm:[-ms-overflow-style:none] sm:[scrollbar-width:none] sm:[&::-webkit-scrollbar]:hidden">
         <TabsTrigger value="ai" className="shrink-0 px-2.5 sm:px-4">AI</TabsTrigger>
+        <TabsTrigger value="billing" className="shrink-0 px-2.5 sm:px-4">Billing</TabsTrigger>
         <TabsTrigger value="appearance" className="shrink-0 px-2.5 sm:px-4">Appearance</TabsTrigger>
         <TabsTrigger value="extension" className="shrink-0 px-2.5 sm:px-4">Extension</TabsTrigger>
         <TabsTrigger value="telegram" className="shrink-0 px-2.5 sm:px-4">Telegram</TabsTrigger>
@@ -150,9 +160,13 @@ export function SettingsTabs({
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            <AiSettingsForm current={aiSettings} keyStatus={keyStatus} />
+            <AiSettingsForm current={aiSettings} keyStatus={keyStatus} billingSource={aiBillingSource} canUseJobclock={canUseJobclockAi} hostedProviderPreference={hostedProviderPreference} />
           </CardContent>
         </Card>
+      </TabsContent>
+
+      <TabsContent value="billing">
+        <BillingSettingsCard summary={billingSummary} />
       </TabsContent>
 
       {/* Appearance Tab */}

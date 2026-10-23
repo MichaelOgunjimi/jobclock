@@ -83,16 +83,24 @@ function ApiKeyInput({
 export function AiSettingsForm({
   current,
   keyStatus,
+  billingSource,
+  canUseJobclock,
+  hostedProviderPreference,
 }: {
   current: AiSettings
   keyStatus: { anthropic: KeySource; openai: KeySource; perplexity: KeySource }
+  billingSource: "jobclock" | "personal"
+  canUseJobclock: boolean
+  hostedProviderPreference: "automatic" | AiProvider
 }) {
   const [provider, setProvider] = useState<AiProvider>(current.provider)
   const [model, setModel] = useState(current.model)
   const [hasKeyInput, setHasKeyInput] = useState(false)
+  const [source, setSource] = useState(billingSource)
+  const [hostedProvider, setHostedProvider] = useState(hostedProviderPreference)
   const [isPending, startTransition] = useTransition()
 
-  const isDirty = provider !== current.provider || model !== current.model || hasKeyInput
+  const isDirty = provider !== current.provider || model !== current.model || source !== billingSource || hostedProvider !== hostedProviderPreference || hasKeyInput
 
   function handleProviderChange(next: AiProvider) {
     setProvider(next)
@@ -105,6 +113,8 @@ export function AiSettingsForm({
     const formData = new FormData(e.currentTarget)
     formData.set("provider", provider)
     formData.set("model", model)
+    formData.set("billing_source", source)
+    formData.set("hosted_provider_preference", hostedProvider)
 
     startTransition(async () => {
       const result = await saveAiSettings(formData)
@@ -119,6 +129,37 @@ export function AiSettingsForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-3">
+        <Label>AI billing source</Label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            disabled={!canUseJobclock}
+            onClick={() => setSource("jobclock")}
+            className={[
+              "border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+              source === "jobclock" ? "border-foreground bg-secondary" : "border-border hover:border-foreground/50",
+            ].join(" ")}
+          >
+            <p className="text-sm font-medium">JobClock allowance</p>
+            <p className="mt-1 text-xs text-muted-foreground">Automatic model routing using your Pro credits.</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSource("personal")}
+            className={[
+              "border p-4 text-left transition-colors",
+              source === "personal" ? "border-foreground bg-secondary" : "border-border hover:border-foreground/50",
+            ].join(" ")}
+          >
+            <p className="text-sm font-medium">My provider key</p>
+            <p className="mt-1 text-xs text-muted-foreground">Use your own provider account and exact model choice.</p>
+          </button>
+        </div>
+        {!canUseJobclock && <p className="text-xs text-muted-foreground">JobClock allowance is available with Pro. <a href="/pricing" className="underline underline-offset-2">See pricing</a>.</p>}
+      </div>
+
+      {source === "personal" ? <>
       <div className="grid gap-3 border border-border bg-secondary/35 p-4 sm:grid-cols-[auto_minmax(0,1fr)]">
         <div className="flex size-10 items-center justify-center border bg-background">
           <KeyRound className="size-4" />
@@ -207,6 +248,30 @@ export function AiSettingsForm({
           onTyped={() => setHasKeyInput(true)}
         />
       </div>
+      </> : (
+        <div className="space-y-4 border bg-secondary/35 p-4">
+          <div>
+            <p className="text-sm font-semibold">Provider preference</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">JobClock chooses a supported model for each operation. Premium models remain personal-key only.</p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {(["automatic", "openai", "anthropic"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={hostedProvider === value}
+                onClick={() => setHostedProvider(value)}
+                className={[
+                  "border px-3 py-2 text-sm capitalize transition-colors",
+                  hostedProvider === value ? "border-foreground bg-background" : "border-border text-muted-foreground hover:text-foreground",
+                ].join(" ")}
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Button type="submit" disabled={!isDirty || isPending} className="w-full sm:w-auto">
         {isPending ? "Saving…" : "Save Settings"}

@@ -55,7 +55,7 @@ export function DashboardShell({
                     Configure a {aiKeyBanner.providerLabel} API key to enable AI generation.
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Add your own provider key in Settings before using CV, cover letter, research, or interview generation.
+                    Add your own provider key in Settings, or see Pro for AI generation without a separate provider account.
                   </p>
                 </div>
               </div>
@@ -64,6 +64,12 @@ export function DashboardShell({
                 className={cn(buttonVariants({ size: "sm", variant: "outline" }), "bg-background")}
               >
                 Configure AI key
+              </Link>
+              <Link
+                href="/pricing"
+                className={cn(buttonVariants({ size: "sm", variant: "ghost" }))}
+              >
+                See Pro
               </Link>
             </div>
           </div>

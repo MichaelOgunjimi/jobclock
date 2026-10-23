@@ -10,7 +10,13 @@ export const metadata: Metadata = {
 	robots: { index: false, follow: false },
 };
 
-export default async function AuthPage() {
+export default async function AuthPage({
+	searchParams,
+}: {
+	searchParams: Promise<{ next?: string }>;
+}) {
+	const { next: rawNext } = await searchParams;
+	const next = rawNext?.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
 	if (isSupabaseConfigured()) {
 		const supabase = await createClient();
 		const {
@@ -18,7 +24,7 @@ export default async function AuthPage() {
 		} = await supabase.auth.getUser();
 
 		if (user) {
-			redirect("/dashboard");
+			redirect(next);
 		}
 	}
 

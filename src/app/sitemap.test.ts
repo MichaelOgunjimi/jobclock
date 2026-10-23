@@ -23,6 +23,11 @@ describe("sitemap", () => {
       priority: 0.5,
     })
 
+    expect(byUrl.get("https://jobclock.michaelogunjimi.com/pricing")).toMatchObject({
+      changeFrequency: "monthly",
+      priority: 0.8,
+    })
+
     for (const path of ["privacy", "terms", "cookies"]) {
       expect(
         byUrl.get(`https://jobclock.michaelogunjimi.com/${path}`)
