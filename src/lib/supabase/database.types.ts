@@ -9,6 +9,66 @@ export type Json =
 export type Database = {
 	public: {
 		Tables: {
+			billing_customers: {
+				Row: { user_id: string; stripe_customer_id: string; created_at: string; updated_at: string };
+				Insert: { user_id: string; stripe_customer_id: string; created_at?: string; updated_at?: string };
+				Update: { user_id?: string; stripe_customer_id?: string; created_at?: string; updated_at?: string };
+				Relationships: [];
+			};
+			billing_subscriptions: {
+				Row: {
+					user_id: string; stripe_subscription_id: string; stripe_product_id: string;
+					stripe_price_id: string; status: string; billing_interval: string;
+					current_period_start: string; current_period_end: string; cancel_at_period_end: boolean;
+					canceled_at: string | null; past_due_at: string | null; grace_ends_at: string | null;
+					stripe_updated_at: string; created_at: string; updated_at: string;
+				};
+				Insert: {
+					user_id: string; stripe_subscription_id: string; stripe_product_id: string;
+					stripe_price_id: string; status: string; billing_interval: string;
+					current_period_start: string; current_period_end: string; cancel_at_period_end?: boolean;
+					canceled_at?: string | null; past_due_at?: string | null; grace_ends_at?: string | null;
+					stripe_updated_at: string; created_at?: string; updated_at?: string;
+				};
+				Update: Partial<Database["public"]["Tables"]["billing_subscriptions"]["Insert"]>;
+				Relationships: [];
+			};
+			billing_webhook_events: {
+				Row: { stripe_event_id: string; type: string; stripe_object_id: string | null; stripe_created_at: string; processed_at: string | null; status: string; error: string | null; created_at: string };
+				Insert: { stripe_event_id: string; type: string; stripe_object_id?: string | null; stripe_created_at: string; processed_at?: string | null; status: string; error?: string | null; created_at?: string };
+				Update: Partial<Database["public"]["Tables"]["billing_webhook_events"]["Insert"]>;
+				Relationships: [];
+			};
+			ai_usage_periods: {
+				Row: { user_id: string; period_start: string; period_end: string; credit_limit: number; credits_reserved: number; credits_used: number; cost_limit_microusd: number; cost_reserved_microusd: number; cost_used_microusd: number; updated_at: string };
+				Insert: { user_id: string; period_start: string; period_end: string; credit_limit: number; credits_reserved?: number; credits_used?: number; cost_limit_microusd: number; cost_reserved_microusd?: number; cost_used_microusd?: number; updated_at?: string };
+				Update: Partial<Database["public"]["Tables"]["ai_usage_periods"]["Insert"]>;
+				Relationships: [];
+			};
+			ai_usage_actions: {
+				Row: { id: string; idempotency_key: string; user_id: string; period_start: string; feature: string; credential_source: string; status: string; credits: number; funding: string; estimated_cost_microusd: number; actual_cost_microusd: number; input_tokens: number; cached_input_tokens: number; output_tokens: number; created_at: string; settled_at: string | null };
+				Insert: { id?: string; idempotency_key: string; user_id: string; period_start: string; feature: string; credential_source: string; status: string; credits: number; funding?: string; estimated_cost_microusd?: number; actual_cost_microusd?: number; input_tokens?: number; cached_input_tokens?: number; output_tokens?: number; created_at?: string; settled_at?: string | null };
+				Update: Partial<Database["public"]["Tables"]["ai_usage_actions"]["Insert"]>;
+				Relationships: [];
+			};
+			ai_credit_balances: {
+				Row: { user_id: string; credits: number; updated_at: string };
+				Insert: { user_id: string; credits?: number; updated_at?: string };
+				Update: Partial<Database["public"]["Tables"]["ai_credit_balances"]["Insert"]>;
+				Relationships: [];
+			};
+			ai_credit_purchases: {
+				Row: { id: string; user_id: string; stripe_checkout_session_id: string; pack: string; credits: number; amount_pence: number; created_at: string };
+				Insert: { id?: string; user_id: string; stripe_checkout_session_id: string; pack: string; credits: number; amount_pence: number; created_at?: string };
+				Update: Partial<Database["public"]["Tables"]["ai_credit_purchases"]["Insert"]>;
+				Relationships: [];
+			};
+			ai_usage_events: {
+				Row: { id: string; action_id: string; provider_request_id: string | null; provider: string; model: string; input_tokens: number; cached_input_tokens: number; output_tokens: number; tool_cost_microusd: number; total_cost_microusd: number; price_version: string; created_at: string };
+				Insert: { id?: string; action_id: string; provider_request_id?: string | null; provider: string; model: string; input_tokens?: number; cached_input_tokens?: number; output_tokens?: number; tool_cost_microusd?: number; total_cost_microusd?: number; price_version: string; created_at?: string };
+				Update: Partial<Database["public"]["Tables"]["ai_usage_events"]["Insert"]>;
+				Relationships: [];
+			};
 			profiles: {
 				Row: {
 					id: string;

@@ -12,6 +12,9 @@ import {
   date,
   uniqueIndex,
   index,
+  check,
+  primaryKey,
+  foreignKey,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
@@ -558,5 +561,187 @@ export const interviewAnswers = pgTable(
     uniqueIndex("interview_answers_saved_tailored_unique")
       .on(table.userId, table.questionId, table.applicationId)
       .where(sql`${table.applicationId} is not null and ${table.status} = 'saved'`),
+  ],
+)
+
+// ============================================================
+// BILLING AND AI USAGE
+// ============================================================
+
+export const billingCustomers = pgTable("billing_customers", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  stripeCustomerId: text("stripe_customer_id").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const billingSubscriptions = pgTable(
+  "billing_subscriptions",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    stripeSubscriptionId: text("stripe_subscription_id").notNull().unique(),
+    stripeProductId: text("stripe_product_id").notNull(),
+    stripePriceId: text("stripe_price_id").notNull(),
+    status: text("status").notNull(),
+    billingInterval: text("billing_interval").notNull(),
+    currentPeriodStart: timestamp("current_period_start", { withTimezone: true }).notNull(),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }).notNull(),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
+    canceledAt: timestamp("canceled_at", { withTimezone: true }),
+    pastDueAt: timestamp("past_due_at", { withTimezone: true }),
+    graceEndsAt: timestamp("grace_ends_at", { withTimezone: true }),
+    stripeUpdatedAt: timestamp("stripe_updated_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    check("billing_subscriptions_status_check", sql`${table.status} in ('active', 'trialing', 'past_due', 'unpaid', 'paused', 'incomplete', 'incomplete_expired', 'canceled')`),
+    check("billing_subscriptions_interval_check", sql`${table.billingInterval} in ('month', 'year')`),
+  ],
+)
+
+export const billingWebhookEvents = pgTable(
+  "billing_webhook_events",
+  {
+    stripeEventId: text("stripe_event_id").primaryKey(),
+    type: text("type").notNull(),
+    stripeObjectId: text("stripe_object_id"),
+    stripeCreatedAt: timestamp("stripe_created_at", { withTimezone: true }).notNull(),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+    status: text("status").notNull(),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    check("billing_webhook_events_status_check", sql`${table.status} in ('processing', 'processed', 'failed', 'ignored')`),
+  ],
+)
+
+export const aiUsagePeriods = pgTable(
+  "ai_usage_periods",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    creditLimit: integer("credit_limit").notNull(),
+    creditsReserved: integer("credits_reserved").default(0).notNull(),
+    creditsUsed: integer("credits_used").default(0).notNull(),
+    costLimitMicrousd: bigint("cost_limit_microusd", { mode: "number" }).notNull(),
+    costReservedMicrousd: bigint("cost_reserved_microusd", { mode: "number" }).default(0).notNull(),
+    costUsedMicrousd: bigint("cost_used_microusd", { mode: "number" }).default(0).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.periodStart] }),
+    check("ai_usage_periods_period_check", sql`${table.periodEnd} > ${table.periodStart}`),
+    check("ai_usage_periods_credit_limit_check", sql`${table.creditLimit} >= 0`),
+    check("ai_usage_periods_credits_reserved_check", sql`${table.creditsReserved} >= 0`),
+    check("ai_usage_periods_credits_used_check", sql`${table.creditsUsed} >= 0`),
+    check("ai_usage_periods_credits_total_check", sql`${table.creditsReserved} + ${table.creditsUsed} <= ${table.creditLimit}`),
+    check("ai_usage_periods_cost_limit_check", sql`${table.costLimitMicrousd} >= 0`),
+    check("ai_usage_periods_cost_reserved_check", sql`${table.costReservedMicrousd} >= 0`),
+    check("ai_usage_periods_cost_used_check", sql`${table.costUsedMicrousd} >= 0`),
+    check("ai_usage_periods_cost_total_check", sql`${table.costReservedMicrousd} + ${table.costUsedMicrousd} <= ${table.costLimitMicrousd}`),
+  ],
+)
+
+export const aiUsageActions = pgTable(
+  "ai_usage_actions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    feature: text("feature").notNull(),
+    credentialSource: text("credential_source").notNull(),
+    status: text("status").notNull(),
+    credits: integer("credits").notNull(),
+    // Which pool paid for the action: the monthly Pro allowance or purchased top-up credits.
+    funding: text("funding").default("allowance").notNull(),
+    estimatedCostMicrousd: bigint("estimated_cost_microusd", { mode: "number" }).default(0).notNull(),
+    actualCostMicrousd: bigint("actual_cost_microusd", { mode: "number" }).default(0).notNull(),
+    inputTokens: bigint("input_tokens", { mode: "number" }).default(0).notNull(),
+    cachedInputTokens: bigint("cached_input_tokens", { mode: "number" }).default(0).notNull(),
+    outputTokens: bigint("output_tokens", { mode: "number" }).default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    settledAt: timestamp("settled_at", { withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({ columns: [table.userId, table.periodStart], foreignColumns: [aiUsagePeriods.userId, aiUsagePeriods.periodStart] }).onDelete("cascade"),
+    check("ai_usage_actions_feature_check", sql`${table.feature} in ('job_import', 'qualification_document_extraction', 'cv_parse_review', 'application_chat', 'interview_answer', 'interview_preparation', 'cover_letter', 'company_research', 'cv_tailoring')`),
+    check("ai_usage_actions_credential_source_check", sql`${table.credentialSource} in ('personal', 'jobclock')`),
+    check("ai_usage_actions_status_check", sql`${table.status} in ('reserved', 'completed', 'failed')`),
+    check("ai_usage_actions_funding_check", sql`${table.funding} in ('allowance', 'purchased')`),
+    check("ai_usage_actions_credits_check", sql`${table.credits} >= 0`),
+    check("ai_usage_actions_costs_check", sql`${table.estimatedCostMicrousd} >= 0 and ${table.actualCostMicrousd} >= 0`),
+    check("ai_usage_actions_tokens_check", sql`${table.inputTokens} >= 0 and ${table.cachedInputTokens} >= 0 and ${table.outputTokens} >= 0`),
+    index("ai_usage_actions_user_period_idx").on(table.userId, table.periodStart),
+  ],
+)
+
+export const aiUsageEvents = pgTable(
+  "ai_usage_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    actionId: uuid("action_id")
+      .notNull()
+      .references(() => aiUsageActions.id, { onDelete: "cascade" }),
+    providerRequestId: text("provider_request_id").unique(),
+    provider: text("provider").notNull(),
+    model: text("model").notNull(),
+    inputTokens: bigint("input_tokens", { mode: "number" }).default(0).notNull(),
+    cachedInputTokens: bigint("cached_input_tokens", { mode: "number" }).default(0).notNull(),
+    outputTokens: bigint("output_tokens", { mode: "number" }).default(0).notNull(),
+    toolCostMicrousd: bigint("tool_cost_microusd", { mode: "number" }).default(0).notNull(),
+    totalCostMicrousd: bigint("total_cost_microusd", { mode: "number" }).default(0).notNull(),
+    priceVersion: text("price_version").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    check("ai_usage_events_provider_check", sql`${table.provider} in ('openai', 'anthropic')`),
+    check("ai_usage_events_usage_check", sql`${table.inputTokens} >= 0 and ${table.cachedInputTokens} >= 0 and ${table.outputTokens} >= 0 and ${table.toolCostMicrousd} >= 0 and ${table.totalCostMicrousd} >= 0`),
+    index("ai_usage_events_action_id_idx").on(table.actionId),
+  ],
+)
+
+// Purchased top-up credits: they never expire and are spent only after the monthly allowance runs out.
+export const aiCreditBalances = pgTable(
+  "ai_credit_balances",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    credits: integer("credits").default(0).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [check("ai_credit_balances_credits_check", sql`${table.credits} >= 0`)],
+)
+
+// One row per paid Checkout Session; the unique session id makes webhook retries grant credits once.
+export const aiCreditPurchases = pgTable(
+  "ai_credit_purchases",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    stripeCheckoutSessionId: text("stripe_checkout_session_id").notNull().unique(),
+    pack: text("pack").notNull(),
+    credits: integer("credits").notNull(),
+    amountPence: integer("amount_pence").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    check("ai_credit_purchases_credits_check", sql`${table.credits} > 0`),
+    check("ai_credit_purchases_amount_check", sql`${table.amountPence} > 0`),
+    index("ai_credit_purchases_user_idx").on(table.userId),
   ],
 )
