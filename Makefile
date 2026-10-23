@@ -19,3 +19,6 @@ check: ## Type-check, lint and run unit tests
 
 migrate: ## Apply database migrations (uses DATABASE_URL from .env.local)
 	set -a && . ./.env.local && set +a && npm run db:migrate
+
+usage-report: ## Report real hosted-AI spend per feature and per application (read-only; pass ARGS="--days=30 --gbp-usd=1.30")
+	set -a && . ./.env.local && set +a && npm run usage:report -- $(ARGS)

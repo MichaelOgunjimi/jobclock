@@ -1,15 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-vi.mock("./index", async () => {
-  const actual = await vi.importActual<typeof import("./index")>("./index")
-  return {
-    ...actual,
-    resolveAiConfig: vi.fn(),
-    generateText: vi.fn(),
-  }
-})
-
-import { resolveAiConfig, generateText } from "./index"
+import type { AiActionClient } from "./action"
 import { reviewCv } from "./cv-review"
 import type { CvData } from "@/lib/supabase/database.types"
 
@@ -30,16 +21,15 @@ const sampleCv: CvData = {
   activities: [],
 } as unknown as CvData
 
+const generate = vi.fn()
+const ai = { generate } as unknown as AiActionClient
+
 describe("reviewCv", () => {
   beforeEach(() => {
-    vi.mocked(resolveAiConfig).mockReturnValue({
-      settings: { provider: "openai", model: "gpt-4.1" },
-      apiKey: "sk-test",
-    })
   })
 
   it("returns parsed findings when the LLM returns valid JSON", async () => {
-    vi.mocked(generateText).mockResolvedValueOnce(
+    generate.mockResolvedValueOnce(
       JSON.stringify({
         findings: [
           {
@@ -57,7 +47,7 @@ describe("reviewCv", () => {
       }),
     )
 
-    const findings = await reviewCv(sampleCv, null)
+    const findings = await reviewCv(sampleCv, ai)
 
     expect(findings).toHaveLength(1)
     expect(findings[0]).toMatchObject({
@@ -73,13 +63,13 @@ describe("reviewCv", () => {
   })
 
   it("throws when the LLM returns unparseable JSON", async () => {
-    vi.mocked(generateText).mockResolvedValueOnce("this is not json at all")
+    generate.mockResolvedValueOnce("this is not json at all")
 
-    await expect(reviewCv(sampleCv, null)).rejects.toThrow(/unparseable/i)
+    await expect(reviewCv(sampleCv, ai)).rejects.toThrow(/unparseable/i)
   })
 
   it("throws when the LLM returns JSON with an invalid finding shape", async () => {
-    vi.mocked(generateText).mockResolvedValueOnce(
+    generate.mockResolvedValueOnce(
       JSON.stringify({
         findings: [
           {
@@ -93,12 +83,12 @@ describe("reviewCv", () => {
       }),
     )
 
-    await expect(reviewCv(sampleCv, null)).rejects.toThrow(/invalid finding/i)
+    await expect(reviewCv(sampleCv, ai)).rejects.toThrow(/invalid finding/i)
   })
 
   it("returns an empty array when the LLM finds no issues", async () => {
-    vi.mocked(generateText).mockResolvedValueOnce(JSON.stringify({ findings: [] }))
+    generate.mockResolvedValueOnce(JSON.stringify({ findings: [] }))
 
-    await expect(reviewCv(sampleCv, null)).resolves.toEqual([])
+    await expect(reviewCv(sampleCv, ai)).resolves.toEqual([])
   })
 })

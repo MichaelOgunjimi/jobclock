@@ -4,7 +4,10 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }))
 vi.mock("@/lib/rate-limit", () => ({
   aiGenerateRateLimit: { limit: vi.fn() },
 }))
+vi.mock("@/lib/ai/action", async () => (await import("@/test/ai-action-mock")).aiActionMock())
+vi.mock("@/lib/billing/usage", () => ({ AiAllowanceExhaustedError: class extends Error {} }))
 vi.mock("@/lib/ai", () => ({
+  MissingAiApiKeyError: class extends Error { code = "missing_ai_api_key" },
   resolveAiConfig: vi.fn(),
   generateText: vi.fn(),
   withPlatformAiKeyAccess: vi.fn((preferences, allowPlatformAiKey) => ({

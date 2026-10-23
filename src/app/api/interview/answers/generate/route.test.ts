@@ -4,7 +4,10 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }))
 vi.mock("@/lib/rate-limit", () => ({
   aiGenerateRateLimit: { limit: vi.fn() },
 }))
+vi.mock("@/lib/ai/action", async () => (await import("@/test/ai-action-mock")).aiActionMock())
+vi.mock("@/lib/billing/usage", () => ({ AiAllowanceExhaustedError: class extends Error {} }))
 vi.mock("@/lib/ai", () => ({
+  MissingAiApiKeyError: class extends Error { code = "missing_ai_api_key" },
   resolveAiConfig: vi.fn(),
   generateText: vi.fn(),
   withPlatformAiKeyAccess: vi.fn((preferences, allowPlatformAiKey) => ({
@@ -22,7 +25,7 @@ vi.mock("@/app/(dashboard)/interview/data", () => ({
 
 import { createClient } from "@/lib/supabase/server"
 import { aiGenerateRateLimit } from "@/lib/rate-limit"
-import { generateText, resolveAiConfig } from "@/lib/ai"
+import { generateText, MissingAiApiKeyError, resolveAiConfig } from "@/lib/ai"
 import {
   loadInterviewApplicationById,
   loadAllInterviewCvFactDrafts,
@@ -162,7 +165,7 @@ describe("POST /api/interview/answers/generate", () => {
 
   it("returns 422 when no AI key is configured", async () => {
     vi.mocked(resolveAiConfig).mockImplementation(() => {
-      throw new Error("No AI API key configured")
+      throw new (MissingAiApiKeyError as new (provider: string) => Error)("openai")
     })
 
     const response = await POST(request({ questionId }))

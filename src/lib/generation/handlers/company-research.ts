@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { interviewPrep } from "@/lib/db/schema"
-import { resolveAiConfig, generateTextWithWebSearch } from "@/lib/ai"
+import { runAiAction } from "@/lib/ai/action"
 import { callPerplexity } from "@/lib/ai/perplexity"
 import { decrypt } from "@/lib/crypto"
 import { normalizeAiMarkdown } from "@/lib/cv/normalize"
@@ -10,7 +10,7 @@ import type { GenerationJob } from "../jobs"
 import { loadCompanyResearchContext, type CompanyResearchContext } from "./company-research-context"
 import { appendApplicationAuditEvents } from "@/lib/applications/audit"
 
-async function generateContent(ctx: CompanyResearchContext): Promise<string> {
+async function generateContent(ctx: CompanyResearchContext, jobId: string): Promise<string> {
   const systemPrompt = researchSystemPrompt()
   const userPrompt = researchUserPrompt({
     company: ctx.company,
@@ -29,8 +29,9 @@ async function generateContent(ctx: CompanyResearchContext): Promise<string> {
     )
   }
 
-  const { settings, apiKey } = resolveAiConfig(ctx.preferences)
-  return generateTextWithWebSearch(settings, apiKey, systemPrompt, userPrompt, 3500)
+  // Suffixed: composeResearch also runs inside the cover-letter job, which owns the bare job id.
+  return runAiAction({ userId: ctx.userId, actionId: `${jobId}:company_research`, feature: "company_research", preferences: ctx.preferences },
+    (ai) => ai.generateWithWebSearch(systemPrompt, userPrompt, 3500))
 }
 
 async function persistContent(ctx: CompanyResearchContext, jobId: string, content: string): Promise<string> {
@@ -71,7 +72,7 @@ async function persistContent(ctx: CompanyResearchContext, jobId: string, conten
 
 async function doResearch(job: GenerationJob): Promise<{ content: string; id: string }> {
   const ctx = await loadCompanyResearchContext(job)
-  const raw = await generateContent(ctx)
+  const raw = await generateContent(ctx, job.id)
   const content = normalizeAiMarkdown(raw)
   const id = await persistContent(ctx, job.id, content)
   return { content, id }

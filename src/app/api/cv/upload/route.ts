@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
@@ -5,6 +6,8 @@ import pdfParse from "pdf-parse"
 import mammoth from "mammoth"
 import { parseCvWithAi } from "@/lib/ai/parse-cv"
 import { reviewCv } from "@/lib/ai/cv-review"
+import { runAiAction } from "@/lib/ai/action"
+import { AiAllowanceExhaustedError } from "@/lib/billing/usage"
 import { withPlatformAiKeyAccess, type UserPreferences } from "@/lib/ai"
 import type { Json } from "@/lib/supabase/database.types"
 import { cvGenerateRateLimit } from "@/lib/rate-limit"
@@ -107,24 +110,33 @@ export async function POST(request: NextRequest) {
       profile?.allow_platform_ai_key === true,
     )
 
-    // AI-powered CV parsing
-    let parsedCv
+    // AI-powered CV parsing, plus a content-level review (non-blocking: parse succeeds even if review fails).
+    // One metered action covers both.
+    let parsedCv: Awaited<ReturnType<typeof parseCvWithAi>>
+    let reviewFindings: Awaited<ReturnType<typeof reviewCv>> | null = null
     try {
-      parsedCv = await parseCvWithAi(rawText, preferences)
+      ;({ parsedCv, reviewFindings } = await runAiAction(
+        { userId: user.id, actionId: randomUUID(), feature: "cv_parse_review", preferences },
+        async (ai) => {
+          const parsedCv = await parseCvWithAi(rawText, ai)
+          let reviewFindings: Awaited<ReturnType<typeof reviewCv>> | null = null
+          try {
+            reviewFindings = await reviewCv(parsedCv, ai)
+          } catch (reviewError) {
+            console.error("CV review error (non-fatal):", reviewError)
+          }
+          return { parsedCv, reviewFindings }
+        },
+      ))
     } catch (aiError) {
+      if (aiError instanceof AiAllowanceExhaustedError) {
+        return NextResponse.json({ error: aiError.message, code: aiError.code }, { status: 402 })
+      }
       console.error("AI parse error:", aiError)
       return NextResponse.json(
         { error: "Failed to extract CV data. Please check your AI provider settings." },
         { status: 422 }
       )
-    }
-
-    // AI-powered content-level review (non-blocking: parse succeeds even if review fails)
-    let reviewFindings: Awaited<ReturnType<typeof reviewCv>> | null = null
-    try {
-      reviewFindings = await reviewCv(parsedCv, preferences)
-    } catch (reviewError) {
-      console.error("CV review error (non-fatal):", reviewError)
     }
 
     // Upload original file to Supabase Storage

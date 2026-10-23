@@ -1,18 +1,14 @@
 import { extractJson } from "./extract-json"
-import { generateText, resolveAiConfig, type UserPreferences } from "./index"
+import type { AiActionClient } from "./action"
 import { CV_REVIEW_SYSTEM_PROMPT, buildCvReviewUserPrompt } from "./prompts/cv-review"
 import { reviewFindingsResponseSchema, type CvReviewFinding } from "./cv-review-schemas"
 import type { CvData } from "@/lib/supabase/database.types"
 
 export async function reviewCv(
   cv: CvData,
-  preferences: UserPreferences | null,
+  ai: AiActionClient,
 ): Promise<CvReviewFinding[]> {
-  const { settings, apiKey } = resolveAiConfig(preferences)
-
-  const response = await generateText(
-    settings,
-    apiKey,
+  const response = await ai.generate(
     CV_REVIEW_SYSTEM_PROMPT,
     buildCvReviewUserPrompt(JSON.stringify(cv)),
   )

@@ -24,3 +24,10 @@ export const aiGenerateRateLimit = new Ratelimit({
   analytics: true,
   prefix: "ratelimit:ai-generate",
 })
+
+export const billingRateLimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(10, "60 s"),
+  analytics: true,
+  prefix: "ratelimit:billing",
+})

@@ -1,12 +1,10 @@
+import { randomUUID } from "node:crypto"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { aiGenerateRateLimit } from "@/lib/rate-limit"
-import {
-  generateText,
-  resolveAiConfig,
-  withPlatformAiKeyAccess,
-  type UserPreferences,
-} from "@/lib/ai"
+import { withPlatformAiKeyAccess, type UserPreferences } from "@/lib/ai"
+import { runAiAction } from "@/lib/ai/action"
+import { aiErrorResponse } from "@/lib/ai/http"
 import { normalizeAiMarkdown } from "@/lib/cv/normalize"
 import { assessEvidence } from "@/lib/interview/evidence"
 import { resolveQuestionDefinition } from "@/lib/interview/question-catalog"
@@ -141,25 +139,10 @@ export async function POST(request: Request) {
     .eq("id", user.id)
     .single()
 
-  let aiConfig: ReturnType<typeof resolveAiConfig>
-  try {
-    aiConfig = resolveAiConfig(
-      withPlatformAiKeyAccess(
-        (profile?.preferences ?? {}) as UserPreferences,
-        profile?.allow_platform_ai_key === true,
-      ),
-    )
-  } catch (error) {
-    return Response.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "No AI API key configured",
-      },
-      { status: 422 },
-    )
-  }
+  const preferences = withPlatformAiKeyAccess(
+    (profile?.preferences ?? {}) as UserPreferences,
+    profile?.allow_platform_ai_key === true,
+  )
 
   const selectedFacts = facts.filter((fact) =>
     assessment.evidence.factIds.includes(fact.id),
@@ -182,13 +165,9 @@ export async function POST(request: Request) {
 
   try {
     const content = normalizeAiMarkdown(
-      await generateText(
-        aiConfig.settings,
-        aiConfig.apiKey,
-        INTERVIEW_ANSWER_SYSTEM_PROMPT,
-        userPrompt,
-        1_500,
-        { timeoutMs: 180_000 },
+      await runAiAction(
+        { userId: user.id, actionId: randomUUID(), feature: "interview_answer", preferences },
+        (ai) => ai.generate(INTERVIEW_ANSWER_SYSTEM_PROMPT, userPrompt, 1_500, { timeoutMs: 180_000 }),
       ),
     ).trim()
 
@@ -197,12 +176,6 @@ export async function POST(request: Request) {
       evidenceSnapshot: assessment.evidence,
     })
   } catch (error) {
-    return Response.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Answer generation failed",
-      },
-      { status: 500 },
-    )
+    return aiErrorResponse(error, "Answer generation failed")
   }
 }

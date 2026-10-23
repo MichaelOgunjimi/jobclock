@@ -1,11 +1,9 @@
+import { randomUUID } from "node:crypto"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
-import {
-  generateText,
-  resolveAiConfig,
-  withPlatformAiKeyAccess,
-  type UserPreferences,
-} from "@/lib/ai"
+import { withPlatformAiKeyAccess, type UserPreferences } from "@/lib/ai"
+import { runAiAction } from "@/lib/ai/action"
+import { aiErrorResponse } from "@/lib/ai/http"
 import { aiGenerateRateLimit } from "@/lib/rate-limit"
 import {
   loadInterviewAnswers,
@@ -70,25 +68,10 @@ export async function POST(request: Request) {
       answer.status === "saved",
   )
 
-  let aiConfig: ReturnType<typeof resolveAiConfig>
-  try {
-    aiConfig = resolveAiConfig(
-      withPlatformAiKeyAccess(
-        (profile?.preferences ?? {}) as UserPreferences,
-        profile?.allow_platform_ai_key === true,
-      ),
-    )
-  } catch (error) {
-    return Response.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "No AI API key configured",
-      },
-      { status: 422 },
-    )
-  }
+  const preferences = withPlatformAiKeyAccess(
+    (profile?.preferences ?? {}) as UserPreferences,
+    profile?.allow_platform_ai_key === true,
+  )
 
   const systemPrompt = `You are a tough but fair interview coach. Give direct, useful feedback. Do not invent candidate experiences, claims, metrics, or facts.`
   const userPrompt = `## Interview context
@@ -127,18 +110,12 @@ One short paragraph on whether the answer had a clear opening, evidence, action,
 Rewrite only the first 2-3 sentences to show a stronger opening.`
 
   try {
-    const feedback = await generateText(
-      aiConfig.settings,
-      aiConfig.apiKey,
-      systemPrompt,
-      userPrompt,
-      1_200,
+    const feedback = await runAiAction(
+      { userId: user.id, actionId: randomUUID(), feature: "interview_answer", preferences },
+      (ai) => ai.generate(systemPrompt, userPrompt, 1_200),
     )
     return Response.json({ feedback })
   } catch (error) {
-    return Response.json(
-      { error: error instanceof Error ? error.message : "Evaluation failed" },
-      { status: 500 },
-    )
+    return aiErrorResponse(error, "Evaluation failed")
   }
 }

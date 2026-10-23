@@ -8,6 +8,8 @@ vi.mock("pdf-parse", () => ({ default: vi.fn() }))
 vi.mock("mammoth", () => ({ default: { extractRawText: vi.fn() } }))
 vi.mock("@/lib/ai/parse-cv", () => ({ parseCvWithAi: vi.fn() }))
 vi.mock("@/lib/ai/cv-review", () => ({ reviewCv: vi.fn() }))
+vi.mock("@/lib/ai/action", () => ({ runAiAction: vi.fn((_request, operation) => operation({})) }))
+vi.mock("@/lib/billing/usage", () => ({ AiAllowanceExhaustedError: class extends Error { code = "ai_allowance_exhausted"; constructor(readonly resetAt: Date) { super("allowance used") } } }))
 vi.mock("@/lib/rate-limit", () => ({
   cvGenerateRateLimit: { limit: vi.fn().mockResolvedValue({ success: true }) },
 }))
@@ -18,6 +20,7 @@ import pdfParse from "pdf-parse"
 import mammoth from "mammoth"
 import { parseCvWithAi } from "@/lib/ai/parse-cv"
 import { reviewCv } from "@/lib/ai/cv-review"
+import { AiAllowanceExhaustedError } from "@/lib/billing/usage"
 import { POST } from "./route"
 
 const LONG_TEXT =
@@ -152,6 +155,15 @@ describe("POST /api/cv/upload", () => {
     expect(body).toEqual({
       error: "Failed to extract CV data. Please check your AI provider settings.",
     })
+  })
+
+  it("returns 402 when the hosted AI allowance is exhausted", async () => {
+    vi.mocked(parseCvWithAi).mockRejectedValueOnce(new AiAllowanceExhaustedError(new Date()))
+
+    const response = await POST(createFormDataRequest({ file: validPdfFile }))
+
+    expect(response.status).toBe(402)
+    expect(await response.json()).toMatchObject({ code: "ai_allowance_exhausted" })
   })
 
   it("returns 500 when storage upload fails", async () => {
