@@ -26,16 +26,28 @@ export interface AiSettings {
   model: string
 }
 
+/** Why JobClock's own AI was not an option when no personal key was found. */
+export type MissingAiApiKeyReason = "payment_paused" | "not_subscribed"
+
+const MISSING_KEY_MESSAGES: Record<MissingAiApiKeyReason, string> = {
+  payment_paused: "Your payment needs attention, so JobClock AI is paused. Update your billing details in Settings → Billing to restore it, or add your own API key in Settings → AI.",
+  not_subscribed: "No API key is set up. Add your own key in Settings → AI, or upgrade to Pro to use JobClock AI credits.",
+}
+
 export class MissingAiApiKeyError extends Error {
   code = "missing_ai_api_key" as const
   provider: AiProvider
+  reason?: MissingAiApiKeyReason
 
-  constructor(provider: AiProvider) {
+  constructor(provider: AiProvider, reason?: MissingAiApiKeyReason) {
     super(
-      `No API key configured for ${provider}. Add one in Settings → AI Configuration.`
+      reason
+        ? MISSING_KEY_MESSAGES[reason]
+        : `No API key configured for ${provider}. Add one in Settings → AI Configuration.`
     )
     this.name = "MissingAiApiKeyError"
     this.provider = provider
+    this.reason = reason
   }
 }
 

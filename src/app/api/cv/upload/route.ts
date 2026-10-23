@@ -8,7 +8,7 @@ import { parseCvWithAi } from "@/lib/ai/parse-cv"
 import { reviewCv } from "@/lib/ai/cv-review"
 import { runAiAction } from "@/lib/ai/action"
 import { AiAllowanceExhaustedError } from "@/lib/billing/usage"
-import { withPlatformAiKeyAccess, type UserPreferences } from "@/lib/ai"
+import { MissingAiApiKeyError, withPlatformAiKeyAccess, type UserPreferences } from "@/lib/ai"
 import type { Json } from "@/lib/supabase/database.types"
 import { cvGenerateRateLimit } from "@/lib/rate-limit"
 
@@ -131,6 +131,9 @@ export async function POST(request: NextRequest) {
     } catch (aiError) {
       if (aiError instanceof AiAllowanceExhaustedError) {
         return NextResponse.json({ error: aiError.message, code: aiError.code }, { status: 402 })
+      }
+      if (aiError instanceof MissingAiApiKeyError) {
+        return NextResponse.json({ error: aiError.message, code: aiError.code }, { status: 422 })
       }
       console.error("AI parse error:", aiError)
       return NextResponse.json(

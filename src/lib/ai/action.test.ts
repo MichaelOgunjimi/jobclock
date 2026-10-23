@@ -7,9 +7,10 @@ const { db, usage, ai } = vi.hoisted(() => ({
 }))
 vi.mock("@/lib/db", () => ({ db }))
 vi.mock("@/lib/billing/usage", () => usage)
-vi.mock("./index", () => ai)
+vi.mock("./index", async (importOriginal) => ({ ...(await importOriginal<typeof import("./index")>()), ...ai }))
 
 import { billingGrants } from "@/lib/db/schema"
+import { MissingAiApiKeyError } from "./index"
 import { runAiAction } from "./action"
 
 const PERIOD = { currentPeriodStart: new Date("2026-10-01T00:00:00Z"), currentPeriodEnd: new Date("2026-11-01T00:00:00Z") }
@@ -59,6 +60,23 @@ describe("runAiAction", () => {
     ai.resolveAiConfig.mockImplementation(() => { throw new Error("No API key configured") })
     await expect(runAiAction(request(), (client) => client.generate("s", "u"))).rejects.toThrow("No API key configured")
     expect(usage.reserveHostedAiAction).not.toHaveBeenCalled()
+  })
+
+  it("says why JobClock AI is paused when a past-due subscriber has no personal key", async () => {
+    setSubscription({ status: "past_due", graceEndsAt: new Date(Date.now() + 86_400_000), ...PERIOD })
+    ai.resolveAiConfig.mockImplementation(() => { throw new MissingAiApiKeyError("openai") })
+    const error = await runAiAction(request(), (client) => client.generate("s", "u")).catch((caught) => caught)
+    expect(error).toBeInstanceOf(MissingAiApiKeyError)
+    expect(error.reason).toBe("payment_paused")
+    expect(error.message).toContain("payment needs attention")
+  })
+
+  it("points a user with no subscription and no key at their own key or Pro", async () => {
+    setSubscription(null)
+    ai.resolveAiConfig.mockImplementation(() => { throw new MissingAiApiKeyError("openai") })
+    const error = await runAiAction(request(), (client) => client.generate("s", "u")).catch((caught) => caught)
+    expect(error.reason).toBe("not_subscribed")
+    expect(error.message).toContain("upgrade to Pro")
   })
 
   it("reserves, calls the hosted model and settles recorded usage for a Pro user", async () => {

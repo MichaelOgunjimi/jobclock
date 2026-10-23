@@ -8,6 +8,7 @@ import { AI_PRICE_VERSION, calculateProviderCostMicrousd, type HostedModel } fro
 import { allowanceWindow, getCreditWeight, getHostedModel, PRO_COST_LIMIT_MICROUSD, PRO_CREDIT_LIMIT, type AiFeature } from "@/lib/billing/plans"
 import { releaseHostedAiAction, reserveHostedAiAction, settleHostedAiAction, type ProviderUsage } from "@/lib/billing/usage"
 import {
+  MissingAiApiKeyError,
   generateTextResult,
   generateTextWithWebSearchResult,
   resolveAiConfig,
@@ -43,6 +44,17 @@ const ESTIMATED_COSTS: Record<AiFeature, number> = {
 const UNMETERED_CREDITS = 1_000_000
 const UNMETERED_COST_MICROUSD = 500_000_000
 
+// With no personal key, tell the user why JobClock AI isn't covering them instead of blaming their provider settings.
+function resolvePersonalConfig(preferences: UserPreferences | null, subscriptionStatus: string | undefined) {
+  try {
+    return resolveAiConfig({ ...preferences, allow_platform_ai_key: false })
+  } catch (error) {
+    if (!(error instanceof MissingAiApiKeyError)) throw error
+    const paymentPaused = subscriptionStatus === "past_due" || subscriptionStatus === "unpaid"
+    throw new MissingAiApiKeyError(error.provider, paymentPaused ? "payment_paused" : "not_subscribed")
+  }
+}
+
 export async function runAiAction<T>(request: AiActionRequest, operation: (ai: AiActionClient) => Promise<T>): Promise<T> {
   const [[subscription], [grant]] = await Promise.all([
     db.select().from(billingSubscriptions).where(and(eq(billingSubscriptions.userId, request.userId))).limit(1),
@@ -59,7 +71,7 @@ export async function runAiAction<T>(request: AiActionRequest, operation: (ai: A
     || (!request.preferences?.ai_billing_source && entitlement.hostedAi && !hasPersonalKey)
 
   if (!wantsHosted || !entitlement.hostedAi) {
-    const { settings, apiKey } = resolveAiConfig({ ...request.preferences, allow_platform_ai_key: false })
+    const { settings, apiKey } = resolvePersonalConfig(request.preferences, subscription?.status)
     return operation({
       generate: async (system, user, maxTokens, options) =>
         (await generateTextResult(settings, apiKey, system, user, maxTokens, options)).text,

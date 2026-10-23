@@ -21,6 +21,7 @@ import mammoth from "mammoth"
 import { parseCvWithAi } from "@/lib/ai/parse-cv"
 import { reviewCv } from "@/lib/ai/cv-review"
 import { AiAllowanceExhaustedError } from "@/lib/billing/usage"
+import { MissingAiApiKeyError } from "@/lib/ai"
 import { POST } from "./route"
 
 const LONG_TEXT =
@@ -164,6 +165,15 @@ describe("POST /api/cv/upload", () => {
 
     expect(response.status).toBe(402)
     expect(await response.json()).toMatchObject({ code: "ai_allowance_exhausted" })
+  })
+
+  it("returns the specific reason when no AI key is available", async () => {
+    vi.mocked(parseCvWithAi).mockRejectedValueOnce(new MissingAiApiKeyError("openai", "payment_paused"))
+
+    const response = await POST(createFormDataRequest({ file: validPdfFile }))
+
+    expect(response.status).toBe(422)
+    expect(await response.json()).toMatchObject({ code: "missing_ai_api_key", error: expect.stringContaining("payment needs attention") })
   })
 
   it("returns 500 when storage upload fails", async () => {
