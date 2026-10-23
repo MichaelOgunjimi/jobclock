@@ -20,6 +20,13 @@ export async function findStripeCustomerId(userId: string): Promise<string | nul
   return rows[0]?.stripe_customer_id ?? null
 }
 
+export async function findStripeSubscriptionId(userId: string): Promise<string | null> {
+  const rows = await db.execute<{ stripe_subscription_id: string }>(sql`
+    select stripe_subscription_id from billing_subscriptions where user_id = ${userId} limit 1
+  `)
+  return rows[0]?.stripe_subscription_id ?? null
+}
+
 export async function saveStripeCustomer(userId: string, customerId: string): Promise<string> {
   const rows = await db.execute<{ stripe_customer_id: string }>(sql`
     insert into billing_customers (user_id, stripe_customer_id)

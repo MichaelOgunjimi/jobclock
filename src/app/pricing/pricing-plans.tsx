@@ -51,22 +51,22 @@ export function PricingPlans({ signedIn, isPro }: { signedIn: boolean; isPro: bo
 
         <Card className="border-foreground/30">
           <CardHeader className="border-b pb-6">
-            <Badge>Pro</Badge>
+            <Badge>{isPro ? "Your plan" : "Pro"}</Badge>
             <CardTitle className="mt-4 text-3xl">{cadence === "monthly" ? "£12/month" : "£120/year"}</CardTitle>
-            <p className="text-sm text-muted-foreground">Everything in Free, plus 100 JobClock AI credits each billing month.</p>
+            <p className="text-sm text-muted-foreground">Everything in Free, plus 100 JobClock AI credits every month.</p>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
             <ul className="space-y-3 text-sm">
               {[...features, "AI generation without a separate provider account", "Buy extra credits any time; they never expire", "Billing management through Stripe"].map((feature) => <li key={feature} className="flex gap-3"><Check className="mt-0.5 size-4 shrink-0" />{feature}</li>)}
             </ul>
             {isPro ? (
-              <BillingActionButton action="portal" className="w-full">Manage billing</BillingActionButton>
+              <BillingActionButton action="portal" className="w-full">Manage your plan</BillingActionButton>
             ) : signedIn ? (
               <BillingActionButton action="checkout" cadence={cadence} className="w-full">Upgrade to Pro</BillingActionButton>
             ) : (
               <Link href="/auth?next=/pricing" className={cn(buttonVariants(), "w-full")}>Sign in to upgrade</Link>
             )}
-            <p className="text-center text-xs text-muted-foreground">Taxes calculated at checkout.</p>
+            <p className="text-center text-xs text-muted-foreground">The price you see is the price you pay. No VAT is added.</p>
           </CardContent>
         </Card>
       </div>

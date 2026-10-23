@@ -7,6 +7,7 @@ export function BillingActionButton({
   action,
   cadence,
   pack,
+  flow,
   variant,
   children,
   className,
@@ -14,6 +15,8 @@ export function BillingActionButton({
   action: "checkout" | "portal" | "credits"
   cadence?: "monthly" | "annual"
   pack?: string
+  /** Portal only: open Stripe straight on the cancel or change-plan screen. */
+  flow?: "cancel" | "switch"
   variant?: React.ComponentProps<typeof Button>["variant"]
   children: React.ReactNode
   className?: string
@@ -28,7 +31,7 @@ export function BillingActionButton({
       const response = await fetch(`/api/billing/${action}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: action === "checkout" ? JSON.stringify({ cadence }) : action === "credits" ? JSON.stringify({ pack }) : undefined,
+        body: action === "checkout" ? JSON.stringify({ cadence }) : action === "credits" ? JSON.stringify({ pack }) : flow ? JSON.stringify({ flow }) : undefined,
       })
       const result = await response.json() as { url?: string; error?: string }
       if (!response.ok || !result.url) throw new Error(result.error ?? "Billing is unavailable right now.")

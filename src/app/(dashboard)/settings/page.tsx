@@ -8,7 +8,7 @@ import { getActivePersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
 import { getTelegramConnection } from "@/lib/telegram/pairing"
 import { listTrackedCompanies } from "./actions"
 import { SettingsTabs } from "./settings-tabs"
-import { CREDIT_PACKS } from "@/lib/billing/plans"
+import { allowanceWindow, CREDIT_PACKS } from "@/lib/billing/plans"
 import { resolveEntitlement, SUBSCRIPTION_STATUSES, type SubscriptionStatus } from "@/lib/billing/entitlements"
 
 export const metadata: Metadata = {
@@ -58,14 +58,17 @@ export default async function SettingsPage() {
     graceEndsAt: subscription?.grace_ends_at ? new Date(subscription.grace_ends_at) : null,
   } : null, profile?.allow_platform_ai_key === true)
   const isPro = entitlement.plan === "pro"
+  const allowance = subscription?.current_period_start && subscription.current_period_end
+    ? allowanceWindow(new Date(subscription.current_period_start), new Date(subscription.current_period_end))
+    : null
   const [{ data: usagePeriod }, { data: creditBalance }] = isPro
     ? await Promise.all([
-        subscription?.current_period_start
+        allowance
           ? supabase
               .from("ai_usage_periods")
               .select("credits_used, credit_limit")
               .eq("user_id", user.id)
-              .eq("period_start", subscription.current_period_start)
+              .eq("period_start", allowance.start.toISOString())
               .maybeSingle()
           : Promise.resolve({ data: null }),
         supabase.from("ai_credit_balances").select("credits").eq("user_id", user.id).maybeSingle(),
@@ -143,6 +146,7 @@ export default async function SettingsPage() {
               ? subscription.billing_interval
               : null,
             periodEnd: subscription?.current_period_end ?? null,
+            allowanceResetsAt: allowance?.end.toISOString() ?? null,
             cancelAtPeriodEnd: subscription?.cancel_at_period_end ?? false,
             creditsUsed: Number(usagePeriod?.credits_used ?? 0),
             creditLimit: Number(usagePeriod?.credit_limit ?? 100),

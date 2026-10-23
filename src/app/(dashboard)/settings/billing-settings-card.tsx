@@ -14,12 +14,15 @@ export type BillingSummary = {
   status: string | null
   cadence: "month" | "year" | null
   periodEnd: string | null
+  allowanceResetsAt: string | null
   cancelAtPeriodEnd: boolean
   creditsUsed: number
   creditLimit: number
   purchasedCredits: number
   creditPacks: { id: string; credits: number; amountPence: number }[]
 }
+
+const formatDate = (iso: string) => new Intl.DateTimeFormat("en-GB", { dateStyle: "long" }).format(new Date(iso))
 
 export function BillingSettingsCard({ summary }: { summary: BillingSummary }) {
   const searchParams = useSearchParams()
@@ -37,7 +40,7 @@ export function BillingSettingsCard({ summary }: { summary: BillingSummary }) {
             <p className="section-label">Billing</p>
             <CardTitle className="mt-2">{summary.plan === "pro" ? "JobClock Pro" : "Free"}</CardTitle>
             <CardDescription className="mt-2">
-              {summary.plan === "pro" ? `${summary.cadence === "year" ? "£120 yearly" : "£12 monthly"} · 100 AI credits per billing month` : "The complete workspace, with AI generation using your own provider key."}
+              {summary.plan === "pro" ? `${summary.cadence === "year" ? "£120 a year" : "£12 a month"} · 100 AI credits every month` : "The complete workspace, with AI generation using your own provider key."}
             </CardDescription>
           </div>
           <Badge variant={recoverable ? "destructive" : "outline"}>{summary.status ?? "free"}</Badge>
@@ -68,7 +71,12 @@ export function BillingSettingsCard({ summary }: { summary: BillingSummary }) {
             <div className="h-2 overflow-hidden bg-secondary" role="progressbar" aria-label="AI credits used" aria-valuemin={0} aria-valuemax={summary.creditLimit} aria-valuenow={summary.creditsUsed}>
               <div className="h-full bg-foreground" style={{ width: `${Math.min(100, summary.creditLimit ? summary.creditsUsed / summary.creditLimit * 100 : 0)}%` }} />
             </div>
-            {summary.periodEnd && <p className="text-xs text-muted-foreground">{summary.cancelAtPeriodEnd ? "Pro ends" : "Allowance resets"} {new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" }).format(new Date(summary.periodEnd))}.</p>}
+            {summary.allowanceResetsAt && (
+              <p className="text-xs text-muted-foreground">
+                Your 100 credits refresh on {formatDate(summary.allowanceResetsAt)}
+                {summary.cadence === "year" ? ", and every month of your year" : ""}. Unused credits don&apos;t roll over.
+              </p>
+            )}
           </div>
         )}
         {summary.plan === "pro" && !recoverable && (
@@ -88,9 +96,39 @@ export function BillingSettingsCard({ summary }: { summary: BillingSummary }) {
             </div>
           </div>
         )}
+        {summary.plan === "pro" && !recoverable && summary.periodEnd && (
+          <div className="space-y-4 border p-4">
+            <div>
+              <p className="text-sm font-medium">
+                {summary.cancelAtPeriodEnd ? `Cancels on ${formatDate(summary.periodEnd)}` : `Renews on ${formatDate(summary.periodEnd)}`}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {summary.cancelAtPeriodEnd
+                  ? "You keep Pro, your credits and all your data until then. After that you move to Free; nothing is deleted."
+                  : summary.cadence === "year"
+                    ? "Your yearly plan renews once a year. Switching to monthly takes effect when this year ends."
+                    : "Switching to yearly charges the difference now and saves £24 a year."}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {summary.cancelAtPeriodEnd ? (
+                <BillingActionButton action="portal">Resume subscription</BillingActionButton>
+              ) : (
+                <>
+                  <BillingActionButton action="portal" flow="switch" variant="outline">
+                    {summary.cadence === "year" ? "Switch to monthly" : "Switch to yearly · save £24"}
+                  </BillingActionButton>
+                  <BillingActionButton action="portal" flow="cancel" variant="ghost">Cancel subscription</BillingActionButton>
+                </>
+              )}
+            </div>
+          </div>
+        )}
         <div className="flex flex-wrap gap-3">
           {summary.plan === "pro" || recoverable ? (
-            <BillingActionButton action="portal">Manage billing</BillingActionButton>
+            <BillingActionButton action="portal" variant={recoverable ? "default" : "outline"}>
+              {recoverable ? "Update payment details" : "Payment method & invoices"}
+            </BillingActionButton>
           ) : (
             <Link href="/pricing" className={buttonVariants()}>Upgrade to Pro</Link>
           )}
