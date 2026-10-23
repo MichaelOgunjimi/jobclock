@@ -5,6 +5,9 @@ import { sql } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { getProPriceId } from "./plans"
 
+// postgres-js cannot bind a JS Date inside a raw sql template; send an ISO string with an explicit cast.
+const ts = (date: Date | null) => sql`${date ? date.toISOString() : null}::timestamptz`
+
 const SUPPORTED_STATUSES = new Set([
   "active", "trialing", "past_due", "unpaid", "paused", "incomplete",
   "incomplete_expired", "canceled",
@@ -66,12 +69,12 @@ export async function projectSubscription(subscription: Stripe.Subscription, str
       canceled_at, past_due_at, grace_ends_at, stripe_updated_at
     ) values (
       ${userId}, ${subscription.id}, ${productId}, ${price.id}, ${subscription.status},
-      ${price.recurring?.interval ?? "month"}, ${periodStart}, ${periodEnd},
+      ${price.recurring?.interval ?? "month"}, ${ts(periodStart)}, ${ts(periodEnd)},
       ${subscription.cancel_at_period_end},
-      ${subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null},
-      ${subscription.status === "past_due" ? stripeUpdatedAt : null},
-      ${subscription.status === "past_due" ? new Date((stripeCreated + 7 * 86400) * 1000) : null},
-      ${stripeUpdatedAt}
+      ${ts(subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null)},
+      ${ts(subscription.status === "past_due" ? stripeUpdatedAt : null)},
+      ${ts(subscription.status === "past_due" ? new Date((stripeCreated + 7 * 86400) * 1000) : null)},
+      ${ts(stripeUpdatedAt)}
     )
     on conflict (user_id) do update set
       stripe_subscription_id = excluded.stripe_subscription_id,
@@ -117,7 +120,7 @@ export async function beginWebhookEvent(event: Stripe.Event): Promise<boolean> {
     insert into billing_webhook_events (
       stripe_event_id, type, stripe_object_id, stripe_created_at, status
     ) values (
-      ${event.id}, ${event.type}, ${object.id ?? null}, ${new Date(event.created * 1000)}, 'processing'
+      ${event.id}, ${event.type}, ${object.id ?? null}, ${ts(new Date(event.created * 1000))}, 'processing'
     )
     on conflict (stripe_event_id) do update set status = 'processing', error = null
       where billing_webhook_events.status = 'failed'
@@ -133,7 +136,7 @@ export async function finishWebhookEvent(
 ): Promise<void> {
   await db.execute(sql`
     update billing_webhook_events set
-      status = ${status}, processed_at = ${status === "failed" ? null : new Date()},
+      status = ${status}, processed_at = ${ts(status === "failed" ? null : new Date())},
       error = ${error?.slice(0, 500) ?? null}
     where stripe_event_id = ${eventId}
   `)
