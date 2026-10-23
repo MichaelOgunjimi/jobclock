@@ -701,14 +701,15 @@ Use Stripe test clocks for renewal, failed-payment, grace-period, and cancellati
 
 ## Launch Decisions
 
-Resolved 2026-10-23. These are working defaults for launch; items 1-3 should be confirmed with an accountant before production sales.
+Resolved 2026-10-23. These are the launch defaults. The owner decided not to wait for accountant sign-off, because turnover is expected to stay well under the VAT threshold; revisit at the GBP 85,000 trailing-12-month review point in item 2. Terms and Privacy now carry the billing, credits, refund and Stripe wording.
 
 1. **Selling entity:** a UK sole trader trading under the owner's name, with the Stripe account held in the same name. Move to a limited company later if needed.
 2. **Tax:** assume annual turnover stays under the UK VAT registration threshold (GBP 90,000). JobClock is not VAT-registered and charges no VAT, so displayed prices are final. Stripe automatic tax stays off. Review at GBP 85,000 of trailing-12-month turnover.
 3. **Territory:** launch for UK customers only. Selling digital services to EU consumers from outside the EU carries separate VAT obligations (EU OSS non-Union scheme), so non-UK sales are out of scope until an accountant has confirmed the position.
-4. **Refunds and cancellation:** cancel any time from Settings -> Billing; access continues to the end of the paid period. A refund is offered within 14 days of purchase if fewer than 10 credits have been used. No other pro-rata refunds.
+4. **Refunds and cancellation:** cancel any time from Settings -> Billing; access continues to the end of the paid period. Refunds are usage-based (decided 2026-10-23): within 14 days of purchase, refund what was paid minus credits used at the per-credit price of what was bought (monthly GBP 12 / 300 = GBP 0.04; yearly GBP 120 / 3,600; packs at pack price / pack size), floored at zero. No refunds after 14 days except where the law requires. Refunds are issued manually in Stripe.
 5. **Credit weights:** unchanged until measured. Only `cv_tailoring` has real data (about USD 0.075 per run, 10 credits, so roughly USD 0.0075 per credit against the USD 0.04 per-credit ceiling). Run one full application (import, CV, cover letter, research), re-run `make usage-report`, then set final weights and allowance. At current weights one application without interview prep is 21 credits, so Pro covers about 4 applications a month; this is likely too few for the price.
-6. **Promotional codes:** enabled in Checkout. Stripe coupons may discount standard Pro, including 100%; owner/test lifetime access remains a separate server-side grant because a discount must not silently change AI cost controls.
+   **Decided 2026-10-23:** after measuring real runs (cover letter about USD 0.017, CV tailoring about USD 0.08, company research USD 0.30 to 0.46), weights are `company_research` 8 and `cv_tailoring` 6 (a full application is 19 credits), and extra-credit packs are 50 for £4 and 150 for £10 (still well above the £0.04 Pro rate). Research is still the costliest per credit, so keep an eye on it.
+6. **Promotional codes:** off at launch (`allow_promotion_codes: false`, decided 2026-10-23). Before enabling, test a code in Stripe test mode. When on, Stripe coupons may discount standard Pro, including 100%; owner/test lifetime access remains a separate server-side grant because a discount must not silently change AI cost controls.
 7. **Owner and test access:** a server-side lifetime grant provides Pro with unmetered user-facing AI credits, no renewal controls, and a high internal runaway-spend backstop. Use the grant CLI against each local, preview, or production database explicitly; never infer access from an email in application code.
 
 ## Sources
