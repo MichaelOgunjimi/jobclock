@@ -53,6 +53,10 @@ export async function hasPurchasableSubscription(userId: string): Promise<boolea
   return Boolean(rows[0]?.exists)
 }
 
+// The portal schedules a cancellation with cancel_at rather than cancel_at_period_end, so honour either.
+const cancelsAtPeriodEnd = (subscription: Stripe.Subscription) =>
+  subscription.cancel_at_period_end || subscription.cancel_at != null
+
 // One row per user: a different Stripe subscription may only take the row over once the tracked one has ended,
 // so events for a stray duplicate subscription can never overwrite a live one.
 export async function projectSubscription(subscription: Stripe.Subscription, stripeCreated: number): Promise<void> {
@@ -85,7 +89,7 @@ export async function projectSubscription(subscription: Stripe.Subscription, str
     ) values (
       ${userId}, ${subscription.id}, ${productId}, ${price.id}, ${subscription.status},
       ${price.recurring?.interval ?? "month"}, ${ts(periodStart)}, ${ts(periodEnd)},
-      ${subscription.cancel_at_period_end},
+      ${cancelsAtPeriodEnd(subscription)},
       ${ts(subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null)},
       ${ts(subscription.status === "past_due" ? stripeUpdatedAt : null)},
       ${ts(subscription.status === "past_due" ? new Date((stripeCreated + 7 * 86400) * 1000) : null)},
@@ -129,6 +133,15 @@ export async function findUserIdByStripeCustomer(customerId: string): Promise<st
     select user_id from billing_customers where stripe_customer_id = ${customerId} limit 1
   `)
   return rows[0]?.user_id ?? null
+}
+
+/** A new subscriber pays for JobClock credits, so use them rather than a stored personal key; Settings can switch back. */
+export async function preferJobclockAiForNewSubscriber(userId: string): Promise<void> {
+  await db.execute(sql`
+    update profiles
+    set preferences = coalesce(preferences, '{}'::jsonb) || '{"ai_billing_source": "jobclock"}'::jsonb
+    where id = ${userId}
+  `)
 }
 
 export async function beginWebhookEvent(event: Stripe.Event): Promise<boolean> {

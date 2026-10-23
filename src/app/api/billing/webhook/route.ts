@@ -1,5 +1,5 @@
 import type Stripe from "stripe"
-import { beginWebhookEvent, finishWebhookEvent, findUserIdByStripeCustomer, projectSubscription } from "@/lib/billing/store"
+import { beginWebhookEvent, finishWebhookEvent, findUserIdByStripeCustomer, projectSubscription, preferJobclockAiForNewSubscriber } from "@/lib/billing/store"
 import { getStripe } from "@/lib/billing/stripe"
 import { CREDIT_PACKS, type CreditPackId } from "@/lib/billing/plans"
 import { grantPurchasedCredits } from "@/lib/billing/usage"
@@ -48,7 +48,11 @@ async function processEvent(event: Stripe.Event): Promise<boolean> {
       }
       const id = typeof session.subscription === "string" ? session.subscription : session.subscription?.id
       if (!id) return false
-      await projectSubscription(await stripe.subscriptions.retrieve(id), event.created)
+      const subscription = await stripe.subscriptions.retrieve(id)
+      await projectSubscription(subscription, event.created)
+      const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id
+      const userId = await findUserIdByStripeCustomer(customerId)
+      if (userId) await preferJobclockAiForNewSubscriber(userId)
       return true
     }
     case "invoice.paid":

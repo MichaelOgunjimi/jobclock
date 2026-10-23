@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const mocks = vi.hoisted(() => ({ construct: vi.fn(), begin: vi.fn(), finish: vi.fn(), project: vi.fn(), findUser: vi.fn(), grant: vi.fn() }))
+const mocks = vi.hoisted(() => ({ construct: vi.fn(), begin: vi.fn(), finish: vi.fn(), project: vi.fn(), findUser: vi.fn(), grant: vi.fn(), useJobclock: vi.fn(), retrieve: vi.fn() }))
 vi.mock("@/lib/billing/stripe", () => ({ getStripe: () => ({
-  webhooks: { constructEvent: mocks.construct }, subscriptions: { retrieve: vi.fn() },
+  webhooks: { constructEvent: mocks.construct }, subscriptions: { retrieve: mocks.retrieve },
 }) }))
 vi.mock("@/lib/billing/store", () => ({
   beginWebhookEvent: mocks.begin, finishWebhookEvent: mocks.finish, projectSubscription: mocks.project,
-  findUserIdByStripeCustomer: mocks.findUser,
+  findUserIdByStripeCustomer: mocks.findUser, preferJobclockAiForNewSubscriber: mocks.useJobclock,
 }))
 vi.mock("@/lib/billing/usage", () => ({ grantPurchasedCredits: mocks.grant }))
 
@@ -49,6 +49,32 @@ describe("POST /api/billing/webhook", () => {
     expect(response.status).toBe(200)
     expect(mocks.project).toHaveBeenCalledWith(subscription, 123)
     expect(mocks.finish).toHaveBeenCalledWith("evt_1", "processed")
+  })
+
+  describe("new subscriptions", () => {
+    const deliverCheckout = () => {
+      mocks.construct.mockReturnValue({
+        id: "evt_3", type: "checkout.session.completed", created: 7,
+        data: { object: { id: "cs_2", mode: "subscription", payment_status: "paid", subscription: "sub_9" } },
+      })
+      mocks.begin.mockResolvedValue(true)
+      mocks.retrieve.mockResolvedValue({ id: "sub_9", customer: "cus_1" })
+      mocks.findUser.mockResolvedValue("user-1")
+      return POST(request())
+    }
+
+    it("switches the buyer to JobClock credits", async () => {
+      expect((await deliverCheckout()).status).toBe(200)
+      expect(mocks.project).toHaveBeenCalledWith({ id: "sub_9", customer: "cus_1" }, 7)
+      expect(mocks.useJobclock).toHaveBeenCalledWith("user-1")
+    })
+
+    it("leaves the AI source alone on later subscription updates", async () => {
+      mocks.construct.mockReturnValue({ id: "evt_4", type: "customer.subscription.updated", created: 8, data: { object: { id: "sub_9" } } })
+      mocks.begin.mockResolvedValue(true)
+      await POST(request())
+      expect(mocks.useJobclock).not.toHaveBeenCalled()
+    })
   })
 
   describe("credit pack payments", () => {
