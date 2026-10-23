@@ -1,0 +1,7 @@
+tunnel: 22046ff0-9ac6-4d53-9e3d-88822d97c145
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  - hostname: jobclock-preview.michaelogunjimi.com
+    service: http://app:3000
+  - service: http_status:404

@@ -58,6 +58,9 @@ next-env.d.ts
 .progress/
 .superpowers/
 
+# Cloudflare tunnel credentials are local secrets
+cloudflared/credentials.json
+
 # drizzle introspection output — reference only; not source of truth
 drizzle/migrations/schema.ts
 drizzle/migrations/relations.ts
