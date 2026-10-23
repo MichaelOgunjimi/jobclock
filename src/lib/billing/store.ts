@@ -47,6 +47,8 @@ export async function hasPurchasableSubscription(userId: string): Promise<boolea
   return Boolean(rows[0]?.exists)
 }
 
+// One row per user: a different Stripe subscription may only take the row over once the tracked one has ended,
+// so events for a stray duplicate subscription can never overwrite a live one.
 export async function projectSubscription(subscription: Stripe.Subscription, stripeCreated: number): Promise<void> {
   if (!SUPPORTED_STATUSES.has(subscription.status)) {
     throw new Error(`Unsupported Stripe subscription status: ${subscription.status}`)
@@ -97,8 +99,10 @@ export async function projectSubscription(subscription: Stripe.Subscription, str
       grace_ends_at = case when excluded.status = 'past_due' then coalesce(billing_subscriptions.grace_ends_at, excluded.grace_ends_at) else null end,
       stripe_updated_at = excluded.stripe_updated_at,
       updated_at = now()
-    where billing_subscriptions.stripe_updated_at is null
-       or billing_subscriptions.stripe_updated_at <= excluded.stripe_updated_at
+    where (billing_subscriptions.stripe_subscription_id = excluded.stripe_subscription_id
+        or billing_subscriptions.status in ('canceled', 'incomplete_expired'))
+      and (billing_subscriptions.stripe_updated_at is null
+        or billing_subscriptions.stripe_updated_at <= excluded.stripe_updated_at)
   `)
 }
 

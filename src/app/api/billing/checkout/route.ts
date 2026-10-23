@@ -7,6 +7,8 @@ import { getProPriceId } from "@/lib/billing/plans"
 
 const requestSchema = z.object({ cadence: z.enum(["monthly", "annual"]) })
 
+const LIVE_STATUSES = new Set(["active", "trialing", "past_due", "unpaid", "paused"])
+
 export async function POST(request: Request) {
   if (process.env.BILLING_ENABLED !== "true") {
     return Response.json({ error: "Billing is not available" }, { status: 503 })
@@ -39,6 +41,12 @@ export async function POST(request: Request) {
       metadata: { jobclock_user_id: user.id },
     })
     customerId = await saveStripeCustomer(user.id, customer.id)
+  }
+
+  // Our database can lag Stripe (e.g. a failed webhook), so Stripe is the source of truth for duplicates.
+  const existing = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 })
+  if (existing.data.some((subscription) => LIVE_STATUSES.has(subscription.status))) {
+    return Response.json({ error: "You already have a subscription. If it isn't showing yet, refresh Settings → Billing in a minute." }, { status: 409 })
   }
 
   const origin = getBillingOrigin()

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(), limit: vi.fn(), findCustomer: vi.fn(), saveCustomer: vi.fn(),
-  hasSubscription: vi.fn(), createCustomer: vi.fn(), createCheckout: vi.fn(),
+  hasSubscription: vi.fn(), createCustomer: vi.fn(), createCheckout: vi.fn(), listSubscriptions: vi.fn(),
 }))
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -19,6 +19,7 @@ vi.mock("@/lib/billing/stripe", () => ({
   getBillingOrigin: () => "https://jobclock.test",
   getStripe: () => ({
     customers: { create: mocks.createCustomer },
+    subscriptions: { list: mocks.listSubscriptions },
     checkout: { sessions: { create: mocks.createCheckout } },
   }),
 }))
@@ -35,6 +36,7 @@ describe("POST /api/billing/checkout", () => {
     mocks.limit.mockResolvedValue({ success: true })
     mocks.hasSubscription.mockResolvedValue(false)
     mocks.findCustomer.mockResolvedValue("cus_1")
+    mocks.listSubscriptions.mockResolvedValue({ data: [] })
     mocks.createCheckout.mockResolvedValue({ url: "https://checkout.stripe.test/session" })
   })
 
@@ -64,5 +66,17 @@ describe("POST /api/billing/checkout", () => {
     expect(response.status).toBe(409)
     expect(mocks.createCheckout).not.toHaveBeenCalled()
   })
-})
 
+  it("blocks a second purchase when Stripe already has a live subscription the local database missed", async () => {
+    mocks.listSubscriptions.mockResolvedValue({ data: [{ status: "active" }] })
+    const response = await POST(new Request("https://jobclock.test/api/billing/checkout", { method: "POST", body: JSON.stringify({ cadence: "annual" }) }) as never)
+    expect(response.status).toBe(409)
+    expect(mocks.createCheckout).not.toHaveBeenCalled()
+  })
+
+  it("ignores canceled subscriptions when checking for duplicates", async () => {
+    mocks.listSubscriptions.mockResolvedValue({ data: [{ status: "canceled" }] })
+    const response = await POST(new Request("https://jobclock.test/api/billing/checkout", { method: "POST", body: JSON.stringify({ cadence: "annual" }) }) as never)
+    expect(response.status).toBe(200)
+  })
+})
