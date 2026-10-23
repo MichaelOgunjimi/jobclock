@@ -26,7 +26,7 @@ describe("billing plan configuration", () => {
       annual: { amountPence: 12_000, interval: "year" },
     })
     expect(PRO_CREDIT_LIMIT).toBe(300)
-    expect(PRO_COST_LIMIT_MICROUSD).toBe(4_000_000)
+    expect(PRO_COST_LIMIT_MICROUSD).toBe(6_000_000)
   })
 
   it("charges the fixed weight for every AI feature", () => {

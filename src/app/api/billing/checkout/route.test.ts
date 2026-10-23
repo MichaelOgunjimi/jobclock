@@ -55,6 +55,7 @@ describe("POST /api/billing/checkout", () => {
     expect(mocks.createCheckout).toHaveBeenCalledWith(expect.objectContaining({
       customer: "cus_1",
       line_items: [{ price: "price_month", quantity: 1 }],
+      allow_promotion_codes: true,
     }))
   })
 

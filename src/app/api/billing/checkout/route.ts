@@ -56,6 +56,7 @@ export async function POST(request: Request) {
     client_reference_id: user.id,
     integration_identifier: checkoutIntegrationIdentifier(),
     line_items: [{ price: priceId, quantity: 1 }],
+    allow_promotion_codes: true,
     success_url: `${origin}/settings?tab=billing&checkout=success`,
     cancel_url: `${origin}/pricing?checkout=canceled`,
   })

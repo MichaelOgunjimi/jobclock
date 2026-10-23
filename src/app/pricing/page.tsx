@@ -5,7 +5,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { PricingPlans } from "./pricing-plans"
 import { AI_CREDIT_WEIGHTS, CREDIT_PACKS, PRO_CREDIT_LIMIT } from "@/lib/billing/plans"
 import { formatPounds } from "@/lib/format-pounds"
-import { resolveEntitlement, SUBSCRIPTION_STATUSES, type SubscriptionStatus } from "@/lib/billing/entitlements"
+import { resolveEntitlement, SUBSCRIPTION_STATUSES, toPlanGrant, type SubscriptionStatus } from "@/lib/billing/entitlements"
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -20,6 +20,7 @@ const w = AI_CREDIT_WEIGHTS
 export default async function PricingPage() {
   let signedIn = false
   let isPro = false
+  let lifetime = false
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient()
@@ -28,10 +29,13 @@ export default async function PricingPage() {
     if (user) {
       const { data } = await supabase.from("billing_subscriptions").select("status, grace_ends_at").eq("user_id", user.id).maybeSingle()
       const status = SUBSCRIPTION_STATUSES.includes(data?.status as SubscriptionStatus) ? data?.status as SubscriptionStatus : null
-      isPro = resolveEntitlement(status ? {
+      const { data: grantRow } = await supabase.from("billing_grants").select("kind, expires_at").eq("user_id", user.id).maybeSingle()
+      const entitlement = resolveEntitlement(status ? {
         status,
         graceEndsAt: data?.grace_ends_at ? new Date(data.grace_ends_at) : null,
-      } : null).plan === "pro"
+      } : null, false, new Date(), toPlanGrant(grantRow))
+      isPro = entitlement.plan === "pro"
+      lifetime = entitlement.granted
     }
   }
 
@@ -49,7 +53,7 @@ export default async function PricingPage() {
           <h1 className="page-title text-4xl sm:text-6xl">Your workspace stays useful for free.</h1>
           <p className="page-lede">Connect your own AI key whenever you want, or let Pro handle AI provider access for you.</p>
         </div>
-        <PricingPlans signedIn={signedIn} isPro={isPro} monthlyCredits={PRO_CREDIT_LIMIT} />
+        <PricingPlans signedIn={signedIn} isPro={isPro} lifetime={lifetime} monthlyCredits={PRO_CREDIT_LIMIT} />
         <p className="mx-auto mt-8 max-w-3xl text-center text-sm leading-6 text-muted-foreground">No surprise charges. If you use your monthly allowance, Pro members can buy extra credits ({pricePacks}) or keep working with their own AI-provider key until it renews.</p>
         <section className="mt-16 border-t pt-12">
           <p className="page-kicker text-center">Questions</p>

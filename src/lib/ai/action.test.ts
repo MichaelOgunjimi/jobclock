@@ -9,12 +9,17 @@ vi.mock("@/lib/db", () => ({ db }))
 vi.mock("@/lib/billing/usage", () => usage)
 vi.mock("./index", () => ai)
 
+import { billingGrants } from "@/lib/db/schema"
 import { runAiAction } from "./action"
 
 const PERIOD = { currentPeriodStart: new Date("2026-10-01T00:00:00Z"), currentPeriodEnd: new Date("2026-11-01T00:00:00Z") }
 
-function setSubscription(row: Record<string, unknown> | null) {
-  db.select.mockReturnValue({ from: () => ({ where: () => ({ limit: async () => (row ? [row] : []) }) }) })
+function setSubscription(row: Record<string, unknown> | null, grant: Record<string, unknown> | null = null) {
+  db.select.mockReturnValue({
+    from: (table: unknown) => ({
+      where: () => ({ limit: async () => { const found = table === billingGrants ? grant : row; return found ? [found] : [] } }),
+    }),
+  })
 }
 
 const request = (preferences: Record<string, unknown> | null = null) =>
@@ -152,5 +157,35 @@ describe("runAiAction", () => {
     const { period } = usage.reserveHostedAiAction.mock.calls[0][0]
     expect(period.start.getUTCDate()).toBe(1)
     expect(period.end.getTime()).toBeGreaterThan(period.start.getTime())
+  })
+
+  describe("granted plans", () => {
+    const lifetime = { kind: "lifetime", creditLimit: null, expiresAt: null, createdAt: new Date("2026-10-23T00:00:00Z") }
+
+    it("lets a lifetime owner use hosted AI with no Stripe subscription and a very large backstop limit", async () => {
+      setSubscription(null, lifetime)
+      await runAiAction(request(), (client) => client.generate("s", "u"))
+
+      expect(usage.reserveHostedAiAction).toHaveBeenCalledWith(expect.objectContaining({
+        period: expect.objectContaining({ creditLimit: 1_000_000, costLimitMicrousd: 500_000_000 }),
+      }))
+    })
+
+    it("keeps the normal ceilings for a comp grant with its own credit limit", async () => {
+      setSubscription(null, { ...lifetime, kind: "comp", creditLimit: 50 })
+      await runAiAction(request(), (client) => client.generate("s", "u"))
+
+      expect(usage.reserveHostedAiAction).toHaveBeenCalledWith(expect.objectContaining({
+        period: expect.objectContaining({ creditLimit: 50, costLimitMicrousd: 6_000_000 }),
+      }))
+    })
+
+    it("ignores an expired grant", async () => {
+      setSubscription(null, { ...lifetime, kind: "comp", expiresAt: new Date("2026-01-01T00:00:00Z") })
+      ai.resolveAiConfig.mockReturnValue({ settings: { provider: "openai", model: "personal-model" }, apiKey: "personal-key" })
+      await runAiAction(request({ openai_api_key: "enc" }), (client) => client.generate("s", "u"))
+
+      expect(usage.reserveHostedAiAction).not.toHaveBeenCalled()
+    })
   })
 })

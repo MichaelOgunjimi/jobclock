@@ -120,6 +120,19 @@ describe("settings actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/settings")
   })
 
+  it("lets an active billing grant select JobClock AI", async () => {
+    supabaseMock.setQueryResult("profiles.select.single", { data: { preferences: {}, allow_platform_ai_key: false } })
+    supabaseMock.setQueryResult("billing_grants.select.maybeSingle", {
+      data: { kind: "lifetime", expires_at: null },
+    })
+
+    expect(await saveAiSettings(makeFormData({
+      provider: "openai",
+      model: "gpt-6-luna",
+      billing_source: "jobclock",
+    }))).toEqual({ success: true })
+  })
+
   it("saveJobSources merges with existing preferences", async () => {
     supabaseMock.setQueryResult("profiles.select.single", {
       data: { preferences: { ai_provider: "openai" } },

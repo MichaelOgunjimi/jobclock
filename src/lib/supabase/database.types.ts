@@ -15,6 +15,12 @@ export type Database = {
 				Update: { user_id?: string; stripe_customer_id?: string; created_at?: string; updated_at?: string };
 				Relationships: [];
 			};
+			billing_grants: {
+				Row: { user_id: string; kind: string; credit_limit: number | null; expires_at: string | null; note: string | null; granted_by: string | null; created_at: string };
+				Insert: { user_id: string; kind: string; credit_limit?: number | null; expires_at?: string | null; note?: string | null; granted_by?: string | null; created_at?: string };
+				Update: Partial<Database["public"]["Tables"]["billing_grants"]["Insert"]>;
+				Relationships: [];
+			};
 			billing_subscriptions: {
 				Row: {
 					user_id: string; stripe_subscription_id: string; stripe_product_id: string;

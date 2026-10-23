@@ -15,7 +15,7 @@ const features = [
   "AI generation with your own OpenAI or Anthropic key",
 ]
 
-export function PricingPlans({ signedIn, isPro, monthlyCredits }: { signedIn: boolean; isPro: boolean; monthlyCredits: number }) {
+export function PricingPlans({ signedIn, isPro, lifetime = false, monthlyCredits }: { signedIn: boolean; isPro: boolean; lifetime?: boolean; monthlyCredits: number }) {
   const [cadence, setCadence] = useState<"monthly" | "annual">("monthly")
 
   return (
@@ -59,7 +59,9 @@ export function PricingPlans({ signedIn, isPro, monthlyCredits }: { signedIn: bo
             <ul className="space-y-3 text-sm">
               {[...features, "AI generation without a separate provider account", "Buy extra credits any time; they never expire", "Billing management through Stripe"].map((feature) => <li key={feature} className="flex gap-3"><Check className="mt-0.5 size-4 shrink-0" />{feature}</li>)}
             </ul>
-            {isPro ? (
+            {lifetime ? (
+              <p className="border p-3 text-center text-sm">You have lifetime Pro access. Nothing to buy or manage.</p>
+            ) : isPro ? (
               <BillingActionButton action="portal" className="w-full">Manage your plan</BillingActionButton>
             ) : signedIn ? (
               <BillingActionButton action="checkout" cadence={cadence} className="w-full">Upgrade to Pro</BillingActionButton>

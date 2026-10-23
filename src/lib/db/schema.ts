@@ -604,6 +604,26 @@ export const billingSubscriptions = pgTable(
   ],
 )
 
+// A plan granted without Stripe (lifetime owner or staff access). A null creditLimit means no credit cap.
+export const billingGrants = pgTable(
+  "billing_grants",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    creditLimit: integer("credit_limit"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    note: text("note"),
+    grantedBy: text("granted_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    check("billing_grants_kind_check", sql`${table.kind} in ('lifetime', 'comp')`),
+    check("billing_grants_credit_limit_check", sql`${table.creditLimit} is null or ${table.creditLimit} >= 0`),
+  ],
+)
+
 export const billingWebhookEvents = pgTable(
   "billing_webhook_events",
   {

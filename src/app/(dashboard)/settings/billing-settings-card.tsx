@@ -11,6 +11,7 @@ import { formatPounds } from "@/lib/format-pounds"
 
 export type BillingSummary = {
   plan: "free" | "pro"
+  lifetime: boolean
   status: string | null
   cadence: "month" | "year" | null
   periodEnd: string | null
@@ -39,9 +40,9 @@ export function BillingSettingsCard({ summary }: { summary: BillingSummary }) {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="section-label">Billing</p>
-            <CardTitle className="mt-2">{summary.plan === "pro" ? "JobClock Pro" : "Free"}</CardTitle>
+            <CardTitle className="mt-2">{summary.lifetime ? "JobClock Pro · Lifetime" : summary.plan === "pro" ? "JobClock Pro" : "Free"}</CardTitle>
             <CardDescription className="mt-2">
-              {summary.plan === "pro" ? `${summary.cadence === "year" ? "£120 a year" : "£12 a month"} · ${summary.monthlyCredits} AI credits every month` : "The complete workspace, with AI generation using your own provider key."}
+              {summary.lifetime ? "Full Pro access with unlimited AI credits. No renewal, nothing to manage." : summary.plan === "pro" ? `${summary.cadence === "year" ? "£120 a year" : "£12 a month"} · ${summary.monthlyCredits} AI credits every month` : "The complete workspace, with AI generation using your own provider key."}
             </CardDescription>
           </div>
           <Badge variant={recoverable ? "destructive" : "outline"}>{summary.status ?? "free"}</Badge>
@@ -66,7 +67,7 @@ export function BillingSettingsCard({ summary }: { summary: BillingSummary }) {
             <div><p className="font-medium">Your payment needs attention</p><p className="mt-1 text-muted-foreground">Hosted AI is paused. Update your billing details in Stripe to restore it.</p></div>
           </div>
         )}
-        {summary.plan === "pro" && (
+        {summary.plan === "pro" && !summary.lifetime && (
           <div className="space-y-3 border p-4">
             <div className="flex justify-between text-sm"><span>AI allowance</span><span>{summary.creditsUsed} used · {remaining} remaining</span></div>
             <div className="h-2 overflow-hidden bg-secondary" role="progressbar" aria-label="AI credits used" aria-valuemin={0} aria-valuemax={summary.creditLimit} aria-valuenow={summary.creditsUsed}>
@@ -80,7 +81,7 @@ export function BillingSettingsCard({ summary }: { summary: BillingSummary }) {
             )}
           </div>
         )}
-        {summary.plan === "pro" && !recoverable && (
+        {summary.plan === "pro" && !summary.lifetime && !recoverable && (
           <div className="space-y-4 border p-4">
             <div>
               <div className="flex justify-between text-sm"><span>Extra credits</span><span>{summary.purchasedCredits} available</span></div>
@@ -97,7 +98,7 @@ export function BillingSettingsCard({ summary }: { summary: BillingSummary }) {
             </div>
           </div>
         )}
-        {summary.plan === "pro" && !recoverable && summary.periodEnd && (
+        {summary.plan === "pro" && !summary.lifetime && !recoverable && summary.periodEnd && (
           <div className="space-y-4 border p-4">
             <div>
               <p className="text-sm font-medium">
@@ -126,7 +127,7 @@ export function BillingSettingsCard({ summary }: { summary: BillingSummary }) {
           </div>
         )}
         <div className="flex flex-wrap gap-3">
-          {summary.plan === "pro" || recoverable ? (
+          {summary.lifetime ? null : summary.plan === "pro" || recoverable ? (
             <BillingActionButton action="portal" variant={recoverable ? "default" : "outline"}>
               {recoverable ? "Update payment details" : "Payment method & invoices"}
             </BillingActionButton>

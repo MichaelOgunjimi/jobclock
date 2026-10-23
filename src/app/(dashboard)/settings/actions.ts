@@ -13,6 +13,7 @@ import {
 import { and, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { trackedCompanies } from "@/lib/db/schema"
+import { isGrantActive, toPlanGrant } from "@/lib/billing/entitlements"
 import { detectAtsFromUrl } from "@/lib/jobs/source-detection"
 import {
   disconnectTelegram,
@@ -83,12 +84,11 @@ export async function saveAiSettings(formData: FormData) {
   const prev = (existing?.preferences ?? {}) as UserPreferences
 
   if (billingSource === "jobclock" && !existing?.allow_platform_ai_key) {
-    const { data: subscription } = await supabase
-      .from("billing_subscriptions")
-      .select("status")
-      .eq("user_id", user.id)
-      .maybeSingle()
-    if (subscription?.status !== "active" && subscription?.status !== "trialing") {
+    const [{ data: subscription }, { data: grantRow }] = await Promise.all([
+      supabase.from("billing_subscriptions").select("status").eq("user_id", user.id).maybeSingle(),
+      supabase.from("billing_grants").select("kind, expires_at").eq("user_id", user.id).maybeSingle(),
+    ])
+    if (subscription?.status !== "active" && subscription?.status !== "trialing" && !isGrantActive(toPlanGrant(grantRow))) {
       return { error: "An active Pro subscription is required to use the JobClock allowance." }
     }
   }

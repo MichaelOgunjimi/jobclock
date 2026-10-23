@@ -9,7 +9,7 @@ import { getTelegramConnection } from "@/lib/telegram/pairing"
 import { listTrackedCompanies } from "./actions"
 import { SettingsTabs } from "./settings-tabs"
 import { allowanceWindow, CREDIT_PACKS, PRO_CREDIT_LIMIT } from "@/lib/billing/plans"
-import { resolveEntitlement, SUBSCRIPTION_STATUSES, type SubscriptionStatus } from "@/lib/billing/entitlements"
+import { resolveEntitlement, SUBSCRIPTION_STATUSES, toPlanGrant, type SubscriptionStatus } from "@/lib/billing/entitlements"
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -29,6 +29,7 @@ export default async function SettingsPage() {
     telegramConnection,
     companies,
     { data: subscription },
+    { data: grantRow },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -48,6 +49,7 @@ export default async function SettingsPage() {
       .select("status, billing_interval, current_period_start, current_period_end, cancel_at_period_end, grace_ends_at")
       .eq("user_id", user.id)
       .maybeSingle(),
+    supabase.from("billing_grants").select("kind, expires_at").eq("user_id", user.id).maybeSingle(),
   ])
 
   const subscriptionStatus = SUBSCRIPTION_STATUSES.includes(subscription?.status as SubscriptionStatus)
@@ -56,7 +58,7 @@ export default async function SettingsPage() {
   const entitlement = resolveEntitlement(subscriptionStatus ? {
     status: subscriptionStatus,
     graceEndsAt: subscription?.grace_ends_at ? new Date(subscription.grace_ends_at) : null,
-  } : null, profile?.allow_platform_ai_key === true)
+  } : null, profile?.allow_platform_ai_key === true, new Date(), toPlanGrant(grantRow))
   const isPro = entitlement.plan === "pro"
   const allowance = subscription?.current_period_start && subscription.current_period_end
     ? allowanceWindow(new Date(subscription.current_period_start), new Date(subscription.current_period_end))
@@ -141,7 +143,8 @@ export default async function SettingsPage() {
           trackedCompanies={companies}
           billingSummary={{
             plan: isPro ? "pro" : "free",
-            status: subscription?.status ?? null,
+            status: entitlement.granted ? "lifetime" : subscription?.status ?? null,
+            lifetime: entitlement.granted,
             cadence: subscription?.billing_interval === "month" || subscription?.billing_interval === "year"
               ? subscription.billing_interval
               : null,

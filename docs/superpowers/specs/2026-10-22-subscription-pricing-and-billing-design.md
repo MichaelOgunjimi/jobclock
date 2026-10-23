@@ -35,7 +35,7 @@ This model preserves the current bring-your-own-key workflow, avoids taking feat
 - More than two plans, team accounts, seats, enterprise contracts, or lifetime pricing.
 - Usage-based overage invoices.
 - A prepaid credit shop or one-off credit purchases.
-- Coupon, referral, affiliate, or gift-card systems at launch.
+- Referral, affiliate, or gift-card systems at launch.
 - A free Pro trial. The Free plan is the evaluation path and avoids trial abuse.
 - Building a custom card-management or invoice interface; Stripe Customer Portal owns those tasks.
 - Paywalling existing job tracking, CV storage, document storage, application history, exports, or BYOK generation.
@@ -105,7 +105,7 @@ The weights live in one server-only plan configuration module and may change for
 
 ### Provider-Cost Safety Ceiling
 
-Credits are the customer promise; the provider-cost ceiling is a private risk control. Each Pro billing period has a **$4.00 USD platform-AI cost ceiling** in addition to the 300-credit limit.
+Credits are the customer promise; the provider-cost ceiling is a private risk control. Each Pro billing period has a **$6.00 USD platform-AI cost ceiling** in addition to the 300-credit limit.
 
 Before a platform-funded request starts, JobClock atomically reserves both:
 
@@ -243,7 +243,7 @@ The implementation adds the official `stripe` Node package at the current suppor
 - rejects a duplicate purchase when the local user already has an active subscription;
 - sets `mode: "subscription"`;
 - passes the existing Customer ID, one recurring Price, and quantity 1;
-- enables promotion codes only when a separate launch decision explicitly turns them on;
+- enables Stripe promotion codes; coupons change the price but retain the standard Pro entitlement and allowance;
 - uses a success and cancel URL on the configured application origin;
 - sets `client_reference_id` to the JobClock user ID for diagnostic correlation only;
 - supplies Stripe's required `integration_identifier` with an eight-letter random suffix; and
@@ -708,7 +708,8 @@ Resolved 2026-10-23. These are working defaults for launch; items 1-3 should be 
 3. **Territory:** launch for UK customers only. Selling digital services to EU consumers from outside the EU carries separate VAT obligations (EU OSS non-Union scheme), so non-UK sales are out of scope until an accountant has confirmed the position.
 4. **Refunds and cancellation:** cancel any time from Settings -> Billing; access continues to the end of the paid period. A refund is offered within 14 days of purchase if fewer than 10 credits have been used. No other pro-rata refunds.
 5. **Credit weights:** unchanged until measured. Only `cv_tailoring` has real data (about USD 0.075 per run, 10 credits, so roughly USD 0.0075 per credit against the USD 0.04 per-credit ceiling). Run one full application (import, CV, cover letter, research), re-run `make usage-report`, then set final weights and allowance. At current weights one application without interview prep is 21 credits, so Pro covers about 4 applications a month; this is likely too few for the price.
-6. **Promotional codes:** disabled at launch. Beta users get a one-off 100% Stripe coupon applied by hand.
+6. **Promotional codes:** enabled in Checkout. Stripe coupons may discount standard Pro, including 100%; owner/test lifetime access remains a separate server-side grant because a discount must not silently change AI cost controls.
+7. **Owner and test access:** a server-side lifetime grant provides Pro with unmetered user-facing AI credits, no renewal controls, and a high internal runaway-spend backstop. Use the grant CLI against each local, preview, or production database explicitly; never infer access from an email in application code.
 
 ## Sources
 

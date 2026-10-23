@@ -2,8 +2,8 @@ import "server-only"
 
 import { and, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { billingSubscriptions } from "@/lib/db/schema"
-import { resolveEntitlement, type SubscriptionStatus } from "@/lib/billing/entitlements"
+import { billingGrants, billingSubscriptions } from "@/lib/db/schema"
+import { isGrantActive, resolveEntitlement, type SubscriptionStatus } from "@/lib/billing/entitlements"
 import { AI_PRICE_VERSION, calculateProviderCostMicrousd, type HostedModel } from "@/lib/billing/provider-costs"
 import { allowanceWindow, getCreditWeight, getHostedModel, PRO_COST_LIMIT_MICROUSD, PRO_CREDIT_LIMIT, type AiFeature } from "@/lib/billing/plans"
 import { releaseHostedAiAction, reserveHostedAiAction, settleHostedAiAction, type ProviderUsage } from "@/lib/billing/usage"
@@ -39,14 +39,20 @@ const ESTIMATED_COSTS: Record<AiFeature, number> = {
   cover_letter: 120_000, company_research: 300_000, cv_tailoring: 500_000,
 }
 
+// An unmetered grant (null credit limit) still gets a backstop so a runaway loop cannot spend without bound.
+const UNMETERED_CREDITS = 1_000_000
+const UNMETERED_COST_MICROUSD = 500_000_000
+
 export async function runAiAction<T>(request: AiActionRequest, operation: (ai: AiActionClient) => Promise<T>): Promise<T> {
-  const [subscription] = await db.select().from(billingSubscriptions)
-    .where(and(eq(billingSubscriptions.userId, request.userId)))
-    .limit(1)
+  const [[subscription], [grant]] = await Promise.all([
+    db.select().from(billingSubscriptions).where(and(eq(billingSubscriptions.userId, request.userId))).limit(1),
+    db.select().from(billingGrants).where(eq(billingGrants.userId, request.userId)).limit(1),
+  ])
+  const planGrant = grant ? { kind: grant.kind as "lifetime" | "comp", expiresAt: grant.expiresAt } : null
   const entitlement = resolveEntitlement(subscription ? {
     status: subscription.status as SubscriptionStatus,
     graceEndsAt: subscription.graceEndsAt,
-  } : null, request.preferences?.allow_platform_ai_key)
+  } : null, request.preferences?.allow_platform_ai_key, new Date(), planGrant)
 
   const hasPersonalKey = Boolean(request.preferences?.openai_api_key || request.preferences?.anthropic_api_key)
   const wantsHosted = request.preferences?.ai_billing_source === "jobclock"
@@ -69,13 +75,22 @@ export async function runAiAction<T>(request: AiActionRequest, operation: (ai: A
   const apiKey = settings.provider === "openai" ? process.env.OPENAI_API_KEY : process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error(`JobClock ${settings.provider} API key is not configured`)
   const now = new Date()
-  const period = subscription && ["active", "trialing"].includes(subscription.status)
+  const granted = isGrantActive(planGrant, now)
+  const unmetered = granted && grant.creditLimit === null
+  const period = granted
+    // Granted plans get the same monthly windows, anchored on the grant date and never ending a Stripe period.
+    ? allowanceWindow(grant.createdAt, new Date(Date.UTC(grant.createdAt.getUTCFullYear() + 100, 0, 1)), now)
+    : subscription && ["active", "trialing"].includes(subscription.status)
     ? allowanceWindow(subscription.currentPeriodStart, subscription.currentPeriodEnd, now)
     : { start: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)), end: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)) }
   const action = await reserveHostedAiAction({
     userId: request.userId, idempotencyKey: request.actionId, feature: request.feature,
     credits: getCreditWeight(request.feature), estimatedCostMicrousd: ESTIMATED_COSTS[request.feature],
-    period: { ...period, creditLimit: PRO_CREDIT_LIMIT, costLimitMicrousd: PRO_COST_LIMIT_MICROUSD },
+    period: {
+      ...period,
+      creditLimit: granted ? grant.creditLimit ?? UNMETERED_CREDITS : PRO_CREDIT_LIMIT,
+      costLimitMicrousd: unmetered ? UNMETERED_COST_MICROUSD : PRO_COST_LIMIT_MICROUSD,
+    },
   })
   if (action.status !== "reserved") throw new Error("AI action has already been processed")
 

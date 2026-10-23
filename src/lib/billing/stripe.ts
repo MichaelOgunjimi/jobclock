@@ -12,7 +12,9 @@ export function getStripe(): Stripe {
 }
 
 export function getBillingOrigin(): string {
-  const value = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL
+  const value = process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL
   if (!value) throw new Error("Application origin is not configured")
   return new URL(value).origin
 }

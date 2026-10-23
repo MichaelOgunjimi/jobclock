@@ -12,6 +12,7 @@ describe("subscription entitlements", () => {
       plan: "pro",
       hostedAi: true,
       inGracePeriod: false,
+      granted: false,
     })
   })
 
@@ -19,7 +20,7 @@ describe("subscription entitlements", () => {
     expect(resolveEntitlement({
       status: "past_due",
       graceEndsAt: new Date("2026-10-29T12:00:00Z"),
-    }, false, now)).toEqual({ plan: "pro", hostedAi: false, inGracePeriod: true })
+    }, false, now)).toEqual({ plan: "pro", hostedAi: false, inGracePeriod: true, granted: false })
   })
 
   it.each([
@@ -41,10 +42,22 @@ describe("subscription entitlements", () => {
       plan: "free",
       hostedAi: true,
       inGracePeriod: false,
+      granted: false,
     })
   })
 
   it("covers every supported persisted status", () => {
     expect(SUBSCRIPTION_STATUSES).toHaveLength(8)
+  })
+
+  it("gives a lifetime grant Pro with hosted AI and no subscription", () => {
+    expect(resolveEntitlement(null, false, now, { kind: "lifetime" })).toEqual({
+      plan: "pro", hostedAi: true, inGracePeriod: false, granted: true,
+    })
+  })
+
+  it("lets a grant outrank a canceled subscription but not once it has expired", () => {
+    expect(resolveEntitlement({ status: "canceled" }, false, now, { kind: "comp", expiresAt: new Date("2026-12-01T00:00:00Z") }).plan).toBe("pro")
+    expect(resolveEntitlement({ status: "canceled" }, false, now, { kind: "comp", expiresAt: new Date("2026-10-01T00:00:00Z") }).plan).toBe("free")
   })
 })

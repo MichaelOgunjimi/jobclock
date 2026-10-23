@@ -6,7 +6,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { GenerationJobsProvider } from "@/components/generation-jobs-provider"
 import { resolveAiSettings, type UserPreferences } from "@/lib/ai"
-import { resolveEntitlement, SUBSCRIPTION_STATUSES, type SubscriptionStatus } from "@/lib/billing/entitlements"
+import { resolveEntitlement, SUBSCRIPTION_STATUSES, toPlanGrant, type SubscriptionStatus } from "@/lib/billing/entitlements"
 import { hasPersonalApiTokenHistory } from "@/lib/personal-api-tokens"
 import { isSidebarCollapsed, SIDEBAR_COLLAPSED_KEY } from "@/lib/sidebar-preference"
 
@@ -38,13 +38,14 @@ export default async function DashboardLayout({
     cookieStore.get(SIDEBAR_COLLAPSED_KEY)?.value
   )
 
-  const [{ data: profile }, { data: subscription }, hasExtensionTokenHistory] = await Promise.all([
+  const [{ data: profile }, { data: subscription }, { data: grantRow }, hasExtensionTokenHistory] = await Promise.all([
     supabase
       .from("profiles")
       .select("full_name, avatar_url, preferences, allow_platform_ai_key")
       .eq("id", user.id)
       .single(),
     supabase.from("billing_subscriptions").select("status, grace_ends_at").eq("user_id", user.id).maybeSingle(),
+    supabase.from("billing_grants").select("kind, expires_at").eq("user_id", user.id).maybeSingle(),
     hasPersonalApiTokenHistory(user.id),
   ])
   const preferences = (profile?.preferences ?? null) as UserPreferences | null
@@ -60,6 +61,8 @@ export default async function DashboardLayout({
   const { hostedAi } = resolveEntitlement(
     status ? { status, graceEndsAt: subscription?.grace_ends_at ? new Date(subscription.grace_ends_at) : null } : null,
     canUsePlatformAiKey,
+    new Date(),
+    toPlanGrant(grantRow),
   )
   const hasPersonalKey = Boolean(preferences?.anthropic_api_key || preferences?.openai_api_key)
   // Same rule as Settings: a Pro user generates with JobClock credits unless they chose their own key.

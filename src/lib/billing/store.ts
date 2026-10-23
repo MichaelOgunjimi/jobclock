@@ -39,9 +39,15 @@ export async function saveStripeCustomer(userId: string, customerId: string): Pr
 
 export async function hasPurchasableSubscription(userId: string): Promise<boolean> {
   const rows = await db.execute<{ exists: boolean }>(sql`
-    select exists(
-      select 1 from billing_subscriptions
-      where user_id = ${userId} and status in ('active', 'trialing', 'past_due', 'unpaid', 'paused', 'incomplete')
+    select (
+      exists(
+        select 1 from billing_subscriptions
+        where user_id = ${userId} and status in ('active', 'trialing', 'past_due', 'unpaid', 'paused', 'incomplete')
+      )
+      or exists(
+        select 1 from billing_grants
+        where user_id = ${userId} and (expires_at is null or expires_at > now())
+      )
     ) as exists
   `)
   return Boolean(rows[0]?.exists)

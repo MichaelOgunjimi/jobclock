@@ -1,7 +1,7 @@
 import "server-only"
 
 export const PRO_CREDIT_LIMIT = 300
-export const PRO_COST_LIMIT_MICROUSD = 4_000_000
+export const PRO_COST_LIMIT_MICROUSD = 6_000_000
 
 export const PRO_PRICES = {
   monthly: { amountPence: 1_200, interval: "month" },

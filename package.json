@@ -18,7 +18,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "usage:report": "tsx scripts/usage-report.ts"
+    "usage:report": "tsx scripts/usage-report.ts",
+    "billing:grant": "tsx scripts/grant-plan.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
