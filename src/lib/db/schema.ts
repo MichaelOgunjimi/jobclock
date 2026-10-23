@@ -686,6 +686,8 @@ export const aiUsageActions = pgTable(
     credits: integer("credits").notNull(),
     // Which pool paid for the action: the monthly Pro allowance or purchased top-up credits.
     funding: text("funding").default("allowance").notNull(),
+    // How many of `credits` came from the purchased balance; the rest came from the monthly allowance.
+    purchasedCredits: integer("purchased_credits").default(0).notNull(),
     estimatedCostMicrousd: bigint("estimated_cost_microusd", { mode: "number" }).default(0).notNull(),
     actualCostMicrousd: bigint("actual_cost_microusd", { mode: "number" }).default(0).notNull(),
     inputTokens: bigint("input_tokens", { mode: "number" }).default(0).notNull(),
@@ -701,6 +703,7 @@ export const aiUsageActions = pgTable(
     check("ai_usage_actions_status_check", sql`${table.status} in ('reserved', 'completed', 'failed')`),
     check("ai_usage_actions_funding_check", sql`${table.funding} in ('allowance', 'purchased')`),
     check("ai_usage_actions_credits_check", sql`${table.credits} >= 0`),
+    check("ai_usage_actions_purchased_credits_check", sql`${table.purchasedCredits} >= 0 and ${table.purchasedCredits} <= ${table.credits}`),
     check("ai_usage_actions_costs_check", sql`${table.estimatedCostMicrousd} >= 0 and ${table.actualCostMicrousd} >= 0`),
     check("ai_usage_actions_tokens_check", sql`${table.inputTokens} >= 0 and ${table.cachedInputTokens} >= 0 and ${table.outputTokens} >= 0`),
     index("ai_usage_actions_user_period_idx").on(table.userId, table.periodStart),

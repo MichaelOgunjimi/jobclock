@@ -33,6 +33,10 @@ export type ProviderUsage = {
   priceVersion: string
 }
 
+// The cost ceiling only counts the allowance-funded share of an action; purchased credits are paid for separately.
+const allowanceShare = (cost: number, allowanceCredits: number, credits: number) =>
+  allowanceCredits >= credits ? cost : Math.round(cost * allowanceCredits / credits)
+
 export async function reserveHostedAiAction(input: {
   userId: string
   idempotencyKey: string
@@ -73,43 +77,66 @@ export async function reserveHostedAiAction(input: {
       action = existing
     }
 
-    const [reserved] = await tx.update(aiUsagePeriods).set({
-      creditsReserved: sql`${aiUsagePeriods.creditsReserved} + ${input.credits}`,
-      costReservedMicrousd: sql`${aiUsagePeriods.costReservedMicrousd} + ${input.estimatedCostMicrousd}`,
-      updatedAt: new Date(),
-    }).where(and(
-      eq(aiUsagePeriods.userId, input.userId),
-      eq(aiUsagePeriods.periodStart, input.period.start),
-      sql`${aiUsagePeriods.creditsReserved} + ${aiUsagePeriods.creditsUsed} + ${input.credits} <= ${aiUsagePeriods.creditLimit}`,
-      sql`${aiUsagePeriods.costReservedMicrousd} + ${aiUsagePeriods.costUsedMicrousd} + ${input.estimatedCostMicrousd} <= ${aiUsagePeriods.costLimitMicrousd}`,
-    )).returning()
+    // The monthly allowance is spent first; purchased credits cover whatever part of an action it can't.
+    let allowanceCredits = input.credits
+    let allowanceEstimate = input.estimatedCostMicrousd
+    const reserveAllowance = async (credits: number, estimate: number) => {
+      const [reserved] = await tx.update(aiUsagePeriods).set({
+        creditsReserved: sql`${aiUsagePeriods.creditsReserved} + ${credits}`,
+        costReservedMicrousd: sql`${aiUsagePeriods.costReservedMicrousd} + ${estimate}`,
+        updatedAt: new Date(),
+      }).where(and(
+        eq(aiUsagePeriods.userId, input.userId),
+        eq(aiUsagePeriods.periodStart, input.period.start),
+        sql`${aiUsagePeriods.creditsReserved} + ${aiUsagePeriods.creditsUsed} + ${credits} <= ${aiUsagePeriods.creditLimit}`,
+        sql`${aiUsagePeriods.costReservedMicrousd} + ${aiUsagePeriods.costUsedMicrousd} + ${estimate} <= ${aiUsagePeriods.costLimitMicrousd}`,
+      )).returning()
+      return Boolean(reserved)
+    }
 
-    // The monthly allowance is spent first; purchased credits cover an action only once it can't.
-    let funding: "allowance" | "purchased" = "allowance"
-    if (!reserved) {
+    if (!await reserveAllowance(input.credits, input.estimatedCostMicrousd)) {
+      // Take whatever the allowance has left (credits and cost ceiling) and charge the rest to purchased credits.
+      const [period] = await tx.select().from(aiUsagePeriods).where(and(
+        eq(aiUsagePeriods.userId, input.userId),
+        eq(aiUsagePeriods.periodStart, input.period.start),
+      )).limit(1)
+      const creditsLeft = period ? period.creditLimit - period.creditsReserved - period.creditsUsed : 0
+      const costLeft = period ? period.costLimitMicrousd - period.costReservedMicrousd - period.costUsedMicrousd : 0
+      const affordable = Math.floor(input.credits * Math.max(costLeft, 0) / Math.max(input.estimatedCostMicrousd, 1))
+      allowanceCredits = Math.max(0, Math.min(input.credits - 1, creditsLeft, affordable))
+      allowanceEstimate = Math.floor(input.estimatedCostMicrousd * allowanceCredits / input.credits)
+      if (allowanceCredits > 0 && !await reserveAllowance(allowanceCredits, allowanceEstimate)) {
+        allowanceCredits = 0
+        allowanceEstimate = 0
+      }
+      const purchasedCredits = input.credits - allowanceCredits
       const [purchased] = await tx.update(aiCreditBalances).set({
-        credits: sql`${aiCreditBalances.credits} - ${input.credits}`,
+        credits: sql`${aiCreditBalances.credits} - ${purchasedCredits}`,
         updatedAt: new Date(),
       }).where(and(
         eq(aiCreditBalances.userId, input.userId),
-        sql`${aiCreditBalances.credits} >= ${input.credits}`,
+        sql`${aiCreditBalances.credits} >= ${purchasedCredits}`,
       )).returning()
+      // Throwing rolls back any allowance already reserved above.
       if (!purchased) throw new AiAllowanceExhaustedError(input.period.end)
-      funding = "purchased"
     }
+
+    const purchasedCredits = input.credits - allowanceCredits
+    const funding = purchasedCredits === input.credits ? "purchased" : "allowance"
     if (action.status === "failed") {
       const [requeued] = await tx.update(aiUsageActions).set({
         status: "reserved",
         funding,
+        purchasedCredits,
         periodStart: input.period.start,
         credits: input.credits,
-        estimatedCostMicrousd: input.estimatedCostMicrousd,
+        estimatedCostMicrousd: allowanceEstimate,
         actualCostMicrousd: 0,
         settledAt: null,
       }).where(eq(aiUsageActions.id, action.id)).returning()
       action = requeued
-    } else if (funding === "purchased") {
-      const [funded] = await tx.update(aiUsageActions).set({ funding })
+    } else if (purchasedCredits > 0) {
+      const [funded] = await tx.update(aiUsageActions).set({ funding, purchasedCredits, estimatedCostMicrousd: allowanceEstimate })
         .where(eq(aiUsageActions.id, action.id)).returning()
       action = funded
     }
@@ -142,14 +169,15 @@ export async function settleHostedAiAction(actionId: string, events: ProviderUsa
       }))).onConflictDoNothing()
     }
 
-    // Purchased credits were taken from the balance at reservation, so the monthly counters are untouched.
-    if (action.funding === "purchased") return
+    // Purchased credits were taken from the balance at reservation; only the allowance part touches the monthly counters.
+    const allowanceCredits = action.credits - action.purchasedCredits
+    if (allowanceCredits <= 0) return
 
     await tx.update(aiUsagePeriods).set({
-      creditsReserved: sql`${aiUsagePeriods.creditsReserved} - ${action.credits}`,
-      creditsUsed: sql`${aiUsagePeriods.creditsUsed} + ${action.credits}`,
+      creditsReserved: sql`${aiUsagePeriods.creditsReserved} - ${allowanceCredits}`,
+      creditsUsed: sql`${aiUsagePeriods.creditsUsed} + ${allowanceCredits}`,
       costReservedMicrousd: sql`${aiUsagePeriods.costReservedMicrousd} - ${action.estimatedCostMicrousd}`,
-      costUsedMicrousd: sql`${aiUsagePeriods.costUsedMicrousd} + ${actualCost}`,
+      costUsedMicrousd: sql`${aiUsagePeriods.costUsedMicrousd} + ${allowanceShare(actualCost, allowanceCredits, action.credits)}`,
       updatedAt: new Date(),
     }).where(and(
       eq(aiUsagePeriods.userId, action.userId),
@@ -176,18 +204,20 @@ export async function releaseHostedAiAction(actionId: string, incurred: Provider
       }))).onConflictDoNothing()
     }
 
-    if (action.funding === "purchased") {
+    if (action.purchasedCredits > 0) {
       await tx.update(aiCreditBalances).set({
-        credits: sql`${aiCreditBalances.credits} + ${action.credits}`,
+        credits: sql`${aiCreditBalances.credits} + ${action.purchasedCredits}`,
         updatedAt: new Date(),
       }).where(eq(aiCreditBalances.userId, action.userId))
-      return
     }
 
+    const allowanceCredits = action.credits - action.purchasedCredits
+    if (allowanceCredits <= 0) return
+
     await tx.update(aiUsagePeriods).set({
-      creditsReserved: sql`${aiUsagePeriods.creditsReserved} - ${action.credits}`,
+      creditsReserved: sql`${aiUsagePeriods.creditsReserved} - ${allowanceCredits}`,
       costReservedMicrousd: sql`${aiUsagePeriods.costReservedMicrousd} - ${action.estimatedCostMicrousd}`,
-      costUsedMicrousd: sql`${aiUsagePeriods.costUsedMicrousd} + ${actualCost}`,
+      costUsedMicrousd: sql`${aiUsagePeriods.costUsedMicrousd} + ${allowanceShare(actualCost, allowanceCredits, action.credits)}`,
       updatedAt: new Date(),
     }).where(and(
       eq(aiUsagePeriods.userId, action.userId),
