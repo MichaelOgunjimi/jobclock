@@ -231,7 +231,7 @@ STRIPE_PRO_ANNUAL_PRICE_ID=
 
 Use a restricted Stripe key with only the resources needed for Customers, Checkout Sessions, Billing Portal Sessions, Subscriptions, Invoices, and webhook processing. Store all values as sensitive Vercel environment variables. A publishable key is not required for hosted Checkout and Portal redirects.
 
-The implementation adds the official `stripe` Node package at the current supported version (`22.6.0` when this specification was written), creates one server-only client instance, and pins Stripe API version `2026-08-26.dahlia`. It does not use the deprecated global API-key pattern, `plan`, or an explicit `payment_method_types` list. Dynamic payment methods remain managed in Stripe.
+The implementation adds the official `stripe` Node package at the current supported version (`23.0.1` is installed), creates one server-only client instance, and pins Stripe API version `2026-09-30.endive`. It does not use the deprecated global API-key pattern, `plan`, or an explicit `payment_method_types` list. Dynamic payment methods remain managed in Stripe.
 
 ### Checkout Session
 
