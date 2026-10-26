@@ -1,23 +1,33 @@
 /**
  * One-time script to register cron schedules with Upstash QStash.
- * Run once after deploying: npx tsx scripts/setup-qstash-schedules.ts
+ * Run once after deploying:
+ *   npx tsx scripts/setup-qstash-schedules.ts --app-url=https://jobclock.dev          (dry run)
+ *   npx tsx scripts/setup-qstash-schedules.ts --app-url=https://jobclock.dev --yes    (register)
  *
- * Required env vars (copy from .env.local):
+ * The target is never taken from NEXT_PUBLIC_APP_URL, so a stale env file cannot point
+ * production schedules at the wrong host.
+ *
+ * Required env vars (copy from the target environment):
  *   QSTASH_TOKEN      — from Upstash console → QStash → API Keys
- *   NEXT_PUBLIC_APP_URL — your deployed app URL e.g. https://jobclock.vercel.app
- *   CRON_SECRET       — same value as set in Vercel env vars
+ *   CRON_SECRET       — same value as set in that environment's Vercel env vars
  */
 
 import { Client } from "@upstash/qstash"
 
 const token = process.env.QSTASH_TOKEN
-const appUrl = process.env.NEXT_PUBLIC_APP_URL
+const appUrl = process.argv.find((arg) => arg.startsWith("--app-url="))?.slice("--app-url=".length).replace(/\/$/, "")
+const apply = process.argv.includes("--yes")
 const cronSecret = process.env.CRON_SECRET
 
-if (!token || !appUrl || !cronSecret) {
-  console.error("Missing required env vars: QSTASH_TOKEN, NEXT_PUBLIC_APP_URL, CRON_SECRET")
+if (!token || !cronSecret) {
+  console.error("Missing required env vars: QSTASH_TOKEN, CRON_SECRET")
   process.exit(1)
 }
+if (!appUrl || !appUrl.startsWith("https://")) {
+  console.error("Pass the deployed https URL explicitly: --app-url=https://...")
+  process.exit(1)
+}
+console.log(`Target: ${appUrl}${apply ? "" : "  (dry run, add --yes to register)"}`)
 
 const client = new Client({ token })
 
@@ -42,6 +52,11 @@ async function main() {
   for (const schedule of schedules) {
     if (existingDestinations.has(schedule.destination)) {
       console.log(`✓ Already registered: ${schedule.name}`)
+      continue
+    }
+
+    if (!apply) {
+      console.log(`• Would register: ${schedule.name} (${schedule.cron}) -> ${schedule.destination}`)
       continue
     }
 

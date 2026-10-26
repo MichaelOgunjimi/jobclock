@@ -1,4 +1,14 @@
 import type { Instrumentation } from "next"
+import { runtimeEnvProblem } from "./lib/env-guard"
+
+export function register() {
+  // The build only collects pages; the check is about the server that will actually run.
+  if (process.env.NEXT_RUNTIME !== "nodejs" || process.env.NEXT_PHASE === "phase-production-build") return
+
+  const problem = runtimeEnvProblem(process.env)
+  if (problem?.level === "error") throw new Error(problem.message)
+  if (problem) console.warn(`⚠️  ${problem.message}`)
+}
 
 export const onRequestError: Instrumentation.onRequestError = (
   error,

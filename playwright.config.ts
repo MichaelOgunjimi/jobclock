@@ -15,7 +15,8 @@ export default defineConfig({
   },
   webServer: {
     command: `npm run start -- --hostname 127.0.0.1 --port ${port}`,
-    env: { PLAYWRIGHT_GLOBAL_SEARCH_FIXTURE: "1" },
+    // APP_ENV=test makes the server refuse to start against the production database (src/instrumentation.ts)
+    env: { PLAYWRIGHT_GLOBAL_SEARCH_FIXTURE: "1", APP_ENV: "test" },
     reuseExistingServer: !process.env.CI,
     url: `http://127.0.0.1:${port}`,
   },
