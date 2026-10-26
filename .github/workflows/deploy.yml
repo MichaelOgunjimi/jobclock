@@ -5,8 +5,13 @@ name: Migrate & Deploy
 # Vercel's automatic GitHub deployment must be disabled so this
 # workflow is the only path to production.
 #
+# The migrate job runs in the "Production" environment, which requires a reviewer's approval
+# and only allows the main branch. ALLOW_PRODUCTION is the explicit opt-in that scripts/migrate.ts
+# requires before it touches the production database (src/lib/env-guard.ts).
+#
 # Required GitHub secrets (Settings → Secrets and variables → Actions):
-#   DATABASE_URL        — direct Postgres connection string (port 5432, not pooler)
+#   DATABASE_URL        — session-mode Postgres connection string (port 5432, not the transaction pooler)
+#                         TODO: move this into the Production environment's secrets so no other workflow can read it
 #   VERCEL_TOKEN        — from vercel.com/account/tokens (scope: your personal account or team)
 #   VERCEL_ORG_ID       — "orgId" from .vercel/project.json (not committed — add as secret)
 #   VERCEL_PROJECT_ID   — "projectId" from .vercel/project.json (not committed — add as secret)
@@ -18,10 +23,15 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 jobs:
   migrate:
     name: Run DB migrations
     runs-on: ubuntu-latest
+    environment: Production
     steps:
       - uses: actions/checkout@v4
 
@@ -36,6 +46,7 @@ jobs:
       - name: Run migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ALLOW_PRODUCTION: mdnkrzarlaqhozzzozpq
         run: npm run db:migrate
 
   deploy:
