@@ -66,6 +66,6 @@ Use your own card; the cost is £12 and is refunded.
 
 ## 10. Day to day
 - **Refund:** `make refund-quote EMAIL=...`, then refund by hand in Stripe. Within 14 days: paid minus credits used at the per-credit price; after 14 days none, apart from legal exceptions or errors.
-- **Free Pro for you or a tester:** `make grant-plan ARGS="you@example.com --kind=lifetime"` (dry run unless `--yes`), run explicitly against the database you mean.
+- **Free Pro for you or a tester:** `make grant-plan ARGS="you@example.com --kind=lifetime"` (dry run unless `--yes`). Applying to production needs `ALLOW_PRODUCTION=<project ref>` in front, otherwise the script refuses.
 - **Roll back:** set `BILLING_ENABLED=false` and redeploy. New checkouts, portal links, Resume and credit packs stop working (pages stay visible and show an error). Existing subscribers stay subscribed in Stripe, and the webhook and reconcile cron keep their records correct.
 - **Open questions:** selling outside the UK (tax route) and enabling promo codes are both deliberately off. See the spec's Launch Decisions.

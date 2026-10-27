@@ -7,6 +7,7 @@
  */
 
 import postgres from "postgres"
+import { assertNotProduction } from "../src/lib/env-guard"
 
 const args = process.argv.slice(2)
 const email = args.find((a) => !a.startsWith("--"))?.toLowerCase()
@@ -30,6 +31,14 @@ if (days !== null && (!Number.isInteger(days) || days <= 0)) fail("--days must b
 if (kind === "lifetime" && days !== null) fail("a lifetime grant does not expire; use --kind=comp with --days")
 const url = process.env.DATABASE_URL
 if (!url) fail("DATABASE_URL is not set")
+// Applying (--yes) writes entitlements. Production needs the explicit ALLOW_PRODUCTION=<ref> opt-in.
+if (args.includes("--yes")) {
+  try {
+    assertNotProduction("billing:grant", url)
+  } catch (err) {
+    fail((err as Error).message)
+  }
+}
 
 async function main() {
   const sql = postgres(url, { prepare: false })

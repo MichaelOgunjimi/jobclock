@@ -45,6 +45,7 @@ landing-*.yaml
 # env files (can opt-in for committing if needed)
 .env*
 !.env.local.example
+!.env.supabase-local.example
 
 # vercel
 .vercel
