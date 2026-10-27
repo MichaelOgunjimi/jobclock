@@ -16,8 +16,9 @@
     "extension:package": "node scripts/package-extension.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "env:check": "tsx scripts/env-check.ts",
+    "db:seed-local": "tsx scripts/seed-local.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
