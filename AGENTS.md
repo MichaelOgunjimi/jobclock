@@ -22,5 +22,6 @@ Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agent
 
 - Run `make new-worktree` immediately after creating or entering a linked worktree. It links the primary checkout's `.env.local` and assigns a stable free dev port (4000-4999) in the git-ignored `.worktree.env`. In the primary checkout it does nothing.
 - Start the dev server with `make dev`; it uses the worktree's port (3000 in the primary checkout). Never start a dev server on another project's port.
+- `make hooks` once per clone installs the pre-commit secret scan (ggshield; needs `ggshield auth login`). It is shared by every worktree, and it blocks a commit that contains a secret.
 - `make check` runs the type check, lint, and unit tests; run it before committing.
 - `make migrate` applies database migrations to the database in `.env.local`, which may be the hosted project. Confirm the target first.
