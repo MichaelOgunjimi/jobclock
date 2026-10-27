@@ -37,6 +37,7 @@ import {
 
 function makeFormData(values: Record<string, string>) {
   const formData = new FormData()
+  if (!("hosted_provider_preference" in values)) formData.append("hosted_provider_preference", "automatic")
   for (const [key, value] of Object.entries(values)) formData.append(key, value)
   return formData
 }
@@ -117,6 +118,19 @@ describe("settings actions", () => {
     expect(encrypt).toHaveBeenCalledWith("a-key")
     expect(encrypt).toHaveBeenCalledWith("o-key")
     expect(revalidatePath).toHaveBeenCalledWith("/settings")
+  })
+
+  it("lets an active billing grant select JobClock AI", async () => {
+    supabaseMock.setQueryResult("profiles.select.single", { data: { preferences: {}, allow_platform_ai_key: false } })
+    supabaseMock.setQueryResult("billing_grants.select.maybeSingle", {
+      data: { kind: "lifetime", expires_at: null },
+    })
+
+    expect(await saveAiSettings(makeFormData({
+      provider: "openai",
+      model: "gpt-6-luna",
+      billing_source: "jobclock",
+    }))).toEqual({ success: true })
   })
 
   it("saveJobSources merges with existing preferences", async () => {

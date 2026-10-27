@@ -47,3 +47,6 @@ export const cvGenerateRateLimit = createLimiter("ratelimit:cv-generate", 5)
 
 // Cover letter and interview prep generation: 10 requests per 60 seconds per user
 export const aiGenerateRateLimit = createLimiter("ratelimit:ai-generate", 10)
+
+// Billing routes (checkout, portal, resume, credits): a Redis outage must not stop someone paying.
+export const billingRateLimit = createLimiter("ratelimit:billing", 10, { failOpen: true })

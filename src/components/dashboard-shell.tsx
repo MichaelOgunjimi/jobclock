@@ -5,6 +5,7 @@ import { useState } from "react"
 import { KeyRound } from "lucide-react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { DashboardTopbar } from "@/components/dashboard-topbar"
+import { UpgradeDialog } from "@/components/upgrade-dialog"
 import { ExtensionAvailabilityBanner } from "@/components/extension-availability-banner"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { cn } from "@/lib/utils"
@@ -55,7 +56,7 @@ export function DashboardShell({
                     Configure a {aiKeyBanner.providerLabel} API key to enable AI generation.
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Add your own provider key in Settings before using CV, cover letter, research, or interview generation.
+                    Add your own provider key in Settings, or see Pro for AI generation without a separate provider account.
                   </p>
                 </div>
               </div>
@@ -65,6 +66,9 @@ export function DashboardShell({
               >
                 Configure AI key
               </Link>
+              <UpgradeDialog className={cn(buttonVariants({ size: "sm", variant: "ghost" }))}>
+                See Pro
+              </UpgradeDialog>
             </div>
           </div>
         )}

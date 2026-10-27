@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { interviewPrep } from "@/lib/db/schema"
-import { resolveAiConfig, generateText } from "@/lib/ai"
+import { runAiAction } from "@/lib/ai/action"
 import { callPerplexity } from "@/lib/ai/perplexity"
 import { decrypt } from "@/lib/crypto"
 import { normalizeAiMarkdown } from "@/lib/cv/normalize"
@@ -46,11 +46,8 @@ export async function interviewPrepHandler(job: GenerationJob): Promise<string> 
       { apiKey: decrypt(rawPerplexityKey), model: "sonar-pro", maxTokens: 3000 },
     )
   } else {
-    const { settings, apiKey } = resolveAiConfig(ctx.preferences)
-    content = await generateText(settings, apiKey, systemPrompt, userPrompt, 3000, {
-      timeoutMs: 180_000,
-      maxRetries: 0,
-    })
+    content = await runAiAction({ userId: ctx.userId, actionId: job.id, feature: "interview_preparation", preferences: ctx.preferences },
+      (ai) => ai.generate(systemPrompt, userPrompt, 3000, { timeoutMs: 180_000, maxRetries: 0 }))
   }
 
   const normalized = normalizeAiMarkdown(content)

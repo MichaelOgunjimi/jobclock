@@ -1,6 +1,6 @@
 import { db } from "@/lib/db"
 import { customizedCvs } from "@/lib/db/schema"
-import { resolveAiConfig, generateText } from "@/lib/ai"
+import { runAiAction } from "@/lib/ai/action"
 import { extractJson } from "@/lib/ai/extract-json"
 import { normalizeObjectStrings } from "@/lib/cv/normalize"
 import {
@@ -151,34 +151,16 @@ export function selectTailoredSkills(
  */
 export async function cvTailorHandler(job: GenerationJob): Promise<string> {
   const ctx = await loadCvTailorContext(job)
-  const { settings, apiKey } = resolveAiConfig(ctx.preferences)
-
   const { title, company, location, description, cvJson, confirmedEvidence } = ctx
-
-  const jobAnalysis: JobAnalysis = parseStage(
-    await generateText(settings, apiKey, STAGE_B_SYSTEM_PROMPT, buildStageBUserPrompt({ title, company, location, description })),
-    jobAnalysisSchema,
-    "Stage B",
-  )
-
-  const matchAnalysis: CvMatchAnalysis = parseStage(
-    await generateText(settings, apiKey, STAGE_C_SYSTEM_PROMPT, buildStageCUserPrompt({ jobAnalysis, cvJson, confirmedEvidence })),
-    cvMatchAnalysisSchema,
-    "Stage C",
-  )
-
-  const tailoringPlan: CvTailoringPlan = parseStage(
-    await generateText(settings, apiKey, STAGE_D_SYSTEM_PROMPT, buildStageDUserPrompt({ jobAnalysis, matchAnalysis, cvJson, confirmedEvidence })),
-    cvTailoringPlanSchema,
-    "Stage D",
-  )
-
-  const result = parseStage(
-    // Stage E can stream up to ~16k tokens of tailored CV; allow more headroom than the default 60s cap.
-    await generateText(settings, apiKey, STAGE_E_SYSTEM_PROMPT, buildStageEUserPrompt({ jobAnalysis, cvJson, tailoringPlan, title, company, location, confirmedEvidence }), 16384, { timeoutMs: 180_000 }),
-    tailoredCvResultSchema,
-    "Stage E",
-  )
+  const { tailoringPlan, result } = await runAiAction({
+    userId: ctx.userId, actionId: job.id, feature: "cv_tailoring", preferences: ctx.preferences,
+  }, async (ai) => {
+    const jobAnalysis: JobAnalysis = parseStage(await ai.generate(STAGE_B_SYSTEM_PROMPT, buildStageBUserPrompt({ title, company, location, description })), jobAnalysisSchema, "Stage B")
+    const matchAnalysis: CvMatchAnalysis = parseStage(await ai.generate(STAGE_C_SYSTEM_PROMPT, buildStageCUserPrompt({ jobAnalysis, cvJson, confirmedEvidence })), cvMatchAnalysisSchema, "Stage C")
+    const tailoringPlan: CvTailoringPlan = parseStage(await ai.generate(STAGE_D_SYSTEM_PROMPT, buildStageDUserPrompt({ jobAnalysis, matchAnalysis, cvJson, confirmedEvidence })), cvTailoringPlanSchema, "Stage D")
+    const result = parseStage(await ai.generate(STAGE_E_SYSTEM_PROMPT, buildStageEUserPrompt({ jobAnalysis, cvJson, tailoringPlan, title, company, location, confirmedEvidence }), 16384, { timeoutMs: 180_000 }), tailoredCvResultSchema, "Stage E")
+    return { tailoringPlan, result }
+  })
 
   if (!result.cv) throw new Error("AI returned incomplete CV data. Please try again.")
 

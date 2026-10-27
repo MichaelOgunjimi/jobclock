@@ -159,6 +159,7 @@ describe("ai config helpers", () => {
         { type: "thinking", thinking: "Internal reasoning" },
         { type: "text", text: "Generated text" },
       ],
+      usage: { input_tokens: 1, output_tokens: 1 },
     })
 
     await expect(

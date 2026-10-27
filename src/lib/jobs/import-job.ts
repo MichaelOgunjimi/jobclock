@@ -1,10 +1,11 @@
+import { randomUUID } from "node:crypto"
 import { z } from "zod/v4"
 import { eq } from "drizzle-orm"
 import { extractJson } from "@/lib/ai/extract-json"
+import { runAiAction } from "@/lib/ai/action"
+import { AiAllowanceExhaustedError } from "@/lib/billing/usage"
 import {
-  generateText,
   MissingAiApiKeyError,
-  resolveAiConfig,
   withPlatformAiKeyAccess,
   type UserPreferences,
 } from "@/lib/ai"
@@ -325,26 +326,6 @@ export async function parseImportedJobPreview(input: {
     profile?.allowPlatformAiKey,
   )
 
-  let settings
-  let apiKey
-  try {
-    const resolved = resolveAiConfig(preferences)
-    settings = resolved.settings
-    apiKey = resolved.apiKey
-  } catch (error) {
-    if (error instanceof MissingAiApiKeyError) {
-      throw new JobImportError(
-        `JobClock needs your ${aiProviderLabel(error.provider)} API key before it can extract this job. Add one in Settings -> AI Configuration, then try again.`,
-        422,
-        error.code
-      )
-    }
-
-    throw new JobImportError(
-      error instanceof Error ? error.message : "No AI provider is configured for job import."
-    )
-  }
-
   const pageTitle = input.pageTitle?.trim() || "Untitled job page"
   const suggestedSource = detectSourceFromUrl(input.url)
 
@@ -354,19 +335,35 @@ export async function parseImportedJobPreview(input: {
       ? PAGETEXT_CAP_WITH_RELIABLE_HINT
       : 70_000
 
-  const response = await generateText(
-    settings,
-    apiKey,
-    JOB_IMPORT_SYSTEM_PROMPT,
-    buildJobImportUserPrompt({
-      url: input.url,
-      pageTitle,
-      suggestedSource,
-      pageHints: input.pageHints,
-      pageText: sanitizePageText(input.pageText, pageTextCap),
-    }),
-    4096
-  )
+  let response: string
+  try {
+    response = await runAiAction(
+      { userId: input.userId, actionId: randomUUID(), feature: "job_import", preferences },
+      (ai) => ai.generate(
+        JOB_IMPORT_SYSTEM_PROMPT,
+        buildJobImportUserPrompt({
+          url: input.url,
+          pageTitle,
+          suggestedSource,
+          pageHints: input.pageHints,
+          pageText: sanitizePageText(input.pageText, pageTextCap),
+        }),
+        4096,
+      ),
+    )
+  } catch (error) {
+    if (error instanceof MissingAiApiKeyError) {
+      throw new JobImportError(
+        `JobClock needs your ${aiProviderLabel(error.provider)} API key before it can extract this job. Add one in Settings -> AI Configuration, then try again.`,
+        422,
+        error.code
+      )
+    }
+    if (error instanceof AiAllowanceExhaustedError) {
+      throw new JobImportError(error.message, 402, error.code)
+    }
+    throw error
+  }
 
   let extracted: unknown
   try {

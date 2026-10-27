@@ -9,6 +9,7 @@ import {
   withPlatformAiKeyAccess,
   type UserPreferences,
 } from "@/lib/ai"
+import { AiAllowanceExhaustedError } from "@/lib/billing/usage"
 import { db } from "@/lib/db"
 import {
   interviewProfileFacts,
@@ -116,6 +117,7 @@ export async function POST(request: Request) {
       .where(eq(profiles.id, user.id))
     const profile = profileRows[0]
     const extracted = await extractProfileDocument({
+      userId: user.id,
       buffer,
       mimeType: file.type,
       filename: file.name,
@@ -175,6 +177,9 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     console.error("Profile document upload error:", error)
+    if (error instanceof AiAllowanceExhaustedError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: 402 })
+    }
     return NextResponse.json(
       {
         error: error instanceof MissingAiApiKeyError

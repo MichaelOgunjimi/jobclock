@@ -1,9 +1,7 @@
+import { randomUUID } from "node:crypto"
 import { extractJson } from "./extract-json"
-import {
-  generateText,
-  resolveAiConfig,
-  type UserPreferences,
-} from "./index"
+import { runAiAction, type AiActionClient } from "./action"
+import type { UserPreferences } from "./index"
 import {
   extractedProfileDocumentSchema,
   type ExtractedProfileDocument,
@@ -62,9 +60,9 @@ async function extractAttachedDocument(
   mimeType: string,
   filename: string,
   type: ProfileDocumentType,
-  preferences: UserPreferences | null,
+  ai: AiActionClient,
 ): Promise<string> {
-  const { settings, apiKey } = resolveAiConfig(preferences)
+  const { settings, apiKey } = ai
   const data = buffer.toString("base64")
   const prompt = userPrompt(type)
 
@@ -90,6 +88,13 @@ async function extractAttachedDocument(
           content: [attachment, { type: "text", text: prompt }] as never,
         },
       ],
+    })
+    ai.record({
+      providerRequestId: message.id,
+      text: "",
+      inputTokens: message.usage.input_tokens,
+      cachedInputTokens: message.usage.cache_read_input_tokens ?? 0,
+      outputTokens: message.usage.output_tokens,
     })
     return message.content
       .filter((block) => block.type === "text")
@@ -121,10 +126,18 @@ async function extractAttachedDocument(
     ],
     max_output_tokens: 4096,
   })
+  ai.record({
+    providerRequestId: response.id,
+    text: "",
+    inputTokens: response.usage?.input_tokens ?? 0,
+    cachedInputTokens: response.usage?.input_tokens_details?.cached_tokens ?? 0,
+    outputTokens: response.usage?.output_tokens ?? 0,
+  })
   return response.output_text
 }
 
 export async function extractProfileDocument(params: {
+  userId: string
   buffer: Buffer
   mimeType: string
   filename: string
@@ -132,25 +145,12 @@ export async function extractProfileDocument(params: {
   rawText?: string
   preferences: UserPreferences | null
 }): Promise<ExtractedProfileDocument> {
-  const response = params.rawText?.trim()
-    ? await (async () => {
-        const { settings, apiKey } = resolveAiConfig(params.preferences)
-        return generateText(
-          settings,
-          apiKey,
-          SYSTEM_PROMPT,
-          userPrompt(params.type, params.rawText),
-          4096,
-          { timeoutMs: 120_000 },
-        )
-      })()
-    : await extractAttachedDocument(
-        params.buffer,
-        params.mimeType,
-        params.filename,
-        params.type,
-        params.preferences,
-      )
+  const response = await runAiAction(
+    { userId: params.userId, actionId: randomUUID(), feature: "qualification_document_extraction", preferences: params.preferences },
+    (ai) => params.rawText?.trim()
+      ? ai.generate(SYSTEM_PROMPT, userPrompt(params.type, params.rawText), 4096, { timeoutMs: 120_000 })
+      : extractAttachedDocument(params.buffer, params.mimeType, params.filename, params.type, ai),
+  )
 
   return parseProfileDocumentExtraction(response)
 }

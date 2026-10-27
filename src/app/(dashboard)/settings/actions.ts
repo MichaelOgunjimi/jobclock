@@ -13,6 +13,7 @@ import {
 import { and, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { trackedCompanies } from "@/lib/db/schema"
+import { isGrantActive, toPlanGrant } from "@/lib/billing/entitlements"
 import { detectAtsFromUrl } from "@/lib/jobs/source-detection"
 import {
   disconnectTelegram,
@@ -52,6 +53,11 @@ export async function saveAiSettings(formData: FormData) {
   const anthropicKey = ((formData.get("anthropic_api_key") as string | null) ?? "").trim()
   const openaiKey = ((formData.get("openai_api_key") as string | null) ?? "").trim()
   const perplexityKey = ((formData.get("perplexity_api_key") as string | null) ?? "").trim()
+  const billingSource = formData.get("billing_source") === "jobclock" ? "jobclock" : "personal"
+  const hostedProviderPreference = formData.get("hosted_provider_preference")
+  if (hostedProviderPreference !== "automatic" && hostedProviderPreference !== "openai" && hostedProviderPreference !== "anthropic") {
+    return { error: "Invalid hosted provider preference" }
+  }
 
   if (!VALID_PROVIDERS.has(provider)) {
     return { error: "Invalid provider" }
@@ -71,21 +77,33 @@ export async function saveAiSettings(formData: FormData) {
   // single-user settings. A PostgreSQL RPC with jsonb || would be fully atomic.
   const { data: existing } = await supabase
     .from("profiles")
-    .select("preferences")
+    .select("preferences, allow_platform_ai_key")
     .eq("id", user.id)
     .single()
 
   const prev = (existing?.preferences ?? {}) as UserPreferences
 
-  const updatedPreferences: UserPreferences = {
+  if (billingSource === "jobclock" && !existing?.allow_platform_ai_key) {
+    const [{ data: subscription }, { data: grantRow }] = await Promise.all([
+      supabase.from("billing_subscriptions").select("status").eq("user_id", user.id).maybeSingle(),
+      supabase.from("billing_grants").select("kind, expires_at").eq("user_id", user.id).maybeSingle(),
+    ])
+    if (subscription?.status !== "active" && subscription?.status !== "trialing" && !isGrantActive(toPlanGrant(grantRow))) {
+      return { error: "An active Pro subscription is required to use the JobClock allowance." }
+    }
+  }
+
+  const updatedPreferences = {
     ...prev,
     ai_provider: provider,
     ai_model: model,
+    ai_billing_source: billingSource,
+    hosted_provider_preference: hostedProviderPreference,
     // Only overwrite a key if user entered a new value; empty = keep existing
     ...(anthropicKey ? { anthropic_api_key: encrypt(anthropicKey) } : {}),
     ...(openaiKey ? { openai_api_key: encrypt(openaiKey) } : {}),
     ...(perplexityKey ? { perplexity_api_key: encrypt(perplexityKey) } : {}),
-  }
+  } as UserPreferences
 
   const { error } = await supabase
     .from("profiles")

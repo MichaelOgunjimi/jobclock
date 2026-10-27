@@ -1,5 +1,5 @@
 import { extractJson } from "./extract-json"
-import { generateText, resolveAiConfig, type UserPreferences } from "./index"
+import type { AiActionClient } from "./action"
 import { CV_PARSER_SYSTEM_PROMPT, buildCvParserUserPrompt } from "./prompts/cv-parser"
 import { cvDataSchema } from "./cv-tailoring-schemas"
 import type { CvData } from "@/lib/supabase/database.types"
@@ -7,13 +7,9 @@ import type { CvData } from "@/lib/supabase/database.types"
 
 export async function parseCvWithAi(
   rawText: string,
-  preferences: UserPreferences | null
+  ai: AiActionClient
 ): Promise<CvData> {
-  const { settings, apiKey } = resolveAiConfig(preferences)
-
-  const response = await generateText(
-    settings,
-    apiKey,
+  const response = await ai.generate(
     CV_PARSER_SYSTEM_PROMPT,
     buildCvParserUserPrompt(rawText)
   )

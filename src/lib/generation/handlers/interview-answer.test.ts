@@ -7,6 +7,7 @@ vi.mock("@/lib/db", () => ({ db }))
 vi.mock("@/lib/applications/audit", () => ({ appendApplicationAuditEvents: vi.fn() }))
 vi.mock("./interview-answer-context", () => ({ loadInterviewAnswerContext: vi.fn() }))
 vi.mock("@/lib/ai", () => ({ resolveAiConfig: vi.fn(), generateText: vi.fn() }))
+vi.mock("@/lib/ai/action", async () => (await import("@/test/ai-action-mock")).aiActionMock())
 vi.mock("@/lib/prompts/interview", () => ({
   interviewAnswerSystemPrompt: vi.fn(() => "sys"),
   interviewAnswerPrompt: vi.fn(() => "usr"),
