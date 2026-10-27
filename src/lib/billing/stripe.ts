@@ -11,10 +11,12 @@ export function getStripe(): Stripe {
   return client ??= new Stripe(apiKey, { apiVersion: "2026-09-30.endive" })
 }
 
+// Where Stripe sends the user back to. The configured domain wins, even on a Vercel preview, so a
+// deployment served from its own domain (staging.jobclock.dev) does not bounce users to a
+// *.vercel.app host where they are signed out. Only a preview without one uses its own URL.
 export function getBillingOrigin(): string {
-  const value = process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL
+  const previewUrl = process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined
+  const value = process.env.NEXT_PUBLIC_APP_URL || previewUrl || process.env.APP_URL
   if (!value) throw new Error("Application origin is not configured")
   return new URL(value).origin
 }

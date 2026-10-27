@@ -75,6 +75,11 @@ https://jobclock.michaelogunjimi.com/extension/privacy
 Support:
 https://jobclock.michaelogunjimi.com/extension/support
 
+## Release Notes - 0.3.0
+
+- JobClock is moving to jobclock.dev. The extension now works with both jobclock.dev and the previous address, so saving jobs keeps working during the move.
+- Chrome may ask you to approve access to jobclock.dev when this update installs.
+
 ## Release Notes - 0.2.1
 
 - Improved LinkedIn extraction so applicant comparisons and company insights are not included in job descriptions.

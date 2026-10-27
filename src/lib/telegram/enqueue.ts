@@ -1,7 +1,8 @@
 import { Client } from "@upstash/qstash"
 import type { TelegramInboundText } from "./types"
+import { getAppUrl } from "@/lib/site"
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
+const APP_URL = getAppUrl()
 
 export async function enqueueTelegramUpdate(update: TelegramInboundText): Promise<boolean> {
   const qstashToken = process.env.QSTASH_TOKEN

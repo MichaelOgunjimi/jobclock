@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import PrivacyPage, { metadata as privacyMetadata } from "./privacy/page"
 import TermsPage, { metadata as termsMetadata } from "./terms/page"
 import CookiePolicyPage, { metadata as cookieMetadata } from "./cookies/page"
+import { SUPPORT_EMAIL } from "@/lib/site"
 
 describe("public legal pages", () => {
   it("publishes a general privacy policy with contact and data rights", () => {
@@ -11,7 +12,7 @@ describe("public legal pages", () => {
     expect(screen.getByRole("heading", { level: 1, name: "JobClock privacy policy" })).toBeInTheDocument()
     expect(screen.getByText(/Supabase for authentication/i)).toBeInTheDocument()
     expect(screen.getByText(/UK Information Commissioner/i)).toBeInTheDocument()
-    expect(screen.getAllByText("support@jobclock.michaelogunjimi.com").length).toBeGreaterThan(0)
+    expect(screen.getAllByText(SUPPORT_EMAIL).length).toBeGreaterThan(0)
     expect(privacyMetadata.alternates).toMatchObject({ canonical: "/privacy" })
   })
 

@@ -15,7 +15,7 @@ const PREVIEW_DESCRIPTION_MAX = 420
 const extensionConfig =
   globalThis.JobClockConfig ||
   Object.freeze({
-    APP_BASE_URL: "https://jobclock.michaelogunjimi.com",
+    APP_BASE_URL: "https://jobclock.dev",
     RUNTIME_STATE_KEY: "jobAssistantRuntimeState",
   })
 const RUNTIME_STATE_KEY = extensionConfig.RUNTIME_STATE_KEY

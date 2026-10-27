@@ -11,6 +11,8 @@ export default defineConfig({
     },
   },
   test: {
+    // Pages and metadata resolve the public origin from this, as every deployed environment does.
+    env: { NEXT_PUBLIC_APP_URL: "https://jobclock.dev" },
     environment: "jsdom",
     environmentOptions: {
       jsdom: {

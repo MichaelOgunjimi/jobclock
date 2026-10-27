@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { LegalSection, PublicLegalPage } from "@/components/legal/public-legal-page"
+import { SUPPORT_EMAIL } from "@/lib/site"
 
 export const metadata: Metadata = {
   title: "Terms of Service",
@@ -17,7 +18,7 @@ export default function TermsPage() {
     >
       <LegalSection number="01" title="Agreement and operator">
         <p>
-          JobClock is operated by Michael Ogunjimi. By creating an account or using JobClock, you agree to these terms. If you do not agree, do not use the service. Questions can be sent to <a href="mailto:support@jobclock.michaelogunjimi.com">support@jobclock.michaelogunjimi.com</a>.
+          JobClock is operated by Michael Ogunjimi. By creating an account or using JobClock, you agree to these terms. If you do not agree, do not use the service. Questions can be sent to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
         </p>
       </LegalSection>
 
@@ -82,7 +83,7 @@ export default function TermsPage() {
           You can cancel at any time from Settings → Billing. Your plan then stays active until the end of the period you have paid for, after which your account moves to the free plan. Nothing is deleted when you cancel, and you can resume before the period ends.
         </p>
         <p>
-          You have 14 days from buying a subscription or a credit pack to ask for a refund. We refund what you paid minus the value of the credits you have used, worked out at the price per credit of what you bought: £12 for 300 credits on the monthly plan (£0.04 a credit), £120 for 3,600 credits across the year on the yearly plan (about £0.033 a credit), and the pack price divided by the pack size for extra credits. For example, if you used 50 credits of a monthly plan, you would get £10 back. If you have used none, you get everything back. After the 14 days we do not offer refunds, apart from where the law requires it or where a charge was made in error. Contact <a href="mailto:support@jobclock.michaelogunjimi.com">support@jobclock.michaelogunjimi.com</a> with the email address on your account.
+          You have 14 days from buying a subscription or a credit pack to ask for a refund. We refund what you paid minus the value of the credits you have used, worked out at the price per credit of what you bought: £12 for 300 credits on the monthly plan (£0.04 a credit), £120 for 3,600 credits across the year on the yearly plan (about £0.033 a credit), and the pack price divided by the pack size for extra credits. For example, if you used 50 credits of a monthly plan, you would get £10 back. If you have used none, you get everything back. After the 14 days we do not offer refunds, apart from where the law requires it or where a charge was made in error. Contact <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with the email address on your account.
         </p>
         <p>
           Nothing in this section affects your statutory rights, including your rights if the service is not as described or is not provided with reasonable care and skill.

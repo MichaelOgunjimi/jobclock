@@ -3,8 +3,9 @@ import { db } from "@/lib/db"
 import { trackedCompanies, profiles } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { verifyCronRequest } from "@/lib/cron/verify-cron-request"
+import { getAppUrl } from "@/lib/site"
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
+const APP_URL = getAppUrl()
 
 // Triggered every 2 hours by QStash (POST).
 // Fans out one QStash message per enabled tracked company so each

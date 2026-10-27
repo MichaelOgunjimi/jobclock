@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card"
 import { CHROME_WEB_STORE_URL } from "@/lib/extension"
 import { cn } from "@/lib/utils"
+import { SUPPORT_EMAIL } from "@/lib/site"
 
 interface PublicExtensionPageProps {
   kicker: string
@@ -157,7 +158,7 @@ export function PublicExtensionPage({
                 not include your extension token.
               </p>
               <a
-                href="mailto:support@jobclock.michaelogunjimi.com"
+                href={`mailto:${SUPPORT_EMAIL}`}
                 aria-label="Email JobClock support"
                 className={cn(
                   buttonVariants({ variant: "outline", size: "sm" }),

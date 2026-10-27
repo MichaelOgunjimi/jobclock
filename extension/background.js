@@ -2,7 +2,7 @@ if (typeof chrome.runtime.getManifest === "function") {
   importScripts("config.js")
 } else {
   globalThis.JobClockConfig = Object.freeze({
-    APP_BASE_URL: "https://jobclock.michaelogunjimi.com",
+    APP_BASE_URL: "https://jobclock.dev",
     RUNTIME_STATE_KEY: "jobAssistantRuntimeState",
   })
 }

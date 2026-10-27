@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { NavigationScrollRestoration } from "@/components/navigation-scroll-restoration"
 import { Analytics } from "@vercel/analytics/next"
 import { SIDEBAR_PREFERENCE_SCRIPT } from "@/lib/sidebar-preference"
+import { getAppUrl, isProductionSite } from "@/lib/site"
 
 const uiSans = IBM_Plex_Sans({
   variable: "--font-ui-sans",
@@ -27,10 +28,8 @@ const geistMono = Geist_Mono({
 
 // Crawlers/preview tools need absolute URLs for og:image; without
 // metadataBase Next emits the OG image path relative and most validators
-// reject it. NEXT_PUBLIC_APP_URL lets staging deploys override the
-// canonical host (e.g. preview branches).
-const siteUrl =
-  process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
+// reject it. NEXT_PUBLIC_APP_URL sets the canonical host per environment.
+const siteUrl = getAppUrl()
 
 const siteName = "Jobclock"
 const siteDescription =
@@ -40,6 +39,7 @@ const themeScript = `(function(){try{var t=localStorage.getItem("job-assistant-t
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+  robots: isProductionSite() ? undefined : { index: false, follow: false },
   title: {
     default: siteName,
     template: `%s | ${siteName}`,

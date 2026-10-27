@@ -6,6 +6,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { EXTENSION_HOSTS, SUPPORT_EMAIL } from "@/lib/site"
+
+const HOSTS = EXTENSION_HOSTS.join(" and ")
 
 export const metadata: Metadata = {
   title: "Extension Privacy",
@@ -33,9 +36,9 @@ const permissions = [
       "Stores your extension token and short-lived popup state locally in Chrome.",
   },
   {
-    name: "Access to jobclock.michaelogunjimi.com",
+    name: `Access to ${HOSTS}`,
     purpose:
-      "Allows API requests only to jobclock.michaelogunjimi.com for previews, saves, and stage updates.",
+      `Allows API requests only to ${HOSTS} for previews, saves, and stage updates.`,
   },
 ]
 
@@ -78,7 +81,7 @@ export default function ExtensionPrivacyPage() {
         </p>
         <p>
           The token, active page URL and title, and extracted job content are
-          sent over HTTPS only to jobclock.michaelogunjimi.com. The extension
+          sent over HTTPS only to {HOSTS}. The extension
           itself does not send this information directly to other domains.
         </p>
         <p>
@@ -138,9 +141,9 @@ export default function ExtensionPrivacyPage() {
           policy or the extension can be sent to{" "}
           <a
             className="font-medium text-foreground underline underline-offset-4"
-            href="mailto:support@jobclock.michaelogunjimi.com"
+            href={`mailto:${SUPPORT_EMAIL}`}
           >
-            support@jobclock.michaelogunjimi.com
+            {SUPPORT_EMAIL}
           </a>
           , or raised through the public JobClock support page.
         </p>

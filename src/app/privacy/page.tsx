@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { LegalSection, PublicLegalPage } from "@/components/legal/public-legal-page"
+import { SUPPORT_EMAIL } from "@/lib/site"
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -19,7 +20,7 @@ export default function PrivacyPage() {
       <LegalSection number="01" title="Who is responsible">
         <p>
           JobClock is operated by Michael Ogunjimi. For privacy questions or requests, email{" "}
-          <a href="mailto:support@jobclock.michaelogunjimi.com">support@jobclock.michaelogunjimi.com</a>.
+          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
         </p>
       </LegalSection>
 

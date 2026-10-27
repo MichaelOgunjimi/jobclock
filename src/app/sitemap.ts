@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next"
+import { getAppUrl } from "@/lib/site"
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
+const siteUrl = getAppUrl()
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
