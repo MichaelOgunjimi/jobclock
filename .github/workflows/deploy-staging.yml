@@ -1,0 +1,54 @@
+name: Migrate & Deploy Staging
+
+# Runs on every push to the staging branch.
+# Uses the "Staging" environment's own secrets: the staging database (DATABASE_DIRECT_URL)
+# and the separate staging Vercel project (VERCEL_PROJECT_ID). Nothing here can reach production,
+# and scripts/migrate.ts refuses a production database without ALLOW_PRODUCTION anyway.
+#
+# Environment secrets (Settings → Environments → Staging):
+#   DATABASE_DIRECT_URL — staging session-mode connection string (port 5432)
+#   VERCEL_PROJECT_ID   — id of the job-assistant-staging Vercel project
+# Repository secrets reused: VERCEL_TOKEN, VERCEL_ORG_ID
+
+on:
+  push:
+    branches: [staging]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Migrate and deploy staging
+    runs-on: ubuntu-latest
+    environment: Staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run migrations
+        env:
+          DATABASE_DIRECT_URL: ${{ secrets.DATABASE_DIRECT_URL }}
+        run: npm run db:migrate
+
+      # The staging project has a single live target, so "production" there means staging.
+      - name: Deploy to staging
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npx vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+          npx vercel build --prod --token=$VERCEL_TOKEN
+          npx vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
