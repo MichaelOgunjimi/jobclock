@@ -68,3 +68,6 @@ drizzle/migrations/relations.ts
 
 # per-worktree dev port (make new-worktree)
 .worktree.env
+
+# ggshield scan cache
+.cache_ggshield

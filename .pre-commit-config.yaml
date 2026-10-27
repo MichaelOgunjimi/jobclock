@@ -1,0 +1,9 @@
+# Secret scan before every commit. One-time setup per clone: `make hooks`
+# (needs `ggshield auth login`; the hooks live in the shared git dir, so all worktrees get them).
+repos:
+  - repo: https://github.com/gitguardian/ggshield
+    rev: v1.55.0
+    hooks:
+      - id: ggshield
+        language_version: python3
+        stages: [pre-commit]
