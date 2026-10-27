@@ -18,6 +18,7 @@ import {
 import { buildRecentList, resolveRecentCallback } from "./recent-jobs"
 import { formatStats, getApplicationStats } from "./stats"
 import type { TelegramInboundCallback, TelegramInboundText } from "./types"
+import { getAppUrl } from "@/lib/site"
 
 /** Minimum characters of pasted text (besides the link) to import without fetching. */
 const PASTED_JOB_MIN_CHARS = 300
@@ -113,7 +114,7 @@ async function handleCommand(
 }
 
 function applicationUrl(applicationSlug: string): string {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
+  const appUrl = getAppUrl()
   return new URL(`/applications/${applicationSlug}`, appUrl).toString()
 }
 

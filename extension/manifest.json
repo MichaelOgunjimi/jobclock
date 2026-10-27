@@ -3,9 +3,9 @@
   "name": "JobClock: Job Application Tracker",
   "short_name": "JobClock",
   "description": "Preview and save job listings from any website directly into your JobClock pipeline.",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "permissions": ["activeTab", "scripting", "storage"],
-  "host_permissions": ["https://jobclock.michaelogunjimi.com/*"],
+  "host_permissions": ["https://jobclock.dev/*", "https://jobclock.michaelogunjimi.com/*"],
   "background": {
     "service_worker": "background.js"
   },

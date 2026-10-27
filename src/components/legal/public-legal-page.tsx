@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button-styles"
 import { cn } from "@/lib/utils"
+import { SUPPORT_EMAIL } from "@/lib/site"
 
 const legalDocuments = [
   { href: "/privacy", label: "Privacy policy" },
@@ -76,7 +77,7 @@ export function PublicLegalPage({ kicker, title, summary, updatedAt, children }:
             </CardHeader>
             <CardContent className="space-y-4 text-sm leading-6 text-white/70">
               <p>Ask about these policies or make a data-rights request by email.</p>
-              <a href="mailto:support@jobclock.michaelogunjimi.com" className="break-all font-medium text-white underline underline-offset-4">support@jobclock.michaelogunjimi.com</a>
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="break-all font-medium text-white underline underline-offset-4">{SUPPORT_EMAIL}</a>
             </CardContent>
           </Card>
         </aside>

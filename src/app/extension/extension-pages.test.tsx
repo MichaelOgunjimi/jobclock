@@ -7,6 +7,7 @@ import ExtensionSupportPage, {
   metadata as supportMetadata,
 } from "./support/page"
 import { CHROME_WEB_STORE_URL } from "@/lib/extension"
+import { SUPPORT_EMAIL } from "@/lib/site"
 
 describe("public extension pages", () => {
   it("explains extension data access, storage, transfer, and user control", () => {
@@ -29,7 +30,7 @@ describe("public extension pages", () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        /sent over HTTPS only to jobclock\.michaelogunjimi\.com/i
+        /sent over HTTPS only to jobclock\.dev and jobclock\.michaelogunjimi\.com/i
       )
     ).toBeInTheDocument()
     expect(
@@ -52,7 +53,7 @@ describe("public extension pages", () => {
     expect(screen.getByText("scripting")).toBeInTheDocument()
     expect(screen.getByText("storage")).toBeInTheDocument()
     expect(
-      screen.getByText(/access to jobclock\.michaelogunjimi\.com/i)
+      screen.getByText(/access to jobclock\.dev and jobclock\.michaelogunjimi\.com/i)
     ).toBeInTheDocument()
   })
 
@@ -115,10 +116,10 @@ describe("public extension pages", () => {
       screen.getByRole("link", { name: /email JobClock support/i })
     ).toHaveAttribute(
       "href",
-      "mailto:support@jobclock.michaelogunjimi.com"
+      `mailto:${SUPPORT_EMAIL}`
     )
     expect(
-      screen.getByText("support@jobclock.michaelogunjimi.com")
+      screen.getByText(SUPPORT_EMAIL)
     ).toBeInTheDocument()
   })
 

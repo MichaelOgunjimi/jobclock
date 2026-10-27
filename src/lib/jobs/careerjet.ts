@@ -1,7 +1,8 @@
 import type { Job } from "./types"
+import { getAppUrl } from "@/lib/site"
 
 const CAREERJET_API_URL = "https://search.api.careerjet.net/v4/query"
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
+const APP_URL = getAppUrl()
 
 interface CareerjetJob {
   title: string

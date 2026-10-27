@@ -7,12 +7,13 @@ import {
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
 import { escapeHtml, type TelegramKeyboard } from "./client"
 import type { TelegramInboundCallback } from "./types"
+import { getAppUrl } from "@/lib/site"
 
 /** How many recent jobs the /recent list and its buttons show. */
 const RECENT_LIMIT = 5
 
 export function appOrigin(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
+  return getAppUrl()
 }
 
 const STATUS_EMOJI: Record<string, string> = {

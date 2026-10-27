@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { CHROME_WEB_STORE_URL } from "@/lib/extension"
+import { SUPPORT_EMAIL, getSiteHost } from "@/lib/site"
 
 export const metadata: Metadata = {
   title: "Extension Support",
@@ -142,7 +143,7 @@ export default function ExtensionSupportPage() {
           </TroubleshootingItem>
           <TroubleshootingItem title="Network or server error">
             Confirm Chrome is online and that
-            jobclock.michaelogunjimi.com opens normally. Retry after the
+            {getSiteHost()} opens normally. Retry after the
             connection is restored.
           </TroubleshootingItem>
         </CardContent>
@@ -163,10 +164,10 @@ export default function ExtensionSupportPage() {
         <p>
           For support, email{" "}
           <a
-            href="mailto:support@jobclock.michaelogunjimi.com"
+            href={`mailto:${SUPPORT_EMAIL}`}
             className="font-medium text-foreground underline underline-offset-4"
           >
-            support@jobclock.michaelogunjimi.com
+            {SUPPORT_EMAIL}
           </a>
           . Include the page URL, the error message, and your Chrome version,
           but never include your extension token.

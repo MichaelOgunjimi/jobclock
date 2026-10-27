@@ -12,7 +12,8 @@ import { tmpdir } from "node:os"
 import { basename, extname, join, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 
-const productionHost = "https://jobclock.michaelogunjimi.com/*"
+// jobclock.dev is the home; the old host stays until older installs have updated (then drop it and bump the version).
+const productionHosts = ["https://jobclock.dev/*", "https://jobclock.michaelogunjimi.com/*"]
 const requiredPermissions = ["activeTab", "scripting", "storage"]
 
 export const packageEntries = Object.freeze([
@@ -32,8 +33,8 @@ export function validateManifest(manifest) {
   if (manifest.manifest_version !== 3) {
     throw new Error("The extension must use Manifest V3.")
   }
-  if (manifest.version !== "0.2.1") {
-    throw new Error("The extension package version must be 0.2.1.")
+  if (manifest.version !== "0.3.0") {
+    throw new Error("The extension package version must be 0.3.0.")
   }
   if (
     !Array.isArray(manifest.permissions) ||
@@ -50,8 +51,8 @@ export function validateManifest(manifest) {
   ) {
     throw new Error("Broad host permission is not allowed.")
   }
-  if (hosts.length !== 1 || hosts[0] !== productionHost) {
-    throw new Error(`Host permission must be exactly ${productionHost}.`)
+  if (hosts.length !== productionHosts.length || !productionHosts.every((host) => hosts.includes(host))) {
+    throw new Error(`Host permissions must be exactly ${productionHosts.join(" and ")}.`)
   }
 }
 

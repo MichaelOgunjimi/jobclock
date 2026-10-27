@@ -1,3 +1,4 @@
+import { EXTENSION_HOSTS } from "@/lib/site"
 import { existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
@@ -31,17 +32,20 @@ const settingsSource = readFileSync(
 )
 
 describe("extension production release configuration", () => {
-  it("ships only the production JobClock host", () => {
+  it("ships only the JobClock hosts", () => {
     expect(manifest.name).toBe("JobClock: Job Application Tracker")
     expect(manifest.short_name).toBe("JobClock")
     expect(manifest.description).toBe(
       "Preview and save job listings from any website directly into your JobClock pipeline."
     )
-    expect(manifest.version).toBe("0.2.1")
+    expect(manifest.version).toBe("0.3.0")
     expect(manifest.action.default_title).toBe("Save job to JobClock")
     expect(manifest.host_permissions).toEqual([
+      "https://jobclock.dev/*",
       "https://jobclock.michaelogunjimi.com/*",
     ])
+    // The privacy page lists these hosts; keep the manifest and the page in step.
+    expect(manifest.host_permissions).toEqual(EXTENSION_HOSTS.map((host) => `https://${host}/*`))
     expect(manifest.permissions).toEqual([
       "activeTab",
       "scripting",
@@ -53,7 +57,7 @@ describe("extension production release configuration", () => {
     const configSource = readFileSync(extensionPath("config.js"), "utf8")
 
     expect(configSource).toContain(
-      'APP_BASE_URL: "https://jobclock.michaelogunjimi.com"'
+      'APP_BASE_URL: "https://jobclock.dev"'
     )
     expect(configSource).toContain(
       'RUNTIME_STATE_KEY: "jobAssistantRuntimeState"'

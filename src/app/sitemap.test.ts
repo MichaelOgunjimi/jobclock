@@ -8,7 +8,7 @@ describe("sitemap", () => {
 
     expect(
       byUrl.get(
-        "https://jobclock.michaelogunjimi.com/extension/privacy"
+        "https://jobclock.dev/extension/privacy"
       )
     ).toMatchObject({
       changeFrequency: "yearly",
@@ -16,21 +16,21 @@ describe("sitemap", () => {
     })
     expect(
       byUrl.get(
-        "https://jobclock.michaelogunjimi.com/extension/support"
+        "https://jobclock.dev/extension/support"
       )
     ).toMatchObject({
       changeFrequency: "monthly",
       priority: 0.5,
     })
 
-    expect(byUrl.get("https://jobclock.michaelogunjimi.com/pricing")).toMatchObject({
+    expect(byUrl.get("https://jobclock.dev/pricing")).toMatchObject({
       changeFrequency: "monthly",
       priority: 0.8,
     })
 
     for (const path of ["privacy", "terms", "cookies"]) {
       expect(
-        byUrl.get(`https://jobclock.michaelogunjimi.com/${path}`)
+        byUrl.get(`https://jobclock.dev/${path}`)
       ).toMatchObject({ changeFrequency: "yearly" })
     }
   })

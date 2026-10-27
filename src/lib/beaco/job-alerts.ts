@@ -1,8 +1,9 @@
 import type { PersistedJobInput } from "@/lib/jobs/persist-job"
 import { sendBeacoEvent } from "./client"
+import { getAppUrl } from "@/lib/site"
 
 const TEMPLATE_NAME = process.env.BEACO_JOB_ALERT_TEMPLATE_NAME ?? "job-alert"
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
+const APP_URL = getAppUrl()
 
 function buildJobsListHtml(jobs: PersistedJobInput[]): string {
   const shown = jobs.slice(0, 10)

@@ -2,8 +2,9 @@ import { Client } from "@upstash/qstash"
 import { aiGenerateRateLimit } from "@/lib/rate-limit"
 import { createGenerationJob, type GenerationKind } from "./jobs"
 import { runJob } from "./dispatch"
+import { getAppUrl } from "@/lib/site"
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
+const APP_URL = getAppUrl()
 
 export interface EnqueueInput {
   userId: string

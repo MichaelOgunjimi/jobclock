@@ -1,9 +1,12 @@
 import type { MetadataRoute } from "next"
+import { getAppUrl, isProductionSite } from "@/lib/site"
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_APP_URL ?? "https://jobclock.michaelogunjimi.com"
+const siteUrl = getAppUrl()
 
 export default function robots(): MetadataRoute.Robots {
+  // Only the real production site is indexed; staging and previews stay out of search results.
+  if (!isProductionSite()) return { rules: [{ userAgent: "*", disallow: "/" }] }
+
   return {
     rules: [
       {

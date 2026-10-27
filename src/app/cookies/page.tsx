@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { LegalSection, PublicLegalPage } from "@/components/legal/public-legal-page"
+import { SUPPORT_EMAIL } from "@/lib/site"
 
 export const metadata: Metadata = {
   title: "Cookie Policy",
@@ -51,7 +52,7 @@ export default function CookiePolicyPage() {
 
       <LegalSection number="06" title="Contact and updates">
         <p>
-          Questions can be sent to <a href="mailto:support@jobclock.michaelogunjimi.com">support@jobclock.michaelogunjimi.com</a>. This policy will be updated if JobClock changes the browser storage or analytics technologies it uses.
+          Questions can be sent to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. This policy will be updated if JobClock changes the browser storage or analytics technologies it uses.
         </p>
       </LegalSection>
     </PublicLegalPage>
