@@ -42,7 +42,6 @@ describe("extension production release configuration", () => {
     expect(manifest.action.default_title).toBe("Save job to JobClock")
     expect(manifest.host_permissions).toEqual([
       "https://jobclock.dev/*",
-      "https://jobclock.michaelogunjimi.com/*",
     ])
     // The privacy page lists these hosts; keep the manifest and the page in step.
     expect(manifest.host_permissions).toEqual(EXTENSION_HOSTS.map((host) => `https://${host}/*`))

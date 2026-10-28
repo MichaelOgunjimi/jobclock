@@ -12,8 +12,8 @@ Use the remaining checklist when preparing a new version for review.
 - [ ] Chrome Web Store developer registration and one-time fee are complete.
 - [ ] Developer email is verified and monitored.
 - [ ] Publisher name matches the JobClock site and listing.
-- [ ] `jobclock.michaelogunjimi.com` is verified in Google Search Console.
-- [ ] Official URL/homepage: `https://jobclock.michaelogunjimi.com`.
+- [ ] `jobclock.dev` is verified in Google Search Console.
+- [ ] Official URL/homepage: `https://jobclock.dev`.
 
 ## Store Listing
 
@@ -22,9 +22,9 @@ Use the remaining checklist when preparing a new version for review.
 - [ ] Language: English (UK).
 - [ ] Detailed description matches `extension/store/listing.md`.
 - [ ] Support URL:
-      `https://jobclock.michaelogunjimi.com/extension/support`.
+      `https://jobclock.dev/extension/support`.
 - [ ] Privacy URL:
-      `https://jobclock.michaelogunjimi.com/extension/privacy`.
+      `https://jobclock.dev/extension/privacy`.
 - [ ] No in-app purchases.
 - [ ] Distribution visibility: Public.
 - [ ] Listing copy, screenshots, and shipped behavior describe the same features.
@@ -49,7 +49,7 @@ Single-purpose text:
 - [ ] `scripting` justification explains the packaged active-page extractor.
 - [ ] `storage` justification explains local token and runtime-state storage.
 - [ ] Host justification names only
-      `https://jobclock.michaelogunjimi.com/*`.
+      `https://jobclock.dev/*`.
 - [ ] Remote code answer: **No, I am not using remote code**.
 - [ ] Authentication information is disclosed because a JobClock extension
       token is stored locally and sent as a bearer token.
@@ -86,7 +86,7 @@ Single-purpose text:
 - [ ] Manifest version is 3 and extension version is `0.3.0`.
 - [ ] Permissions are exactly `activeTab`, `scripting`, and `storage`.
 - [ ] Host permission is exactly
-      `https://jobclock.michaelogunjimi.com/*`.
+      `https://jobclock.dev/*`.
 - [ ] No remote scripts, remote fonts, `eval`, source maps, secrets, test files,
       development notes, or generated store artwork are inside the ZIP.
 - [ ] Load the final ZIP as an unpacked extension from its extracted directory.

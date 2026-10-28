@@ -30,7 +30,7 @@ describe("public extension pages", () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        /sent over HTTPS only to jobclock\.dev and jobclock\.michaelogunjimi\.com/i
+        /sent over HTTPS only to jobclock\.dev/i
       )
     ).toBeInTheDocument()
     expect(
@@ -53,7 +53,7 @@ describe("public extension pages", () => {
     expect(screen.getByText("scripting")).toBeInTheDocument()
     expect(screen.getByText("storage")).toBeInTheDocument()
     expect(
-      screen.getByText(/access to jobclock\.dev and jobclock\.michaelogunjimi\.com/i)
+      screen.getByText(/access to jobclock\.dev/i)
     ).toBeInTheDocument()
   })
 

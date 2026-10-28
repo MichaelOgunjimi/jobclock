@@ -1,8 +1,8 @@
 /** Hosts the Chrome extension is allowed to talk to. Must match extension/manifest.json host_permissions. */
-export const EXTENSION_HOSTS = ["jobclock.dev", "jobclock.michaelogunjimi.com"] as const
+export const EXTENSION_HOSTS = ["jobclock.dev"] as const
 
-/** Where users reach us. Switch to support@jobclock.dev once Cloudflare Email Routing receives it. */
-export const SUPPORT_EMAIL = "support@jobclock.michaelogunjimi.com"
+/** Where users reach us. Cloudflare Email Routing forwards it; replies go out through Resend. */
+export const SUPPORT_EMAIL = "support@jobclock.dev"
 
 /**
  * The public origin of this deployment, e.g. https://jobclock.dev, without a trailing slash.
