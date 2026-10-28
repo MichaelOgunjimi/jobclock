@@ -7,7 +7,7 @@ then select **Add to Chrome** and confirm **Add extension**.
 
 ## First-time setup
 
-1. Sign in to [JobClock](https://jobclock.michaelogunjimi.com)
+1. Sign in to [JobClock](https://jobclock.dev)
 2. Generate an extension token under `Settings -> Extension`
 3. Open the extension popup
 4. Paste the token and select **Connect extension**

@@ -36,7 +36,7 @@ Stores the user's JobClock extension token and the current extraction or save
 state locally in Chrome. This lets an in-progress request continue when the
 popup closes and restores its result when the popup is reopened on the same URL.
 
-### `https://jobclock.michaelogunjimi.com/*`
+### `https://jobclock.dev/*`
 
 Allows the extension to send authenticated preview, save, recent-application,
 and stage-update requests only to the production JobClock service. It does not
@@ -59,7 +59,7 @@ Open the extension on a job page to:
 - manually retry or re-extract whenever the page has changed.
 
 The extension connects only to
-`https://jobclock.michaelogunjimi.com`. It stores your extension token locally
+`https://jobclock.dev`. It stores your extension token locally
 in Chrome. Active-page details are transmitted over HTTPS to provide the
 requested preview and may be processed by the AI provider configured in your
 JobClock account. Application data is persisted to your account only when you
@@ -70,15 +70,15 @@ in the background. You can revoke the extension token at any time in JobClock
 settings.
 
 Privacy policy:
-https://jobclock.michaelogunjimi.com/extension/privacy
+https://jobclock.dev/extension/privacy
 
 Support:
-https://jobclock.michaelogunjimi.com/extension/support
+https://jobclock.dev/extension/support
 
 ## Release Notes - 0.3.0
 
-- JobClock is moving to jobclock.dev. The extension now works with both jobclock.dev and the previous address, so saving jobs keeps working during the move.
-- Chrome may ask you to approve access to jobclock.dev when this update installs.
+- JobClock has moved to jobclock.dev. This update points the extension there; versions before 0.3.0 stop working once the old address is retired.
+- Chrome may ask you to approve access to jobclock.dev when this update installs. Approve it to keep saving jobs.
 
 ## Release Notes - 0.2.1
 

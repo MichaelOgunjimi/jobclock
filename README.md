@@ -10,11 +10,11 @@
 </p>
 
 <p align="center">
-  <a href="https://jobclock.michaelogunjimi.com">Open JobClock</a>
+  <a href="https://jobclock.dev">Open JobClock</a>
   ·
   <a href="https://chromewebstore.google.com/detail/jobclock-job-application/albhohoocdlhefihfhiapcmckopbgjhh">Install the Chrome extension</a>
   ·
-  <a href="https://jobclock.michaelogunjimi.com/extension/support">Extension support</a>
+  <a href="https://jobclock.dev/extension/support">Extension support</a>
 </p>
 
 ## What JobClock does
@@ -91,7 +91,7 @@ JobClock pipeline.
 
 ### Connect the extension
 
-1. Sign in at [jobclock.michaelogunjimi.com](https://jobclock.michaelogunjimi.com).
+1. Sign in at [jobclock.dev](https://jobclock.dev).
 2. Install
    [JobClock: Job Application Tracker](https://chromewebstore.google.com/detail/jobclock-job-application/albhohoocdlhefihfhiapcmckopbgjhh).
 3. Open **Settings → Extension** in JobClock.
@@ -105,8 +105,8 @@ If a token expires or is revoked, generate a new one in Settings and reconnect
 the extension. Never send an extension token in a support request.
 
 See the [extension guide](extension/README.md),
-[support page](https://jobclock.michaelogunjimi.com/extension/support), and
-[extension privacy policy](https://jobclock.michaelogunjimi.com/extension/privacy)
+[support page](https://jobclock.dev/extension/support), and
+[extension privacy policy](https://jobclock.dev/extension/privacy)
 for more detail.
 
 ## Telegram job capture
@@ -303,12 +303,12 @@ back to the inline development path.
 
 ## Public policies and support
 
-- [General privacy policy](https://jobclock.michaelogunjimi.com/privacy)
-- [Terms of service](https://jobclock.michaelogunjimi.com/terms)
-- [Cookie policy](https://jobclock.michaelogunjimi.com/cookies)
-- [Extension privacy policy](https://jobclock.michaelogunjimi.com/extension/privacy)
-- [Extension support](https://jobclock.michaelogunjimi.com/extension/support)
-- Support: [support@jobclock.michaelogunjimi.com](mailto:support@jobclock.michaelogunjimi.com)
+- [General privacy policy](https://jobclock.dev/privacy)
+- [Terms of service](https://jobclock.dev/terms)
+- [Cookie policy](https://jobclock.dev/cookies)
+- [Extension privacy policy](https://jobclock.dev/extension/privacy)
+- [Extension support](https://jobclock.dev/extension/support)
+- Support: [support@jobclock.dev](mailto:support@jobclock.dev)
 
 ## Contributing
 

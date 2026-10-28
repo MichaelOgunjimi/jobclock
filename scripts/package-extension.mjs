@@ -12,8 +12,7 @@ import { tmpdir } from "node:os"
 import { basename, extname, join, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 
-// jobclock.dev is the home; the old host stays until older installs have updated (then drop it and bump the version).
-const productionHosts = ["https://jobclock.dev/*", "https://jobclock.michaelogunjimi.com/*"]
+const productionHosts = ["https://jobclock.dev/*"]
 const requiredPermissions = ["activeTab", "scripting", "storage"]
 
 export const packageEntries = Object.freeze([
