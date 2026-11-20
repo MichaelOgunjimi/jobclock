@@ -10,6 +10,7 @@ import {
   revokePersonalApiTokens,
   type PersonalApiTokenMetadata,
 } from "@/lib/personal-api-tokens"
+import { createApiToken, revokeApiToken } from "@/lib/mcp/tokens"
 import { and, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { trackedCompanies } from "@/lib/db/schema"
@@ -395,4 +396,32 @@ export async function deleteTrackedCompany(id: string): Promise<{ error?: string
 
   revalidatePath("/settings")
   return {}
+}
+
+export async function createAgentToken(label: string) {
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return { error: auth.error }
+
+  try {
+    const result = await createApiToken(auth.userId, label)
+    if ("error" in result) return { error: result.error }
+    revalidatePath("/settings")
+    return { success: true as const, token: result.token, metadata: result.metadata }
+  } catch {
+    return { error: "Failed to create the token" }
+  }
+}
+
+export async function revokeAgentToken(tokenId: string) {
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return { error: auth.error }
+
+  try {
+    const revoked = await revokeApiToken(auth.userId, tokenId)
+    if (!revoked) return { error: "Token not found or already revoked" }
+    revalidatePath("/settings")
+    return { success: true as const }
+  } catch {
+    return { error: "Failed to revoke the token" }
+  }
 }

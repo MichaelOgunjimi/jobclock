@@ -50,3 +50,9 @@ export const aiGenerateRateLimit = createLimiter("ratelimit:ai-generate", 10)
 
 // Billing routes (checkout, portal, resume, credits): a Redis outage must not stop someone paying.
 export const billingRateLimit = createLimiter("ratelimit:billing", 10, { failOpen: true })
+
+// MCP endpoint: 60 tool calls per 60 seconds per user (keyed by the token's owner, so extra tokens do not add headroom).
+export const mcpRateLimit = createLimiter("ratelimit:mcp", 60)
+
+// Failed MCP authentication: 20 attempts per 60 seconds per client IP, to blunt token guessing and DB hammering.
+export const mcpAuthFailureLimit = createLimiter("ratelimit:mcp-auth-failure", 20)

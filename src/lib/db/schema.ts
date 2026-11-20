@@ -182,6 +182,30 @@ export const personalApiTokens = pgTable("personal_api_tokens", {
 })
 
 // ============================================================
+// MCP API TOKENS (an owner's AI agent calling /api/mcp)
+// ============================================================
+
+// Only the SHA-256 hash is stored; the plaintext is shown once at creation. Not readable through
+// PostgREST (RLS on, no policies): the app reads it over the server-side database connection.
+export const apiTokens = pgTable(
+  "api_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references((): AnyPgColumn => profiles.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    // First characters of the token, so the owner can tell tokens apart in the list.
+    tokenPrefix: text("token_prefix").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [index("api_tokens_user_id_idx").on(table.userId)],
+)
+
+// ============================================================
 // WHATSAPP INTAKE
 // ============================================================
 
