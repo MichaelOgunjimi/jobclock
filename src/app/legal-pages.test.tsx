@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import PrivacyPage, { metadata as privacyMetadata } from "./privacy/page"
 import TermsPage, { metadata as termsMetadata } from "./terms/page"
+import ContactPage, { metadata as contactMetadata } from "./contact/page"
 import CookiePolicyPage, { metadata as cookieMetadata } from "./cookies/page"
 import { SUPPORT_EMAIL } from "@/lib/site"
 
@@ -32,5 +33,16 @@ describe("public legal pages", () => {
     expect(screen.getByText(/job-assistant-theme/)).toBeInTheDocument()
     expect(screen.getByText(/does not use cookies/i)).toBeInTheDocument()
     expect(cookieMetadata.alternates).toMatchObject({ canonical: "/cookies" })
+  })
+
+  it("publishes a static contact page with the support address, response time and policy links", () => {
+    render(<ContactPage />)
+
+    expect(screen.getByRole("heading", { level: 1, name: "Contact JobClock" })).toBeInTheDocument()
+    expect(screen.getAllByRole("link", { name: SUPPORT_EMAIL })[0]).toHaveAttribute("href", `mailto:${SUPPORT_EMAIL}`)
+    expect(screen.getByText(/within 2 working days/i)).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "terms of service" })).toHaveAttribute("href", "/terms")
+    expect(screen.getByRole("link", { name: "privacy policy" })).toHaveAttribute("href", "/privacy")
+    expect(contactMetadata.alternates).toMatchObject({ canonical: "/contact" })
   })
 })

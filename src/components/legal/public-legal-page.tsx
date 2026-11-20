@@ -11,6 +11,7 @@ const legalDocuments = [
   { href: "/privacy", label: "Privacy policy" },
   { href: "/terms", label: "Terms of service" },
   { href: "/cookies", label: "Cookie policy" },
+  { href: "/contact", label: "Contact" },
 ]
 
 export function PublicLegalPage({ kicker, title, summary, updatedAt, children }: {
