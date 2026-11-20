@@ -32,6 +32,10 @@ export const reviewFindingSchema = z.object({
   }),
   message: z.string(),
   suggestion: z.string(),
+  /** Concrete replacement for the text at `location`; only present when it can be written without new facts. */
+  rewrite: z.string().optional(),
+  /** The text at `location` when the review ran; set server-side, used to tell whether the user has since edited it. */
+  original: z.string().optional(),
 })
 
 export const reviewFindingsResponseSchema = z.object({

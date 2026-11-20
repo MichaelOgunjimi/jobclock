@@ -19,6 +19,7 @@ export const AI_CREDIT_WEIGHTS = {
   job_import: 1,
   qualification_document_extraction: 2,
   cv_parse_review: 5,
+  cv_review: 2,
   application_chat: 2,
   interview_answer: 2,
   interview_preparation: 4,
@@ -35,6 +36,7 @@ const LOW_COST_FEATURES: ReadonlySet<AiFeature> = new Set([
   "job_import",
   "qualification_document_extraction",
   "cv_parse_review",
+  "cv_review",
 ])
 
 export const HOSTED_MODELS = {

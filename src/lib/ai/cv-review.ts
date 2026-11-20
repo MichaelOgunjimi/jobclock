@@ -3,6 +3,7 @@ import type { AiActionClient } from "./action"
 import { CV_REVIEW_SYSTEM_PROMPT, buildCvReviewUserPrompt } from "./prompts/cv-review"
 import { reviewFindingsResponseSchema, type CvReviewFinding } from "./cv-review-schemas"
 import type { CvData } from "@/lib/supabase/database.types"
+import { groundFindings } from "@/lib/cv/review-location"
 
 export async function reviewCv(
   cv: CvData,
@@ -30,5 +31,5 @@ export async function reviewCv(
     throw new Error("CV review failed: AI returned invalid finding structure.")
   }
 
-  return result.data.findings
+  return groundFindings(cv, result.data.findings)
 }

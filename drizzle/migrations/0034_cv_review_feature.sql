@@ -1,0 +1,2 @@
+ALTER TABLE "ai_usage_actions" DROP CONSTRAINT "ai_usage_actions_feature_check";--> statement-breakpoint
+ALTER TABLE "ai_usage_actions" ADD CONSTRAINT "ai_usage_actions_feature_check" CHECK ("ai_usage_actions"."feature" in ('job_import', 'qualification_document_extraction', 'cv_parse_review', 'cv_review', 'application_chat', 'interview_answer', 'interview_preparation', 'cover_letter', 'company_research', 'cv_tailoring'));

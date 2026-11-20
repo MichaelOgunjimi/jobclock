@@ -1,0 +1,88 @@
+import { describe, expect, it } from "vitest"
+import type { CvData } from "@/lib/supabase/database.types"
+import type { CvReviewFinding } from "@/lib/ai/cv-review-schemas"
+import { findingKey, getFindingText, groundFindings, rewriteIsGrounded, setFindingText } from "./review-location"
+
+const cv = {
+  summary: "Developer with 3 years of experience.",
+  experience: [
+    { company: "Acme", title: "Developer", description: "", highlights: ["Responsible for the website", "Cut build time by 40%"] },
+  ],
+  projects: [{ name: "Tracker", description: "", highlights: ["Worked on a tracker"] }],
+  education: [],
+  skills: [],
+} as CvData
+
+const finding = (overrides: Partial<CvReviewFinding> = {}): CvReviewFinding => ({
+  category: "weak_verb",
+  severity: "high",
+  location: { section: "experience", entryId: "Developer at Acme", bulletIndex: 0 },
+  message: "Weak opener",
+  suggestion: "Lead with a verb",
+  ...overrides,
+})
+
+describe("getFindingText / setFindingText", () => {
+  it("reads and replaces summary, experience and project text", () => {
+    expect(getFindingText(cv, { section: "summary" })).toBe(cv.summary)
+    expect(getFindingText(cv, { section: "experience", entryId: "developer at acme", bulletIndex: 1 })).toBe("Cut build time by 40%")
+    expect(getFindingText(cv, { section: "projects", entryId: "Tracker", bulletIndex: 0 })).toBe("Worked on a tracker")
+
+    const next = setFindingText(cv, { section: "experience", entryId: "Developer at Acme", bulletIndex: 0 }, "Built the website")
+    expect(next?.experience?.[0].highlights).toEqual(["Built the website", "Cut build time by 40%"])
+    expect(cv.experience?.[0].highlights?.[0]).toBe("Responsible for the website")
+    expect(setFindingText(cv, { section: "summary" }, "New")?.summary).toBe("New")
+  })
+
+  it("returns undefined / null for locations that do not exist", () => {
+    expect(getFindingText(cv, { section: "experience", entryId: "Nobody at Nowhere", bulletIndex: 0 })).toBeUndefined()
+    expect(getFindingText(cv, { section: "experience", entryId: "Developer at Acme", bulletIndex: 9 })).toBeUndefined()
+    expect(getFindingText(cv, { section: "skills" })).toBeUndefined()
+    expect(setFindingText(cv, { section: "experience", entryId: "Developer at Acme", bulletIndex: 9 }, "x")).toBeNull()
+  })
+
+  it("resolves a missing entryId only when the section has a single entry", () => {
+    expect(getFindingText(cv, { section: "experience", bulletIndex: 0 })).toBe("Responsible for the website")
+    const two = { ...cv, experience: [...cv.experience!, cv.experience![0]] } as CvData
+    expect(getFindingText(two, { section: "experience", bulletIndex: 0 })).toBeUndefined()
+  })
+})
+
+describe("rewriteIsGrounded", () => {
+  it("allows rephrasing and numbers already in the source", () => {
+    expect(rewriteIsGrounded("Cut build time by 40%", "Reduced build time by 40%")).toBe(true)
+  })
+
+  it("rejects invented numbers, empty and unchanged rewrites", () => {
+    expect(rewriteIsGrounded("Responsible for the website", "Built the website for 10,000 users")).toBe(false)
+    expect(rewriteIsGrounded("Cut build time by 40%", "Cut build time by 40% ")).toBe(false)
+    expect(rewriteIsGrounded("Cut build time by 40%", "  ")).toBe(false)
+  })
+
+  it("lets a summary reuse numbers from elsewhere in the CV", () => {
+    expect(rewriteIsGrounded("Developer.", "Developer, 3 years", JSON.stringify(cv))).toBe(true)
+    expect(rewriteIsGrounded("Developer.", "Developer, 7 years", JSON.stringify(cv))).toBe(false)
+  })
+})
+
+describe("groundFindings", () => {
+  it("attaches original text, keeps a grounded rewrite and drops an invented one", () => {
+    const [good, invented, unlocatable] = groundFindings(cv, [
+      finding({ rewrite: "Built the website" }),
+      finding({ location: { section: "projects", entryId: "Tracker", bulletIndex: 0 }, rewrite: "Built a tracker used by 500 people" }),
+      finding({ category: "skills_section", location: { section: "skills" }, original: "model made this up", rewrite: "x" }),
+    ])
+    expect(good).toMatchObject({ original: "Responsible for the website", rewrite: "Built the website" })
+    expect(invented.original).toBe("Worked on a tracker")
+    expect(invented.rewrite).toBeUndefined()
+    expect(unlocatable.original).toBeUndefined()
+    expect(unlocatable.rewrite).toBeUndefined()
+  })
+})
+
+describe("findingKey", () => {
+  it("is stable for the same finding and differs when the text differs", () => {
+    expect(findingKey(finding({ original: "a" }))).toBe(findingKey(finding({ original: "a" })))
+    expect(findingKey(finding({ original: "a" }))).not.toBe(findingKey(finding({ original: "b" })))
+  })
+})
