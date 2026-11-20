@@ -19,6 +19,7 @@ export type ApplicationAuditEventType =
   | "application.writing_style_updated"
   | "application.follow_up_updated"
   | "application.interview_time_updated"
+  | "application.interview_scheduled"
   | "application.interview_prep_generated"
   | "application.company_research_generated"
   | "application.interview_question_added"

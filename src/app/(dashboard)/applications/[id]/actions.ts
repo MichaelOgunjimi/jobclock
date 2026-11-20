@@ -15,6 +15,7 @@ import {
   type ApplicationStatusIntent,
 } from "@/lib/applications/status-transitions"
 import { z } from "zod"
+import { interviewAtSchema } from "@/lib/applications/interview-at"
 
 const VALID_STATUS_INTENTS = new Set<ApplicationStatusIntent>(["progress", "correction", "reopen"])
 
@@ -303,6 +304,41 @@ export async function updateFollowUp(applicationId: string, data: {
     },
     "application.follow_up_updated",
   )
+
+  revalidatePath(`/applications/${applicationId}`)
+  return {}
+}
+
+/** `interviewAt` is a UTC ISO instant, or null to clear the date. */
+export async function updateInterviewAt(
+  applicationId: string,
+  interviewAt: string | null,
+): Promise<{ error?: string }> {
+  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Unauthorized" }
+  if (!applicationId) return { error: "Missing application ID" }
+
+  let value: Date | null = null
+  if (interviewAt !== null) {
+    const parsed = interviewAtSchema.safeParse(interviewAt)
+    if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid date" }
+    value = new Date(parsed.data)
+  }
+
+  try {
+    const updated = await updateApplicationWithAuditForUser(
+      user.id,
+      applicationId,
+      { interviewAt: value },
+      "application.interview_scheduled",
+    )
+    if (!updated) return { error: "Application not found" }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Failed to update interview date" }
+  }
 
   revalidatePath(`/applications/${applicationId}`)
   return {}

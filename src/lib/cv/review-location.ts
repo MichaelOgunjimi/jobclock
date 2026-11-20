@@ -7,15 +7,41 @@ type Location = CvReviewFinding["location"]
 
 const norm = (value: string | undefined) => (value ?? "").trim().toLowerCase()
 
-// The review prompt asks for "Title at Company" / project name; accept the bare title or name too.
+/**
+ * Names each entry of a section can be referenced by, first the label given to the model.
+ * Entries whose label collides get a 1-based " (n)" suffix ("Dev at Acme (2)"), so each is addressable.
+ * The first of a colliding group also keeps its plain label, so findings stored before suffixes existed still resolve.
+ */
+function entryNames(cv: CvData, section: Location["section"]): string[][] {
+  const raw =
+    section === "experience"
+      ? (cv.experience ?? []).map((e) => ({ label: `${e.title} at ${e.company}`, aliases: [e.title] }))
+      : section === "projects"
+        ? (cv.projects ?? []).map((p) => ({ label: p.name, aliases: [] as string[] }))
+        : []
+  const total = new Map<string, number>()
+  for (const { label } of raw) total.set(norm(label), (total.get(norm(label)) ?? 0) + 1)
+  const seen = new Map<string, number>()
+  return raw.map(({ label, aliases }) => {
+    if (total.get(norm(label)) === 1) return [label, ...aliases]
+    const nth = (seen.get(norm(label)) ?? 0) + 1
+    seen.set(norm(label), nth)
+    return [`${label} (${nth})`, ...(nth === 1 ? [label] : []), ...aliases]
+  })
+}
+
+/** The entry IDs the review prompt tells the model to use, in CV order. */
+export function entryIdsForReview(cv: CvData): { experience: string[]; projects: string[] } {
+  return {
+    experience: entryNames(cv, "experience").map(([label]) => label),
+    projects: entryNames(cv, "projects").map(([label]) => label),
+  }
+}
+
+// The review prompt asks for the labels above; also accept the bare title or name.
 function findEntryIndex(cv: CvData, location: Location): number {
   const id = norm(location.entryId)
-  const entries =
-    location.section === "experience"
-      ? (cv.experience ?? []).map((e) => [`${e.title} at ${e.company}`, e.title])
-      : location.section === "projects"
-        ? (cv.projects ?? []).map((p) => [p.name])
-        : []
+  const entries = entryNames(cv, location.section)
   if (!id) return entries.length === 1 ? 0 : -1
   return entries.findIndex((names) => names.some((name) => norm(name) === id))
 }

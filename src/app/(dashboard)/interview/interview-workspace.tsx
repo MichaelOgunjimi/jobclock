@@ -68,7 +68,7 @@ function ApplicationContextPicker({
             </div>
             {selected && (
               <Link
-                href={`/applications/${selected.slug}`}
+                href={`/applications/${selected.slug}#company-research`}
                 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
               >
                 Open application

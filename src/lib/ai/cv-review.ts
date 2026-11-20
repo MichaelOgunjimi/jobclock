@@ -3,7 +3,7 @@ import type { AiActionClient } from "./action"
 import { CV_REVIEW_SYSTEM_PROMPT, buildCvReviewUserPrompt } from "./prompts/cv-review"
 import { reviewFindingsResponseSchema, type CvReviewFinding } from "./cv-review-schemas"
 import type { CvData } from "@/lib/supabase/database.types"
-import { groundFindings } from "@/lib/cv/review-location"
+import { entryIdsForReview, groundFindings } from "@/lib/cv/review-location"
 
 export async function reviewCv(
   cv: CvData,
@@ -11,7 +11,7 @@ export async function reviewCv(
 ): Promise<CvReviewFinding[]> {
   const response = await ai.generate(
     CV_REVIEW_SYSTEM_PROMPT,
-    buildCvReviewUserPrompt(JSON.stringify(cv)),
+    buildCvReviewUserPrompt(JSON.stringify(cv), entryIdsForReview(cv)),
   )
 
   const cleaned = response
