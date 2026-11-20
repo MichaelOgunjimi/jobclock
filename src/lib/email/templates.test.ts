@@ -29,6 +29,15 @@ describe("email templates", () => {
     expect(existsSync(join(process.cwd(), "public/email/logo-mark.png"))).toBe(true)
   })
 
+  it("supports light and dark mode: light inline, dark through a prefers-color-scheme override", () => {
+    const { html } = subscriptionEndedEmail()
+    expect(html).toContain('<meta name="color-scheme" content="light dark">')
+    expect(html).toContain("@media (prefers-color-scheme: dark)")
+    expect(html).toContain("<title>Your JobClock Pro subscription has ended</title>")
+    expect(html).toContain('class="em-card" width="560"')
+    expect(html).toMatch(/class="em-card"[^>]*background-color:#ffffff/)
+  })
+
   it("escapes job fields and never links to a non-http url", () => {
     const email = jobAlertEmail([job({ title: `<script>alert(1)</script>`, url: "javascript:alert(1)" })])
     expect(email.html).not.toContain("<script>")
