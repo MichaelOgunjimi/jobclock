@@ -104,7 +104,7 @@ describe("reviewCv", () => {
       JSON.stringify({
         findings: [
           { ...finding, rewrite: "Updated the company website" },
-          { ...finding, rewrite: "Updated the website, lifting traffic 30%" },
+          { ...finding, category: "generic_filler", rewrite: "Updated the website, lifting traffic 30%" },
         ],
       }),
     )

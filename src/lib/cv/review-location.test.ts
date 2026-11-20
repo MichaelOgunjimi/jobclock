@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { CvData } from "@/lib/supabase/database.types"
 import type { CvReviewFinding } from "@/lib/ai/cv-review-schemas"
-import { findingKey, getFindingText, groundFindings, rewriteIsGrounded, setFindingText } from "./review-location"
+import { findingKey, getFindingText, groundFindings, mergeDuplicateFindings, rewriteIsGrounded, setFindingText } from "./review-location"
 
 const cv = {
   summary: "Developer with 3 years of experience.",
@@ -77,6 +77,42 @@ describe("groundFindings", () => {
     expect(invented.rewrite).toBeUndefined()
     expect(unlocatable.original).toBeUndefined()
     expect(unlocatable.rewrite).toBeUndefined()
+  })
+})
+
+describe("duplicate findings", () => {
+  const metric = (overrides: Partial<CvReviewFinding> = {}) =>
+    finding({
+      category: "missing_metric",
+      severity: "medium",
+      location: { section: "projects", entryId: "Tracker", bulletIndex: 0 },
+      ...overrides,
+    })
+
+  it("merges same category and location into one card, joining different text and keeping the top severity", () => {
+    const merged = mergeDuplicateFindings([
+      metric({ message: "No numbers", suggestion: "Add a count" }),
+      metric({ severity: "high", message: "No scale", suggestion: "Add a count" }),
+      metric({ location: { section: "projects", entryId: "tracker", bulletIndex: 0 }, message: "No numbers", suggestion: "Add a count" }),
+      metric({ location: { section: "projects", entryId: "Tracker", bulletIndex: 1 } }),
+      metric({ category: "weak_verb" }),
+    ])
+    expect(merged).toHaveLength(3)
+    expect(merged[0]).toMatchObject({ severity: "high", message: "No numbers No scale", suggestion: "Add a count" })
+  })
+
+  it("keeps the more specific message when one contains the other", () => {
+    const [one] = mergeDuplicateFindings([
+      metric({ message: "No numbers" }),
+      metric({ message: "No numbers or scale in this bullet" }),
+    ])
+    expect(one.message).toBe("No numbers or scale in this bullet")
+  })
+
+  it("is applied by groundFindings and is idempotent", () => {
+    const grounded = groundFindings(cv, [metric(), metric({ message: "Other" })])
+    expect(grounded).toHaveLength(1)
+    expect(mergeDuplicateFindings(grounded)).toEqual(grounded)
   })
 })
 

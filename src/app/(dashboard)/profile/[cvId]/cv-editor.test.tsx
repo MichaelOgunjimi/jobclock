@@ -11,6 +11,7 @@ vi.mock("../actions", () => ({
 vi.mock("@/components/cv/editor/cv-editor-form", () => ({
   CvEditorForm: ({ value, footer }: { value: CvData; footer: React.ReactNode }) => (
     <div>
+      <section id="cv-section-skills"><input aria-label="skill" /></section>
       <p data-testid="bullet">{value.experience?.[0].highlights?.[0]}</p>
       {footer}
     </div>
@@ -82,6 +83,30 @@ describe("CvEditor review flow", () => {
     expect(vi.mocked(saveCvData).mock.calls[0][1].experience?.[0].highlights).toEqual(["Built the website"])
     expect(fetchMock).toHaveBeenCalledWith("/api/cv/cv-1/review", { method: "POST" })
     expect(screen.getByText("Filler in summary")).toBeInTheDocument()
+  })
+
+  it("shows only a count on the first check, with no resolved/new split", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ findings: [skills, skills] }), { status: 200 }),
+    )
+    renderEditor([])
+    fireEvent.click(screen.getByRole("button", { name: /re-check/i }))
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Last check: 1 finding"))
+    expect(screen.getByRole("status")).not.toHaveTextContent("resolved")
+  })
+
+  it("merges duplicate findings, edits a bullet in place, and jumps to skills", () => {
+    const metric: CvReviewFinding = { ...fixable, category: "missing_metric", rewrite: undefined }
+    renderEditor([metric, { ...metric, message: "Second report" }, skills])
+    expect(screen.getByRole("status")).toHaveTextContent("2 open findings")
+
+    fireEvent.click(screen.getByRole("button", { name: /edit text for missing metric/i }))
+    fireEvent.change(screen.getByRole("textbox", { name: /edit text/i }), { target: { value: "Shipped the website" } })
+    fireEvent.click(screen.getByRole("button", { name: /apply edit/i }))
+    expect(screen.getByTestId("bullet")).toHaveTextContent("Shipped the website")
+
+    fireEvent.click(screen.getByRole("button", { name: /go to skills/i }))
+    expect(screen.getByLabelText("skill")).toHaveFocus()
   })
 
   it("surfaces a failed re-check and keeps the current findings", async () => {

@@ -46,13 +46,47 @@ type FindingActions = {
   /** Replace the text the finding points at. Present only when the CV is editable here. */
   onApply?: (finding: CvReviewFinding, text: string) => void
   onDismiss?: (finding: CvReviewFinding) => void
+  /** Scroll to and focus the CV field for a finding that has no single text to edit (skills, education). */
+  onJump?: (finding: CvReviewFinding) => void
+  /** How many skills the CV lists, shown on the skills finding. */
+  skillsCount?: number
 }
 
-function FindingCard({ finding, onApply, onDismiss }: { finding: CvReviewFinding } & FindingActions) {
+// 44px touch targets on phones, the compact size from sm up.
+const BUTTON_CLASS = "h-11 sm:h-9"
+
+function FindingCard({
+  finding,
+  onApply,
+  onDismiss,
+  onJump,
+  skillsCount,
+}: { finding: CvReviewFinding } & FindingActions) {
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(finding.rewrite ?? "")
+  const [draft, setDraft] = useState(finding.rewrite ?? finding.original ?? "")
   const label = CATEGORY_LABELS[finding.category]
-  const canApply = onApply && finding.rewrite && finding.original !== undefined
+  const { section } = finding.location
+  const hasText = finding.original !== undefined
+  const canApply = onApply && finding.rewrite && hasText
+  // Findings without a rewrite (missing metric, filler...) can still be fixed by hand in place.
+  const canEditText = onApply && !finding.rewrite && hasText
+  const canJump = onJump && !hasText && section !== "summary"
+  const unchanged = draft.trim() === (finding.original ?? "").trim()
+
+  const textarea = (ariaLabel: string) => (
+    <textarea
+      autoFocus
+      aria-label={ariaLabel}
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") setEditing(false)
+      }}
+      rows={3}
+      // 16px on phones: iOS Safari zooms the page when a smaller field is focused.
+      className="w-full resize-y border border-input bg-background px-3 py-2 text-base leading-relaxed outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/15 sm:text-[13px]"
+    />
+  )
 
   return (
     <li className="space-y-1.5 px-4 py-3">
@@ -68,37 +102,41 @@ function FindingCard({ finding, onApply, onDismiss }: { finding: CvReviewFinding
         {finding.suggestion}
       </p>
 
-      {canApply && (
+      {section === "skills" && skillsCount !== undefined && (
+        <p className="text-[12px] text-muted-foreground">
+          <span className="font-medium text-foreground">Now: </span>
+          {skillsCount} {skillsCount === 1 ? "skill" : "skills"} listed
+        </p>
+      )}
+
+      {hasText && (
         <div className="space-y-2 border bg-secondary/50 p-3">
           {finding.original && (
-            <p className="text-[12px] leading-relaxed text-muted-foreground">
+            <p className="whitespace-pre-line text-[12px] leading-relaxed text-muted-foreground">
               <span className="font-medium text-foreground">Now: </span>
               {finding.original}
             </p>
           )}
-          {editing ? (
-            <textarea
-              aria-label={`Edit suggested rewrite for ${label}`}
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              rows={3}
-              className="w-full resize-y border border-input bg-background px-3 py-2 text-[13px] leading-relaxed outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/15"
-            />
-          ) : (
-            <p className="text-[13px] leading-relaxed text-foreground">
-              <span className="font-medium">Suggested: </span>
-              {finding.rewrite}
-            </p>
-          )}
+          {canApply &&
+            (editing ? (
+              textarea(`Edit suggested rewrite for ${label}`)
+            ) : (
+              <p className="text-[13px] leading-relaxed text-foreground">
+                <span className="font-medium">Suggested: </span>
+                {finding.rewrite}
+              </p>
+            ))}
+          {canEditText && editing && textarea(`Edit text for ${label}`)}
         </div>
       )}
 
-      {(canApply || onDismiss) && (
+      {(canApply || canEditText || canJump || onDismiss) && (
         <div className="flex flex-wrap gap-2 pt-1">
           {canApply && (
             <>
               <Button
                 size="sm"
+                className={BUTTON_CLASS}
                 disabled={editing && !draft.trim()}
                 aria-label={`${editing ? "Apply edited rewrite" : "Apply suggested fix"} for ${label}`}
                 onClick={() => onApply(finding, editing ? draft.trim() : finding.rewrite!)}
@@ -108,6 +146,7 @@ function FindingCard({ finding, onApply, onDismiss }: { finding: CvReviewFinding
               <Button
                 size="sm"
                 variant="outline"
+                className={BUTTON_CLASS}
                 aria-label={`${editing ? "Cancel editing" : "Edit first"} for ${label}`}
                 onClick={() => {
                   setDraft(finding.rewrite!)
@@ -118,10 +157,57 @@ function FindingCard({ finding, onApply, onDismiss }: { finding: CvReviewFinding
               </Button>
             </>
           )}
+          {canEditText &&
+            (editing ? (
+              <>
+                <Button
+                  size="sm"
+                  className={BUTTON_CLASS}
+                  disabled={!draft.trim() || unchanged}
+                  aria-label={`Apply edit for ${label}`}
+                  onClick={() => onApply(finding, draft.trim())}
+                >
+                  Apply
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={BUTTON_CLASS}
+                  aria-label={`Cancel editing for ${label}`}
+                  onClick={() => setEditing(false)}
+                >
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                className={BUTTON_CLASS}
+                aria-label={`Edit text for ${label}`}
+                onClick={() => {
+                  setDraft(finding.original!)
+                  setEditing(true)
+                }}
+              >
+                Edit
+              </Button>
+            ))}
+          {canJump && (
+            <Button
+              size="sm"
+              className={BUTTON_CLASS}
+              aria-label={`Go to ${section} for ${label}`}
+              onClick={() => onJump(finding)}
+            >
+              Edit {section}
+            </Button>
+          )}
           {onDismiss && (
+            // first:-ml-4 cancels the button's own padding so a lone Dismiss lines up with the card text.
             <Button
               size="sm"
               variant="ghost"
+              className={cn(BUTTON_CLASS, "first:-ml-4")}
               aria-label={`Dismiss ${label} finding`}
               onClick={() => onDismiss(finding)}
             >
@@ -138,6 +224,8 @@ export function CvReviewFindings({
   findings,
   onApply,
   onDismiss,
+  onJump,
+  skillsCount,
 }: { findings: CvReviewFinding[] } & FindingActions) {
   if (findings.length === 0) {
     return (
@@ -175,6 +263,8 @@ export function CvReviewFindings({
                   finding={finding}
                   onApply={onApply}
                   onDismiss={onDismiss}
+                  onJump={onJump}
+                  skillsCount={skillsCount}
                 />
               ))}
             </ul>
