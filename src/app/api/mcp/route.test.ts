@@ -1,18 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { authenticateApiToken, authenticateOAuthAccessToken, mcpRateLimit, mcpAuthFailureLimit, listApplications, setFollowUp } = vi.hoisted(() => ({
+const { authenticateApiToken, authenticateOAuthAccessToken, mcpRateLimit, mcpAuthFailureLimit, listApplications, setFollowUp, addApplication } = vi.hoisted(() => ({
   authenticateApiToken: vi.fn(),
   authenticateOAuthAccessToken: vi.fn(),
   mcpRateLimit: { limit: vi.fn() },
   mcpAuthFailureLimit: { limit: vi.fn() },
   listApplications: vi.fn(),
   setFollowUp: vi.fn(),
+  addApplication: vi.fn(),
 }))
 
 vi.mock("@/lib/mcp/tokens", () => ({ authenticateApiToken }))
 vi.mock("@/lib/oauth/tokens", () => ({ authenticateOAuthAccessToken }))
 vi.mock("@/lib/rate-limit", () => ({ mcpRateLimit, mcpAuthFailureLimit }))
 vi.mock("@/lib/db", () => ({ db: {} }))
+vi.mock("@/lib/mcp/job-tools", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/mcp/job-tools")>()), addApplication }))
 vi.mock("@/lib/mcp/tools", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/mcp/tools")>()), listApplications, setFollowUp }))
 
 import { DELETE, GET, POST } from "./route"
@@ -35,6 +37,7 @@ describe("/api/mcp", () => {
     authenticateOAuthAccessToken.mockResolvedValue(null)
     listApplications.mockResolvedValue({ data: { count: 0, applications: [] } })
     setFollowUp.mockResolvedValue({ data: {} })
+    addApplication.mockResolvedValue({ data: { created: true } })
   })
 
   it.each([
@@ -70,7 +73,7 @@ describe("/api/mcp", () => {
 
     it("a read-only grant lists only the read tools", async () => {
       authenticateOAuthAccessToken.mockResolvedValue(grant(["applications:read"]))
-      expect(await toolNames({ authorization: "Bearer jat_ok" })).toEqual(["get_application", "list_applications", "list_due"])
+      expect(await toolNames({ authorization: "Bearer jat_ok" })).toEqual(["check_job_exists", "get_application", "get_job_preferences", "list_applications", "list_due"])
     })
 
     it("a read-only grant cannot call a write tool, and nothing is written", async () => {
@@ -78,6 +81,23 @@ describe("/api/mcp", () => {
       const body = await (await POST(rpc(callTool("set_follow_up", { application_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", note: "x" }), { authorization: "Bearer jat_ok" }))).json()
       expect(body.result?.isError ?? Boolean(body.error)).toBe(true)
       expect(setFollowUp).not.toHaveBeenCalled()
+    })
+
+    const job = { url: "https://example.com/jobs/1", title: "Engineer", company: "Acme" }
+
+    it("a read-only grant cannot call add_application or add_applications, and nothing is added", async () => {
+      authenticateOAuthAccessToken.mockResolvedValue(grant(["applications:read"]))
+      for (const [name, args] of [["add_application", job], ["add_applications", { jobs: [job] }]] as const) {
+        const body = await (await POST(rpc(callTool(name, args), { authorization: "Bearer jat_ok" }))).json()
+        expect(body.result?.isError ?? Boolean(body.error)).toBe(true)
+      }
+      expect(addApplication).not.toHaveBeenCalled()
+    })
+
+    it("a write grant can call add_application, bound to the grant's user", async () => {
+      authenticateOAuthAccessToken.mockResolvedValue(grant(["applications:read", "applications:write"]))
+      await POST(rpc(callTool("add_application", job), { authorization: "Bearer jat_ok" }))
+      expect(addApplication).toHaveBeenCalledWith("user-a", expect.objectContaining(job))
     })
 
     it("a read-only grant can still read, bound to the grant's user", async () => {
@@ -90,7 +110,10 @@ describe("/api/mcp", () => {
     it("a write grant lists and can call the write tools", async () => {
       authenticateOAuthAccessToken.mockResolvedValue(grant(["applications:read", "applications:write"]))
       const headers = { authorization: "Bearer jat_ok" }
-      expect(await toolNames(headers)).toHaveLength(7)
+      expect(await toolNames(headers)).toEqual([
+        "add_application", "add_applications", "add_note", "check_job_exists", "get_application", "get_job_preferences",
+        "list_applications", "list_due", "set_follow_up", "set_interview_time", "update_application_status",
+      ])
       await POST(rpc(callTool("set_follow_up", { application_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", note: "x" }), headers))
       expect(setFollowUp).toHaveBeenCalledWith("user-a", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", expect.objectContaining({ note: "x" }))
     })
@@ -131,8 +154,12 @@ describe("/api/mcp", () => {
     expect(response.status).toBe(200)
     const body = await response.json()
     expect(body.result.tools.map((tool: { name: string }) => tool.name).sort()).toEqual([
+      "add_application",
+      "add_applications",
       "add_note",
+      "check_job_exists",
       "get_application",
+      "get_job_preferences",
       "list_applications",
       "list_due",
       "set_follow_up",

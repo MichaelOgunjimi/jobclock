@@ -210,9 +210,19 @@ export async function updateApplicationStatusForUser(
   })
 }
 
+export interface PersistJobOptions {
+  /** Run the owner's "generate on job add" automations (they spend AI credits). Default true. */
+  autoGenerate?: boolean
+  /** When another row already caches this URL, leave its content alone (jobs_cache is shared by every user). Default false. */
+  keepCachedJob?: boolean
+  /** Who created it, recorded as `source` in the audit event (the posting's own source moves to `postingSource`). */
+  auditSource?: string
+}
+
 export async function persistJobForUser(
   userId: string,
-  job: PersistedJobInput
+  job: PersistedJobInput,
+  options: PersistJobOptions = {}
 ): Promise<{
   applicationId: string
   applicationSlug: string
@@ -240,23 +250,25 @@ export async function persistJobForUser(
       })
       .onConflictDoUpdate({
         target: jobsCache.url,
-        set: {
-          source: job.source,
-          title: job.title,
-          company: job.company,
-          location: job.location ?? null,
-          description: job.description ?? null,
-          salaryMin: toNumeric(job.salaryMin),
-          salaryMax: toNumeric(job.salaryMax),
-          salaryCurrency: job.salaryCurrency ?? "GBP",
-          postedAt: toTimestamp(job.postedAt),
-          isEasyApply: job.isEasyApply ?? false,
-          applyDeadline: job.applyDeadline ?? null,
-          isRemote: job.isRemote ?? null,
-          remoteType: job.remoteType ?? null,
-          scrapedAt: new Date(),
-          lastSeenAt: new Date(),
-        },
+        set: options.keepCachedJob
+          ? { lastSeenAt: new Date() }
+          : {
+              source: job.source,
+              title: job.title,
+              company: job.company,
+              location: job.location ?? null,
+              description: job.description ?? null,
+              salaryMin: toNumeric(job.salaryMin),
+              salaryMax: toNumeric(job.salaryMax),
+              salaryCurrency: job.salaryCurrency ?? "GBP",
+              postedAt: toTimestamp(job.postedAt),
+              isEasyApply: job.isEasyApply ?? false,
+              applyDeadline: job.applyDeadline ?? null,
+              isRemote: job.isRemote ?? null,
+              remoteType: job.remoteType ?? null,
+              scrapedAt: new Date(),
+              lastSeenAt: new Date(),
+            },
       })
       .returning({ id: jobsCache.id })
 
@@ -278,10 +290,9 @@ export async function persistJobForUser(
         applicationId: insertedApplication.id,
         userId,
         eventType: "application.created",
-        metadata: {
-          jobId: cachedJob.id,
-          source: job.source,
-        },
+        metadata: options.auditSource
+          ? { jobId: cachedJob.id, source: options.auditSource, postingSource: job.source }
+          : { jobId: cachedJob.id, source: job.source },
       })
       return {
         applicationId: insertedApplication.id,
@@ -307,7 +318,7 @@ export async function persistJobForUser(
     }
   })
 
-  if (!result.alreadySaved) {
+  if (!result.alreadySaved && options.autoGenerate !== false) {
     const [profile] = await db
       .select({ preferences: profiles.preferences })
       .from(profiles)

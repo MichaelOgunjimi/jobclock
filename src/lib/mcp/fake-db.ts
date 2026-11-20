@@ -43,7 +43,9 @@ export function expectAllQueriesScopedTo(userId: string, otherUserIds: string[] 
     if (/^insert/i.test(sql)) {
       if (!params.includes(userId)) throw new Error(`Insert is not owned by the user: ${sql}`)
     } else {
-      const bound = [...sql.matchAll(/"user_id" = \$(\d+)/g)].map((match) => params[Number(match[1]) - 1])
+      // profiles is keyed by the user's id itself
+      const bound = [...sql.matchAll(/"user_id" = \$(\d+)|"profiles"\."id" = \$(\d+)/g)]
+        .map((match) => params[Number(match[1] ?? match[2]) - 1])
       if (bound.length === 0) throw new Error(`Query has no user_id condition: ${sql}`)
       if (bound.some((value) => value !== userId)) throw new Error(`Query is bound to the wrong user: ${sql}`)
     }

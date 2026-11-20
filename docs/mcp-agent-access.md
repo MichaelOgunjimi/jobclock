@@ -3,7 +3,8 @@
 JobClock exposes a small [Model Context Protocol](https://modelcontextprotocol.io) server at `POST /api/mcp`
 (Streamable HTTP, stateless). An AI agent that can already read your email (for example Claude with a Gmail
 connector) can use it to keep JobClock up to date: move applications between statuses, set follow-up dates,
-record interview times and add notes. JobClock itself never reads your email.
+record interview times and add notes. Another agent that finds jobs for you can also add them (see
+[Adding jobs found by another agent](#adding-jobs-found-by-another-agent)). JobClock itself never reads your email.
 
 ## Connect with OAuth (recommended: no token to copy)
 
@@ -13,7 +14,7 @@ record interview times and add notes. JobClock itself never reads your email.
 2. Your browser opens a JobClock page. Sign in if you are not already, check the app name and the address it will return you to,
    and choose what to allow:
    - **Read your applications** (`applications:read`, always on): list and view applications and see what is due.
-   - **Make changes** (`applications:write`, **off by default**, you must tick it): change status, set follow-ups and interview times, add notes.
+   - **Make changes** (`applications:write`, **off by default**, you must tick it): change status, set follow-ups and interview times, add notes, add new saved jobs.
 3. Tap **Allow**. The app is connected. **Deny** sends the app back with `access_denied` and shares nothing.
 
 A read-only connection does not see the write tools at all. To change an app's permissions, revoke it under
@@ -81,9 +82,34 @@ Write tools are only available to a `jc_` token or an OAuth connection that was 
 | `set_follow_up` | write | Set or clear the follow-up date (ISO timestamp with timezone) and/or note. |
 | `set_interview_time` | write | Set or clear `interview_at` (ISO timestamp with timezone). Does not change the status. |
 | `add_note` | write | Append a dated note. Never overwrites existing notes. |
+| `check_job_exists` | read | Does the user already have this job? By `url` (tracking parameters, fragment, trailing slash, host case and `http` vs `https` are ignored) and/or `company` + `title`. Returns the matching applications with id and status, so jobs already saved, applied to or rejected can be skipped. |
+| `get_job_preferences` | read | What the owner is looking for: `desired_roles`, `locations`, `target_salary_min`, `experience_levels`, `right_to_work_uk`, and a short `cv` summary (headline, summary, skills, recent roles, education, languages, certifications) from the primary CV. Never contact details or the CV's name, and anything the owner has not entered is left out. |
+| `add_application` | write | Save a job a finding agent supplies, as a `saved` application. Required: `url` (http/https only), `title`, `company`. Optional: `location`, `description` (stored up to 20,000 characters), `salary_min`/`salary_max`/`salary_currency`, `posted_at`, `apply_deadline` (`YYYY-MM-DD`), `remote`, `remote_type`, `source` (e.g. `linkedin`, default `mcp`), `note` (why it suits the owner), `follow_up_due_at`, `allow_duplicate`. |
+| `add_applications` | write | The same for up to 20 jobs in one call. One result per job (`created`, duplicate with the existing id, or `error`); a failing job does not stop the others. Counts as one request. |
 
 Write tools return `before` and `after` so a change can be reversed, and each one adds an entry to the application's
 Activity timeline tagged `source: "mcp"`. There are no delete, billing or AI-credit tools.
+
+### Adding jobs found by another agent
+
+A job-finding agent connects with write access, then for each candidate:
+
+1. `get_job_preferences`: judge whether the job suits the owner (roles, locations, salary floor, experience level, skills). The app does
+   not record remote preference, industries, excluded companies or visa status beyond UK right to work, so the response says so: ask the owner instead of guessing.
+2. `check_job_exists` with the `url` (and `company` + `title`): skip it if the owner already has it, whatever its status.
+3. `add_application` (or `add_applications` for a batch) with the fields it found and a short `note` saying why it fits. The application is
+   created as `saved`, exactly as an extension import would create it.
+4. The owner reviews the new `saved` applications in JobClock and decides what to do. The agent cannot apply, delete or start AI generation.
+
+`add_application` behaviour worth knowing:
+
+- **Duplicates.** If the owner already has the same URL, nothing is created and the response is `created: false, duplicate: "url"` with the existing application.
+  If the same company and title was added in the last 90 days, the response is `created: false, duplicate: "company_and_title"` with a hint; pass `allow_duplicate: true` to add it anyway.
+- **No fetching, no AI.** JobClock never opens the URL; the agent supplies the fields. Adding a job never starts CV or cover letter generation, even if the owner has "generate on job add" switched on, and never uses AI credits.
+- **Stored as data.** Text from a posting is untrusted. It is cleaned (control, zero-width and bidirectional-override characters removed), length-limited
+  (title, company and location 200 characters, note 2,000, description 20,000) and stored as plain text, never followed as an instruction.
+  The URL is stored without tracking parameters and fragment. An existing cached copy of the same posting is never overwritten.
+- **Limits.** At most 20 jobs per batch call and about 100 KB per request, the 60 requests per minute that apply to every tool, and **100 new applications per user per rolling 24 hours** through the agent connection.
 
 ## Security model
 
@@ -91,5 +117,7 @@ Activity timeline tagged `source: "mcp"`. There are no delete, billing or AI-cre
   user's id; the agent can never name a different user.
 - Authentication failures are rate limited per IP, and requests per user (60 per minute).
 - Treat a token like a password: whoever holds it can read and edit your applications (including notes) until you revoke it.
+- `get_job_preferences` is meant to be handed to a job-finding agent, so it returns only roles, locations, salary floor, experience levels, UK right to work and a skills and
+  experience summary. It never includes your name, email, phone, address, links, AI keys or billing data.
 - The agent reads your applications' notes, so anything it reads (including text from emails it summarises) may influence
   what it writes back. Review its changes in the Activity timeline.

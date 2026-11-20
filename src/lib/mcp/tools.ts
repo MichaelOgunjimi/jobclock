@@ -67,7 +67,7 @@ function toSummary(row: {
   }
 }
 
-function escapeLike(text: string) {
+export function escapeLike(text: string) {
   return text.replace(/[\\%_]/g, (char) => `\\${char}`)
 }
 
