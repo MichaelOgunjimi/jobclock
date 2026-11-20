@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 
 export function BillingActionButton({
@@ -24,6 +25,7 @@ export function BillingActionButton({
   children: React.ReactNode
   className?: string
 }) {
+  const router = useRouter()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -39,7 +41,8 @@ export function BillingActionButton({
       const result = await response.json() as { url?: string; resumed?: boolean; error?: string }
       if (!response.ok) throw new Error(result.error ?? "Billing is unavailable right now.")
       if (action === "resume") {
-        window.location.reload()
+        router.refresh()
+        setPending(false)
         return
       }
       if (!result.url) throw new Error(result.error ?? "Billing is unavailable right now.")

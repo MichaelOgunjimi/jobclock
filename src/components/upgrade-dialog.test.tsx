@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { UpgradeDialog } from "./upgrade-dialog"
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
+
 describe("UpgradeDialog", () => {
   afterEach(() => vi.unstubAllGlobals())
 
