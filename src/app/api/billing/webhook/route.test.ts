@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const mocks = vi.hoisted(() => ({ construct: vi.fn(), begin: vi.fn(), finish: vi.fn(), project: vi.fn(), findUser: vi.fn(), grant: vi.fn(), useJobclock: vi.fn(), retrieve: vi.fn() }))
+const mocks = vi.hoisted(() => ({ construct: vi.fn(), begin: vi.fn(), finish: vi.fn(), project: vi.fn(), findUser: vi.fn(), grant: vi.fn(), useJobclock: vi.fn(), retrieve: vi.fn(), customer: vi.fn(), email: vi.fn() }))
 vi.mock("@/lib/billing/stripe", () => ({ getStripe: () => ({
-  webhooks: { constructEvent: mocks.construct }, subscriptions: { retrieve: mocks.retrieve },
+  webhooks: { constructEvent: mocks.construct }, subscriptions: { retrieve: mocks.retrieve }, customers: { retrieve: mocks.customer },
 }) }))
 vi.mock("@/lib/billing/store", () => ({
   beginWebhookEvent: mocks.begin, finishWebhookEvent: mocks.finish, projectSubscription: mocks.project,
   findUserIdByStripeCustomer: mocks.findUser, preferJobclockAiForNewSubscriber: mocks.useJobclock,
 }))
 vi.mock("@/lib/billing/usage", () => ({ grantPurchasedCredits: mocks.grant }))
+vi.mock("@/lib/email/send", () => ({ sendEmail: mocks.email }))
 
 import { POST } from "./route"
 
@@ -124,6 +125,56 @@ describe("POST /api/billing/webhook", () => {
       mocks.grant.mockResolvedValue(false)
       await deliver(session())
       expect(mocks.finish).toHaveBeenCalledWith("evt_2", "ignored")
+    })
+  })
+
+  describe("billing emails", () => {
+    const deliver = (type: string, object: unknown) => {
+      mocks.construct.mockReturnValue({ id: "evt_9", type, created: 9, data: { object } })
+      mocks.begin.mockResolvedValue(true)
+      return POST(request())
+    }
+    const failedInvoice = (overrides: Record<string, unknown> = {}) => ({
+      parent: { subscription_details: { subscription: "sub_9" } }, customer_email: "user@example.com", attempt_count: 1, ...overrides,
+    })
+
+    beforeEach(() => {
+      mocks.retrieve.mockResolvedValue({ id: "sub_9", status: "active" })
+      mocks.email.mockResolvedValue(true)
+    })
+
+    it("emails the user on the first failed payment", async () => {
+      expect((await deliver("invoice.payment_failed", failedInvoice())).status).toBe(200)
+      expect(mocks.email).toHaveBeenCalledWith(expect.objectContaining({
+        to: "user@example.com", subject: "Your JobClock payment did not go through", idempotencyKey: "evt_9",
+      }))
+    })
+
+    it("does not repeat the notice on Stripe's retry attempts", async () => {
+      await deliver("invoice.payment_failed", failedInvoice({ attempt_count: 2 }))
+      expect(mocks.email).not.toHaveBeenCalled()
+    })
+
+    it("sends nothing when a payment succeeds", async () => {
+      await deliver("invoice.paid", failedInvoice())
+      expect(mocks.email).not.toHaveBeenCalled()
+    })
+
+    it("confirms an ended subscription using the Stripe customer's email", async () => {
+      mocks.customer.mockResolvedValue({ id: "cus_1", email: "user@example.com" })
+      expect((await deliver("customer.subscription.deleted", { id: "sub_9", customer: "cus_1" })).status).toBe(200)
+      expect(mocks.project).toHaveBeenCalled()
+      expect(mocks.email).toHaveBeenCalledWith(expect.objectContaining({
+        to: "user@example.com", subject: "Your JobClock Pro subscription has ended", idempotencyKey: "evt_9",
+      }))
+    })
+
+    it("still processes the event when the customer cannot be looked up", async () => {
+      mocks.customer.mockRejectedValue(new Error("Stripe down"))
+      const response = await deliver("customer.subscription.deleted", { id: "sub_9", customer: "cus_1" })
+      expect(response.status).toBe(200)
+      expect(mocks.email).not.toHaveBeenCalled()
+      expect(mocks.finish).toHaveBeenCalledWith("evt_9", "processed")
     })
   })
 })

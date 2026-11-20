@@ -28,7 +28,7 @@ describe("sitemap", () => {
       priority: 0.8,
     })
 
-    for (const path of ["privacy", "terms", "cookies"]) {
+    for (const path of ["privacy", "terms", "cookies", "contact"]) {
       expect(
         byUrl.get(`https://jobclock.dev/${path}`)
       ).toMatchObject({ changeFrequency: "yearly" })

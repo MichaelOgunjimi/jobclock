@@ -308,7 +308,7 @@ back to the inline development path.
 - [Cookie policy](https://jobclock.michaelogunjimi.com/cookies)
 - [Extension privacy policy](https://jobclock.michaelogunjimi.com/extension/privacy)
 - [Extension support](https://jobclock.michaelogunjimi.com/extension/support)
-- Support: [support@jobclock.michaelogunjimi.com](mailto:support@jobclock.michaelogunjimi.com)
+- Support: [support@jobclock.dev](mailto:support@jobclock.dev)
 
 ## Contributing
 

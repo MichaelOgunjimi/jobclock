@@ -179,7 +179,7 @@ export default async function HomePage() {
         <div className="mx-auto flex max-w-[1200px] flex-col gap-6 px-4 py-8 sm:px-6 md:flex-row md:items-end md:justify-between">
           <div><p className="font-heading text-xl tracking-[-0.03em]">JobClock</p><p className="mt-2 text-sm text-muted-foreground">Your job search, in one workspace.</p></div>
           <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground">
-            <LandingAnchorLink className="hover:text-foreground" href="#features">How it works</LandingAnchorLink><Link className="hover:text-foreground" href="/pricing">Pricing</Link><Link className="hover:text-foreground" href="/privacy">Privacy</Link><Link className="hover:text-foreground" href="/terms">Terms</Link><Link className="hover:text-foreground" href="/cookies">Cookies</Link>
+            <LandingAnchorLink className="hover:text-foreground" href="#features">How it works</LandingAnchorLink><Link className="hover:text-foreground" href="/pricing">Pricing</Link><Link className="hover:text-foreground" href="/privacy">Privacy</Link><Link className="hover:text-foreground" href="/terms">Terms</Link><Link className="hover:text-foreground" href="/cookies">Cookies</Link><Link className="hover:text-foreground" href="/contact">Contact</Link>
           </nav>
         </div>
       </footer>

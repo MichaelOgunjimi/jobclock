@@ -180,6 +180,7 @@ export function PublicExtensionPage({
             <Link href="/privacy" className="hover:text-white">General privacy</Link>
             <Link href="/terms" className="hover:text-white">Terms</Link>
             <Link href="/cookies" className="hover:text-white">Cookies</Link>
+            <Link href="/contact" className="hover:text-white">Contact</Link>
           </nav>
         </div>
       </footer>
