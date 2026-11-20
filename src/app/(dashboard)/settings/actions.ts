@@ -11,6 +11,7 @@ import {
   type PersonalApiTokenMetadata,
 } from "@/lib/personal-api-tokens"
 import { createApiToken, revokeApiToken } from "@/lib/mcp/tokens"
+import { revokeConnectedApp } from "@/lib/oauth/tokens"
 import { and, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { trackedCompanies } from "@/lib/db/schema"
@@ -423,5 +424,19 @@ export async function revokeAgentToken(tokenId: string) {
     return { success: true as const }
   } catch {
     return { error: "Failed to revoke the token" }
+  }
+}
+
+export async function revokeAgentConnection(grantId: string) {
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return { error: auth.error }
+
+  try {
+    const revoked = await revokeConnectedApp(auth.userId, grantId)
+    if (!revoked) return { error: "Connection not found or already removed" }
+    revalidatePath("/settings")
+    return { success: true as const }
+  } catch {
+    return { error: "Failed to disconnect the app" }
   }
 }

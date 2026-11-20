@@ -13,6 +13,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/prune-oauth",
+      "schedule": "0 5 * * *"
+    },
+    {
       "path": "/api/cron/daily-emails",
       "schedule": "0 8 * * *"
     },

@@ -56,3 +56,9 @@ export const mcpRateLimit = createLimiter("ratelimit:mcp", 60)
 
 // Failed MCP authentication: 20 attempts per 60 seconds per client IP, to blunt token guessing and DB hammering.
 export const mcpAuthFailureLimit = createLimiter("ratelimit:mcp-auth-failure", 20)
+
+// OAuth dynamic client registration: 10 per 60 seconds per client IP (each one writes a row).
+export const oauthRegisterLimit = createLimiter("ratelimit:oauth-register", 10)
+
+// OAuth token and revocation endpoints: 30 per 60 seconds per client IP, to blunt code and refresh-token guessing.
+export const oauthTokenLimit = createLimiter("ratelimit:oauth-token", 30)

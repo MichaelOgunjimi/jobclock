@@ -1,0 +1,40 @@
+import { MAX_REGISTRATION_BODY_BYTES } from "@/lib/oauth/config"
+import { registerClient } from "@/lib/oauth/clients"
+import { clientIp, oauthError, oauthJson, preflight, readLimitedText } from "@/lib/oauth/http"
+import { oauthRegisterLimit } from "@/lib/rate-limit"
+
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
+/** RFC 7591 Dynamic Client Registration for public clients (PKCE, no client secret). */
+export async function POST(request: Request) {
+  if (!(await oauthRegisterLimit.limit(clientIp(request))).success) return oauthError(429, "too_many_requests", "Too many registrations. Try again in a minute.", { "Retry-After": "60" })
+  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) return oauthError(400, "invalid_client_metadata", "Send application/json.")
+
+  const text = await readLimitedText(request, MAX_REGISTRATION_BODY_BYTES)
+  if (text === null) return oauthError(413, "invalid_client_metadata", "Request too large.")
+  let metadata: unknown
+  try {
+    metadata = JSON.parse(text)
+  } catch {
+    return oauthError(400, "invalid_client_metadata", "Body is not valid JSON.")
+  }
+
+  const result = await registerClient(metadata)
+  if ("error" in result) return oauthError(400, result.error, result.description)
+  const { client } = result
+  return oauthJson(
+    {
+      client_id: client.client_id,
+      client_id_issued_at: client.created_at,
+      client_name: client.client_name,
+      redirect_uris: client.redirect_uris,
+      grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"],
+      token_endpoint_auth_method: "none",
+    },
+    201,
+  )
+}
+
+export const OPTIONS = preflight

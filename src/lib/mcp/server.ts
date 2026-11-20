@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod/v4"
+import { SCOPE_READ, SCOPE_WRITE } from "@/lib/oauth/config"
 import { APPLICATION_STATUSES } from "@/lib/applications/status-transitions"
 import {
   addNote,
@@ -23,9 +24,17 @@ function respond(outcome: ToolOutcome): CallToolResult {
   return { content: [{ type: "text", text: JSON.stringify(outcome.data) }] }
 }
 
-/** A fresh server per request (stateless). Every tool is bound to the token owner's userId. */
-export function createMcpServer(userId: string): McpServer {
-  const server = new McpServer({ name: "jobclock", version: "1.0.0" })
+/**
+ * A fresh server per request (stateless). Every tool is bound to the token owner's userId. Write tools are only
+ * registered when the credential carries the write scope (a `jc_` token is full access), so a read-only OAuth
+ * grant cannot list or call them.
+ */
+export function createMcpServer(userId: string, scopes: readonly string[] = [SCOPE_READ, SCOPE_WRITE]): McpServer {
+  const canWrite = scopes.includes(SCOPE_WRITE)
+  const server = new McpServer(
+    { name: "jobclock", version: "1.0.0" },
+    canWrite ? undefined : { instructions: "This connection is read-only: it can list and view applications but cannot change them. To allow changes, remove the connection in JobClock (Settings -> AI Agent) and connect again with write access ticked." },
+  )
 
   server.registerTool("list_applications", {
     description: "List the user's job applications, newest activity first. Filter by status, by overdue follow-ups, or by text in the title, company or notes.",
@@ -45,6 +54,18 @@ export function createMcpServer(userId: string): McpServer {
     annotations: { readOnlyHint: true },
   }, async ({ application_id }) => respond(await getApplication(userId, application_id)))
 
+  if (canWrite) registerWriteTools(server, userId)
+
+  server.registerTool("list_due", {
+    description: "What needs attention: overdue follow-ups, follow-ups due within the next N days, and interviews within the next N days.",
+    inputSchema: { days: z.number().int().min(0).max(60).default(7) },
+    annotations: { readOnlyHint: true },
+  }, async ({ days }) => respond(await listDue(userId, days)))
+
+  return server
+}
+
+function registerWriteTools(server: McpServer, userId: string) {
   server.registerTool("update_application_status", {
     description: "Change an application's status the same way the web app does (records status history and an activity entry). "
       + "Use intent \"progress\" (default) to move forward or to rejected/withdrawn/ghosted, \"correction\" to move backward or between outcomes, \"reopen\" to reopen a closed application. "
@@ -75,12 +96,4 @@ export function createMcpServer(userId: string): McpServer {
     description: "Append a dated note to an application's notes. Existing notes are never overwritten.",
     inputSchema: { application_id: applicationId, note: z.string().trim().min(1).max(2000) },
   }, async ({ application_id, note }) => respond(await addNote(userId, application_id, note)))
-
-  server.registerTool("list_due", {
-    description: "What needs attention: overdue follow-ups, follow-ups due within the next N days, and interviews within the next N days.",
-    inputSchema: { days: z.number().int().min(0).max(60).default(7) },
-    annotations: { readOnlyHint: true },
-  }, async ({ days }) => respond(await listDue(userId, days)))
-
-  return server
 }
