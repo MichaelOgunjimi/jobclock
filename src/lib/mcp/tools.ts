@@ -21,13 +21,13 @@ export const MCP_SOURCE = "mcp"
 
 export type ToolOutcome = { data: Record<string, unknown> } | { error: string }
 
-const NOT_FOUND: ToolOutcome = { error: "Application not found." }
+export const NOT_FOUND: ToolOutcome = { error: "Application not found." }
 const MAX_NOTES_CHARS = 8000
-const DAY_MS = 24 * 60 * 60 * 1000
+export const DAY_MS = 24 * 60 * 60 * 1000
 
-const iso = (value: Date | null | undefined) => value?.toISOString() ?? null
+export const iso = (value: Date | null | undefined) => value?.toISOString() ?? null
 
-const summaryColumns = {
+export const summaryColumns = {
   id: applications.id,
   slug: applications.slug,
   status: applications.status,
@@ -41,7 +41,7 @@ const summaryColumns = {
   jobCompany: jobsCache.company,
 }
 
-function toSummary(row: {
+export function toSummary(row: {
   id: string
   slug: string
   status: ApplicationStatus | null
@@ -72,7 +72,7 @@ export function escapeLike(text: string) {
 }
 
 /** Same definition as the follow-up emails and Telegram digest: the date has passed and an employer reply is still pending. */
-function overdueFollowUp(now: Date): SQL[] {
+export function overdueFollowUp(now: Date): SQL[] {
   return [
     isNotNull(applications.followUpDueAt),
     lte(applications.followUpDueAt, now),
@@ -110,7 +110,7 @@ export async function listApplications(
   return { data: { count: rows.length, applications: rows.map(toSummary) } }
 }
 
-async function findApplication(userId: string, applicationId: string) {
+export async function findApplication(userId: string, applicationId: string) {
   const [row] = await db
     .select({
       ...summaryColumns,

@@ -108,6 +108,8 @@ export async function applyAuditedChangesForUser(
   changes: AuditedApplicationChanges | ((current: Application) => AuditedApplicationChanges),
   eventType: ApplicationAuditEventType,
   source?: string,
+  /** Extra event metadata, e.g. which earlier event an undo reverts. */
+  extraMetadata?: Record<string, Json>,
 ): Promise<AuditedChangeResult | null> {
   return db.transaction(async (tx) => {
     const [current] = await tx
@@ -136,6 +138,7 @@ export async function applyAuditedChangesForUser(
       eventType,
       metadata: {
         ...(source ? { source } : {}),
+        ...extraMetadata,
         changes: Object.fromEntries(changedFields.map(([field, after]) => [
           field,
           {

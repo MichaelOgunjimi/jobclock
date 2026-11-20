@@ -73,7 +73,10 @@ describe("/api/mcp", () => {
 
     it("a read-only grant lists only the read tools", async () => {
       authenticateOAuthAccessToken.mockResolvedValue(grant(["applications:read"]))
-      expect(await toolNames({ authorization: "Bearer jat_ok" })).toEqual(["check_job_exists", "get_application", "get_job_preferences", "list_applications", "list_due"])
+      expect(await toolNames({ authorization: "Bearer jat_ok" })).toEqual([
+        "check_job_exists", "get_application", "get_application_activity", "get_company_research", "get_credits", "get_job_preferences", "get_pipeline_summary",
+        "list_applications", "list_cvs", "list_due", "list_stale_applications", "list_upcoming_deadlines", "list_upcoming_interviews",
+      ])
     })
 
     it("a read-only grant cannot call a write tool, and nothing is written", async () => {
@@ -111,8 +114,10 @@ describe("/api/mcp", () => {
       authenticateOAuthAccessToken.mockResolvedValue(grant(["applications:read", "applications:write"]))
       const headers = { authorization: "Bearer jat_ok" }
       expect(await toolNames(headers)).toEqual([
-        "add_application", "add_applications", "add_note", "check_job_exists", "get_application", "get_job_preferences",
-        "list_applications", "list_due", "set_follow_up", "set_interview_time", "update_application_status",
+        "add_application", "add_applications", "add_note", "check_job_exists", "complete_follow_up", "get_application", "get_application_activity",
+        "get_company_research", "get_credits", "get_job_preferences", "get_pipeline_summary", "list_applications", "list_cvs", "list_due",
+        "list_stale_applications", "list_upcoming_deadlines", "list_upcoming_interviews", "set_follow_up", "set_interview_time", "snooze_follow_up",
+        "undo_last_change", "update_application_details", "update_application_status", "update_application_statuses",
       ])
       await POST(rpc(callTool("set_follow_up", { application_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", note: "x" }), headers))
       expect(setFollowUp).toHaveBeenCalledWith("user-a", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", expect.objectContaining({ note: "x" }))
@@ -158,13 +163,26 @@ describe("/api/mcp", () => {
       "add_applications",
       "add_note",
       "check_job_exists",
+      "complete_follow_up",
       "get_application",
+      "get_application_activity",
+      "get_company_research",
+      "get_credits",
       "get_job_preferences",
+      "get_pipeline_summary",
       "list_applications",
+      "list_cvs",
       "list_due",
+      "list_stale_applications",
+      "list_upcoming_deadlines",
+      "list_upcoming_interviews",
       "set_follow_up",
       "set_interview_time",
+      "snooze_follow_up",
+      "undo_last_change",
+      "update_application_details",
       "update_application_status",
+      "update_application_statuses",
     ])
   })
 
