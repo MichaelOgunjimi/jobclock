@@ -294,3 +294,47 @@ export function staleApplicationEmail(items: { title: string; company: string; d
     unsubscribeUrl,
   })
 }
+
+interface MessageEmailOptions {
+  subject: string
+  eyebrow: string
+  heading: string
+  lines: string[]
+  cta: { label: string; url: string }
+  /** Optional emails pass this; transactional ones (billing, welcome) do not. */
+  unsubscribeUrl?: string
+}
+
+// A short message with one button: the shape of the credit and welcome emails.
+function messageEmail({ subject, eyebrow, heading, lines, cta, unsubscribeUrl }: MessageEmailOptions): RenderedEmail {
+  return {
+    subject,
+    html: layout({ title: subject, eyebrow, heading, bodyHtml: lines.map(paragraph).join("\n"), cta, unsubscribeUrl }),
+    text: [...lines, `${cta.label}: ${cta.url}`, ...(unsubscribeUrl ? [unsubscribeText(unsubscribeUrl)] : [])].join("\n\n"),
+  }
+}
+
+export function creditsLowEmail({ remaining, limit, resetsAt }: { remaining: number; limit: number; resetsAt: string }, unsubscribeUrl: string): RenderedEmail {
+  return messageEmail({
+    subject: "Your JobClock credits are running low",
+    eyebrow: "Credits",
+    heading: "Your credits are running low.",
+    lines: [
+      `You have ${pluralize(remaining, "credit")} left of your ${limit} monthly credits. They reset on ${dateLabel(resetsAt)}.`,
+      "If you need more before then, you can buy extra credits in Settings. Purchased credits never expire.",
+    ],
+    cta: { label: "Buy more credits", url: billingUrl() },
+    unsubscribeUrl,
+  })
+}
+
+export function creditsResetEmail({ limit }: { limit: number }, unsubscribeUrl: string): RenderedEmail {
+  return messageEmail({
+    subject: "Your JobClock credits have reset",
+    eyebrow: "Credits",
+    heading: "Your credits are back.",
+    lines: [`Your monthly allowance has reset to ${limit} credits.`, "You used more than half of last month's credits, so here is a heads-up that you have a fresh set."],
+    cta: { label: "Open JobClock", url: `${getAppUrl()}/dashboard` },
+    unsubscribeUrl,
+  })
+}

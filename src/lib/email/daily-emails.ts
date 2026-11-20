@@ -1,3 +1,4 @@
+import { sendCreditsLowEmails, sendCreditsResetEmails } from "./credit-emails"
 import { sendDeadlineReminders, sendFollowUpReminders, sendInterviewReminders, sendStaleApplicationNudges } from "./application-emails"
 
 /**
@@ -9,6 +10,8 @@ const JOBS = {
   deadlines: sendDeadlineReminders,
   interviews: sendInterviewReminders,
   staleApplications: sendStaleApplicationNudges,
+  creditsLow: sendCreditsLowEmails,
+  creditsReset: sendCreditsResetEmails,
 } as const
 
 export async function runDailyEmails(now = new Date()): Promise<Record<string, unknown>> {
