@@ -124,6 +124,8 @@ export function GlobalSearchTestHarnessClient({ view }: { view?: string }) {
             }}
             followUpDueAt="2026-10-18T09:00:00.000Z"
             followUpNotes="Email the hiring manager with the accessibility case study and platform migration summary."
+            interviewAt={null}
+            companyResearch={null}
             activity={[
               {
                 id: "activity-1",

@@ -33,6 +33,7 @@ import {
   updateCv,
   updateDescription,
   updateFollowUp,
+  updateInterviewAt,
   updateJobDetail,
   updateNotes,
   updateStatus,
@@ -178,6 +179,45 @@ describe("application actions", () => {
       },
       "application.follow_up_updated",
     )
+  })
+
+  it("updateInterviewAt stores a valid instant as a UTC Date and revalidates", async () => {
+    expect(await updateInterviewAt("app-1", "2026-12-01T14:30:00.000Z")).toEqual({})
+
+    expect(updateApplicationWithAuditForUser).toHaveBeenCalledWith(
+      mockUser.id,
+      "app-1",
+      { interviewAt: new Date("2026-12-01T14:30:00.000Z") },
+      "application.interview_scheduled",
+    )
+    expect(revalidatePath).toHaveBeenCalledWith("/applications/app-1")
+  })
+
+  it("updateInterviewAt clears the date with null", async () => {
+    await updateInterviewAt("app-1", null)
+
+    expect(updateApplicationWithAuditForUser).toHaveBeenCalledWith(
+      mockUser.id,
+      "app-1",
+      { interviewAt: null },
+      "application.interview_scheduled",
+    )
+  })
+
+  it("updateInterviewAt rejects invalid input without writing", async () => {
+    for (const bad of ["", "tomorrow", "2026-12-01", "1999-01-01T00:00:00.000Z"]) {
+      expect((await updateInterviewAt("app-1", bad)).error).toBeTruthy()
+    }
+    expect(await updateInterviewAt("", null)).toEqual({ error: "Missing application ID" })
+    expect(updateApplicationWithAuditForUser).not.toHaveBeenCalled()
+  })
+
+  it("updateInterviewAt reports a missing application and write failures", async () => {
+    vi.mocked(updateApplicationWithAuditForUser).mockResolvedValueOnce(false)
+    expect(await updateInterviewAt("app-1", null)).toEqual({ error: "Application not found" })
+
+    vi.mocked(updateApplicationWithAuditForUser).mockRejectedValueOnce(new Error("write failed"))
+    expect(await updateInterviewAt("app-1", null)).toEqual({ error: "write failed" })
   })
 
   it("deleteApplication deletes record and redirects", async () => {

@@ -14,6 +14,7 @@ import {
   Maximize2,
   Pencil,
   RotateCcw,
+  Search,
   Send,
   Trash2,
   X,
@@ -39,6 +40,9 @@ import {
   generateCoverLetter,
 } from "./actions"
 import { FollowUpCard } from "./follow-up-card"
+import { InterviewDateCard } from "./interview-date-card"
+import { CompanyResearchCard } from "./company-research-card"
+import { INTERVIEW_DATE_STATUSES } from "@/lib/applications/interview-at"
 import { useDownloadPdf } from "@/hooks/use-download-pdf"
 import { buildCoverLetterFilenameBase } from "@/lib/document-filename"
 import type { ApplicationStatus, Database, WritingStyle } from "@/lib/supabase/database.types"
@@ -78,6 +82,8 @@ interface Props {
   generatedCoverLetter: GeneratedCoverLetterRow | null
   followUpDueAt: string | null
   followUpNotes: string | null
+  interviewAt: string | null
+  companyResearch: string | null
   activity: ApplicationActivityEvent[]
 }
 
@@ -1423,6 +1429,8 @@ export function ApplicationDetail({
   generatedCoverLetter,
   followUpDueAt,
   followUpNotes,
+  interviewAt,
+  companyResearch,
   activity,
 }: Props) {
   const job = application.jobs_cache
@@ -1534,6 +1542,13 @@ export function ApplicationDetail({
             Interview Prep
           </Link>
           <a
+            href="#company-research"
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center xl:w-auto")}
+          >
+            <Search className="h-3.5 w-3.5" />
+            Company research
+          </a>
+          <a
             href={`/api/applications/${application.id}/export`}
             className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center xl:w-auto")}
           >
@@ -1561,6 +1576,11 @@ export function ApplicationDetail({
           <StatusStepper currentStatus={application.status} applicationId={application.id} />
         </CardContent>
       </Card>
+
+      {/* Interview date: for statuses where an interview can be scheduled, or whenever one is already set */}
+      {(interviewAt || (INTERVIEW_DATE_STATUSES as readonly string[]).includes(application.status)) && (
+        <InterviewDateCard applicationId={application.id} initialInterviewAt={interviewAt} />
+      )}
 
       {/* Metadata bar */}
       {(detailItems.length > 0 || job?.is_easy_apply != null) && (
@@ -1619,6 +1639,7 @@ export function ApplicationDetail({
           generatedCoverLetter={generatedCoverLetter}
           hasDescription={hasDescription}
         />
+        <CompanyResearchCard applicationId={application.id} content={companyResearch} />
         <NotesCard
           applicationId={application.id}
           initialNotes={application.notes}
