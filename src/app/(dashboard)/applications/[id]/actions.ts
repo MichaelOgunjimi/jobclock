@@ -14,24 +14,11 @@ import {
   isApplicationStatus,
   type ApplicationStatusIntent,
 } from "@/lib/applications/status-transitions"
-import { z } from "zod"
 import { interviewAtSchema } from "@/lib/applications/interview-at"
+import { JOB_DETAIL_FIELDS, jobDetailSchema } from "@/lib/applications/job-detail"
 
 const VALID_STATUS_INTENTS = new Set<ApplicationStatusIntent>(["progress", "correction", "reopen"])
 
-const jobDetailSchema = z.discriminatedUnion("field", [
-  z.object({ field: z.literal("title"), value: z.string().trim().min(1, "Role is required").max(200) }),
-  z.object({ field: z.literal("company"), value: z.string().trim().min(1, "Company is required").max(200) }),
-  z.object({ field: z.literal("location"), value: z.string().trim().max(200) }),
-  z.object({ field: z.literal("salary"), value: z.string().trim().max(120) }),
-])
-
-const jobDetailColumns = {
-  title: "custom_title",
-  company: "custom_company",
-  location: "custom_location",
-  salary: "custom_salary_text",
-} as const
 
 export async function updateStatus(formData: FormData) {
   if (!isSupabaseConfigured()) return
@@ -227,7 +214,7 @@ export async function updateJobDetail(
   if (typeof applicationId !== "string" || !applicationId) {
     return { error: "Missing application ID" }
   }
-  if (typeof field !== "string" || !(field in jobDetailColumns)) {
+  if (typeof field !== "string" || !(field in JOB_DETAIL_FIELDS)) {
     return { error: "Invalid job detail field" }
   }
 
@@ -240,16 +227,7 @@ export async function updateJobDetail(
     value = parsed.data.value
   }
 
-  const fieldName = {
-    title: "customTitle",
-    company: "customCompany",
-    location: "customLocation",
-    salary: "customSalaryText",
-  }[field as keyof typeof jobDetailColumns] as
-    | "customTitle"
-    | "customCompany"
-    | "customLocation"
-    | "customSalaryText"
+  const fieldName = JOB_DETAIL_FIELDS[field as keyof typeof JOB_DETAIL_FIELDS]
   try {
     const updated = await updateApplicationWithAuditForUser(
       user.id,

@@ -3,7 +3,7 @@ import { db } from "@/lib/db"
 import { applicationStatusEvents, applications, jobsCache, profiles } from "@/lib/db/schema"
 import { enqueueGeneration } from "@/lib/generation/enqueue"
 import type { UserPreferences } from "@/lib/ai"
-import type { ApplicationStatus } from "@/lib/supabase/database.types"
+import type { ApplicationStatus, Json } from "@/lib/supabase/database.types"
 import { createApplicationSlug } from "@/lib/applications/slug"
 import {
   getApplicationStatusTransition,
@@ -143,7 +143,9 @@ export async function updateApplicationStatusForUser(
   applicationId: string,
   status: ApplicationStatus,
   intent: ApplicationStatusIntent = "progress",
-  source?: string
+  source?: string,
+  /** Extra audit metadata on each status event, e.g. which earlier events an undo reverts. */
+  extraMetadata?: Record<string, Json>
 ): Promise<boolean> {
   if (!isApplicationStatus(status)) return false
 
@@ -202,6 +204,7 @@ export async function updateApplicationStatusForUser(
           toStatus: event.toStatus,
           intent,
           ...(source ? { source } : {}),
+          ...extraMetadata,
         },
       })),
     )

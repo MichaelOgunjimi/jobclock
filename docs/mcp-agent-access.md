@@ -86,6 +86,19 @@ Write tools are only available to a `jc_` token or an OAuth connection that was 
 | `get_job_preferences` | read | What the owner is looking for: `desired_roles`, `locations`, `target_salary_min`, `experience_levels`, `right_to_work_uk`, and a short `cv` summary (headline, summary, skills, recent roles, education, languages, certifications) from the primary CV. Never contact details or the CV's name, and anything the owner has not entered is left out. |
 | `add_application` | write | Save a job a finding agent supplies, as a `saved` application. Required: `url` (http/https only), `title`, `company`. Optional: `location`, `description` (stored up to 20,000 characters), `salary_min`/`salary_max`/`salary_currency`, `posted_at`, `apply_deadline` (`YYYY-MM-DD`), `remote`, `remote_type`, `source` (e.g. `linkedin`, default `mcp`), `note` (why it suits the owner), `follow_up_due_at`, `allow_duplicate`. |
 | `add_applications` | write | The same for up to 20 jobs in one call. One result per job (`created`, duplicate with the existing id, or `error`); a failing job does not stop the others. Counts as one request. |
+| `get_pipeline_summary` | read | The weekly digest's numbers: counts by status, saved/applied this week, `response_rate_percent`, plus overdue follow-ups, interviews in the next 7 days, stale applications and saved jobs with a deadline within 2 days. |
+| `list_stale_applications` | read | What the stale-application email lists: applied or screening with no status change for 21 days or more, oldest first. `limit` (max 50). |
+| `list_upcoming_deadlines` | read | What the deadline email warns about: saved jobs whose apply deadline is after today and at most 2 days away. |
+| `list_upcoming_interviews` | read | Interviews in the next `days` (default 7; `1` matches the interview email's "tomorrow"). |
+| `get_application_activity` | read | Recent activity for one application with `source` (`mcp` or `web`) per entry. Note text is never included, only its length. `limit` (max 50). |
+| `get_company_research` | read | The research the owner already saved for an application (cut at 12,000 characters, with `truncated`). Never generates research. |
+| `get_credits` | read | Monthly AI allowance (limit, used, remaining, reset date) and purchased credits. Read only. |
+| `list_cvs` | read | `id`, name, `is_primary`, `created_at` of each CV. No contact details or CV text. |
+| `update_application_statuses` | write | Up to 25 status changes in one call, same rules and `intent` as `update_application_status`. One result per item; a failing item does not stop the others. |
+| `snooze_follow_up` | write | Push the follow-up out by `days` (1-365, counted from the current date or from now if overdue) or to a future `until` timestamp. |
+| `complete_follow_up` | write | Clear the follow-up date and reminder note (the follow-up card's Clear button). |
+| `update_application_details` | write | Edit `title`, `company`, `location`, `salary` with the web app's validation; `null` goes back to the posting's own value. Not status, ids or anything billing or AI related. |
+| `undo_last_change` | write | Reverts the newest agent change (status, follow-up date, interview time, title, company, location, salary) from its recorded before values. Refuses if that field changed since, and cannot restore note text. Call again to step back further. |
 
 Write tools return `before` and `after` so a change can be reversed, and each one adds an entry to the application's
 Activity timeline tagged `source: "mcp"`. There are no delete, billing or AI-credit tools.
