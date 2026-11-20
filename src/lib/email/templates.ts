@@ -131,7 +131,7 @@ export function subscriptionEndedEmail(): RenderedEmail {
 
 const MAX_JOBS_SHOWN = 10
 
-export function jobAlertEmail(jobs: PersistedJobInput[]): RenderedEmail {
+export function jobAlertEmail(jobs: PersistedJobInput[], unsubscribeUrl: string): RenderedEmail {
   const shown = jobs.slice(0, MAX_JOBS_SHOWN)
   const overflow = jobs.length - shown.length
   const plural = jobs.length === 1 ? "" : "s"
@@ -162,11 +162,14 @@ export function jobAlertEmail(jobs: PersistedJobInput[]): RenderedEmail {
       heading: `${jobs.length} new role${plural} for you.`,
       bodyHtml: `${paragraph("New roles just appeared at companies you track.")}\n${rows}\n${more}`,
       cta,
+      unsubscribeUrl,
     }),
     text: [
       `${jobs.length} new role${plural} at companies you track:`,
       ...shown.map((job) => `- ${job.title}${job.company ? ` at ${job.company}` : ""}: ${linkFor(job)}`),
       ...(overflow > 0 ? [`+ ${overflow} more. ${cta.url}`] : [`${cta.label}: ${cta.url}`]),
+      "",
+      unsubscribeText(unsubscribeUrl),
     ].join("\n"),
   }
 }

@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { PersistedJobInput } from "@/lib/jobs/persist-job"
 
-const mocks = vi.hoisted(() => ({ send: vi.fn() }))
-vi.mock("./send", () => ({ sendEmail: mocks.send }))
+const mocks = vi.hoisted(() => ({ sendOptional: vi.fn() }))
+vi.mock("./optional", () => ({ sendOptionalEmail: mocks.sendOptional }))
 
 import { sendNewJobAlerts } from "./job-alerts"
 
@@ -13,28 +13,23 @@ describe("sendNewJobAlerts", () => {
     vi.clearAllMocks()
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://jobclock.dev")
   })
-  afterEach(() => vi.unstubAllEnvs())
-
-  it("sends nothing unless JOB_ALERT_EMAILS_ENABLED is true", async () => {
-    vi.stubEnv("JOB_ALERT_EMAILS_ENABLED", "")
-    await sendNewJobAlerts("user@example.com", "u1", jobs)
-    expect(mocks.send).not.toHaveBeenCalled()
-  })
 
   it("skips an empty address or an empty job list", async () => {
-    vi.stubEnv("JOB_ALERT_EMAILS_ENABLED", "true")
     await sendNewJobAlerts("", "u1", jobs)
     await sendNewJobAlerts("user@example.com", "u1", [])
-    expect(mocks.send).not.toHaveBeenCalled()
+    expect(mocks.sendOptional).not.toHaveBeenCalled()
   })
 
-  it("sends one rendered digest with an hourly idempotency key when enabled", async () => {
-    vi.stubEnv("JOB_ALERT_EMAILS_ENABLED", "true")
+  it("hands one digest to the opt-in sender, with an hourly dedupe key and the unsubscribe link", async () => {
     await sendNewJobAlerts("user@example.com", "u1", jobs)
-    expect(mocks.send).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mocks.sendOptional).toHaveBeenCalledWith(expect.objectContaining({
+      userId: "u1",
+      category: "job_alerts",
       to: "user@example.com",
-      subject: "1 new job at the companies you track",
-      idempotencyKey: expect.stringMatching(/^job-alert-digest\/u1\/\d{4}-\d{2}-\d{2}T\d{2}$/),
+      dedupeKey: expect.stringMatching(/^hour:\d{4}-\d{2}-\d{2}T\d{2}$/),
     }))
+    const email = mocks.sendOptional.mock.calls[0][0].render("https://jobclock.dev/api/email/unsubscribe?t=abc")
+    expect(email.subject).toBe("1 new job at the companies you track")
+    expect(email.html).toContain("https://jobclock.dev/api/email/unsubscribe?t=abc")
   })
 })
