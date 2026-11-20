@@ -12,7 +12,7 @@ vi.mock("@/lib/db", () => ({ db: { select: () => mocks.chain } }))
 vi.mock("./sent-log", () => ({ sentKeys: mocks.sentKeys }))
 vi.mock("./optional", () => ({ sendOptionalEmail: mocks.sendOptional }))
 
-import { sendDeadlineReminders, sendFollowUpReminders, sendInterviewReminders } from "./application-emails"
+import { sendDeadlineReminders, sendFollowUpReminders, sendInterviewReminders, sendStaleApplicationNudges } from "./application-emails"
 
 const NOW = new Date("2026-11-20T08:00:00Z")
 const due = (userId: string, id: string, extra: Record<string, unknown> = {}) => ({
@@ -163,5 +163,58 @@ describe("sendInterviewReminders", () => {
   it("does nothing when no opted-in user has an interview tomorrow", async () => {
     mocks.state.rows = []
     expect(await sendInterviewReminders(NOW)).toEqual({ eligible: 0, sent: 0, failed: 0 })
+  })
+})
+
+describe("sendStaleApplicationNudges", () => {
+  const stale = (userId: string, id: string, extra: Record<string, unknown> = {}) => ({
+    userId,
+    id,
+    slug: `role-${id}`,
+    changedAt: new Date("2026-10-25T08:00:00Z"),
+    title: "Engineer",
+    company: "Acme",
+    customTitle: null,
+    customCompany: null,
+    ...extra,
+  })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.sentKeys.mockResolvedValue(new Set())
+    mocks.sendOptional.mockResolvedValue(true)
+  })
+
+  it("nudges each application once ever: its plain application key is recorded and never listed again", async () => {
+    mocks.state.rows = [stale("u1", "a"), stale("u1", "b")]
+    mocks.sentKeys.mockResolvedValue(new Set(["app:a"]))
+
+    expect(await sendStaleApplicationNudges(NOW)).toEqual({ eligible: 1, sent: 1, failed: 0 })
+    expect(mocks.sendOptional).toHaveBeenCalledWith(expect.objectContaining({
+      userId: "u1",
+      category: "stale_application_nudges",
+      dedupeKey: "day:2026-11-20",
+      recordKeys: ["app:b"],
+    }))
+    const email = mocks.sendOptional.mock.calls[0][0].render("https://jobclock.dev/u?t=1")
+    expect(email.subject).toBe("An application has gone quiet")
+    expect(email.html).toContain("no change for 26 days")
+    expect(email.html).toContain("mark them as ghosted")
+  })
+
+  it("sends nothing when every stale application was already nudged", async () => {
+    mocks.state.rows = [stale("u1", "a")]
+    mocks.sentKeys.mockResolvedValue(new Set(["app:a"]))
+    expect(await sendStaleApplicationNudges(NOW)).toEqual({ eligible: 1, sent: 0, failed: 0 })
+    expect(mocks.sendOptional).not.toHaveBeenCalled()
+  })
+
+  it("groups several applications into one email", async () => {
+    mocks.state.rows = [stale("u1", "a"), stale("u1", "b", { customTitle: "<i>Own</i>" })]
+    await sendStaleApplicationNudges(NOW)
+    expect(mocks.sendOptional).toHaveBeenCalledTimes(1)
+    const email = mocks.sendOptional.mock.calls[0][0].render("u")
+    expect(email.subject).toBe("2 applications have gone quiet")
+    expect(email.html).toContain("&lt;i&gt;Own&lt;/i&gt;")
   })
 })

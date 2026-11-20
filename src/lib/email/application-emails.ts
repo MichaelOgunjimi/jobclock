@@ -6,7 +6,7 @@ import { FOLLOW_UP_STATUSES, type FollowUpItem } from "@/lib/telegram/digest"
 import type { EmailCategory } from "./categories"
 import { sendOptionalEmail } from "./optional"
 import { sentKeys } from "./sent-log"
-import { deadlineEmail, followUpDueEmail, interviewEmail, type RenderedEmail } from "./templates"
+import { deadlineEmail, followUpDueEmail, interviewEmail, staleApplicationEmail, type RenderedEmail } from "./templates"
 
 export interface JobRunResult {
   eligible: number
@@ -168,5 +168,38 @@ export async function sendInterviewReminders(now = new Date()): Promise<JobRunRe
       if (await sendOptionalEmail({ userId, category: "interview_reminders", dedupeKey, render: (url) => interviewEmail(item, url) })) sent += 1
     }
     return sent
+  })
+}
+
+const STALE_AFTER_DAYS = 21
+
+/** Stale nudges: applied or screening applications with no status change for 21 days. Each application is nudged once, ever. */
+export async function sendStaleApplicationNudges(now = new Date()): Promise<JobRunResult> {
+  const rows = await db
+    .select({
+      userId: applications.userId,
+      id: applications.id,
+      slug: applications.slug,
+      changedAt: applications.lastStatusUpdate,
+      title: jobsCache.title,
+      company: jobsCache.company,
+      customTitle: applications.customTitle,
+      customCompany: applications.customCompany,
+    })
+    .from(applications)
+    .innerJoin(emailPreferences, and(eq(emailPreferences.userId, applications.userId), eq(emailPreferences.staleApplicationNudges, true)))
+    .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
+    .where(and(inArray(applications.status, ["applied", "screening"]), lte(applications.lastStatusUpdate, new Date(now.getTime() - STALE_AFTER_DAYS * DAY_MS))))
+    .orderBy(asc(applications.lastStatusUpdate))
+
+  return eachUser(byUser(rows), "stale-applications", (userId, userRows) => {
+    const items = userRows.map((row) => ({
+      key: `app:${row.id}`,
+      title: row.customTitle ?? row.title ?? "Untitled role",
+      company: row.customCompany ?? row.company ?? "Unknown company",
+      days: Math.floor((now.getTime() - row.changedAt!.getTime()) / DAY_MS),
+      url: applicationUrl(row.slug),
+    }))
+    return sendGrouped(userId, "stale_application_nudges", items, now, (fresh, url) => staleApplicationEmail(fresh, url))
   })
 }

@@ -1,4 +1,4 @@
-import { sendDeadlineReminders, sendFollowUpReminders, sendInterviewReminders } from "./application-emails"
+import { sendDeadlineReminders, sendFollowUpReminders, sendInterviewReminders, sendStaleApplicationNudges } from "./application-emails"
 
 /**
  * Everything that goes out once a day. Each job runs on its own, so one failing never blocks the others.
@@ -8,6 +8,7 @@ const JOBS = {
   followUps: sendFollowUpReminders,
   deadlines: sendDeadlineReminders,
   interviews: sendInterviewReminders,
+  staleApplications: sendStaleApplicationNudges,
 } as const
 
 export async function runDailyEmails(now = new Date()): Promise<Record<string, unknown>> {

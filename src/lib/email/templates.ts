@@ -281,3 +281,16 @@ export function interviewEmail(item: { title: string; company: string; interview
     unsubscribeUrl,
   })
 }
+
+export function staleApplicationEmail(items: { title: string; company: string; days: number; url: string }[], unsubscribeUrl: string): RenderedEmail {
+  return listEmail({
+    subject: items.length === 1 ? "An application has gone quiet" : `${items.length} applications have gone quiet`,
+    eyebrow: "Nudge",
+    heading: items.length === 1 ? "No news in a while." : "No news on these in a while.",
+    intro: "These have had no update for weeks. Send a short follow-up, or mark them as ghosted to keep your list honest.",
+    items: items.map((item) => ({ title: item.title, meta: `${item.company} · no change for ${pluralize(item.days, "day")}`, url: item.url })),
+    rowLabel: "Open",
+    cta: { label: "View applications", url: `${getAppUrl()}/applications` },
+    unsubscribeUrl,
+  })
+}
