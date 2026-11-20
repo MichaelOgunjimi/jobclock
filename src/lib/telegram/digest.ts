@@ -6,7 +6,7 @@ import { appOrigin } from "./recent-jobs"
 import { formatStats, getApplicationStats, type ApplicationStats } from "./stats"
 
 /** Open applications where an employer reply is still pending, so a follow-up makes sense. */
-const FOLLOW_UP_STATUSES = ["applied", "screening", "interview"] as const
+export const FOLLOW_UP_STATUSES = ["applied", "screening", "interview"] as const
 const MAX_FOLLOW_UPS = 5
 
 export interface FollowUpItem {

@@ -13,6 +13,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/daily-emails",
+      "schedule": "0 8 * * *"
+    },
+    {
       "path": "/api/cron/weekly-digest-email",
       "schedule": "0 8 * * 1"
     }

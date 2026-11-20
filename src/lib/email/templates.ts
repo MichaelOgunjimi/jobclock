@@ -1,6 +1,6 @@
 import { summarizeStats } from "@/lib/applications/stats-summary"
 import type { PersistedJobInput } from "@/lib/jobs/persist-job"
-import type { DigestData } from "@/lib/telegram/digest"
+import type { DigestData, FollowUpItem } from "@/lib/telegram/digest"
 import { SUPPORT_EMAIL, getAppUrl } from "@/lib/site"
 
 /** A finished email. The same subject/html/text goes to Resend or Beaco, so neither renders anything. */
@@ -141,10 +141,10 @@ export function subscriptionEndedEmail(): RenderedEmail {
   }
 }
 
-const MAX_JOBS_SHOWN = 10
+const MAX_ROWS_SHOWN = 10
 
 export function jobAlertEmail(jobs: PersistedJobInput[], unsubscribeUrl: string): RenderedEmail {
-  const shown = jobs.slice(0, MAX_JOBS_SHOWN)
+  const shown = jobs.slice(0, MAX_ROWS_SHOWN)
   const overflow = jobs.length - shown.length
   const plural = jobs.length === 1 ? "" : "s"
   const subject = `${jobs.length} new job${plural} at the companies you track`
@@ -206,4 +206,49 @@ export function weeklyDigestEmail({ followUps, stats }: DigestData, unsubscribeU
       unsubscribeText(unsubscribeUrl),
     ].join("\n"),
   }
+}
+
+interface ListEmailOptions {
+  subject: string
+  eyebrow: string
+  heading: string
+  intro: string
+  items: { title: string; meta: string; url: string }[]
+  rowLabel: string
+  cta: { label: string; url: string }
+  unsubscribeUrl: string
+}
+
+// One layout for the reminder emails that list applications: an intro line, up to ten rows, an overflow note.
+function listEmail({ subject, eyebrow, heading, intro, items, rowLabel, cta, unsubscribeUrl }: ListEmailOptions): RenderedEmail {
+  const shown = items.slice(0, MAX_ROWS_SHOWN)
+  const overflow = items.length - shown.length
+  const more = overflow > 0 ? `<p class="em-muted" style="margin:16px 0 0;color:#888888;font-size:13px;">+ ${overflow} more. Open JobClock to see them all.</p>` : ""
+  const rows = shown.map((item) => listRow(item.title, item.meta, item.url, rowLabel)).join("\n")
+  return {
+    subject,
+    html: layout({ title: subject, eyebrow, heading, bodyHtml: `${paragraph(intro)}\n${rows}\n${more}`, cta, unsubscribeUrl }),
+    text: [
+      intro,
+      ...shown.map((item) => `- ${item.title} (${item.meta}): ${item.url}`),
+      ...(overflow > 0 ? [`+ ${overflow} more.`] : []),
+      "",
+      `${cta.label}: ${cta.url}`,
+      "",
+      unsubscribeText(unsubscribeUrl),
+    ].join("\n"),
+  }
+}
+
+export function followUpDueEmail(items: FollowUpItem[], unsubscribeUrl: string): RenderedEmail {
+  return listEmail({
+    subject: `${pluralize(items.length, "follow-up")} due`,
+    eyebrow: "Follow-up",
+    heading: items.length === 1 ? "A follow-up is due." : "Follow-ups are due.",
+    intro: "These applications are waiting on a reply. A short, polite message can help.",
+    items: items.map((item) => ({ title: item.title, meta: `${item.company} · due ${dateLabel(item.dueAt)}`, url: item.url })),
+    rowLabel: "Open",
+    cta: { label: "View applications", url: `${getAppUrl()}/applications` },
+    unsubscribeUrl,
+  })
 }

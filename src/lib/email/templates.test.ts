@@ -2,7 +2,7 @@ import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { PersistedJobInput } from "@/lib/jobs/persist-job"
-import { escapeHtml, jobAlertEmail, paymentFailedEmail, subscriptionEndedEmail } from "./templates"
+import { escapeHtml, followUpDueEmail, jobAlertEmail, paymentFailedEmail, subscriptionEndedEmail } from "./templates"
 
 const UNSUB = "https://jobclock.dev/api/email/unsubscribe?t=a.b&c=d"
 
@@ -66,5 +66,18 @@ describe("email templates", () => {
       expect(email.html).not.toContain("Unsubscribe")
       expect(email.text).not.toContain("Unsubscribe")
     }
+  })
+
+  it("lists follow-ups with escaped values, a plural subject and an overflow note", () => {
+    const item = (i: number, title = `Role ${i}`) => ({ title, company: "A&B", dueAt: "2026-11-10T09:00:00.000Z", url: `https://jobclock.dev/applications/r${i}` })
+    expect(followUpDueEmail([item(1, "<i>x</i>")], UNSUB).subject).toBe("1 follow-up due")
+    const email = followUpDueEmail(Array.from({ length: 12 }, (_, i) => item(i)), UNSUB)
+    expect(email.subject).toBe("12 follow-ups due")
+    expect(email.html).toContain("A&amp;B")
+    expect(email.html).toContain("due 2026-11-10")
+    expect(email.html).toContain("+ 2 more")
+    expect(email.html).not.toContain("Role 10")
+    expect(followUpDueEmail([item(1, "<i>x</i>")], UNSUB).html).not.toContain("<i>x</i>")
+    expect(email.text).toContain(`Unsubscribe from these emails: ${UNSUB}`)
   })
 })
