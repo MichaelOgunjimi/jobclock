@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { ConnectionActivityItem } from "@/lib/mcp/activity"

@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod/v4"
 import { SCOPE_READ, SCOPE_WRITE } from "@/lib/oauth/config"
-import { MAX_BATCH_JOBS, tooBig, tooLong } from "./limits"
+import { limitMessage, MAX_BATCH_JOBS, tooBig, tooLong } from "./limits"
 import { APPLICATION_STATUSES } from "@/lib/applications/status-transitions"
 import {
   addApplication,
@@ -120,7 +120,7 @@ export function createMcpServer(userId: string, scopes: readonly string[] = [SCO
 
 function registerInboxReadTools(server: McpServer, userId: string) {
   const readOnly = { readOnlyHint: true }
-  const limit = z.number().int().min(1).max(50).default(20)
+  const limit = z.number().int().min(1).max(50, tooBig("limit", 50, "Replies are kept small enough for an agent to read. Narrow the question instead.")).default(20)
 
   server.registerTool("get_pipeline_summary", {
     description: "Where the search stands, as in the weekly digest: counts by status, saved and applied this week, response rate, and how many follow-ups are overdue, interviews are in the next 7 days, applications are stale and saved jobs have a deadline within 2 days.",
@@ -140,13 +140,13 @@ function registerInboxReadTools(server: McpServer, userId: string) {
 
   server.registerTool("list_upcoming_interviews", {
     description: "Interviews in the next N days (same window as list_due), soonest first. The interview email covers tomorrow only, so use days 1 for that.",
-    inputSchema: { days: z.number().int().min(0).max(60).default(7) },
+    inputSchema: { days: z.number().int().min(0).max(60, tooBig("days", 60, "Looking further ahead returns more than an agent can usefully read.")).default(7) },
     annotations: readOnly,
   }, async ({ days }) => respond(await listUpcomingInterviews(userId, days)))
 
   server.registerTool("get_application_activity", {
     description: "Recent activity for one application (status changes, edits, follow-ups, notes), newest first, with who made each change (source \"mcp\" for the agent, \"web\" otherwise). Note text is never included, only its length.",
-    inputSchema: { application_id: applicationId, limit: z.number().int().min(1).max(50).default(20) },
+    inputSchema: { application_id: applicationId, limit: z.number().int().min(1).max(50, tooBig("limit", 50, "Replies are kept small enough for an agent to read.")).default(20) },
     annotations: readOnly,
   }, async ({ application_id, limit }) => respond(await getApplicationActivity(userId, application_id, limit)))
 
@@ -218,13 +218,13 @@ function registerWriteTools(server: McpServer, userId: string) {
         application_id: applicationId,
         status,
         intent: z.enum(["progress", "correction", "reopen"]).default("progress"),
-      })).min(1).max(MAX_STATUS_BATCH, `At most ${MAX_STATUS_BATCH} status changes per call (each one writes history and audit rows); split the rest into another call.`),
+      })).min(1).max(MAX_STATUS_BATCH, limitMessage(`Too many status changes in one call: at most ${MAX_STATUS_BATCH} are allowed`, "Each change writes history and audit rows in one request. Split the rest into another call.")),
     },
   }, async ({ changes }) => respond(await updateApplicationStatuses(userId, changes.map((change) => ({ applicationId: change.application_id, status: change.status, intent: change.intent })))))
 
   server.registerTool("snooze_follow_up", {
     description: `Push an application's follow-up out. Give days (1 to ${MAX_SNOOZE_DAYS}; counted from the current follow-up date, or from now if it is overdue or unset) or until (a future timestamp). Returns before and after.`,
-    inputSchema: { application_id: applicationId, days: z.number().int().min(1).max(MAX_SNOOZE_DAYS).optional(), until: timestamp.optional() },
+    inputSchema: { application_id: applicationId, days: z.number().int().min(1).max(MAX_SNOOZE_DAYS, tooBig("days", MAX_SNOOZE_DAYS, "A follow-up more than a year away is almost always a typo. Use until for a deliberate later date.")).optional(), until: timestamp.optional() },
   }, async ({ application_id, days, until }) => respond(await snoozeFollowUp(userId, application_id, { days, until })))
 
   server.registerTool("complete_follow_up", {

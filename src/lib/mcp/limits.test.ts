@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { LIMITS, limitMessage, MAX_BATCH_JOBS, MCP_AUTH_FAILURES_PER_MINUTE, MCP_MAX_BODY_BYTES, MCP_REQUESTS_PER_MINUTE } from "./limits"
 
 const docs = readFileSync(resolve(process.cwd(), "docs/mcp-agent-access.md"), "utf8")
@@ -40,5 +40,19 @@ describe("limits inventory", () => {
     expect(message).toContain("It protects the server.")
     expect(message).toContain("src/lib/mcp/limits.ts")
     expect(message).toContain("docs/mcp-agent-access.md")
+  })
+})
+
+describe("limits that live next to their tools", () => {
+  it("match the numbers the inbox tools enforce", async () => {
+    vi.doMock("@/lib/db", async () => ({ db: (await import("./fake-db")).fakeDb }))
+    const inbox = await import("./inbox-tools")
+    expect(inbox.MAX_STATUS_BATCH).toBe(25)
+    expect(inbox.MAX_SNOOZE_DAYS).toBe(365)
+    expect(inbox.MAX_RESEARCH_CHARS).toBe(12_000)
+    const byName = (name: string) => LIMITS.find((limit) => limit.name === name)!.value
+    expect(byName("Status changes per batch call")).toContain("25")
+    expect(byName("Snooze length")).toContain("365")
+    expect(byName("Company research text")).toContain("12,000")
   })
 })

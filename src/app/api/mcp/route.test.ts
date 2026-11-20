@@ -220,7 +220,10 @@ describe("/api/mcp", () => {
 
     it("a read-only token lists only the read tools", async () => {
       authenticateApiToken.mockResolvedValue(READ_TOKEN)
-      expect(await toolNames(headers)).toEqual(["check_job_exists", "get_application", "get_job_preferences", "list_applications", "list_due"])
+      expect(await toolNames(headers)).toEqual([
+        "check_job_exists", "get_application", "get_application_activity", "get_company_research", "get_credits", "get_job_preferences", "get_pipeline_summary",
+        "list_applications", "list_cvs", "list_due", "list_stale_applications", "list_upcoming_deadlines", "list_upcoming_interviews",
+      ])
     })
 
     it("a read-only token cannot call any write tool, and nothing is written", async () => {
@@ -233,6 +236,11 @@ describe("/api/mcp", () => {
         ["update_application_status", { application_id: id, status: "applied" }],
         ["add_application", job],
         ["add_applications", { jobs: [job] }],
+        ["update_application_statuses", { changes: [{ application_id: id, status: "applied" }] }],
+        ["snooze_follow_up", { application_id: id, days: 3 }],
+        ["complete_follow_up", { application_id: id }],
+        ["update_application_details", { application_id: id, title: "x" }],
+        ["undo_last_change", { application_id: id }],
       ] as const) {
         const body = await (await POST(rpc(callTool(name, args), headers))).json()
         expect(body.result?.isError ?? Boolean(body.error), name).toBe(true)
