@@ -42,14 +42,24 @@ interface LayoutOptions {
   bodyHtml: string
   cta?: { label: string; url: string }
   footnote?: string
+  /** Optional emails only: adds the unsubscribe line to the footer. Billing and security emails never pass it. */
+  unsubscribeUrl?: string
 }
 
+const settingsEmailsUrl = () => `${getAppUrl()}/settings?tab=emails`
+
+// The plain-text twin of the footer line, for optional emails.
+export const unsubscribeText = (url: string) => `Unsubscribe from these emails: ${url}\nChoose which emails you get: ${settingsEmailsUrl()}`
+
 // Same look as the Supabase auth emails (dark header, white card), so every JobClock email matches.
-function layout({ title, eyebrow, heading, bodyHtml, cta, footnote }: LayoutOptions): string {
+function layout({ title, eyebrow, heading, bodyHtml, cta, footnote, unsubscribeUrl }: LayoutOptions): string {
   const button = cta
     ? `<a class="em-btn" href="${escapeHtml(cta.url)}" style="display:block;background-color:#0f0f0f;color:#ffffff;text-align:center;padding:14px 32px;font-size:14px;font-weight:500;text-decoration:none;">${escapeHtml(cta.label)} &rarr;</a>`
     : ""
   const note = footnote ? `<p class="em-muted" style="margin:32px 0 0;color:#999999;font-size:13px;line-height:1.6;">${footnote}</p>` : ""
+  const unsubscribe = unsubscribeUrl
+    ? `<p class="em-muted" style="margin:12px 0 0;color:#999999;font-size:12px;">You are getting this because you turned these emails on. <a class="em-muted" href="${escapeHtml(unsubscribeUrl)}" style="color:#999999;">Unsubscribe</a> or <a class="em-muted" href="${escapeHtml(settingsEmailsUrl())}" style="color:#999999;">choose which emails you get</a>.</p>`
+    : ""
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -79,6 +89,7 @@ ${note}
 </td></tr>
 <tr><td class="em-foot" style="background-color:#f9f9f7;border-top:1px solid #e5e5e5;padding:20px 40px;">
 <p class="em-muted" style="margin:0;color:#999999;font-size:12px;">JobClock &mdash; a calmer way to organise your job search. Questions? Reply to this email or write to <a class="em-muted" href="mailto:${SUPPORT_EMAIL}" style="color:#999999;">${SUPPORT_EMAIL}</a>.</p>
+${unsubscribe}
 </td></tr>
 </table>
 </td></tr>

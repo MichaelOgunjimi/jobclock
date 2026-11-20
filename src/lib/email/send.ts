@@ -12,6 +12,8 @@ interface Email {
   text?: string
   /** Makes a retry (e.g. a replayed Stripe webhook) a no-op instead of a second email. */
   idempotencyKey?: string
+  /** Extra mail headers, e.g. List-Unsubscribe. Sent through Resend; the Beaco fallback (local development) ignores them. */
+  headers?: Record<string, string>
 }
 
 let warnedNoProvider = false
@@ -21,7 +23,7 @@ let warnedNoProvider = false
  * is set (local development), otherwise it logs once and skips. It never throws: a failed email must not
  * break the webhook or cron that asked for it. Returns whether the email was handed to a provider.
  */
-export async function sendEmail({ to, subject, html, text, idempotencyKey }: Email): Promise<boolean> {
+export async function sendEmail({ to, subject, html, text, idempotencyKey, headers }: Email): Promise<boolean> {
   try {
     if (process.env.RESEND_API_KEY) {
       const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send(
@@ -32,6 +34,7 @@ export async function sendEmail({ to, subject, html, text, idempotencyKey }: Ema
           subject,
           html,
           text,
+          headers,
         },
         { idempotencyKey },
       )

@@ -14,6 +14,7 @@ import { and, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { trackedCompanies } from "@/lib/db/schema"
 import { isGrantActive, toPlanGrant } from "@/lib/billing/entitlements"
+import { setEmailPreference } from "@/lib/email/preferences"
 import { detectAtsFromUrl } from "@/lib/jobs/source-detection"
 import {
   disconnectTelegram,
@@ -289,6 +290,20 @@ export async function disconnectTelegramAccount() {
   } catch {
     return { error: "Failed to disconnect Telegram" }
   }
+}
+
+export async function saveEmailPreference(category: string, enabled: boolean): Promise<{ error?: string }> {
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return { error: auth.error }
+
+  try {
+    if (!(await setEmailPreference(auth.userId, category, enabled))) return { error: "Unknown email type" }
+  } catch {
+    return { error: "Failed to save your email settings" }
+  }
+
+  revalidatePath("/settings")
+  return {}
 }
 
 // ============================================================
