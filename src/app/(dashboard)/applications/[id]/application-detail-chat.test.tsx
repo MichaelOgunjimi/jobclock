@@ -63,6 +63,8 @@ function renderApplicationDetail() {
       generatedCoverLetter={null}
       followUpDueAt={null}
       followUpNotes={null}
+      interviewAt={null}
+      companyResearch={null}
       activity={[]}
     />,
   )

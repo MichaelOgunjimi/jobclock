@@ -4,7 +4,7 @@ import { createClient, getCurrentUser } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { eq, and } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { applications } from "@/lib/db/schema"
+import { applications, interviewPrep } from "@/lib/db/schema"
 import type { Database } from "@/lib/supabase/database.types"
 import { ApplicationDetail } from "./application-detail"
 import { applicationPath } from "@/lib/applications/path"
@@ -87,6 +87,7 @@ export default async function ApplicationDetailPage({
     { data: tailoredCvsData },
     { data: generatedCoverLetterData },
     followUpData,
+    researchData,
     activity,
   ] = await Promise.all([
     supabase
@@ -117,9 +118,16 @@ export default async function ApplicationDetailPage({
       .limit(1)
       .maybeSingle(),
     db
-      .select({ followUpDueAt: applications.followUpDueAt, followUpNotes: applications.followUpNotes })
+      .select({ followUpDueAt: applications.followUpDueAt, followUpNotes: applications.followUpNotes, interviewAt: applications.interviewAt })
       .from(applications)
       .where(and(eq(applications.id, applicationId), eq(applications.userId, user.id)))
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+    // Ownership is already established by the application fetch above.
+    db
+      .select({ researchContent: interviewPrep.researchContent })
+      .from(interviewPrep)
+      .where(eq(interviewPrep.applicationId, applicationId))
       .limit(1)
       .then((rows) => rows[0] ?? null),
     listApplicationAuditForUser(user.id, applicationId),
@@ -135,6 +143,8 @@ export default async function ApplicationDetailPage({
         generatedCoverLetter={generatedCoverLetterData ?? null}
         followUpDueAt={followUpData?.followUpDueAt?.toISOString() ?? null}
         followUpNotes={followUpData?.followUpNotes ?? null}
+        interviewAt={followUpData?.interviewAt?.toISOString() ?? null}
+        companyResearch={researchData?.researchContent ?? null}
         activity={activity.map((event) => ({
           ...event,
           createdAt: event.createdAt.toISOString(),

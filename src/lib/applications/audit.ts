@@ -18,6 +18,7 @@ export type ApplicationAuditEventType =
   | "application.cover_letter_edited"
   | "application.writing_style_updated"
   | "application.follow_up_updated"
+  | "application.interview_scheduled"
   | "application.interview_prep_generated"
   | "application.company_research_generated"
   | "application.interview_question_added"
@@ -64,6 +65,7 @@ export type AuditedApplicationChanges = Partial<Pick<
   | "coverLetterTone"
   | "followUpDueAt"
   | "followUpNotes"
+  | "interviewAt"
 >>
 
 const CONTENT_FIELDS = new Set<keyof AuditedApplicationChanges>([
