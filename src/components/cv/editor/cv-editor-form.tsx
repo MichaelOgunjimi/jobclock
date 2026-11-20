@@ -63,18 +63,21 @@ function Field({
 }
 
 function SectionCard({
+  id,
   kicker,
   title,
   icon,
   children,
 }: {
+  /** Lets the content-review panel scroll to and focus this section. */
+  id?: string
   kicker: string
   title: string
   icon?: ReactNode
   children: ReactNode
 }) {
   return (
-    <Card>
+    <Card id={id} className="scroll-mt-4">
       <CardHeader className="border-b pb-4">
         <p className="section-label">{kicker}</p>
         <CardTitle className="flex items-center gap-2">
@@ -524,6 +527,7 @@ export function CvEditorForm({
         </SectionCard>
 
         <SectionCard
+          id="cv-section-skills"
           kicker="Abilities"
           title="Skills"
           icon={<Award className="h-4 w-4" />}
@@ -549,6 +553,7 @@ export function CvEditorForm({
         </SectionCard>
 
         <SectionCard
+          id="cv-section-experience"
           kicker="Work history"
           title="Experience"
           icon={<Briefcase className="h-4 w-4" />}
@@ -592,6 +597,7 @@ export function CvEditorForm({
         </SectionCard>
 
         <SectionCard
+          id="cv-section-projects"
           kicker="Portfolio"
           title="Projects"
           icon={<FolderKanban className="h-4 w-4" />}
@@ -635,6 +641,7 @@ export function CvEditorForm({
         </SectionCard>
 
         <SectionCard
+          id="cv-section-education"
           kicker="Academic"
           title="Education"
           icon={<GraduationCap className="h-4 w-4" />}

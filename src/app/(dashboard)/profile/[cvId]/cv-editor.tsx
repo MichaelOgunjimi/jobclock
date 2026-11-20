@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import type { CvData } from "@/lib/supabase/database.types"
 import { normalizeCvData, sanitizeCvData, type NormalizedCvData } from "@/lib/cv-data"
 import { parseReviewFindings, type CvReviewFinding } from "@/lib/ai/cv-review-schemas"
-import { findingKey, getFindingText, setFindingText } from "@/lib/cv/review-location"
+import { findingKey, getFindingText, mergeDuplicateFindings, setFindingText } from "@/lib/cv/review-location"
 import { CvEditorForm } from "@/components/cv/editor/cv-editor-form"
 import { CvReviewFindings } from "@/components/cv/cv-review-findings"
 import { saveCvData, renameCv } from "../actions"
@@ -30,10 +30,10 @@ export function CvEditor({
   const [name, setName] = useState(cvName)
   const [savedName, setSavedName] = useState(cvName)
   const [isPending, startTransition] = useTransition()
-  const [findings, setFindings] = useState(initialFindings)
+  const [findings, setFindings] = useState(() => mergeDuplicateFindings(initialFindings))
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set())
   const [checking, setChecking] = useState(false)
-  const [lastCheck, setLastCheck] = useState<{ resolved: number; added: number } | null>(null)
+  const [lastCheck, setLastCheck] = useState<{ resolved: number; added: number; total: number; first: boolean } | null>(null)
 
   // A finding is "addressed" once the text it pointed at has changed; only a re-check can confirm it is really fixed.
   const undismissed = findings.filter((f) => !dismissed.has(findingKey(f)))
@@ -76,6 +76,13 @@ export function CvEditor({
     toast.success("Applied to your CV. Save to keep it, or re-check to confirm.")
   }
 
+  function handleJump(finding: CvReviewFinding) {
+    const section = document.getElementById(`cv-section-${finding.location.section}`)
+    if (!section) return
+    section.scrollIntoView?.({ behavior: "smooth", block: "start" })
+    section.querySelector<HTMLElement>("input, textarea")?.focus({ preventScroll: true })
+  }
+
   async function handleRecheck() {
     setChecking(true)
     try {
@@ -86,12 +93,15 @@ export function CvEditor({
         toast.error(body?.error ?? "Re-check failed. Please try again.")
         return
       }
-      const next = parseReviewFindings(body?.findings)
+      const next = mergeDuplicateFindings(parseReviewFindings(body?.findings))
       const previous = new Set(findings.map(findingKey))
       const current = new Set(next.map(findingKey))
       setLastCheck({
         resolved: undismissed.filter((f) => !current.has(findingKey(f))).length,
         added: next.filter((f) => !previous.has(findingKey(f))).length,
+        total: next.length,
+        // With nothing to compare against, "0 resolved, N new" would only be noise.
+        first: previous.size === 0,
       })
       setFindings(next)
     } catch {
@@ -123,7 +133,10 @@ export function CvEditor({
               )}
               {lastCheck && (
                 <span className="text-muted-foreground">
-                  {" "}· Last check: {lastCheck.resolved} resolved, {lastCheck.added} new
+                  {" "}· Last check:{" "}
+                  {lastCheck.first
+                    ? `${lastCheck.total} ${lastCheck.total === 1 ? "finding" : "findings"}`
+                    : `${lastCheck.resolved} resolved, ${lastCheck.added} new`}
                 </span>
               )}
             </p>
@@ -141,6 +154,8 @@ export function CvEditor({
         <CvReviewFindings
           findings={open}
           onApply={handleApply}
+          onJump={handleJump}
+          skillsCount={data.skills.length}
           onDismiss={(finding) => setDismissed((prev) => new Set(prev).add(findingKey(finding)))}
         />
       </section>

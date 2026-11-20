@@ -61,14 +61,45 @@ export function rewriteIsGrounded(original: string, rewrite: string, knownText =
  * unchanged, or introduces numbers the CV does not contain.
  */
 export function groundFindings(cv: CvData, findings: CvReviewFinding[]): CvReviewFinding[] {
-  return findings.map(({ rewrite, ...finding }) => {
+  return mergeDuplicateFindings(findings.map(({ rewrite, ...finding }) => {
     delete finding.original // never trust a model-supplied original
     const original = getFindingText(cv, finding.location)
     if (original === undefined) return finding
     const known = finding.location.section === "summary" ? JSON.stringify(cv) : original
     const grounded = rewrite !== undefined && rewriteIsGrounded(original, rewrite, known)
     return { ...finding, original, ...(grounded ? { rewrite: rewrite!.trim() } : {}) }
-  })
+  }))
+}
+
+const SEVERITY_RANK = { low: 0, medium: 1, high: 2 } as const
+
+/**
+ * One card per category and location: the model sometimes reports the same problem twice for one bullet.
+ * Keeps the first finding, joins any different message or suggestion, and takes the highest severity.
+ * Idempotent, so it is safe to run again on findings that were stored before merging existed.
+ */
+export function mergeDuplicateFindings(findings: CvReviewFinding[]): CvReviewFinding[] {
+  const merged = new Map<string, CvReviewFinding>()
+  for (const finding of findings) {
+    const { section, entryId, bulletIndex } = finding.location
+    const key = [finding.category, section, norm(entryId), bulletIndex ?? ""].join("|")
+    const first = merged.get(key)
+    if (!first) {
+      merged.set(key, finding)
+      continue
+    }
+    // Keep the more specific text when one contains the other, otherwise join both.
+    const join = (a: string, b: string) =>
+      norm(a).includes(norm(b)) ? a : norm(b).includes(norm(a)) ? b : `${a} ${b}`
+    merged.set(key, {
+      ...first,
+      severity: SEVERITY_RANK[finding.severity] > SEVERITY_RANK[first.severity] ? finding.severity : first.severity,
+      message: join(first.message, finding.message),
+      suggestion: join(first.suggestion, finding.suggestion),
+      ...(first.rewrite === undefined && finding.rewrite !== undefined ? { rewrite: finding.rewrite } : {}),
+    })
+  }
+  return [...merged.values()]
 }
 
 /** Identity of a finding across re-reviews, used to keep dismissals and to diff old against new. */

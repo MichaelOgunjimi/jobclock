@@ -102,3 +102,51 @@ describe("CvReviewFindings actions", () => {
     expect(onDismiss).toHaveBeenCalledWith(plain[0])
   })
 })
+
+describe("CvReviewFindings editing without a rewrite", () => {
+  const metric = parseReviewFindings([
+    {
+      category: "missing_metric",
+      severity: "medium",
+      location: { section: "projects", entryId: "Tracker", bulletIndex: 2 },
+      message: "No result",
+      suggestion: "Say what changed",
+      original: "Worked on a tracker",
+    },
+  ])
+
+  it("shows the current text and lets the user edit and apply it", () => {
+    const onApply = vi.fn()
+    render(<CvReviewFindings findings={metric} onApply={onApply} onDismiss={vi.fn()} />)
+
+    expect(screen.getByText(/worked on a tracker/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /edit text for missing metric/i }))
+    const box = screen.getByRole("textbox", { name: /edit text for missing metric/i })
+    expect(box).toHaveValue("Worked on a tracker")
+    expect(screen.getByRole("button", { name: /apply edit/i })).toBeDisabled()
+    fireEvent.change(box, { target: { value: "Built a tracker my team used daily" } })
+    fireEvent.click(screen.getByRole("button", { name: /apply edit/i }))
+    expect(onApply).toHaveBeenCalledWith(metric[0], "Built a tracker my team used daily")
+  })
+
+  it("cancels without applying", () => {
+    const onApply = vi.fn()
+    render(<CvReviewFindings findings={metric} onApply={onApply} />)
+    fireEvent.click(screen.getByRole("button", { name: /edit text/i }))
+    fireEvent.click(screen.getByRole("button", { name: /cancel editing/i }))
+    expect(screen.queryByRole("textbox")).toBeNull()
+    expect(onApply).not.toHaveBeenCalled()
+  })
+
+  it("offers a jump to the skills field with the current count", () => {
+    const onJump = vi.fn()
+    const skills = parseReviewFindings([
+      { ...lowFinding, category: "skills_section", location: { section: "skills" }, message: "Too many skills" },
+    ])
+    render(<CvReviewFindings findings={skills} onJump={onJump} skillsCount={31} />)
+
+    expect(screen.getByText(/31 skills listed/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /go to skills/i }))
+    expect(onJump).toHaveBeenCalledWith(skills[0])
+  })
+})
