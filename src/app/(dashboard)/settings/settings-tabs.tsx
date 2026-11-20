@@ -13,6 +13,7 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { AiSettingsForm } from "./ai-settings-form"
 import { ExtensionSettingsCard } from "./extension-settings-card"
+import { AgentAccessCard } from "./agent-access-card"
 import { TelegramSettingsCard } from "./telegram-settings-card"
 import { EmailSettingsCard } from "./email-settings-card"
 import { TemplatePicker } from "./template-picker"
@@ -22,6 +23,7 @@ import { BillingSettingsCard, type BillingSummary } from "./billing-settings-car
 import { savePreferences } from "../profile/actions"
 import type { AiSettings, JobSources } from "@/lib/ai"
 import type { PersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
+import type { ApiTokenMetadata } from "@/lib/mcp/tokens"
 import type { TrackedCompany } from "./actions"
 import type { TelegramConnectionMetadata } from "@/lib/telegram/pairing"
 import type { EmailPreferences } from "@/lib/email/categories"
@@ -67,6 +69,8 @@ export function SettingsTabs({
   preferredCoverLetterTemplate,
   jobSources,
   extensionToken,
+  agentTokens,
+  mcpUrl,
   telegramConnection,
   telegramBotUsername,
   telegramConfigured,
@@ -84,6 +88,8 @@ export function SettingsTabs({
   preferredCoverLetterTemplate: string
   jobSources: JobSources
   extensionToken: PersonalApiTokenMetadata | null
+  agentTokens: ApiTokenMetadata[]
+  mcpUrl: string
   telegramConnection: TelegramConnectionMetadata | null
   telegramBotUsername: string | null
   telegramConfigured: boolean
@@ -97,7 +103,7 @@ export function SettingsTabs({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const validTabs = ["ai", "billing", "appearance", "extension", "telegram", "emails", "job-search", "job-sources", "companies"]
+  const validTabs = ["ai", "billing", "appearance", "extension", "agent", "telegram", "emails", "job-search", "job-sources", "companies"]
   const activeTab = validTabs.includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "ai"
 
   const [roles, setRoles] = useState<string[]>(profilePrefs.desired_roles ?? [])
@@ -147,6 +153,7 @@ export function SettingsTabs({
         <TabsTrigger value="billing" className="shrink-0 px-2.5 sm:px-4">Billing</TabsTrigger>
         <TabsTrigger value="appearance" className="shrink-0 px-2.5 sm:px-4">Appearance</TabsTrigger>
         <TabsTrigger value="extension" className="shrink-0 px-2.5 sm:px-4">Extension</TabsTrigger>
+        <TabsTrigger value="agent" className="shrink-0 px-2.5 sm:px-4">AI Agent</TabsTrigger>
         <TabsTrigger value="telegram" className="shrink-0 px-2.5 sm:px-4">Telegram</TabsTrigger>
         <TabsTrigger value="emails" className="shrink-0 px-2.5 sm:px-4">Emails</TabsTrigger>
         <TabsTrigger value="job-search" className="shrink-0 px-2.5 sm:px-4">Job Search</TabsTrigger>
@@ -215,6 +222,10 @@ export function SettingsTabs({
 
       <TabsContent value="extension">
         <ExtensionSettingsCard initialToken={extensionToken} />
+      </TabsContent>
+
+      <TabsContent value="agent">
+        <AgentAccessCard tokens={agentTokens} mcpUrl={mcpUrl} />
       </TabsContent>
 
       <TabsContent value="telegram">

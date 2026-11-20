@@ -121,6 +121,10 @@ display metadata.
 See the [Telegram bot setup guide](docs/telegram-bot-setup.md) for BotFather,
 environment, webhook registration, pairing, testing, and rotation steps.
 
+## AI agent access (MCP)
+
+An AI agent such as Claude can update your applications through an authenticated MCP server at `/api/mcp`. See [docs/mcp-agent-access.md](docs/mcp-agent-access.md).
+
 ## Technology
 
 | Area | Technology |

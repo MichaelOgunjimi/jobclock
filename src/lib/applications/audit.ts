@@ -18,6 +18,7 @@ export type ApplicationAuditEventType =
   | "application.cover_letter_edited"
   | "application.writing_style_updated"
   | "application.follow_up_updated"
+  | "application.interview_time_updated"
   | "application.interview_scheduled"
   | "application.interview_prep_generated"
   | "application.company_research_generated"
@@ -89,12 +90,25 @@ function equalValues(before: unknown, after: unknown) {
   return left === right
 }
 
-export async function updateApplicationWithAuditForUser(
+export interface AuditedChangeResult {
+  changed: boolean
+  before: Application
+  after: Application
+}
+
+/**
+ * Applies changes to one of the user's applications under a row lock and records the audit event in the
+ * same transaction. `changes` may be a function of the locked row, so read-modify-write edits (appending
+ * a note) cannot lose a concurrent edit. `source` marks who made the change (e.g. "mcp") in the event.
+ * Returns the row before and after, or null when the user has no such application.
+ */
+export async function applyAuditedChangesForUser(
   userId: string,
   applicationId: string,
-  changes: AuditedApplicationChanges,
+  changes: AuditedApplicationChanges | ((current: Application) => AuditedApplicationChanges),
   eventType: ApplicationAuditEventType,
-): Promise<boolean> {
+  source?: string,
+): Promise<AuditedChangeResult | null> {
   return db.transaction(async (tx) => {
     const [current] = await tx
       .select()
@@ -103,16 +117,17 @@ export async function updateApplicationWithAuditForUser(
       .limit(1)
       .for("update")
 
-    if (!current) return false
+    if (!current) return null
 
-    const changedFields = Object.entries(changes).filter(
+    const resolved = typeof changes === "function" ? changes(current) : changes
+    const changedFields = Object.entries(resolved).filter(
       ([field, value]) => !equalValues(current[field as keyof Application], value),
     ) as [keyof AuditedApplicationChanges, unknown][]
-    if (changedFields.length === 0) return true
+    if (changedFields.length === 0) return { changed: false, before: current, after: current }
 
     await tx
       .update(applications)
-      .set(changes)
+      .set(resolved)
       .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)))
 
     await appendApplicationAuditEvents(tx, {
@@ -120,6 +135,7 @@ export async function updateApplicationWithAuditForUser(
       userId,
       eventType,
       metadata: {
+        ...(source ? { source } : {}),
         changes: Object.fromEntries(changedFields.map(([field, after]) => [
           field,
           {
@@ -129,8 +145,17 @@ export async function updateApplicationWithAuditForUser(
         ])),
       },
     })
-    return true
+    return { changed: true, before: current, after: { ...current, ...resolved } }
   })
+}
+
+export async function updateApplicationWithAuditForUser(
+  userId: string,
+  applicationId: string,
+  changes: AuditedApplicationChanges,
+  eventType: ApplicationAuditEventType,
+): Promise<boolean> {
+  return (await applyAuditedChangesForUser(userId, applicationId, changes, eventType)) !== null
 }
 
 export async function deleteApplicationWithAuditForUser(

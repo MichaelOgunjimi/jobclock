@@ -142,7 +142,8 @@ export async function updateApplicationStatusForUser(
   userId: string,
   applicationId: string,
   status: ApplicationStatus,
-  intent: ApplicationStatusIntent = "progress"
+  intent: ApplicationStatusIntent = "progress",
+  source?: string
 ): Promise<boolean> {
   if (!isApplicationStatus(status)) return false
 
@@ -200,6 +201,7 @@ export async function updateApplicationStatusForUser(
           fromStatus: event.fromStatus,
           toStatus: event.toStatus,
           intent,
+          ...(source ? { source } : {}),
         },
       })),
     )

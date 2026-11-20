@@ -21,6 +21,7 @@ const EVENT_LABELS: Record<string, string> = {
   "application.cover_letter_edited": "Cover letter edited",
   "application.writing_style_updated": "Writing style updated",
   "application.follow_up_updated": "Follow-up updated",
+  "application.interview_time_updated": "Interview time updated",
   "application.interview_scheduled": "Interview date updated",
   "application.interview_prep_generated": "Interview preparation generated",
   "application.company_research_generated": "Company research generated",
@@ -58,6 +59,7 @@ function changeDetail(metadata: unknown) {
     coverLetterTone: "tone",
     followUpDueAt: "date",
     followUpNotes: "notes",
+    interviewAt: "date",
   }
   const fields = Object.keys(metadata.changes).map((field) => labels[field] ?? field)
   return fields.length ? fields.join(", ") : null
