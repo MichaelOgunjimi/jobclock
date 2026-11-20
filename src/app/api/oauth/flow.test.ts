@@ -145,7 +145,7 @@ describe("the whole flow with the MCP SDK's own OAuth client", () => {
   it("connects with no token, read-only by default: sees read tools, cannot see or call write tools", async () => {
     const { client } = await connectWithOAuth({ write: false })
     const names = (await client.listTools()).tools.map((tool) => tool.name).sort()
-    expect(names).toEqual(["get_application", "list_applications", "list_due"])
+    expect(names).toEqual(["check_job_exists", "get_application", "get_job_preferences", "list_applications", "list_due"])
 
     const result = await client.callTool({ name: "list_applications", arguments: { limit: 2 } })
     expect(result.isError).toBeFalsy()
@@ -156,7 +156,7 @@ describe("the whole flow with the MCP SDK's own OAuth client", () => {
 
   it("with write ticked, the client also sees the write tools", async () => {
     const { client } = await connectWithOAuth({ write: true })
-    expect((await client.listTools()).tools).toHaveLength(7)
+    expect((await client.listTools()).tools).toHaveLength(11)
   })
 
   it("a grant for user A only ever acts as user A", async () => {
