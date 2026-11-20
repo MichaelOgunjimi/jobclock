@@ -1,4 +1,6 @@
+import { summarizeStats } from "@/lib/applications/stats-summary"
 import type { PersistedJobInput } from "@/lib/jobs/persist-job"
+import type { DigestData } from "@/lib/telegram/digest"
 import { SUPPORT_EMAIL, getAppUrl } from "@/lib/site"
 
 /** A finished email. The same subject/html/text goes to Resend or Beaco, so neither renders anything. */
@@ -101,6 +103,16 @@ ${unsubscribe}
 const paragraph = (text: string) => `<p class="em-text" style="margin:0 0 16px;color:#666666;font-size:15px;line-height:1.6;">${escapeHtml(text)}</p>`
 const billingUrl = () => `${getAppUrl()}/settings?tab=billing`
 
+/** One line of a list: a title and a grey detail line on the left, a link on the right. Every value is escaped here. */
+const listRow = (title: string, meta: string, url: string, label: string) => `<table class="em-rule" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid #e5e5e5;padding:16px 0;">
+<tr>
+<td style="vertical-align:top;"><p class="em-strong" style="margin:0 0 4px;color:#0f0f0f;font-size:15px;font-weight:600;">${escapeHtml(title)}</p><p class="em-muted" style="margin:0;color:#888888;font-size:13px;">${escapeHtml(meta)}</p></td>
+<td style="vertical-align:middle;text-align:right;white-space:nowrap;padding-left:16px;"><a class="em-strong" href="${escapeHtml(url)}" style="color:#0f0f0f;font-size:13px;font-weight:500;text-decoration:none;">${escapeHtml(label)} &rarr;</a></td>
+</tr>
+</table>`
+
+const pluralize = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`
+
 export function paymentFailedEmail(): RenderedEmail {
   const subject = "Your JobClock payment did not go through"
   const cta = { label: "Update payment method", url: billingUrl() }
@@ -141,15 +153,7 @@ export function jobAlertEmail(jobs: PersistedJobInput[], unsubscribeUrl: string)
   const linkFor = (job: PersistedJobInput) => (/^https?:\/\//i.test(job.url) ? job.url : appUrl)
 
   const rows = shown
-    .map((job) => {
-      const meta = [job.company, job.location].filter(Boolean).map((part) => escapeHtml(String(part))).join(" &middot; ")
-      return `<table class="em-rule" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid #e5e5e5;padding:16px 0;">
-<tr>
-<td style="vertical-align:top;"><p class="em-strong" style="margin:0 0 4px;color:#0f0f0f;font-size:15px;font-weight:600;">${escapeHtml(job.title)}</p><p class="em-muted" style="margin:0;color:#888888;font-size:13px;">${meta}</p></td>
-<td style="vertical-align:middle;text-align:right;white-space:nowrap;padding-left:16px;"><a class="em-strong" href="${escapeHtml(linkFor(job))}" style="color:#0f0f0f;font-size:13px;font-weight:500;text-decoration:none;">Apply &rarr;</a></td>
-</tr>
-</table>`
-    })
+    .map((job) => listRow(job.title, [job.company, job.location].filter(Boolean).join(" · "), linkFor(job), "Apply"))
     .join("\n")
   const more = overflow > 0 ? `<p class="em-muted" style="margin:16px 0 0;color:#888888;font-size:13px;">+ ${overflow} more role${overflow === 1 ? "" : "s"}. Open JobClock to see them all.</p>` : ""
   const cta = { label: "View all jobs", url: `${appUrl}/jobs` }
@@ -168,6 +172,36 @@ export function jobAlertEmail(jobs: PersistedJobInput[], unsubscribeUrl: string)
       `${jobs.length} new role${plural} at companies you track:`,
       ...shown.map((job) => `- ${job.title}${job.company ? ` at ${job.company}` : ""}: ${linkFor(job)}`),
       ...(overflow > 0 ? [`+ ${overflow} more. ${cta.url}`] : [`${cta.label}: ${cta.url}`]),
+      "",
+      unsubscribeText(unsubscribeUrl),
+    ].join("\n"),
+  }
+}
+
+const dateLabel = (iso: string) => iso.slice(0, 10)
+
+export function weeklyDigestEmail({ followUps, stats }: DigestData, unsubscribeUrl: string): RenderedEmail {
+  const subject = "Your weekly JobClock digest"
+  const { total, submitted, replied } = summarizeStats(stats.byStatus)
+  const byStatus = Object.entries(stats.byStatus).filter(([, count]) => count > 0).map(([status, count]) => `${status} ${count}`).join(", ")
+  const lines = [
+    `${pluralize(total, "application")} tracked. This week you saved ${stats.savedThisWeek} and applied to ${stats.appliedThisWeek}.`,
+    `By status: ${byStatus}.`,
+    ...(submitted > 0 ? [`${replied} of ${submitted} sent applications got a reply (${Math.round((replied / submitted) * 100)}%).`] : []),
+  ]
+  const cta = { label: "Open JobClock", url: `${getAppUrl()}/dashboard` }
+  const due = followUps.length > 0
+    ? `${paragraph("These follow-ups are due:")}\n${followUps.map((item) => listRow(item.title, `${item.company} · due ${dateLabel(item.dueAt)}`, item.url, "Open")).join("\n")}\n<div style="height:16px;"></div>`
+    : ""
+
+  return {
+    subject,
+    html: layout({ title: subject, eyebrow: "Weekly digest", heading: "Your week in JobClock.", bodyHtml: `${due}${lines.map(paragraph).join("\n")}`, cta, unsubscribeUrl }),
+    text: [
+      ...(followUps.length > 0 ? ["Follow-ups due:", ...followUps.map((item) => `- ${item.title} at ${item.company} (due ${dateLabel(item.dueAt)}): ${item.url}`), ""] : []),
+      ...lines,
+      "",
+      `${cta.label}: ${cta.url}`,
       "",
       unsubscribeText(unsubscribeUrl),
     ].join("\n"),

@@ -1,10 +1,9 @@
 import { count, eq, sql } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { applications } from "@/lib/db/schema"
+import { summarizeStats } from "@/lib/applications/stats-summary"
 
 const DAY_MS = 86_400_000
-/** Statuses that mean an employer replied (as opposed to still waiting or no answer). */
-const REPLIED = ["screening", "interview", "offer", "rejected"]
 
 export interface ApplicationStats {
   byStatus: Record<string, number>
@@ -22,12 +21,10 @@ function bar(value: number, max: number): string {
 
 /** Renders stats as the /stats reply (Telegram HTML: send with sendTelegramHtml). */
 export function formatStats({ byStatus, savedThisWeek, appliedThisWeek }: ApplicationStats): string {
-  const total = Object.values(byStatus).reduce((sum, n) => sum + n, 0)
+  const { total, submitted, replied } = summarizeStats(byStatus)
   if (total === 0) return "📭 <b>No saved jobs yet.</b>\nSend me a job link to add one."
 
   const n = (status: string) => byStatus[status] ?? 0
-  const submitted = total - n("saved")
-  const replied = REPLIED.reduce((sum, status) => sum + n(status), 0)
   const max = Math.max(...STATUS_ROWS.map(n))
   const rows = STATUS_ROWS.map(
     (status) => `${status.padEnd(9)} ${String(n(status)).padStart(3)} ${bar(n(status), max)}`

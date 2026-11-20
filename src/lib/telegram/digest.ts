@@ -3,7 +3,7 @@ import { db } from "@/lib/db"
 import { applications, jobsCache } from "@/lib/db/schema"
 import { escapeHtml } from "./client"
 import { appOrigin } from "./recent-jobs"
-import { formatStats, getApplicationStats } from "./stats"
+import { formatStats, getApplicationStats, type ApplicationStats } from "./stats"
 
 /** Open applications where an employer reply is still pending, so a follow-up makes sense. */
 const FOLLOW_UP_STATUSES = ["applied", "screening", "interview"] as const
@@ -64,9 +64,20 @@ async function listOverdueFollowUps(userId: string): Promise<FollowUpItem[]> {
   }))
 }
 
-/** Builds the digest text for one user, or null when there is nothing to report. */
-export async function buildDigest(userId: string): Promise<string | null> {
+export interface DigestData {
+  followUps: FollowUpItem[]
+  stats: ApplicationStats
+}
+
+/** The digest's content for one user (shared by Telegram and email), or null when there is nothing to report. */
+export async function getDigestData(userId: string): Promise<DigestData | null> {
   const [followUps, stats] = await Promise.all([listOverdueFollowUps(userId), getApplicationStats(userId)])
   if (Object.keys(stats.byStatus).length === 0) return null
-  return formatDigest(followUps, formatStats(stats))
+  return { followUps, stats }
+}
+
+/** Builds the Telegram digest text for one user, or null when there is nothing to report. */
+export async function buildDigest(userId: string): Promise<string | null> {
+  const data = await getDigestData(userId)
+  return data && formatDigest(data.followUps, formatStats(data.stats))
 }
