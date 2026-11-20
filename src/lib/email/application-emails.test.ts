@@ -12,7 +12,7 @@ vi.mock("@/lib/db", () => ({ db: { select: () => mocks.chain } }))
 vi.mock("./sent-log", () => ({ sentKeys: mocks.sentKeys }))
 vi.mock("./optional", () => ({ sendOptionalEmail: mocks.sendOptional }))
 
-import { sendDeadlineReminders, sendFollowUpReminders } from "./application-emails"
+import { sendDeadlineReminders, sendFollowUpReminders, sendInterviewReminders } from "./application-emails"
 
 const NOW = new Date("2026-11-20T08:00:00Z")
 const due = (userId: string, id: string, extra: Record<string, unknown> = {}) => ({
@@ -122,5 +122,46 @@ describe("sendDeadlineReminders", () => {
     mocks.state.rows = [job("u1", "j1", "2026-11-22")]
     mocks.sendOptional.mockResolvedValue(false)
     expect(await sendDeadlineReminders(NOW)).toEqual({ eligible: 1, sent: 0, failed: 0 })
+  })
+})
+
+describe("sendInterviewReminders", () => {
+  const interview = (userId: string, id: string, extra: Record<string, unknown> = {}) => ({
+    userId,
+    id,
+    slug: `role-${id}`,
+    interviewAt: new Date("2026-11-21T14:30:00Z"),
+    title: "Engineer",
+    company: "Acme & Co",
+    customTitle: null,
+    customCompany: null,
+    ...extra,
+  })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.sendOptional.mockResolvedValue(true)
+  })
+
+  it("sends one email per interview, keyed by application and time, linking to the application", async () => {
+    mocks.state.rows = [interview("u1", "a"), interview("u2", "b")]
+
+    expect(await sendInterviewReminders(NOW)).toEqual({ eligible: 2, sent: 2, failed: 0 })
+    expect(mocks.sendOptional).toHaveBeenCalledWith(expect.objectContaining({
+      userId: "u1",
+      category: "interview_reminders",
+      dedupeKey: "app:a:2026-11-21T14:30:00.000Z",
+    }))
+    const email = mocks.sendOptional.mock.calls[0][0].render("https://jobclock.dev/u?t=1")
+    expect(email.subject).toBe("Interview tomorrow: Engineer at Acme & Co")
+    expect(email.html).toContain("Acme &amp; Co")
+    expect(email.html).toContain("2026-11-21 14:30 UTC")
+    expect(email.html).toContain("Open interview prep")
+    expect(email.html).toContain("https://jobclock.dev/applications/role-a")
+  })
+
+  it("does nothing when no opted-in user has an interview tomorrow", async () => {
+    mocks.state.rows = []
+    expect(await sendInterviewReminders(NOW)).toEqual({ eligible: 0, sent: 0, failed: 0 })
   })
 })

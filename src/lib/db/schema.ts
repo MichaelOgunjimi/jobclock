@@ -326,6 +326,8 @@ export const applications = pgTable(
     followUpDueAt: timestamp("follow_up_due_at", { withTimezone: true }),
     followUpCount: integer("follow_up_count").default(0),
     followUpNotes: text("follow_up_notes"),
+    // When the interview is. Nothing in the app sets it yet; the interview reminder email uses it once something does.
+    interviewAt: timestamp("interview_at", { withTimezone: true }),
   },
   (table) => [
     uniqueIndex("applications_slug_unique").on(table.slug),

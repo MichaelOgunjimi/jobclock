@@ -266,3 +266,18 @@ export function deadlineEmail(item: { title: string; company: string; deadline: 
     unsubscribeUrl,
   })
 }
+
+export function interviewEmail(item: { title: string; company: string; interviewAt: string; url: string }, unsubscribeUrl: string): RenderedEmail {
+  // The user's time zone is not stored, so the time is shown in UTC and labelled as such.
+  const when = `${dateLabel(item.interviewAt)} ${item.interviewAt.slice(11, 16)} UTC`
+  return listEmail({
+    subject: `Interview tomorrow: ${item.title} at ${item.company}`,
+    eyebrow: "Interview",
+    heading: "Your interview is tomorrow.",
+    intro: "Take a few minutes today to go through your interview prep for this role.",
+    items: [{ title: item.title, meta: `${item.company} · ${when}`, url: item.url }],
+    rowLabel: "Open",
+    cta: { label: "Open interview prep", url: item.url },
+    unsubscribeUrl,
+  })
+}

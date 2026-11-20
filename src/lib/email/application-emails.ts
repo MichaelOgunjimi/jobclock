@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, isNotNull, lte } from "drizzle-orm"
+import { and, asc, eq, gt, gte, inArray, isNotNull, lt, lte } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { applications, emailPreferences, jobsCache } from "@/lib/db/schema"
 import { getAppUrl } from "@/lib/site"
@@ -6,7 +6,7 @@ import { FOLLOW_UP_STATUSES, type FollowUpItem } from "@/lib/telegram/digest"
 import type { EmailCategory } from "./categories"
 import { sendOptionalEmail } from "./optional"
 import { sentKeys } from "./sent-log"
-import { deadlineEmail, followUpDueEmail, type RenderedEmail } from "./templates"
+import { deadlineEmail, followUpDueEmail, interviewEmail, type RenderedEmail } from "./templates"
 
 export interface JobRunResult {
   eligible: number
@@ -128,6 +128,44 @@ export async function sendDeadlineReminders(now = new Date()): Promise<JobRunRes
         url: applicationUrl(row.slug),
       }
       if (await sendOptionalEmail({ userId, category: "deadline_reminders", dedupeKey: `job:${row.jobId}`, render: (url) => deadlineEmail(item, url) })) sent += 1
+    }
+    return sent
+  })
+}
+
+/** Interview reminders: interviews that fall on tomorrow (UTC), one email per interview. Needs applications.interview_at, which nothing sets yet. */
+export async function sendInterviewReminders(now = new Date()): Promise<JobRunResult> {
+  const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
+  const dayAfter = new Date(tomorrow.getTime() + DAY_MS)
+  const rows = await db
+    .select({
+      userId: applications.userId,
+      id: applications.id,
+      slug: applications.slug,
+      interviewAt: applications.interviewAt,
+      title: jobsCache.title,
+      company: jobsCache.company,
+      customTitle: applications.customTitle,
+      customCompany: applications.customCompany,
+    })
+    .from(applications)
+    .innerJoin(emailPreferences, and(eq(emailPreferences.userId, applications.userId), eq(emailPreferences.interviewReminders, true)))
+    .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
+    .where(and(gte(applications.interviewAt, tomorrow), lt(applications.interviewAt, dayAfter), inArray(applications.status, [...FOLLOW_UP_STATUSES])))
+    .orderBy(asc(applications.interviewAt))
+
+  return eachUser(byUser(rows), "interviews", async (userId, userRows) => {
+    let sent = 0
+    for (const row of userRows) {
+      const item = {
+        title: row.customTitle ?? row.title ?? "Untitled role",
+        company: row.customCompany ?? row.company ?? "Unknown company",
+        interviewAt: row.interviewAt!.toISOString(),
+        url: applicationUrl(row.slug),
+      }
+      // A rescheduled interview has a new time, so it gets its own reminder.
+      const dedupeKey = `app:${row.id}:${item.interviewAt}`
+      if (await sendOptionalEmail({ userId, category: "interview_reminders", dedupeKey, render: (url) => interviewEmail(item, url) })) sent += 1
     }
     return sent
   })
