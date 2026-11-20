@@ -252,3 +252,17 @@ export function followUpDueEmail(items: FollowUpItem[], unsubscribeUrl: string):
     unsubscribeUrl,
   })
 }
+
+export function deadlineEmail(item: { title: string; company: string; deadline: string; daysLeft: number; url: string }, unsubscribeUrl: string): RenderedEmail {
+  const when = item.daysLeft <= 1 ? "tomorrow" : `in ${item.daysLeft} days`
+  return listEmail({
+    subject: `Applications for ${item.title} close ${when}`,
+    eyebrow: "Deadline",
+    heading: "A deadline is coming up.",
+    intro: `You saved this job and applications close ${when}, on ${item.deadline}.`,
+    items: [{ title: item.title, meta: `${item.company} · closes ${item.deadline}`, url: item.url }],
+    rowLabel: "Open",
+    cta: { label: "Open application", url: item.url },
+    unsubscribeUrl,
+  })
+}

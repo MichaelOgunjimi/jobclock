@@ -12,7 +12,7 @@ vi.mock("@/lib/db", () => ({ db: { select: () => mocks.chain } }))
 vi.mock("./sent-log", () => ({ sentKeys: mocks.sentKeys }))
 vi.mock("./optional", () => ({ sendOptionalEmail: mocks.sendOptional }))
 
-import { sendFollowUpReminders } from "./application-emails"
+import { sendDeadlineReminders, sendFollowUpReminders } from "./application-emails"
 
 const NOW = new Date("2026-11-20T08:00:00Z")
 const due = (userId: string, id: string, extra: Record<string, unknown> = {}) => ({
@@ -75,5 +75,52 @@ describe("sendFollowUpReminders", () => {
     mocks.state.rows = []
     expect(await sendFollowUpReminders(NOW)).toEqual({ eligible: 0, sent: 0, failed: 0 })
     expect(mocks.sendOptional).not.toHaveBeenCalled()
+  })
+})
+
+describe("sendDeadlineReminders", () => {
+  const job = (userId: string, jobId: string, deadline: string, extra: Record<string, unknown> = {}) => ({
+    userId,
+    jobId,
+    slug: `role-${jobId}`,
+    deadline,
+    title: "Engineer <b>",
+    company: "Acme",
+    customTitle: null,
+    customCompany: null,
+    ...extra,
+  })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.sendOptional.mockResolvedValue(true)
+  })
+
+  it("sends one email per job, keyed by the job, so a job is never reminded twice", async () => {
+    mocks.state.rows = [job("u1", "j1", "2026-11-22"), job("u1", "j2", "2026-11-21"), job("u2", "j3", "2026-11-22")]
+
+    expect(await sendDeadlineReminders(NOW)).toEqual({ eligible: 2, sent: 3, failed: 0 })
+    expect(mocks.sendOptional).toHaveBeenCalledTimes(3)
+    expect(mocks.sendOptional).toHaveBeenCalledWith(expect.objectContaining({ userId: "u1", category: "deadline_reminders", dedupeKey: "job:j1" }))
+    expect(mocks.sendOptional).toHaveBeenCalledWith(expect.objectContaining({ userId: "u1", dedupeKey: "job:j2" }))
+  })
+
+  it("words the email by how many days are left and escapes the title", async () => {
+    mocks.state.rows = [job("u1", "j1", "2026-11-22"), job("u1", "j2", "2026-11-21")]
+    await sendDeadlineReminders(NOW)
+
+    const twoDays = mocks.sendOptional.mock.calls[0][0].render("https://jobclock.dev/u?t=1")
+    expect(twoDays.subject).toBe("Applications for Engineer <b> close in 2 days")
+    expect(twoDays.html).toContain("Engineer &lt;b&gt;")
+    expect(twoDays.html).not.toContain("Engineer <b>")
+    expect(twoDays.html).toContain("closes 2026-11-22")
+    expect(twoDays.html).toContain("https://jobclock.dev/applications/role-j1")
+    expect(mocks.sendOptional.mock.calls[1][0].render("u").subject).toBe("Applications for Engineer <b> close tomorrow")
+  })
+
+  it("does not count an email the opt-in sender declined", async () => {
+    mocks.state.rows = [job("u1", "j1", "2026-11-22")]
+    mocks.sendOptional.mockResolvedValue(false)
+    expect(await sendDeadlineReminders(NOW)).toEqual({ eligible: 1, sent: 0, failed: 0 })
   })
 })

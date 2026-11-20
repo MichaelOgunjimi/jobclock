@@ -1,4 +1,4 @@
-import { sendFollowUpReminders } from "./application-emails"
+import { sendDeadlineReminders, sendFollowUpReminders } from "./application-emails"
 
 /**
  * Everything that goes out once a day. Each job runs on its own, so one failing never blocks the others.
@@ -6,6 +6,7 @@ import { sendFollowUpReminders } from "./application-emails"
  */
 const JOBS = {
   followUps: sendFollowUpReminders,
+  deadlines: sendDeadlineReminders,
 } as const
 
 export async function runDailyEmails(now = new Date()): Promise<Record<string, unknown>> {
