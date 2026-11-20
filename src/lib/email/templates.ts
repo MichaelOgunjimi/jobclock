@@ -1,4 +1,6 @@
+import { summarizeStats } from "@/lib/applications/stats-summary"
 import type { PersistedJobInput } from "@/lib/jobs/persist-job"
+import type { DigestData, FollowUpItem } from "@/lib/telegram/digest"
 import { SUPPORT_EMAIL, getAppUrl } from "@/lib/site"
 
 /** A finished email. The same subject/html/text goes to Resend or Beaco, so neither renders anything. */
@@ -42,14 +44,24 @@ interface LayoutOptions {
   bodyHtml: string
   cta?: { label: string; url: string }
   footnote?: string
+  /** Optional emails only: adds the unsubscribe line to the footer. Billing and security emails never pass it. */
+  unsubscribeUrl?: string
 }
 
+const settingsEmailsUrl = () => `${getAppUrl()}/settings?tab=emails`
+
+// The plain-text twin of the footer line, for optional emails.
+export const unsubscribeText = (url: string) => `Unsubscribe from these emails: ${url}\nChoose which emails you get: ${settingsEmailsUrl()}`
+
 // Same look as the Supabase auth emails (dark header, white card), so every JobClock email matches.
-function layout({ title, eyebrow, heading, bodyHtml, cta, footnote }: LayoutOptions): string {
+function layout({ title, eyebrow, heading, bodyHtml, cta, footnote, unsubscribeUrl }: LayoutOptions): string {
   const button = cta
     ? `<a class="em-btn" href="${escapeHtml(cta.url)}" style="display:block;background-color:#0f0f0f;color:#ffffff;text-align:center;padding:14px 32px;font-size:14px;font-weight:500;text-decoration:none;">${escapeHtml(cta.label)} &rarr;</a>`
     : ""
   const note = footnote ? `<p class="em-muted" style="margin:32px 0 0;color:#999999;font-size:13px;line-height:1.6;">${footnote}</p>` : ""
+  const unsubscribe = unsubscribeUrl
+    ? `<p class="em-muted" style="margin:12px 0 0;color:#999999;font-size:12px;">You are getting this because you turned these emails on. <a class="em-muted" href="${escapeHtml(unsubscribeUrl)}" style="color:#999999;">Unsubscribe</a> or <a class="em-muted" href="${escapeHtml(settingsEmailsUrl())}" style="color:#999999;">choose which emails you get</a>.</p>`
+    : ""
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -79,6 +91,7 @@ ${note}
 </td></tr>
 <tr><td class="em-foot" style="background-color:#f9f9f7;border-top:1px solid #e5e5e5;padding:20px 40px;">
 <p class="em-muted" style="margin:0;color:#999999;font-size:12px;">JobClock &mdash; a calmer way to organise your job search. Questions? Reply to this email or write to <a class="em-muted" href="mailto:${SUPPORT_EMAIL}" style="color:#999999;">${SUPPORT_EMAIL}</a>.</p>
+${unsubscribe}
 </td></tr>
 </table>
 </td></tr>
@@ -89,6 +102,16 @@ ${note}
 
 const paragraph = (text: string) => `<p class="em-text" style="margin:0 0 16px;color:#666666;font-size:15px;line-height:1.6;">${escapeHtml(text)}</p>`
 const billingUrl = () => `${getAppUrl()}/settings?tab=billing`
+
+/** One line of a list: a title and a grey detail line on the left, a link on the right. Every value is escaped here. */
+const listRow = (title: string, meta: string, url: string, label: string) => `<table class="em-rule" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid #e5e5e5;padding:16px 0;">
+<tr>
+<td style="vertical-align:top;"><p class="em-strong" style="margin:0 0 4px;color:#0f0f0f;font-size:15px;font-weight:600;">${escapeHtml(title)}</p><p class="em-muted" style="margin:0;color:#888888;font-size:13px;">${escapeHtml(meta)}</p></td>
+<td style="vertical-align:middle;text-align:right;white-space:nowrap;padding-left:16px;"><a class="em-strong" href="${escapeHtml(url)}" style="color:#0f0f0f;font-size:13px;font-weight:500;text-decoration:none;">${escapeHtml(label)} &rarr;</a></td>
+</tr>
+</table>`
+
+const pluralize = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`
 
 export function paymentFailedEmail(): RenderedEmail {
   const subject = "Your JobClock payment did not go through"
@@ -118,10 +141,10 @@ export function subscriptionEndedEmail(): RenderedEmail {
   }
 }
 
-const MAX_JOBS_SHOWN = 10
+const MAX_ROWS_SHOWN = 10
 
-export function jobAlertEmail(jobs: PersistedJobInput[]): RenderedEmail {
-  const shown = jobs.slice(0, MAX_JOBS_SHOWN)
+export function jobAlertEmail(jobs: PersistedJobInput[], unsubscribeUrl: string): RenderedEmail {
+  const shown = jobs.slice(0, MAX_ROWS_SHOWN)
   const overflow = jobs.length - shown.length
   const plural = jobs.length === 1 ? "" : "s"
   const subject = `${jobs.length} new job${plural} at the companies you track`
@@ -130,15 +153,7 @@ export function jobAlertEmail(jobs: PersistedJobInput[]): RenderedEmail {
   const linkFor = (job: PersistedJobInput) => (/^https?:\/\//i.test(job.url) ? job.url : appUrl)
 
   const rows = shown
-    .map((job) => {
-      const meta = [job.company, job.location].filter(Boolean).map((part) => escapeHtml(String(part))).join(" &middot; ")
-      return `<table class="em-rule" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid #e5e5e5;padding:16px 0;">
-<tr>
-<td style="vertical-align:top;"><p class="em-strong" style="margin:0 0 4px;color:#0f0f0f;font-size:15px;font-weight:600;">${escapeHtml(job.title)}</p><p class="em-muted" style="margin:0;color:#888888;font-size:13px;">${meta}</p></td>
-<td style="vertical-align:middle;text-align:right;white-space:nowrap;padding-left:16px;"><a class="em-strong" href="${escapeHtml(linkFor(job))}" style="color:#0f0f0f;font-size:13px;font-weight:500;text-decoration:none;">Apply &rarr;</a></td>
-</tr>
-</table>`
-    })
+    .map((job) => listRow(job.title, [job.company, job.location].filter(Boolean).join(" · "), linkFor(job), "Apply"))
     .join("\n")
   const more = overflow > 0 ? `<p class="em-muted" style="margin:16px 0 0;color:#888888;font-size:13px;">+ ${overflow} more role${overflow === 1 ? "" : "s"}. Open JobClock to see them all.</p>` : ""
   const cta = { label: "View all jobs", url: `${appUrl}/jobs` }
@@ -151,11 +166,189 @@ export function jobAlertEmail(jobs: PersistedJobInput[]): RenderedEmail {
       heading: `${jobs.length} new role${plural} for you.`,
       bodyHtml: `${paragraph("New roles just appeared at companies you track.")}\n${rows}\n${more}`,
       cta,
+      unsubscribeUrl,
     }),
     text: [
       `${jobs.length} new role${plural} at companies you track:`,
       ...shown.map((job) => `- ${job.title}${job.company ? ` at ${job.company}` : ""}: ${linkFor(job)}`),
       ...(overflow > 0 ? [`+ ${overflow} more. ${cta.url}`] : [`${cta.label}: ${cta.url}`]),
+      "",
+      unsubscribeText(unsubscribeUrl),
     ].join("\n"),
   }
+}
+
+const dateLabel = (iso: string) => iso.slice(0, 10)
+
+export function weeklyDigestEmail({ followUps, stats }: DigestData, unsubscribeUrl: string): RenderedEmail {
+  const subject = "Your weekly JobClock digest"
+  const { total, submitted, replied } = summarizeStats(stats.byStatus)
+  const byStatus = Object.entries(stats.byStatus).filter(([, count]) => count > 0).map(([status, count]) => `${status} ${count}`).join(", ")
+  const lines = [
+    `${pluralize(total, "application")} tracked. This week you saved ${stats.savedThisWeek} and applied to ${stats.appliedThisWeek}.`,
+    `By status: ${byStatus}.`,
+    ...(submitted > 0 ? [`${replied} of ${submitted} sent applications got a reply (${Math.round((replied / submitted) * 100)}%).`] : []),
+  ]
+  const cta = { label: "Open JobClock", url: `${getAppUrl()}/dashboard` }
+  const due = followUps.length > 0
+    ? `${paragraph("These follow-ups are due:")}\n${followUps.map((item) => listRow(item.title, `${item.company} · due ${dateLabel(item.dueAt)}`, item.url, "Open")).join("\n")}\n<div style="height:16px;"></div>`
+    : ""
+
+  return {
+    subject,
+    html: layout({ title: subject, eyebrow: "Weekly digest", heading: "Your week in JobClock.", bodyHtml: `${due}${lines.map(paragraph).join("\n")}`, cta, unsubscribeUrl }),
+    text: [
+      ...(followUps.length > 0 ? ["Follow-ups due:", ...followUps.map((item) => `- ${item.title} at ${item.company} (due ${dateLabel(item.dueAt)}): ${item.url}`), ""] : []),
+      ...lines,
+      "",
+      `${cta.label}: ${cta.url}`,
+      "",
+      unsubscribeText(unsubscribeUrl),
+    ].join("\n"),
+  }
+}
+
+interface ListEmailOptions {
+  subject: string
+  eyebrow: string
+  heading: string
+  intro: string
+  items: { title: string; meta: string; url: string }[]
+  rowLabel: string
+  cta: { label: string; url: string }
+  unsubscribeUrl: string
+}
+
+// One layout for the reminder emails that list applications: an intro line, up to ten rows, an overflow note.
+function listEmail({ subject, eyebrow, heading, intro, items, rowLabel, cta, unsubscribeUrl }: ListEmailOptions): RenderedEmail {
+  const shown = items.slice(0, MAX_ROWS_SHOWN)
+  const overflow = items.length - shown.length
+  const more = overflow > 0 ? `<p class="em-muted" style="margin:16px 0 0;color:#888888;font-size:13px;">+ ${overflow} more. Open JobClock to see them all.</p>` : ""
+  const rows = shown.map((item) => listRow(item.title, item.meta, item.url, rowLabel)).join("\n")
+  return {
+    subject,
+    html: layout({ title: subject, eyebrow, heading, bodyHtml: `${paragraph(intro)}\n${rows}\n${more}`, cta, unsubscribeUrl }),
+    text: [
+      intro,
+      ...shown.map((item) => `- ${item.title} (${item.meta}): ${item.url}`),
+      ...(overflow > 0 ? [`+ ${overflow} more.`] : []),
+      "",
+      `${cta.label}: ${cta.url}`,
+      "",
+      unsubscribeText(unsubscribeUrl),
+    ].join("\n"),
+  }
+}
+
+export function followUpDueEmail(items: FollowUpItem[], unsubscribeUrl: string): RenderedEmail {
+  return listEmail({
+    subject: `${pluralize(items.length, "follow-up")} due`,
+    eyebrow: "Follow-up",
+    heading: items.length === 1 ? "A follow-up is due." : "Follow-ups are due.",
+    intro: "These applications are waiting on a reply. A short, polite message can help.",
+    items: items.map((item) => ({ title: item.title, meta: `${item.company} · due ${dateLabel(item.dueAt)}`, url: item.url })),
+    rowLabel: "Open",
+    cta: { label: "View applications", url: `${getAppUrl()}/applications` },
+    unsubscribeUrl,
+  })
+}
+
+export function deadlineEmail(item: { title: string; company: string; deadline: string; daysLeft: number; url: string }, unsubscribeUrl: string): RenderedEmail {
+  const when = item.daysLeft <= 1 ? "tomorrow" : `in ${item.daysLeft} days`
+  return listEmail({
+    subject: `Applications for ${item.title} close ${when}`,
+    eyebrow: "Deadline",
+    heading: "A deadline is coming up.",
+    intro: `You saved this job and applications close ${when}, on ${item.deadline}.`,
+    items: [{ title: item.title, meta: `${item.company} · closes ${item.deadline}`, url: item.url }],
+    rowLabel: "Open",
+    cta: { label: "Open application", url: item.url },
+    unsubscribeUrl,
+  })
+}
+
+export function interviewEmail(item: { title: string; company: string; interviewAt: string; url: string }, unsubscribeUrl: string): RenderedEmail {
+  // The user's time zone is not stored, so the time is shown in UTC and labelled as such.
+  const when = `${dateLabel(item.interviewAt)} ${item.interviewAt.slice(11, 16)} UTC`
+  return listEmail({
+    subject: `Interview tomorrow: ${item.title} at ${item.company}`,
+    eyebrow: "Interview",
+    heading: "Your interview is tomorrow.",
+    intro: "Take a few minutes today to go through your interview prep for this role.",
+    items: [{ title: item.title, meta: `${item.company} · ${when}`, url: item.url }],
+    rowLabel: "Open",
+    cta: { label: "Open interview prep", url: item.url },
+    unsubscribeUrl,
+  })
+}
+
+export function staleApplicationEmail(items: { title: string; company: string; days: number; url: string }[], unsubscribeUrl: string): RenderedEmail {
+  return listEmail({
+    subject: items.length === 1 ? "An application has gone quiet" : `${items.length} applications have gone quiet`,
+    eyebrow: "Nudge",
+    heading: items.length === 1 ? "No news in a while." : "No news on these in a while.",
+    intro: "These have had no update for weeks. Send a short follow-up, or mark them as ghosted to keep your list honest.",
+    items: items.map((item) => ({ title: item.title, meta: `${item.company} · no change for ${pluralize(item.days, "day")}`, url: item.url })),
+    rowLabel: "Open",
+    cta: { label: "View applications", url: `${getAppUrl()}/applications` },
+    unsubscribeUrl,
+  })
+}
+
+interface MessageEmailOptions {
+  subject: string
+  eyebrow: string
+  heading: string
+  lines: string[]
+  cta: { label: string; url: string }
+  /** Optional emails pass this; transactional ones (billing, welcome) do not. */
+  unsubscribeUrl?: string
+}
+
+// A short message with one button: the shape of the credit and welcome emails.
+function messageEmail({ subject, eyebrow, heading, lines, cta, unsubscribeUrl }: MessageEmailOptions): RenderedEmail {
+  return {
+    subject,
+    html: layout({ title: subject, eyebrow, heading, bodyHtml: lines.map(paragraph).join("\n"), cta, unsubscribeUrl }),
+    text: [...lines, `${cta.label}: ${cta.url}`, ...(unsubscribeUrl ? [unsubscribeText(unsubscribeUrl)] : [])].join("\n\n"),
+  }
+}
+
+export function creditsLowEmail({ remaining, limit, resetsAt }: { remaining: number; limit: number; resetsAt: string }, unsubscribeUrl: string): RenderedEmail {
+  return messageEmail({
+    subject: "Your JobClock credits are running low",
+    eyebrow: "Credits",
+    heading: "Your credits are running low.",
+    lines: [
+      `You have ${pluralize(remaining, "credit")} left of your ${limit} monthly credits. They reset on ${dateLabel(resetsAt)}.`,
+      "If you need more before then, you can buy extra credits in Settings. Purchased credits never expire.",
+    ],
+    cta: { label: "Buy more credits", url: billingUrl() },
+    unsubscribeUrl,
+  })
+}
+
+export function creditsResetEmail({ limit }: { limit: number }, unsubscribeUrl: string): RenderedEmail {
+  return messageEmail({
+    subject: "Your JobClock credits have reset",
+    eyebrow: "Credits",
+    heading: "Your credits are back.",
+    lines: [`Your monthly allowance has reset to ${limit} credits.`, "You used more than half of last month's credits, so here is a heads-up that you have a fresh set."],
+    cta: { label: "Open JobClock", url: `${getAppUrl()}/dashboard` },
+    unsubscribeUrl,
+  })
+}
+
+/** One-time and transactional: no unsubscribe footer, but it says where to manage the optional emails. */
+export function welcomeEmail(): RenderedEmail {
+  return messageEmail({
+    subject: "Welcome to JobClock",
+    eyebrow: "Welcome",
+    heading: "Welcome to JobClock.",
+    lines: [
+      "Your account is ready. Save a job, track where each application stands, and let JobClock keep the details in one place.",
+      "We only send reminders and digests you ask for. You can choose which ones in Settings under Emails; they are all off until you turn them on.",
+    ],
+    cta: { label: "Open JobClock", url: `${getAppUrl()}/dashboard` },
+  })
 }

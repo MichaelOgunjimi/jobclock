@@ -17,7 +17,9 @@ vi.mock("@/lib/telegram/pairing", () => ({
   generateTelegramPairingToken: vi.fn(),
   disconnectTelegram: vi.fn(),
 }))
+vi.mock("@/lib/email/preferences", () => ({ setEmailPreference: vi.fn() }))
 
+import { setEmailPreference } from "@/lib/email/preferences"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { encrypt, isEncryptionConfigured } from "@/lib/crypto"
@@ -31,6 +33,7 @@ import {
   revokeExtensionToken,
   saveAiSettings,
   saveDocumentTemplate,
+  saveEmailPreference,
   saveJobSources,
   saveTemplate,
 } from "./actions"
@@ -278,5 +281,23 @@ describe("settings actions", () => {
     })
     expect(disconnectTelegram).toHaveBeenCalledWith(mockUser.id)
     expect(revokePersonalApiTokens).not.toHaveBeenCalled()
+  })
+
+  it("saves an email preference for the signed-in user only", async () => {
+    vi.mocked(setEmailPreference).mockResolvedValue(true)
+    await expect(saveEmailPreference("weekly_digest", true)).resolves.toEqual({})
+    expect(setEmailPreference).toHaveBeenCalledWith(mockUser.id, "weekly_digest", true)
+    expect(revalidatePath).toHaveBeenCalledWith("/settings")
+  })
+
+  it("rejects an unknown email type, a failed save and a signed-out user", async () => {
+    vi.mocked(setEmailPreference).mockResolvedValueOnce(false)
+    await expect(saveEmailPreference("billing", false)).resolves.toEqual({ error: "Unknown email type" })
+
+    vi.mocked(setEmailPreference).mockRejectedValueOnce(new Error("db down"))
+    await expect(saveEmailPreference("weekly_digest", true)).resolves.toEqual({ error: "Failed to save your email settings" })
+
+    vi.mocked(isSupabaseConfigured).mockReturnValue(false)
+    await expect(saveEmailPreference("weekly_digest", true)).resolves.toEqual({ error: "Supabase not configured" })
   })
 })

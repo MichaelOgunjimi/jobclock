@@ -39,6 +39,20 @@ describe("sendEmail", () => {
     expect(mocks.beaco).not.toHaveBeenCalled()
   })
 
+  it("passes extra headers (List-Unsubscribe) to Resend, and ignores them for Beaco", async () => {
+    const headers = { "List-Unsubscribe": "<https://jobclock.dev/u>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }
+    vi.stubEnv("RESEND_API_KEY", "re_test")
+    mocks.resendSend.mockResolvedValue({ data: { id: "1" }, error: null })
+    await (await load())({ ...email, headers })
+    expect(mocks.resendSend.mock.calls[0][0].headers).toEqual(headers)
+
+    vi.stubEnv("RESEND_API_KEY", "")
+    vi.stubEnv("BEACO_API_KEY", "beaco_test")
+    mocks.beaco.mockResolvedValue(undefined)
+    await (await load())({ ...email, headers })
+    expect(JSON.stringify(mocks.beaco.mock.calls[0][0])).not.toContain("List-Unsubscribe")
+  })
+
   it("lets EMAIL_FROM override the from address", async () => {
     vi.stubEnv("RESEND_API_KEY", "re_test")
     vi.stubEnv("EMAIL_FROM", "JobClock <staging@example.com>")

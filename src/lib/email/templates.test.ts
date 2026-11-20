@@ -2,7 +2,9 @@ import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { PersistedJobInput } from "@/lib/jobs/persist-job"
-import { escapeHtml, jobAlertEmail, paymentFailedEmail, subscriptionEndedEmail } from "./templates"
+import { escapeHtml, followUpDueEmail, jobAlertEmail, paymentFailedEmail, subscriptionEndedEmail } from "./templates"
+
+const UNSUB = "https://jobclock.dev/api/email/unsubscribe?t=a.b&c=d"
 
 const job = (overrides: Partial<PersistedJobInput> = {}) =>
   ({ title: "Engineer", company: "Acme", location: "London", url: "https://acme.example/jobs/1", ...overrides }) as PersistedJobInput
@@ -39,7 +41,7 @@ describe("email templates", () => {
   })
 
   it("escapes job fields and never links to a non-http url", () => {
-    const email = jobAlertEmail([job({ title: `<script>alert(1)</script>`, url: "javascript:alert(1)" })])
+    const email = jobAlertEmail([job({ title: `<script>alert(1)</script>`, url: "javascript:alert(1)" })], UNSUB)
     expect(email.html).not.toContain("<script>")
     expect(email.html).toContain("&lt;script&gt;")
     expect(email.html).not.toContain("javascript:")
@@ -47,11 +49,35 @@ describe("email templates", () => {
   })
 
   it("pluralises the subject and caps the list at ten with an overflow note", () => {
-    expect(jobAlertEmail([job()]).subject).toBe("1 new job at the companies you track")
-    const many = jobAlertEmail(Array.from({ length: 12 }, (_, i) => job({ title: `Role ${i}` })))
+    expect(jobAlertEmail([job()], UNSUB).subject).toBe("1 new job at the companies you track")
+    const many = jobAlertEmail(Array.from({ length: 12 }, (_, i) => job({ title: `Role ${i}` })), UNSUB)
     expect(many.subject).toBe("12 new jobs at the companies you track")
     expect(many.html).toContain("Role 9")
     expect(many.html).not.toContain("Role 10")
     expect(many.html).toContain("+ 2 more roles")
+  })
+
+  it("adds the unsubscribe footer to optional emails only, never to billing emails", () => {
+    const alert = jobAlertEmail([job()], UNSUB)
+    expect(alert.html).toContain('href="https://jobclock.dev/api/email/unsubscribe?t=a.b&amp;c=d"')
+    expect(alert.html).toContain('href="https://jobclock.dev/settings?tab=emails"')
+    expect(alert.text).toContain(`Unsubscribe from these emails: ${UNSUB}`)
+    for (const email of [paymentFailedEmail(), subscriptionEndedEmail()]) {
+      expect(email.html).not.toContain("Unsubscribe")
+      expect(email.text).not.toContain("Unsubscribe")
+    }
+  })
+
+  it("lists follow-ups with escaped values, a plural subject and an overflow note", () => {
+    const item = (i: number, title = `Role ${i}`) => ({ title, company: "A&B", dueAt: "2026-11-10T09:00:00.000Z", url: `https://jobclock.dev/applications/r${i}` })
+    expect(followUpDueEmail([item(1, "<i>x</i>")], UNSUB).subject).toBe("1 follow-up due")
+    const email = followUpDueEmail(Array.from({ length: 12 }, (_, i) => item(i)), UNSUB)
+    expect(email.subject).toBe("12 follow-ups due")
+    expect(email.html).toContain("A&amp;B")
+    expect(email.html).toContain("due 2026-11-10")
+    expect(email.html).toContain("+ 2 more")
+    expect(email.html).not.toContain("Role 10")
+    expect(followUpDueEmail([item(1, "<i>x</i>")], UNSUB).html).not.toContain("<i>x</i>")
+    expect(email.text).toContain(`Unsubscribe from these emails: ${UNSUB}`)
   })
 })

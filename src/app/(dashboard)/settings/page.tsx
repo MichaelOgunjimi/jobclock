@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import { resolveAiSettings, type UserPreferences, type JobSources } from "@/lib/ai"
 import { getActivePersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
 import { getTelegramConnection } from "@/lib/telegram/pairing"
+import { getEmailPreferences } from "@/lib/email/preferences"
 import { listTrackedCompanies } from "./actions"
 import { SettingsTabs } from "./settings-tabs"
 import { allowanceWindow, CREDIT_PACKS, PRO_CREDIT_LIMIT } from "@/lib/billing/plans"
@@ -30,6 +31,7 @@ export default async function SettingsPage() {
     companies,
     { data: subscription },
     { data: grantRow },
+    emailPreferences,
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -50,6 +52,7 @@ export default async function SettingsPage() {
       .eq("user_id", user.id)
       .maybeSingle(),
     supabase.from("billing_grants").select("kind, expires_at").eq("user_id", user.id).maybeSingle(),
+    getEmailPreferences(user.id),
   ])
 
   const subscriptionStatus = SUBSCRIPTION_STATUSES.includes(subscription?.status as SubscriptionStatus)
@@ -160,6 +163,7 @@ export default async function SettingsPage() {
           aiBillingSource={aiBillingSource}
           canUseJobclockAi={canUseJobclockAi}
           hostedProviderPreference={preferences?.hosted_provider_preference ?? "automatic"}
+          emailPreferences={emailPreferences}
         />
       </Suspense>
     </div>

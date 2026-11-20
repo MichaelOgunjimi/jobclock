@@ -1,0 +1,1 @@
+ALTER TABLE "applications" ADD COLUMN "interview_at" timestamp with time zone;

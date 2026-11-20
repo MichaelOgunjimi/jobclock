@@ -57,7 +57,45 @@ export const profiles = pgTable("profiles", {
   githubUrl: text("github_url"),
   portfolioUrl: text("portfolio_url"),
   avatarUrl: text("avatar_url"),
+  // Set when the one-time welcome email is claimed, so it can never send twice. Existing accounts were backfilled.
+  welcomeSentAt: timestamp("welcome_sent_at", { withTimezone: true }),
 })
+
+// ============================================================
+// EMAIL PREFERENCES
+// ============================================================
+
+// One row per user who has touched their email settings. No row means every optional email is off.
+// Billing and account-security emails are always sent and have no column here.
+export const emailPreferences = pgTable("email_preferences", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  weeklyDigest: boolean("weekly_digest").default(false).notNull(),
+  followUpReminders: boolean("follow_up_reminders").default(false).notNull(),
+  deadlineReminders: boolean("deadline_reminders").default(false).notNull(),
+  interviewReminders: boolean("interview_reminders").default(false).notNull(),
+  jobAlerts: boolean("job_alerts").default(false).notNull(),
+  staleApplicationNudges: boolean("stale_application_nudges").default(false).notNull(),
+  creditAlerts: boolean("credit_alerts").default(false).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+})
+
+// Remembers which optional email went out, so a cron retry or a repeat run never sends it twice.
+// Provider idempotency keys only last 24 hours; this does not expire. dedupeKey says what the email was
+// about (a day, a week, an application) and is unique per user and category.
+export const emailSends = pgTable(
+  "email_sends",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    category: text("category").notNull(),
+    dedupeKey: text("dedupe_key").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.category, table.dedupeKey] })],
+)
 
 // ============================================================
 // USER CVS
@@ -290,6 +328,8 @@ export const applications = pgTable(
     followUpDueAt: timestamp("follow_up_due_at", { withTimezone: true }),
     followUpCount: integer("follow_up_count").default(0),
     followUpNotes: text("follow_up_notes"),
+    // When the interview is. Nothing in the app sets it yet; the interview reminder email uses it once something does.
+    interviewAt: timestamp("interview_at", { withTimezone: true }),
   },
   (table) => [
     uniqueIndex("applications_slug_unique").on(table.slug),
