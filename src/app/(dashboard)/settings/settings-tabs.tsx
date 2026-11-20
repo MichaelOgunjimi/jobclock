@@ -24,6 +24,8 @@ import { savePreferences } from "../profile/actions"
 import type { AiSettings, JobSources } from "@/lib/ai"
 import type { PersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
 import type { ApiTokenMetadata } from "@/lib/mcp/tokens"
+import type { ConnectedApp } from "@/lib/oauth/tokens"
+import { ConnectedAppsCard } from "./connected-apps-card"
 import type { TrackedCompany } from "./actions"
 import type { TelegramConnectionMetadata } from "@/lib/telegram/pairing"
 import type { EmailPreferences } from "@/lib/email/categories"
@@ -70,6 +72,7 @@ export function SettingsTabs({
   jobSources,
   extensionToken,
   agentTokens,
+  connectedApps,
   mcpUrl,
   telegramConnection,
   telegramBotUsername,
@@ -89,6 +92,7 @@ export function SettingsTabs({
   jobSources: JobSources
   extensionToken: PersonalApiTokenMetadata | null
   agentTokens: ApiTokenMetadata[]
+  connectedApps: ConnectedApp[]
   mcpUrl: string
   telegramConnection: TelegramConnectionMetadata | null
   telegramBotUsername: string | null
@@ -225,7 +229,10 @@ export function SettingsTabs({
       </TabsContent>
 
       <TabsContent value="agent">
-        <AgentAccessCard tokens={agentTokens} mcpUrl={mcpUrl} />
+        <div className="space-y-6">
+          <ConnectedAppsCard apps={connectedApps} mcpUrl={mcpUrl} />
+          <AgentAccessCard tokens={agentTokens} mcpUrl={mcpUrl} />
+        </div>
       </TabsContent>
 
       <TabsContent value="telegram">

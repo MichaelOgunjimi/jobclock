@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import { resolveAiSettings, type UserPreferences, type JobSources } from "@/lib/ai"
 import { getActivePersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
 import { listApiTokens } from "@/lib/mcp/tokens"
+import { listConnectedApps } from "@/lib/oauth/tokens"
 import { getAppUrl } from "@/lib/site"
 import { getTelegramConnection } from "@/lib/telegram/pairing"
 import { getEmailPreferences } from "@/lib/email/preferences"
@@ -30,6 +31,7 @@ export default async function SettingsPage() {
     { data: profileData },
     extensionToken,
     agentTokens,
+    connectedApps,
     telegramConnection,
     companies,
     { data: subscription },
@@ -48,6 +50,7 @@ export default async function SettingsPage() {
       .single(),
     getActivePersonalApiTokenMetadata(user.id),
     listApiTokens(user.id),
+    listConnectedApps(user.id),
     getTelegramConnection(user.id),
     listTrackedCompanies(),
     supabase
@@ -133,6 +136,7 @@ export default async function SettingsPage() {
           jobSources={jobSources}
           extensionToken={extensionToken}
           agentTokens={agentTokens}
+          connectedApps={connectedApps}
           mcpUrl={`${getAppUrl()}/api/mcp`}
           telegramConnection={telegramConnection}
           telegramBotUsername={process.env.TELEGRAM_BOT_USERNAME ?? null}

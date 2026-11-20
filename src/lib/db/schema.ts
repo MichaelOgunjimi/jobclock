@@ -206,6 +206,82 @@ export const apiTokens = pgTable(
 )
 
 // ============================================================
+// MCP OAUTH (our own authorization server; see src/lib/oauth)
+// ============================================================
+// All four tables have RLS on and no policies: only the server-side database connection reads them.
+// Authorization codes, access tokens and refresh tokens are stored only as SHA-256 hashes.
+
+// Public clients registered through Dynamic Client Registration (RFC 7591). The id is the client_id.
+export const oauthClients = pgTable("oauth_clients", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  clientName: text("client_name").notNull(),
+  redirectUris: text("redirect_uris").array().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+})
+
+// One row per user x client authorization: what the Connected apps list shows and what Revoke kills.
+export const oauthGrants = pgTable(
+  "oauth_grants",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references((): AnyPgColumn => profiles.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references((): AnyPgColumn => oauthClients.id, { onDelete: "cascade" }),
+    scopes: text("scopes").array().notNull(),
+    resource: text("resource").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [index("oauth_grants_user_id_idx").on(table.userId), index("oauth_grants_client_id_idx").on(table.clientId)],
+)
+
+// Single-use, ~60 second authorization codes. grant_id is set when the code is exchanged, so a replayed code can revoke the grant.
+export const oauthAuthorizationCodes = pgTable(
+  "oauth_authorization_codes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    codeHash: text("code_hash").notNull().unique(),
+    userId: uuid("user_id")
+      .notNull()
+      .references((): AnyPgColumn => profiles.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references((): AnyPgColumn => oauthClients.id, { onDelete: "cascade" }),
+    redirectUri: text("redirect_uri").notNull(),
+    codeChallenge: text("code_challenge").notNull(),
+    scopes: text("scopes").array().notNull(),
+    resource: text("resource").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    grantId: uuid("grant_id").references((): AnyPgColumn => oauthGrants.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("oauth_authorization_codes_user_id_idx").on(table.userId), index("oauth_authorization_codes_expires_at_idx").on(table.expiresAt)],
+)
+
+// One row per issued access + refresh token pair. Refreshing marks the old pair's refresh token used and inserts a new pair.
+export const oauthTokens = pgTable(
+  "oauth_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    grantId: uuid("grant_id")
+      .notNull()
+      .references((): AnyPgColumn => oauthGrants.id, { onDelete: "cascade" }),
+    accessTokenHash: text("access_token_hash").notNull().unique(),
+    refreshTokenHash: text("refresh_token_hash").notNull().unique(),
+    accessExpiresAt: timestamp("access_expires_at", { withTimezone: true }).notNull(),
+    refreshExpiresAt: timestamp("refresh_expires_at", { withTimezone: true }).notNull(),
+    refreshUsedAt: timestamp("refresh_used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("oauth_tokens_grant_id_idx").on(table.grantId), index("oauth_tokens_refresh_expires_at_idx").on(table.refreshExpiresAt)],
+)
+
+// ============================================================
 // WHATSAPP INTAKE
 // ============================================================
 

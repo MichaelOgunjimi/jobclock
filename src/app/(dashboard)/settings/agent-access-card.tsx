@@ -54,11 +54,11 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl }: { tokens: Api
   return (
     <Card>
       <CardHeader className="border-b pb-6">
-        <p className="section-label">AI Agent</p>
-        <CardTitle>Connect your AI agent</CardTitle>
+        <p className="section-label">Advanced</p>
+        <CardTitle>Access tokens</CardTitle>
         <CardDescription>
-          Let an AI agent such as Claude update your application statuses, follow-ups, interview times and notes
-          over MCP. It can read and change your applications but cannot delete anything or spend AI credits.
+          For agents that cannot sign in through the browser. A token always has full read and write access; prefer
+          Connected apps above, where you choose the permissions. It cannot delete anything or spend AI credits.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">

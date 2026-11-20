@@ -1,16 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { authenticateApiToken, mcpRateLimit, mcpAuthFailureLimit, listApplications } = vi.hoisted(() => ({
+const { authenticateApiToken, authenticateOAuthAccessToken, mcpRateLimit, mcpAuthFailureLimit, listApplications, setFollowUp } = vi.hoisted(() => ({
   authenticateApiToken: vi.fn(),
+  authenticateOAuthAccessToken: vi.fn(),
   mcpRateLimit: { limit: vi.fn() },
   mcpAuthFailureLimit: { limit: vi.fn() },
   listApplications: vi.fn(),
+  setFollowUp: vi.fn(),
 }))
 
 vi.mock("@/lib/mcp/tokens", () => ({ authenticateApiToken }))
+vi.mock("@/lib/oauth/tokens", () => ({ authenticateOAuthAccessToken }))
 vi.mock("@/lib/rate-limit", () => ({ mcpRateLimit, mcpAuthFailureLimit }))
 vi.mock("@/lib/db", () => ({ db: {} }))
-vi.mock("@/lib/mcp/tools", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/mcp/tools")>()), listApplications }))
+vi.mock("@/lib/mcp/tools", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/mcp/tools")>()), listApplications, setFollowUp }))
 
 import { DELETE, GET, POST } from "./route"
 
@@ -29,7 +32,9 @@ describe("/api/mcp", () => {
     mcpRateLimit.limit.mockResolvedValue({ success: true })
     mcpAuthFailureLimit.limit.mockResolvedValue({ success: true })
     authenticateApiToken.mockResolvedValue(null)
+    authenticateOAuthAccessToken.mockResolvedValue(null)
     listApplications.mockResolvedValue({ data: { count: 0, applications: [] } })
+    setFollowUp.mockResolvedValue({ data: {} })
   })
 
   it.each([
@@ -37,11 +42,72 @@ describe("/api/mcp", () => {
     ["a non-bearer scheme", { authorization: "Basic abc" }],
     ["an empty bearer", { authorization: "Bearer " }],
     ["an unknown or revoked token", { authorization: "Bearer jc_revoked" }],
+    ["an expired or revoked OAuth access token", { authorization: "Bearer jat_expired" }],
   ])("401s with %s", async (_name, headers) => {
     const response = await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, headers))
     expect(response.status).toBe(401)
     expect(response.headers.get("www-authenticate")).toContain("Bearer")
     expect(listApplications).not.toHaveBeenCalled()
+  })
+
+  it("points unauthenticated clients at the protected resource metadata (RFC 9728), keeping the realm", async () => {
+    const response = await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }))
+    const header = response.headers.get("www-authenticate") ?? ""
+    expect(header).toContain('realm="jobclock"')
+    expect(header).toContain('resource_metadata="https://jobclock.dev/.well-known/oauth-protected-resource/api/mcp"')
+    expect(header).not.toContain("error=")
+  })
+
+  it("reports invalid_token when a credential was presented but is not valid", async () => {
+    const response = await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { authorization: "Bearer jat_expired" }))
+    expect(response.headers.get("www-authenticate")).toContain('error="invalid_token"')
+  })
+
+  describe("OAuth access tokens", () => {
+    const grant = (scopes: string[], resource = "https://jobclock.dev/api/mcp") => ({ userId: "user-a", scopes, grantId: "g1", resource })
+    const toolNames = async (headers: Record<string, string>) =>
+      ((await (await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, headers))).json()).result.tools as { name: string }[]).map((tool) => tool.name).sort()
+
+    it("a read-only grant lists only the read tools", async () => {
+      authenticateOAuthAccessToken.mockResolvedValue(grant(["applications:read"]))
+      expect(await toolNames({ authorization: "Bearer jat_ok" })).toEqual(["get_application", "list_applications", "list_due"])
+    })
+
+    it("a read-only grant cannot call a write tool, and nothing is written", async () => {
+      authenticateOAuthAccessToken.mockResolvedValue(grant(["applications:read"]))
+      const body = await (await POST(rpc(callTool("set_follow_up", { application_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", note: "x" }), { authorization: "Bearer jat_ok" }))).json()
+      expect(body.result?.isError ?? Boolean(body.error)).toBe(true)
+      expect(setFollowUp).not.toHaveBeenCalled()
+    })
+
+    it("a read-only grant can still read, bound to the grant's user", async () => {
+      authenticateOAuthAccessToken.mockResolvedValue(grant(["applications:read"]))
+      const response = await POST(rpc(callTool("list_applications", { limit: 3 }), { authorization: "Bearer jat_ok" }))
+      expect(response.status).toBe(200)
+      expect(listApplications).toHaveBeenCalledWith("user-a", expect.objectContaining({ limit: 3 }))
+    })
+
+    it("a write grant lists and can call the write tools", async () => {
+      authenticateOAuthAccessToken.mockResolvedValue(grant(["applications:read", "applications:write"]))
+      const headers = { authorization: "Bearer jat_ok" }
+      expect(await toolNames(headers)).toHaveLength(7)
+      await POST(rpc(callTool("set_follow_up", { application_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", note: "x" }), headers))
+      expect(setFollowUp).toHaveBeenCalledWith("user-a", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", expect.objectContaining({ note: "x" }))
+    })
+
+    it("a grant for another resource is not valid here", async () => {
+      authenticateOAuthAccessToken.mockResolvedValue(grant(["applications:read"], "https://other.example/api/mcp"))
+      expect((await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { authorization: "Bearer jat_ok" }))).status).toBe(401)
+    })
+
+    it("never consults the jc_ lookup for an OAuth token, nor the OAuth lookup for a jc_ token", async () => {
+      authenticateOAuthAccessToken.mockResolvedValue(grant(["applications:read"]))
+      await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { authorization: "Bearer jat_ok" }))
+      expect(authenticateApiToken).not.toHaveBeenCalled()
+      authenticateApiToken.mockResolvedValue({ tokenId: "t1", userId: "user-a" })
+      await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, { authorization: "Bearer jc_ok" }))
+      expect(authenticateOAuthAccessToken).toHaveBeenCalledTimes(1)
+    })
   })
 
   it("rate limits repeated authentication failures per IP", async () => {
