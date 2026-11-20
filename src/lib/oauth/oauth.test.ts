@@ -6,7 +6,7 @@ vi.mock("@/lib/db", async () => ({ db: await (await import("./test-db")).createO
 
 import { db } from "@/lib/db"
 import { oauthAuthorizationCodes, oauthGrants, oauthTokens } from "@/lib/db/schema"
-import { buildClientRedirect, issueAuthorizationCode, parseAuthorizeRequest } from "./authorize"
+import { buildClientRedirect, issueAuthorizationCode, parseAuthorizeRequest, parseConnectionDuration } from "./authorize"
 import { isAllowedRedirectUri, registerClient } from "./clients"
 import { getMcpResourceUrl, SCOPE_READ, SCOPE_WRITE } from "./config"
 import { s256Challenge } from "./pkce"
@@ -18,6 +18,7 @@ import {
   refreshAccessToken,
   revokeConnectedApp,
   revokeToken,
+  setConnectedAppDailyCap,
 } from "./tokens"
 
 const USER_A = "11111111-1111-4111-8111-111111111111"
@@ -47,15 +48,17 @@ function authorizeParams(clientId: string, overrides: Record<string, string> = {
 }
 
 /** The consent step as the user would complete it: validate the request, then issue a code for `userId`. */
-async function consent(userId: string, clientId: string, { write = false, scope }: { write?: boolean; scope?: string } = {}) {
+async function consent(userId: string, clientId: string, { write = false, scope, duration = "forever" }: { write?: boolean; scope?: string; duration?: string } = {}) {
   const { params, verifier } = authorizeParams(clientId, scope === undefined ? {} : { scope })
   const parsed = await parseAuthorizeRequest((name) => params.get(name))
   if (!parsed.ok) throw new Error(JSON.stringify(parsed))
-  const code = await issueAuthorizationCode(userId, parsed.request, write)
+  const period = parseConnectionDuration(duration)
+  if (!period.ok) throw new Error(`bad duration ${duration}`)
+  const code = await issueAuthorizationCode(userId, parsed.request, write, period.expiresAt)
   return { code, verifier, redirectUri: parsed.request.redirectUri }
 }
 
-async function connect(userId: string, clientId: string, opts: { write?: boolean } = {}) {
+async function connect(userId: string, clientId: string, opts: { write?: boolean; duration?: string } = {}) {
   const { code, verifier, redirectUri } = await consent(userId, clientId, opts)
   const result = await exchangeAuthorizationCode({ code, clientId, redirectUri, codeVerifier: verifier })
   if (!result.ok) throw new Error(result.description)
@@ -432,5 +435,111 @@ describe("prune", () => {
     expect(result.grants).toBeGreaterThan(0)
     expect(await authenticateOAuthAccessToken(live.access_token, new Date())).toBeNull() // pruned with its expired refresh token
     expect(gone.access_token).toBeTruthy()
+  })
+})
+
+const DAY = 24 * 60 * MINUTE
+
+describe("connection period (Keep me connected for)", () => {
+  const grantRow = async () => (await db.select().from(oauthGrants))[0]
+  const newestRefreshExpiry = async () => (await db.select().from(oauthTokens)).map((token) => token.refreshExpiresAt.getTime()).sort((a, b) => b - a)[0]
+
+  it("accepts the offered periods, defaults to 30 days when the field is missing, and rejects anything else", () => {
+    const now = new Date("2026-11-20T10:00:00.000Z")
+    expect(parseConnectionDuration("30", now)).toEqual({ ok: true, expiresAt: new Date(now.getTime() + 30 * DAY) })
+    expect(parseConnectionDuration("90", now)).toEqual({ ok: true, expiresAt: new Date(now.getTime() + 90 * DAY) })
+    expect(parseConnectionDuration("365", now)).toEqual({ ok: true, expiresAt: new Date(now.getTime() + 365 * DAY) })
+    expect(parseConnectionDuration("forever", now)).toEqual({ ok: true, expiresAt: null })
+    expect(parseConnectionDuration(null, now)).toEqual({ ok: true, expiresAt: new Date(now.getTime() + 30 * DAY) })
+    for (const bad of ["", "0", "7", "never", "31", "-30", "1e3", "30 ", "all"]) expect(parseConnectionDuration(bad, now)).toEqual({ ok: false })
+  })
+
+  it("stores the chosen end on the grant and shows it in Connected apps", async () => {
+    const client = await register()
+    const before = Date.now()
+    await connect(USER_A, client.client_id, { duration: "90" })
+    const [app] = await listConnectedApps(USER_A)
+    const end = new Date(app.expiresAt!).getTime()
+    expect(end).toBeGreaterThanOrEqual(before + 90 * DAY)
+    expect(end).toBeLessThan(Date.now() + 90 * DAY + MINUTE)
+    expect(app.dailyCreateCap).toBe(100)
+
+    await connect(USER_B, client.client_id, { duration: "forever" })
+    expect((await listConnectedApps(USER_B))[0].expiresAt).toBeNull()
+  })
+
+  it("caps the refresh token at the end of the period, however it slides", async () => {
+    const client = await register()
+    const first = await connect(USER_A, client.client_id, { duration: "30" })
+    const end = (await grantRow()).expiresAt!.getTime()
+    expect(await newestRefreshExpiry()).toBe(end) // the sliding 30 days would have ended at the same moment, never later
+
+    // Refreshing late in the period must not push the refresh token past the end.
+    const late = new Date(Date.now() + 29 * DAY)
+    const refreshed = await refreshAccessToken({ refreshToken: first.refresh_token, clientId: client.client_id }, late)
+    expect(refreshed.ok).toBe(true)
+    expect(await newestRefreshExpiry()).toBe(end)
+  })
+
+  it("a 90-day period with use at least monthly ends at day 90, not later", async () => {
+    const client = await register()
+    let tokens = await connect(USER_A, client.client_id, { duration: "90" })
+    const end = (await grantRow()).expiresAt!.getTime()
+    const start = Date.now()
+    for (const day of [29, 58, 87]) {
+      const result = await refreshAccessToken({ refreshToken: tokens.refresh_token, clientId: client.client_id }, new Date(start + day * DAY))
+      if (!result.ok) throw new Error(`refresh on day ${day}: ${result.description}`)
+      tokens = result.body
+    }
+    expect(await newestRefreshExpiry()).toBe(end)
+    expect(await refreshAccessToken({ refreshToken: tokens.refresh_token, clientId: client.client_id }, new Date(end + MINUTE))).toMatchObject({ ok: false, error: "invalid_grant" })
+  })
+
+  it("until I revoke it is not capped: the sliding 30 days still applies", async () => {
+    const client = await register()
+    const first = await connect(USER_A, client.client_id, { duration: "forever" })
+    const refreshed = await refreshAccessToken({ refreshToken: first.refresh_token, clientId: client.client_id }, new Date(Date.now() + 200 * DAY - 31 * DAY))
+    expect(refreshed.ok).toBe(false) // 169 days idle is past the 30-day refresh window
+    const again = await connect(USER_A, client.client_id, { duration: "forever" })
+    expect((await refreshAccessToken({ refreshToken: again.refresh_token, clientId: client.client_id }, new Date(Date.now() + 29 * DAY))).ok).toBe(true)
+  })
+
+  it("an access token stops working when the period ends, even if its own hour has not run out", async () => {
+    const client = await register()
+    const first = await connect(USER_A, client.client_id, { duration: "30" })
+    const end = (await grantRow()).expiresAt!
+    const nearEnd = new Date(end.getTime() - 5 * MINUTE)
+    const refreshed = await refreshAccessToken({ refreshToken: first.refresh_token, clientId: client.client_id }, nearEnd)
+    if (!refreshed.ok) throw new Error(refreshed.description)
+    expect(await authenticateOAuthAccessToken(refreshed.body.access_token, nearEnd)).toMatchObject({ userId: USER_A })
+    expect(await authenticateOAuthAccessToken(refreshed.body.access_token, new Date(end.getTime() + MINUTE))).toBeNull()
+  })
+
+  it("refusing an expired connection tells the app to connect again", async () => {
+    const client = await register()
+    const first = await connect(USER_A, client.client_id, { duration: "30" })
+    const result = await refreshAccessToken({ refreshToken: first.refresh_token, clientId: client.client_id }, new Date(Date.now() + 31 * DAY))
+    expect(result).toMatchObject({ ok: false, description: expect.stringContaining("connect the app again") })
+  })
+
+  it("the daily limit is per connection, editable only by its owner", async () => {
+    const client = await register()
+    await connect(USER_A, client.client_id)
+    await connect(USER_B, client.client_id)
+    const [mine] = await listConnectedApps(USER_A)
+    expect(await setConnectedAppDailyCap(USER_B, mine.id, 5)).toBe(false)
+    expect(await setConnectedAppDailyCap(USER_A, mine.id, 0)).toBe(true)
+    expect((await listConnectedApps(USER_A))[0].dailyCreateCap).toBe(0)
+    expect((await listConnectedApps(USER_B))[0].dailyCreateCap).toBe(100)
+    expect(await authenticateOAuthAccessToken((await connect(USER_A, client.client_id)).access_token)).toMatchObject({ dailyCreateCap: 100 }) // reconnecting starts from the default
+  })
+
+  it("prune removes a connection whose period ended once its tokens are gone, and not before", async () => {
+    const client = await register()
+    await connect(USER_A, client.client_id, { duration: "30" })
+    const now = new Date()
+    expect(await pruneOAuth(new Date(now.getTime() + 10 * DAY))).toMatchObject({ grants: 0, tokens: 0 })
+    expect(await pruneOAuth(new Date(now.getTime() + 45 * DAY))).toMatchObject({ grants: 1 })
+    expect(await db.select().from(oauthGrants)).toHaveLength(0)
   })
 })

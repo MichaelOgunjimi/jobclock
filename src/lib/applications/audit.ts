@@ -1,6 +1,7 @@
 import { and, desc, eq, type InferInsertModel, type InferSelectModel } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { applicationAuditEvents, applications } from "@/lib/db/schema"
+import { currentConnection } from "@/lib/mcp/connection-context"
 import type { Json } from "@/lib/supabase/database.types"
 
 export type ApplicationAuditEventType =
@@ -42,10 +43,12 @@ export async function appendApplicationAuditEvents(
 ) {
   const events = Array.isArray(input) ? input : [input]
   if (events.length === 0) return
+  // Changes made through an MCP token or connected app record which one, so Settings can show what each did.
+  const connection = currentConnection()
   await executor.insert(applicationAuditEvents).values(
     events.map((event) => ({
       ...event,
-      metadata: event.metadata ?? {},
+      metadata: { ...(connection ? { connectionKind: connection.kind, connectionId: connection.id } : {}), ...event.metadata },
     })),
   )
 }

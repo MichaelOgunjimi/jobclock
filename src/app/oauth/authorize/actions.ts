@@ -1,7 +1,9 @@
 "use server"
 
 import { redirect } from "next/navigation"
-import { buildClientRedirect, issueAuthorizationCode, parseAuthorizeRequest } from "@/lib/oauth/authorize"
+import { sendAgentAccessNotice } from "@/lib/email/agent-access"
+import { buildClientRedirect, issueAuthorizationCode, parseAuthorizeRequest, parseConnectionDuration } from "@/lib/oauth/authorize"
+import { SCOPE_READ, SCOPE_WRITE } from "@/lib/oauth/config"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 
@@ -25,11 +27,25 @@ export async function decideConsent(formData: FormData) {
     redirect(buildClientRedirect(request.redirectUri, { error: "access_denied", description: "The user denied the request.", state: request.state }))
   }
 
+  // Validated before anything is issued: the form value sets how long the app keeps access.
+  const duration = parseConnectionDuration(formData.get("duration"))
+  if (!duration.ok) {
+    redirect(buildClientRedirect(request.redirectUri, { error: "invalid_request", description: "Invalid connection period.", state: request.state }))
+  }
+
   if (!isSupabaseConfigured()) redirect("/auth")
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth")
 
-  const code = await issueAuthorizationCode(user.id, request, formData.get("write") === "on")
+  const allowWrite = formData.get("write") === "on"
+  const code = await issueAuthorizationCode(user.id, request, allowWrite, duration.expiresAt)
+  // The grant itself is created when the app exchanges the code a moment later; this is the owner's own approval, which is what they should hear about.
+  await sendAgentAccessNotice(user.email, {
+    kind: "app",
+    name: request.clientName,
+    scopes: allowWrite && request.offeredScopes.includes(SCOPE_WRITE) ? [SCOPE_READ, SCOPE_WRITE] : [SCOPE_READ],
+    expiresAt: duration.expiresAt?.toISOString() ?? null,
+  })
   redirect(buildClientRedirect(request.redirectUri, { code, state: request.state }))
 }

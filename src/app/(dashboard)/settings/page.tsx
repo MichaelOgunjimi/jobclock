@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { redirect } from "next/navigation"
 import { resolveAiSettings, type UserPreferences, type JobSources } from "@/lib/ai"
 import { getActivePersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
+import { listConnectionActivity } from "@/lib/mcp/activity"
 import { listApiTokens } from "@/lib/mcp/tokens"
 import { listConnectedApps } from "@/lib/oauth/tokens"
 import { getAppUrl } from "@/lib/site"
@@ -32,6 +33,7 @@ export default async function SettingsPage() {
     extensionToken,
     agentTokens,
     connectedApps,
+    agentActivity,
     telegramConnection,
     companies,
     { data: subscription },
@@ -51,6 +53,7 @@ export default async function SettingsPage() {
     getActivePersonalApiTokenMetadata(user.id),
     listApiTokens(user.id),
     listConnectedApps(user.id),
+    listConnectionActivity(user.id),
     getTelegramConnection(user.id),
     listTrackedCompanies(),
     supabase
@@ -137,6 +140,7 @@ export default async function SettingsPage() {
           extensionToken={extensionToken}
           agentTokens={agentTokens}
           connectedApps={connectedApps}
+          agentActivity={agentActivity}
           mcpUrl={`${getAppUrl()}/api/mcp`}
           telegramConnection={telegramConnection}
           telegramBotUsername={process.env.TELEGRAM_BOT_USERNAME ?? null}

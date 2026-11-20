@@ -1,4 +1,5 @@
 import { Ratelimit } from "@upstash/ratelimit"
+import { MCP_AUTH_FAILURES_PER_MINUTE, MCP_REQUESTS_PER_MINUTE, OAUTH_REGISTRATIONS_PER_MINUTE, OAUTH_TOKEN_REQUESTS_PER_MINUTE } from "@/lib/mcp/limits"
 import { Redis } from "@upstash/redis"
 
 type RatelimitResponse = Awaited<ReturnType<Ratelimit["limit"]>>
@@ -51,14 +52,15 @@ export const aiGenerateRateLimit = createLimiter("ratelimit:ai-generate", 10)
 // Billing routes (checkout, portal, resume, credits): a Redis outage must not stop someone paying.
 export const billingRateLimit = createLimiter("ratelimit:billing", 10, { failOpen: true })
 
-// MCP endpoint: 60 tool calls per 60 seconds per user (keyed by the token's owner, so extra tokens do not add headroom).
-export const mcpRateLimit = createLimiter("ratelimit:mcp", 60)
+// MCP limits and the reason for each live in src/lib/mcp/limits.ts.
+// MCP endpoint: per user (keyed by the token's owner, so extra tokens do not add headroom).
+export const mcpRateLimit = createLimiter("ratelimit:mcp", MCP_REQUESTS_PER_MINUTE)
 
-// Failed MCP authentication: 20 attempts per 60 seconds per client IP, to blunt token guessing and DB hammering.
-export const mcpAuthFailureLimit = createLimiter("ratelimit:mcp-auth-failure", 20)
+// Failed MCP authentication, per client IP, to blunt token guessing and DB hammering.
+export const mcpAuthFailureLimit = createLimiter("ratelimit:mcp-auth-failure", MCP_AUTH_FAILURES_PER_MINUTE)
 
-// OAuth dynamic client registration: 10 per 60 seconds per client IP (each one writes a row).
-export const oauthRegisterLimit = createLimiter("ratelimit:oauth-register", 10)
+// OAuth dynamic client registration, per client IP (each one writes a row).
+export const oauthRegisterLimit = createLimiter("ratelimit:oauth-register", OAUTH_REGISTRATIONS_PER_MINUTE)
 
-// OAuth token and revocation endpoints: 30 per 60 seconds per client IP, to blunt code and refresh-token guessing.
-export const oauthTokenLimit = createLimiter("ratelimit:oauth-token", 30)
+// OAuth token and revocation endpoints, per client IP, to blunt code and refresh-token guessing.
+export const oauthTokenLimit = createLimiter("ratelimit:oauth-token", OAUTH_TOKEN_REQUESTS_PER_MINUTE)

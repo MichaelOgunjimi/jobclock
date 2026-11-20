@@ -6,26 +6,32 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { SelectInput } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import { createAgentToken, revokeAgentToken } from "./actions"
+import { DailyLimitEditor, formatDate, RecentActivity } from "./connection-details"
+import { DEFAULT_TOKEN_ACCESS, DEFAULT_TOKEN_EXPIRY, describeExpiry, scopeLabel, TOKEN_EXPIRY_OPTIONS, type TokenAccess } from "@/lib/mcp/access-policy"
+import type { ConnectionActivityItem } from "@/lib/mcp/activity"
 import type { ApiTokenMetadata } from "@/lib/mcp/tokens"
 
-function formatDate(value: string | null, empty: string) {
-  if (!value) return empty
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
-}
+const ACCESS_OPTIONS = [
+  { value: "read", label: "Read only" },
+  { value: "write", label: "Read + changes" },
+] as const
 
-export function AgentAccessCard({ tokens: initialTokens, mcpUrl }: { tokens: ApiTokenMetadata[]; mcpUrl: string }) {
+export function AgentAccessCard({ tokens: initialTokens, mcpUrl, activity }: { tokens: ApiTokenMetadata[]; mcpUrl: string; activity: Record<string, ConnectionActivityItem[]> }) {
   const [tokens, setTokens] = useState(initialTokens)
   const [label, setLabel] = useState("")
+  const [access, setAccess] = useState<TokenAccess>(DEFAULT_TOKEN_ACCESS)
+  const [expiry, setExpiry] = useState(DEFAULT_TOKEN_EXPIRY)
   const [rawToken, setRawToken] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function handleCreate(event: React.FormEvent) {
     event.preventDefault()
     startTransition(async () => {
-      const result = await createAgentToken(label)
+      const result = await createAgentToken(label, access, expiry)
       if ("error" in result) {
         toast.error(result.error)
         return
@@ -33,7 +39,7 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl }: { tokens: Api
       setRawToken(result.token)
       setTokens((current) => [result.metadata, ...current])
       setLabel("")
-      toast.success("Token created")
+      toast.success("Token created. A notice was emailed to you.")
     })
   }
 
@@ -49,6 +55,7 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl }: { tokens: Api
     })
   }
 
+  // The placeholder is only the secret itself, before it exists; once created the command carries the real token.
   const command = `claude mcp add --transport http jobclock ${mcpUrl} --header "Authorization: Bearer ${rawToken ?? "jc_YOUR_TOKEN"}"`
 
   return (
@@ -57,8 +64,8 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl }: { tokens: Api
         <p className="section-label">Advanced</p>
         <CardTitle>Access tokens</CardTitle>
         <CardDescription>
-          For agents that cannot sign in through the browser. A token always has full read and write access; prefer
-          Connected apps above, where you choose the permissions. It cannot delete anything or spend AI credits.
+          For agents that cannot sign in through the browser. You choose what a token may do and how long it lasts; it can never
+          delete anything or spend AI credits. Prefer Connected apps above where you can.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
@@ -74,16 +81,30 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl }: { tokens: Api
               required
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="agent-token-access">Access</Label>
+            <SelectInput id="agent-token-access" options={ACCESS_OPTIONS} value={access} onValueChange={setAccess} className="w-44" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="agent-token-expiry">Expires</Label>
+            <SelectInput id="agent-token-expiry" options={TOKEN_EXPIRY_OPTIONS.map(({ value, label }) => ({ value, label }))} value={expiry} onValueChange={setExpiry} className="w-44" />
+          </div>
           <Button type="submit" disabled={isPending || !label.trim()}>
             {isPending ? "Working…" : "Create token"}
           </Button>
         </form>
+        <p className="text-xs text-muted-foreground">
+          {access === "read"
+            ? "Read only: the agent can list and view applications, check for duplicates and read your job preferences."
+            : "Read + changes: the agent can also change status, set follow-ups and interview times, add notes and add new saved jobs."}
+          {" "}We email you when a token is created. The token itself is never emailed.
+        </p>
 
         {rawToken && (
           <div className="space-y-2 border bg-secondary/40 p-4">
             <p className="text-sm font-medium text-foreground">Copy this token now</p>
             <p className="text-xs text-muted-foreground">
-              For security, the full token is only shown once. Anyone holding it can act on your applications until you revoke it.
+              For security, the full token is only shown once. Anyone holding it can use it until it expires or you revoke it.
             </p>
             <Input readOnly value={rawToken} aria-label="New agent token" onFocus={(event) => event.currentTarget.select()} />
           </div>
@@ -95,24 +116,33 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl }: { tokens: Api
           <p className="text-sm text-muted-foreground">No tokens yet.</p>
         ) : (
           <ul className="divide-y border">
-            {tokens.map((token) => (
-              <li key={token.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-foreground">{token.label}</p>
-                    <Badge variant="outline">{token.revokedAt ? "Revoked" : "Active"}</Badge>
+            {tokens.map((token) => {
+              const { text: expiring, expired } = describeExpiry(token.expiresAt)
+              return (
+                <li key={token.id} className="space-y-3 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium text-foreground">{token.label}</p>
+                        <Badge variant="outline">{scopeLabel(token.scopes)}</Badge>
+                        {token.revokedAt ? <Badge variant="outline">Revoked</Badge> : expired ? <Badge variant="destructive">Expired</Badge> : <Badge variant="outline">Active</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {token.tokenPrefix}•••• · Created {formatDate(token.createdAt, "")} · Last used {formatDate(token.lastUsedAt, "never")}
+                      </p>
+                      {!token.revokedAt && <p className="text-xs text-muted-foreground">{expiring}</p>}
+                    </div>
+                    {!token.revokedAt && (
+                      <Button variant="outline" size="sm" onClick={() => handleRevoke(token.id)} disabled={isPending}>
+                        {expired ? "Remove" : "Revoke"}
+                      </Button>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {token.tokenPrefix}•••• · Created {formatDate(token.createdAt, "")} · Last used {formatDate(token.lastUsedAt, "never")}
-                  </p>
-                </div>
-                {!token.revokedAt && (
-                  <Button variant="outline" size="sm" onClick={() => handleRevoke(token.id)} disabled={isPending}>
-                    Revoke
-                  </Button>
-                )}
-              </li>
-            ))}
+                  {!token.revokedAt && !expired && token.scopes.includes("applications:write") && <DailyLimitEditor kind="token" id={token.id} value={token.dailyCreateCap} />}
+                  <RecentActivity items={activity[token.id] ?? []} />
+                </li>
+              )
+            })}
           </ul>
         )}
 
@@ -122,7 +152,7 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl }: { tokens: Api
             <li>Create a token above and copy it.</li>
             <li>
               In Claude Code, run the command below. Any MCP client that supports Streamable HTTP and custom headers works the same way:
-              server URL <code className="break-all">{mcpUrl}</code>, header <code>Authorization: Bearer &lt;token&gt;</code>.
+              server URL <code className="break-all">{mcpUrl}</code>, header <code>Authorization: Bearer</code> followed by your token.
             </li>
             <li>Ask Claude to go through your inbox and update JobClock.</li>
           </ol>

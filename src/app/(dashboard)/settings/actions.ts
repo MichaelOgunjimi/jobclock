@@ -10,8 +10,10 @@ import {
   revokePersonalApiTokens,
   type PersonalApiTokenMetadata,
 } from "@/lib/personal-api-tokens"
-import { createApiToken, revokeApiToken } from "@/lib/mcp/tokens"
-import { revokeConnectedApp } from "@/lib/oauth/tokens"
+import { sendAgentAccessNotice } from "@/lib/email/agent-access"
+import { parseTokenAccess } from "@/lib/mcp/access-policy"
+import { createApiToken, DAILY_CAP_ERROR, parseDailyCap, revokeApiToken, setApiTokenDailyCap } from "@/lib/mcp/tokens"
+import { revokeConnectedApp, setConnectedAppDailyCap } from "@/lib/oauth/tokens"
 import { and, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { trackedCompanies } from "@/lib/db/schema"
@@ -36,7 +38,7 @@ async function getAuthenticatedUserId() {
 
   if (!user) return { error: "Unauthorized" as const }
 
-  return { userId: user.id, supabase }
+  return { userId: user.id, email: user.email, supabase }
 }
 
 export async function saveAiSettings(formData: FormData) {
@@ -399,13 +401,23 @@ export async function deleteTrackedCompany(id: string): Promise<{ error?: string
   return {}
 }
 
-export async function createAgentToken(label: string) {
+export async function createAgentToken(label: string, access: string, expiry: string) {
   const auth = await getAuthenticatedUserId()
   if ("error" in auth) return { error: auth.error }
+  const parsedAccess = parseTokenAccess(access)
+  if (!parsedAccess) return { error: "Choose whether the token is read only or can also make changes." }
 
   try {
-    const result = await createApiToken(auth.userId, label)
+    const result = await createApiToken(auth.userId, label, { access: parsedAccess, expiry })
     if ("error" in result) return { error: result.error }
+    // Never includes the token. Failure to send must not fail the creation.
+    await sendAgentAccessNotice(auth.email, {
+      kind: "token",
+      name: result.metadata.label,
+      scopes: result.metadata.scopes,
+      expiresAt: result.metadata.expiresAt,
+      idempotencyKey: `agent-token/${result.metadata.id}`,
+    })
     revalidatePath("/settings")
     return { success: true as const, token: result.token, metadata: result.metadata }
   } catch {
@@ -438,5 +450,22 @@ export async function revokeAgentConnection(grantId: string) {
     return { success: true as const }
   } catch {
     return { error: "Failed to disconnect the app" }
+  }
+}
+
+/** `kind` says which table the id belongs to; both are scoped to the signed-in owner. */
+export async function setAgentDailyLimit(kind: "token" | "app", id: string, cap: number) {
+  const auth = await getAuthenticatedUserId()
+  if ("error" in auth) return { error: auth.error }
+  const parsed = parseDailyCap(cap)
+  if (parsed === null) return { error: DAILY_CAP_ERROR }
+
+  try {
+    const updated = kind === "token" ? await setApiTokenDailyCap(auth.userId, id, parsed) : await setConnectedAppDailyCap(auth.userId, id, parsed)
+    if (!updated) return { error: "Connection not found or already removed" }
+    revalidatePath("/settings")
+    return { success: true as const, dailyCreateCap: parsed }
+  } catch {
+    return { error: "Failed to save the limit" }
   }
 }
