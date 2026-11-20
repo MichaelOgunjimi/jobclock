@@ -143,69 +143,6 @@ export async function POST(request: NextRequest) {
       let streamError: unknown
       let onDone!: () => void
       const done = new Promise<void>((resolve) => { onDone = resolve })
-      let abort: () => void = () => {}
-      let source: AsyncIterable<unknown>
-      let finalUsage: () => Promise<GeneratedText>
-
-      if (ai.settings.provider === "anthropic") {
-        const { default: Anthropic } = await import("@anthropic-ai/sdk")
-        const client = new Anthropic({ apiKey: ai.apiKey })
-        const stream = client.messages.stream({
-          model: ai.settings.model,
-          max_tokens: 4096,
-          system: systemPrompt,
-          tools: [{ type: "web_search_20250305", name: "web_search" }],
-          messages: validatedMessages.map((m) => ({ role: m.role, content: m.content })),
-        } as Parameters<typeof client.messages.stream>[0])
-        abort = () => stream.controller.abort()
-        source = stream
-        finalUsage = async () => {
-          const message = await stream.finalMessage()
-          const searches = (message.usage as { server_tool_use?: { web_search_requests?: number } }).server_tool_use?.web_search_requests ?? 0
-          return {
-            text: "",
-            providerRequestId: message.id,
-            inputTokens: message.usage.input_tokens,
-            cachedInputTokens: message.usage.cache_read_input_tokens ?? 0,
-            outputTokens: message.usage.output_tokens,
-            toolCostMicrousd: searches * WEB_SEARCH_COST_MICROUSD,
-          }
-        }
-      } else {
-        const { default: OpenAI } = await import("openai")
-        const client = new OpenAI({ apiKey: ai.apiKey })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const stream = await (client as any).responses.create({
-          model: ai.settings.model,
-          instructions: systemPrompt,
-          tools: [{ type: "web_search" }],
-          input: validatedMessages.map((m) => ({ role: m.role, content: m.content })),
-          stream: true,
-        })
-        abort = () => stream.controller?.abort()
-        let completed: Record<string, unknown> | null = null
-        source = (async function* () {
-          for await (const event of stream) {
-            const record = asRecord(event)
-            if (record?.type === "response.completed") completed = asRecord(record.response)
-            yield event
-          }
-        })()
-        finalUsage = async () => {
-          const responseUsage = asRecord(completed?.usage)
-          const output = Array.isArray(completed?.output) ? completed.output : []
-          const searches = output.filter((item) => asRecord(item)?.type === "web_search_call").length
-          return {
-            text: "",
-            providerRequestId: typeof completed?.id === "string" ? completed.id : undefined,
-            inputTokens: Number(responseUsage?.input_tokens ?? 0),
-            cachedInputTokens: Number(asRecord(responseUsage?.input_tokens_details)?.cached_tokens ?? 0),
-            outputTokens: Number(responseUsage?.output_tokens ?? 0),
-            toolCostMicrousd: searches * WEB_SEARCH_COST_MICROUSD,
-          }
-        }
-      }
-
       const textOf = (event: unknown) => {
         const eventRecord = asRecord(event)
         const delta = asRecord(eventRecord?.delta)
@@ -216,19 +153,89 @@ export async function POST(request: NextRequest) {
           : ""
       }
 
-      // Wait for the first text before responding, so a provider failure (no credit, bad key or model) or an empty
-      // reply becomes a real error the client can show, rather than a 200 with a blank body.
-      const iterator = source[Symbol.asyncIterator]()
+      const open = async (useWebSearch: boolean) => {
+        if (ai.settings.provider === "anthropic") {
+          const { default: Anthropic } = await import("@anthropic-ai/sdk")
+          const client = new Anthropic({ apiKey: ai.apiKey })
+          const stream = client.messages.stream({
+            model: ai.settings.model,
+            max_tokens: 4096,
+            system: systemPrompt,
+            ...(useWebSearch ? { tools: [{ type: "web_search_20250305", name: "web_search" }] } : {}),
+            messages: validatedMessages.map((m) => ({ role: m.role, content: m.content })),
+          } as Parameters<typeof client.messages.stream>[0])
+          return {
+            source: stream as AsyncIterable<unknown>,
+            abort: () => stream.controller.abort(),
+            finalUsage: async (): Promise<GeneratedText> => {
+              const message = await stream.finalMessage()
+              const searches = (message.usage as { server_tool_use?: { web_search_requests?: number } }).server_tool_use?.web_search_requests ?? 0
+              return {
+                text: "",
+                providerRequestId: message.id,
+                inputTokens: message.usage.input_tokens,
+                cachedInputTokens: message.usage.cache_read_input_tokens ?? 0,
+                outputTokens: message.usage.output_tokens,
+                toolCostMicrousd: searches * WEB_SEARCH_COST_MICROUSD,
+              }
+            },
+          }
+        }
+        const { default: OpenAI } = await import("openai")
+        const client = new OpenAI({ apiKey: ai.apiKey })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stream = await (client as any).responses.create({
+          model: ai.settings.model,
+          instructions: systemPrompt,
+          ...(useWebSearch ? { tools: [{ type: "web_search" }] } : {}),
+          input: validatedMessages.map((m) => ({ role: m.role, content: m.content })),
+          stream: true,
+        })
+        let completed: Record<string, unknown> | null = null
+        return {
+          source: (async function* () {
+            for await (const event of stream) {
+              const record = asRecord(event)
+              if (record?.type === "response.completed") completed = asRecord(record.response)
+              yield event
+            }
+          })() as AsyncIterable<unknown>,
+          abort: () => stream.controller?.abort(),
+          finalUsage: async (): Promise<GeneratedText> => {
+            const responseUsage = asRecord(completed?.usage)
+            const output = Array.isArray(completed?.output) ? completed.output : []
+            const searches = output.filter((item) => asRecord(item)?.type === "web_search_call").length
+            return {
+              text: "",
+              providerRequestId: typeof completed?.id === "string" ? completed.id : undefined,
+              inputTokens: Number(responseUsage?.input_tokens ?? 0),
+              cachedInputTokens: Number(asRecord(responseUsage?.input_tokens_details)?.cached_tokens ?? 0),
+              outputTokens: Number(responseUsage?.output_tokens ?? 0),
+              toolCostMicrousd: searches * WEB_SEARCH_COST_MICROUSD,
+            }
+          },
+        }
+      }
+
+      // Wait for the first text before responding, so a provider failure (no credit, bad key or model) becomes a real
+      // error the client can show, rather than a 200 with a blank body. A reply with no text at all (web search can
+      // swallow the answer) is retried once as a plain completion; the usage of the empty attempt is still recorded.
+      let attempt!: Awaited<ReturnType<typeof open>>
+      let iterator!: AsyncIterator<unknown>
       let first = ""
-      while (!first) {
-        const next = await iterator.next()
-        if (next.done) break
-        first = textOf(next.value)
+      for (const useWebSearch of [true, false]) {
+        attempt = await open(useWebSearch)
+        iterator = attempt.source[Symbol.asyncIterator]()
+        while (!first) {
+          const next = await iterator.next()
+          if (next.done) break
+          first = textOf(next.value)
+        }
+        if (first) break
+        try { ai.record(await attempt.finalUsage()) } catch { /* nothing billable to record */ }
       }
-      if (!first) {
-        try { ai.record(await finalUsage()) } catch { /* nothing billable to record */ }
-        throw new EmptyAiResponseError()
-      }
+      if (!first) throw new EmptyAiResponseError()
+      const { abort, finalUsage } = attempt
 
       const encoder = new TextEncoder()
       const readable = new ReadableStream({

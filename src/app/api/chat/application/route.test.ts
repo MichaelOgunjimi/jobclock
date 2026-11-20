@@ -333,6 +333,33 @@ describe("POST /api/chat/application", () => {
     expect(record).not.toHaveBeenCalled()
   })
 
+  it("retries once without web search when the first attempt streams no text", async () => {
+    const empty = () => Object.assign((async function* () {
+      yield { type: "message_start" }
+    })(), {
+      controller: { abort: vi.fn() },
+      finalMessage: async () => ({ id: "msg-empty", usage: { input_tokens: 10, output_tokens: 0 } }),
+    })
+    const answered = Object.assign((async function* () {
+      yield { type: "content_block_delta", delta: { type: "text_delta", text: "plain answer" } }
+    })(), {
+      controller: { abort: vi.fn() },
+      finalMessage: async () => ({ id: "msg-ok", usage: { input_tokens: 10, output_tokens: 5 } }),
+    })
+    anthropicStreamMock.mockReset().mockReturnValueOnce(empty()).mockReturnValueOnce(answered)
+
+    const response = await POST(
+      createChatRequest({ applicationId: "app-1", messages: [{ role: "user", content: "hello" }] })
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe("plain answer")
+    expect(anthropicStreamMock.mock.calls[0][0]).toHaveProperty("tools")
+    expect(anthropicStreamMock.mock.calls[1][0]).not.toHaveProperty("tools")
+    expect(record).toHaveBeenCalledWith(expect.objectContaining({ providerRequestId: "msg-empty" }))
+    expect(record).toHaveBeenCalledWith(expect.objectContaining({ providerRequestId: "msg-ok" }))
+  })
+
   it("returns an error when the model streams no text", async () => {
     anthropicStreamMock.mockReturnValue(Object.assign((async function* () {
       yield { type: "message_start" }
