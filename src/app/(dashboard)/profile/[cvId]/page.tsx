@@ -8,7 +8,7 @@ import { Star } from "lucide-react"
 import type { CvData } from "@/lib/supabase/database.types"
 import { normalizeCvData } from "@/lib/cv-data"
 import { parseReviewFindings } from "@/lib/ai/cv-review-schemas"
-import { CvReviewFindings } from "@/components/cv/cv-review-findings"
+import { AI_CREDIT_WEIGHTS } from "@/lib/billing/plans"
 
 export async function generateMetadata({
   params,
@@ -77,11 +77,6 @@ export default async function CvDetailPage({
                 Primary
               </Badge>
             )}
-            {findings.length > 0 && (
-              <Badge variant="destructive" className="text-[10px]">
-                {findings.length} {findings.length === 1 ? "issue" : "issues"}
-              </Badge>
-            )}
           </div>
         </div>
 
@@ -95,17 +90,12 @@ export default async function CvDetailPage({
         )}
       </div>
 
-      <section className="mb-8 space-y-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          Content review
-        </h2>
-        <CvReviewFindings findings={findings} />
-      </section>
-
       <CvEditor
         cvId={cv.id}
         cvName={cv.name ?? cvData.name ?? ""}
         initialData={cvData}
+        initialFindings={findings}
+        recheckCredits={AI_CREDIT_WEIGHTS.cv_review}
       />
     </div>
   )

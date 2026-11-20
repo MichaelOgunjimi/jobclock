@@ -738,7 +738,7 @@ export const aiUsageActions = pgTable(
   },
   (table) => [
     foreignKey({ columns: [table.userId, table.periodStart], foreignColumns: [aiUsagePeriods.userId, aiUsagePeriods.periodStart] }).onDelete("cascade"),
-    check("ai_usage_actions_feature_check", sql`${table.feature} in ('job_import', 'qualification_document_extraction', 'cv_parse_review', 'application_chat', 'interview_answer', 'interview_preparation', 'cover_letter', 'company_research', 'cv_tailoring')`),
+    check("ai_usage_actions_feature_check", sql`${table.feature} in ('job_import', 'qualification_document_extraction', 'cv_parse_review', 'cv_review', 'application_chat', 'interview_answer', 'interview_preparation', 'cover_letter', 'company_research', 'cv_tailoring')`),
     check("ai_usage_actions_credential_source_check", sql`${table.credentialSource} in ('personal', 'jobclock')`),
     check("ai_usage_actions_status_check", sql`${table.status} in ('reserved', 'completed', 'failed')`),
     check("ai_usage_actions_funding_check", sql`${table.funding} in ('allowance', 'purchased')`),

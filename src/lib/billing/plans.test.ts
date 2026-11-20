@@ -34,6 +34,7 @@ describe("billing plan configuration", () => {
       job_import: 1,
       qualification_document_extraction: 2,
       cv_parse_review: 5,
+      cv_review: 2,
       application_chat: 2,
       interview_answer: 2,
       interview_preparation: 4,

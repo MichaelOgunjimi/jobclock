@@ -91,4 +91,28 @@ describe("reviewCv", () => {
 
     await expect(reviewCv(sampleCv, ai)).resolves.toEqual([])
   })
+
+  it("attaches the current text and drops a rewrite that invents a number", async () => {
+    const finding = {
+      category: "weak_verb",
+      severity: "high",
+      location: { section: "experience", entryId: "Junior Developer at Acme Corp", bulletIndex: 0 },
+      message: "Weak opener.",
+      suggestion: "Lead with a verb.",
+    }
+    generate.mockResolvedValueOnce(
+      JSON.stringify({
+        findings: [
+          { ...finding, rewrite: "Updated the company website" },
+          { ...finding, rewrite: "Updated the website, lifting traffic 30%" },
+        ],
+      }),
+    )
+
+    const [grounded, invented] = await reviewCv(sampleCv, ai)
+
+    expect(grounded).toMatchObject({ original: "Responsible for updating the website", rewrite: "Updated the company website" })
+    expect(invented.original).toBe("Responsible for updating the website")
+    expect(invented.rewrite).toBeUndefined()
+  })
 })

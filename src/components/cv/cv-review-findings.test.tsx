@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { fireEvent, render, screen } from "@testing-library/react"
+import { describe, expect, it, vi } from "vitest"
 import { CvReviewFindings } from "@/components/cv/cv-review-findings"
 import { parseReviewFindings } from "@/lib/ai/cv-review-schemas"
 
@@ -59,5 +59,46 @@ describe("CvReviewFindings", () => {
     expect(low).not.toBeNull()
     // High group precedes the low group in document order.
     expect(high!.compareDocumentPosition(low!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
+describe("CvReviewFindings actions", () => {
+  const fixable = parseReviewFindings([
+    {
+      ...lowFinding,
+      location: { section: "experience", entryId: "Dev at Acme", bulletIndex: 0 },
+      original: "Responsible for the website",
+      rewrite: "Built the website",
+    },
+  ])
+
+  it("applies the suggested rewrite in one click", () => {
+    const onApply = vi.fn()
+    render(<CvReviewFindings findings={fixable} onApply={onApply} onDismiss={vi.fn()} />)
+
+    expect(screen.getByText(/responsible for the website/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /apply suggested fix/i }))
+    expect(onApply).toHaveBeenCalledWith(fixable[0], "Built the website")
+  })
+
+  it("lets the user edit the rewrite before applying it", () => {
+    const onApply = vi.fn()
+    render(<CvReviewFindings findings={fixable} onApply={onApply} />)
+
+    fireEvent.click(screen.getByRole("button", { name: /edit first/i }))
+    const box = screen.getByRole("textbox", { name: /edit suggested rewrite/i })
+    fireEvent.change(box, { target: { value: "Rebuilt the website" } })
+    fireEvent.click(screen.getByRole("button", { name: /apply edited/i }))
+    expect(onApply).toHaveBeenCalledWith(fixable[0], "Rebuilt the website")
+  })
+
+  it("dismisses a finding, and offers no apply button without a rewrite", () => {
+    const onDismiss = vi.fn()
+    const plain = parseReviewFindings([lowFinding])
+    render(<CvReviewFindings findings={plain} onApply={vi.fn()} onDismiss={onDismiss} />)
+
+    expect(screen.queryByRole("button", { name: /apply/i })).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: /dismiss/i }))
+    expect(onDismiss).toHaveBeenCalledWith(plain[0])
   })
 })

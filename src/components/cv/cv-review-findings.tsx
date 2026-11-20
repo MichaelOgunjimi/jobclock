@@ -1,3 +1,7 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type {
   CvReviewFinding,
@@ -5,7 +9,7 @@ import type {
   CvReviewFindingSeverity,
 } from "@/lib/ai/cv-review-schemas"
 
-const CATEGORY_LABELS: Record<CvReviewFindingCategory, string> = {
+export const CATEGORY_LABELS: Record<CvReviewFindingCategory, string> = {
   weak_verb: "Weak verb",
   missing_metric: "Missing metric",
   bullet_too_short: "Bullet too short",
@@ -38,7 +42,103 @@ function locationHint(finding: CvReviewFinding): string {
   return section
 }
 
-export function CvReviewFindings({ findings }: { findings: CvReviewFinding[] }) {
+type FindingActions = {
+  /** Replace the text the finding points at. Present only when the CV is editable here. */
+  onApply?: (finding: CvReviewFinding, text: string) => void
+  onDismiss?: (finding: CvReviewFinding) => void
+}
+
+function FindingCard({ finding, onApply, onDismiss }: { finding: CvReviewFinding } & FindingActions) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(finding.rewrite ?? "")
+  const label = CATEGORY_LABELS[finding.category]
+  const canApply = onApply && finding.rewrite && finding.original !== undefined
+
+  return (
+    <li className="space-y-1.5 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="text-[12px] font-semibold text-foreground">{label}</span>
+        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          {locationHint(finding)}
+        </span>
+      </div>
+      <p className="text-[13px] leading-relaxed text-foreground">{finding.message}</p>
+      <p className="text-[13px] leading-relaxed text-muted-foreground">
+        <span className="font-medium text-foreground">Suggestion: </span>
+        {finding.suggestion}
+      </p>
+
+      {canApply && (
+        <div className="space-y-2 border bg-secondary/50 p-3">
+          {finding.original && (
+            <p className="text-[12px] leading-relaxed text-muted-foreground">
+              <span className="font-medium text-foreground">Now: </span>
+              {finding.original}
+            </p>
+          )}
+          {editing ? (
+            <textarea
+              aria-label={`Edit suggested rewrite for ${label}`}
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              rows={3}
+              className="w-full resize-y border border-input bg-background px-3 py-2 text-[13px] leading-relaxed outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/15"
+            />
+          ) : (
+            <p className="text-[13px] leading-relaxed text-foreground">
+              <span className="font-medium">Suggested: </span>
+              {finding.rewrite}
+            </p>
+          )}
+        </div>
+      )}
+
+      {(canApply || onDismiss) && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {canApply && (
+            <>
+              <Button
+                size="sm"
+                disabled={editing && !draft.trim()}
+                aria-label={`${editing ? "Apply edited rewrite" : "Apply suggested fix"} for ${label}`}
+                onClick={() => onApply(finding, editing ? draft.trim() : finding.rewrite!)}
+              >
+                {editing ? "Apply edited" : "Apply fix"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                aria-label={`${editing ? "Cancel editing" : "Edit first"} for ${label}`}
+                onClick={() => {
+                  setDraft(finding.rewrite!)
+                  setEditing((value) => !value)
+                }}
+              >
+                {editing ? "Cancel" : "Edit first"}
+              </Button>
+            </>
+          )}
+          {onDismiss && (
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label={`Dismiss ${label} finding`}
+              onClick={() => onDismiss(finding)}
+            >
+              Dismiss
+            </Button>
+          )}
+        </div>
+      )}
+    </li>
+  )
+}
+
+export function CvReviewFindings({
+  findings,
+  onApply,
+  onDismiss,
+}: { findings: CvReviewFinding[] } & FindingActions) {
   if (findings.length === 0) {
     return (
       <div className="border bg-secondary px-6 py-8 text-center text-[13px] text-muted-foreground">
@@ -68,24 +168,14 @@ export function CvReviewFindings({ findings }: { findings: CvReviewFinding[] }) 
               </span>
             </div>
             <ul className="divide-y">
-              {group.map((finding, idx) => (
-                <li key={idx} className="space-y-1.5 px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="text-[12px] font-semibold text-foreground">
-                      {CATEGORY_LABELS[finding.category]}
-                    </span>
-                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                      {locationHint(finding)}
-                    </span>
-                  </div>
-                  <p className="text-[13px] leading-relaxed text-foreground">
-                    {finding.message}
-                  </p>
-                  <p className="text-[13px] leading-relaxed text-muted-foreground">
-                    <span className="font-medium text-foreground">Suggestion: </span>
-                    {finding.suggestion}
-                  </p>
-                </li>
+              {group.map((finding) => (
+                <FindingCard
+                  // Remounts when the review is replaced, so an open editor never shows a stale draft.
+                  key={`${finding.category}|${finding.location.section}|${finding.location.entryId}|${finding.location.bulletIndex}|${finding.message}`}
+                  finding={finding}
+                  onApply={onApply}
+                  onDismiss={onDismiss}
+                />
               ))}
             </ul>
           </section>
