@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { CvData } from "@/lib/supabase/database.types"
 import type { CvReviewFinding } from "@/lib/ai/cv-review-schemas"
-import { findingKey, getFindingText, groundFindings, mergeDuplicateFindings, rewriteIsGrounded, setFindingText } from "./review-location"
+import { entryIdsForReview, findingKey, getFindingText, groundFindings, mergeDuplicateFindings, rewriteIsGrounded, setFindingText } from "./review-location"
 
 const cv = {
   summary: "Developer with 3 years of experience.",
@@ -120,5 +120,55 @@ describe("findingKey", () => {
   it("is stable for the same finding and differs when the text differs", () => {
     expect(findingKey(finding({ original: "a" }))).toBe(findingKey(finding({ original: "a" })))
     expect(findingKey(finding({ original: "a" }))).not.toBe(findingKey(finding({ original: "b" })))
+  })
+})
+
+describe("entries whose names collide", () => {
+  const dup = {
+    ...cv,
+    experience: [
+      { company: "Acme", title: "Developer", description: "", highlights: ["First role bullet"] },
+      { company: "Acme", title: "Developer", description: "", highlights: ["Second role bullet"] },
+    ],
+    projects: [
+      { name: "Tracker", description: "", highlights: ["First tracker"] },
+      { name: "Tracker", description: "", highlights: ["Second tracker"] },
+    ],
+  } as CvData
+  const exp = (entryId: string) => ({ section: "experience" as const, entryId, bulletIndex: 0 })
+  const proj = (entryId: string) => ({ section: "projects" as const, entryId, bulletIndex: 0 })
+
+  it("labels each colliding entry distinctly and leaves unique ones plain", () => {
+    expect(entryIdsForReview(dup)).toEqual({
+      experience: ["Developer at Acme (1)", "Developer at Acme (2)"],
+      projects: ["Tracker (1)", "Tracker (2)"],
+    })
+    expect(entryIdsForReview(cv)).toEqual({ experience: ["Developer at Acme"], projects: ["Tracker"] })
+  })
+
+  it("reads the entry the label points at", () => {
+    expect(getFindingText(dup, exp("Developer at Acme (2)"))).toBe("Second role bullet")
+    expect(getFindingText(dup, exp("developer at acme (1)"))).toBe("First role bullet")
+    expect(getFindingText(dup, proj("Tracker (2)"))).toBe("Second tracker")
+  })
+
+  it("still resolves plain names stored before suffixes existed, to the first entry", () => {
+    expect(getFindingText(dup, exp("Developer at Acme"))).toBe("First role bullet")
+    expect(getFindingText(dup, proj("Tracker"))).toBe("First tracker")
+  })
+
+  it("edits only the targeted entry", () => {
+    const next = setFindingText(dup, exp("Developer at Acme (2)"), "Rewritten")
+    expect(next?.experience?.map((e) => e.highlights)).toEqual([["First role bullet"], ["Rewritten"]])
+    const nextProject = setFindingText(dup, proj("Tracker (2)"), "Rewritten")
+    expect(nextProject?.projects?.map((p) => p.highlights)).toEqual([["First tracker"], ["Rewritten"]])
+  })
+
+  it("grounds and keeps one card per entry instead of merging them", () => {
+    const grounded = groundFindings(dup, [
+      finding({ location: exp("Developer at Acme (1)") }),
+      finding({ location: exp("Developer at Acme (2)") }),
+    ])
+    expect(grounded.map((f) => f.original)).toEqual(["First role bullet", "Second role bullet"])
   })
 })

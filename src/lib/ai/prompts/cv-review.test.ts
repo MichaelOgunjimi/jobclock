@@ -45,4 +45,9 @@ describe("buildCvReviewUserPrompt", () => {
     expect(prompt).toContain('{"name":"Alex"}')
     expect(prompt).toContain("</candidate_cv>")
   })
+
+  it("lists the entry IDs the model must use when given", () => {
+    const prompt = buildCvReviewUserPrompt("{}", { experience: ["Dev at Acme (1)", "Dev at Acme (2)"], projects: [] })
+    expect(prompt).toContain('<entry_ids>\n{"experience":["Dev at Acme (1)","Dev at Acme (2)"],"projects":[]}\n</entry_ids>')
+  })
 })
