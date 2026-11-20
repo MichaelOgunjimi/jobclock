@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs"
+import { join } from "node:path"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { PersistedJobInput } from "@/lib/jobs/persist-job"
 import { escapeHtml, jobAlertEmail, paymentFailedEmail, subscriptionEndedEmail } from "./templates"
@@ -20,6 +22,11 @@ describe("email templates", () => {
     }
     expect(paymentFailedEmail().subject).toBe("Your JobClock payment did not go through")
     expect(subscriptionEndedEmail().subject).toBe("Your JobClock Pro subscription has ended")
+  })
+
+  it("shows the logo from the production origin, and the file exists in public/", () => {
+    expect(paymentFailedEmail().html).toContain('src="https://jobclock.dev/email/logo-mark.png"')
+    expect(existsSync(join(process.cwd(), "public/email/logo-mark.png"))).toBe(true)
   })
 
   it("escapes job fields and never links to a non-http url", () => {

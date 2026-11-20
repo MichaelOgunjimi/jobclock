@@ -8,6 +8,10 @@ export interface RenderedEmail {
   text: string
 }
 
+// Always the production origin: an inbox cannot load images from localhost or a preview URL.
+// The files live in public/email/ and are PNG because Gmail and Outlook do not show SVG.
+const EMAIL_ASSET_BASE = "https://jobclock.dev"
+
 export function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 }
@@ -32,8 +36,8 @@ function layout({ eyebrow, heading, bodyHtml, cta, footnote }: LayoutOptions): s
 <table width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border:1px solid #e5e5e5;max-width:100%;">
 <tr><td style="background-color:#0f0f0f;padding:28px 40px;">
 <table cellpadding="0" cellspacing="0"><tr>
-<td style="background-color:#1a1a1a;border:1px solid rgba(255,255,255,0.1);border-radius:6px;width:40px;height:40px;text-align:center;vertical-align:middle;"><span style="color:#fff;font-size:20px;font-weight:600;line-height:40px;display:block;">J</span></td>
-<td style="padding-left:12px;"><p style="margin:0;color:#ffffff;font-size:16px;font-weight:500;">JobClock</p></td>
+<td style="vertical-align:middle;"><img src="${EMAIL_ASSET_BASE}/email/logo-mark.png" width="44" height="44" alt="JobClock" style="display:block;border:0;outline:none;"></td>
+<td style="padding-left:12px;vertical-align:middle;"><p style="margin:0;color:#ffffff;font-size:16px;font-weight:500;">JobClock</p></td>
 </tr></table>
 </td></tr>
 <tr><td style="padding:40px;">
