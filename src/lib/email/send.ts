@@ -8,6 +8,8 @@ interface Email {
   to: string
   subject: string
   html: string
+  /** Plain-text alternative. Improves deliverability; Resend and Beaco derive one from the HTML if omitted. */
+  text?: string
   /** Makes a retry (e.g. a replayed Stripe webhook) a no-op instead of a second email. */
   idempotencyKey?: string
 }
@@ -19,7 +21,7 @@ let warnedNoProvider = false
  * is set (local development), otherwise it logs once and skips. It never throws: a failed email must not
  * break the webhook or cron that asked for it. Returns whether the email was handed to a provider.
  */
-export async function sendEmail({ to, subject, html, idempotencyKey }: Email): Promise<boolean> {
+export async function sendEmail({ to, subject, html, text, idempotencyKey }: Email): Promise<boolean> {
   try {
     if (process.env.RESEND_API_KEY) {
       const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send(
@@ -29,6 +31,7 @@ export async function sendEmail({ to, subject, html, idempotencyKey }: Email): P
           replyTo: SUPPORT_EMAIL,
           subject,
           html,
+          text,
         },
         { idempotencyKey },
       )
@@ -37,11 +40,12 @@ export async function sendEmail({ to, subject, html, idempotencyKey }: Email): P
     }
 
     if (process.env.BEACO_API_KEY) {
-      // shortcut: no template, so Beaco must accept raw subject/html payloads; confirm against the Beaco service.
+      // Beaco's `inline` field takes the finished email, so it renders nothing and matches what Resend sends.
       await sendBeacoEvent({
         event_type: "email.transactional",
         recipients: [{ channels: ["email"], email: to }],
-        payload: { subject, html },
+        inline: { subject, html, text, reply_to: SUPPORT_EMAIL },
+        payload: {},
         idempotency_key: idempotencyKey,
       })
       return true

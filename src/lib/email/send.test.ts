@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({ resendSend: vi.fn(), beaco: vi.fn() }))
 vi.mock("resend", () => ({ Resend: class { emails = { send: mocks.resendSend } } }))
 vi.mock("@/lib/beaco/client", () => ({ sendBeacoEvent: mocks.beaco }))
 
-const email = { to: "user@example.com", subject: "Hello", html: "<p>Hi</p>", idempotencyKey: "evt_1" }
+const email = { to: "user@example.com", subject: "Hello", html: "<p>Hi</p>", text: "Hi", idempotencyKey: "evt_1" }
 
 // Re-import so the "log once" flag starts fresh in each test.
 async function load() {
@@ -33,7 +33,7 @@ describe("sendEmail", () => {
 
     expect(await (await load())(email)).toBe(true)
     expect(mocks.resendSend).toHaveBeenCalledWith(
-      { from: "JobClock <hello@jobclock.dev>", to: "user@example.com", replyTo: "support@jobclock.dev", subject: "Hello", html: "<p>Hi</p>" },
+      { from: "JobClock <hello@jobclock.dev>", to: "user@example.com", replyTo: "support@jobclock.dev", subject: "Hello", html: "<p>Hi</p>", text: "Hi" },
       { idempotencyKey: "evt_1" },
     )
     expect(mocks.beaco).not.toHaveBeenCalled()
@@ -67,7 +67,8 @@ describe("sendEmail", () => {
     expect(mocks.beaco).toHaveBeenCalledWith({
       event_type: "email.transactional",
       recipients: [{ channels: ["email"], email: "user@example.com" }],
-      payload: { subject: "Hello", html: "<p>Hi</p>" },
+      inline: { subject: "Hello", html: "<p>Hi</p>", text: "Hi", reply_to: "support@jobclock.dev" },
+      payload: {},
       idempotency_key: "evt_1",
     })
     expect(mocks.resendSend).not.toHaveBeenCalled()

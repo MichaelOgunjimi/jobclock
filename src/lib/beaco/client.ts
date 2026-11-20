@@ -10,6 +10,8 @@ interface BeacoRecipient {
 interface BeacoEventPayload {
   event_type: string
   template_name?: string
+  /** An already-rendered email. Beaco sends it as is and skips template rendering. */
+  inline?: { subject: string; html: string; text?: string; reply_to?: string }
   recipients: BeacoRecipient[]
   payload: Record<string, string>
   idempotency_key?: string

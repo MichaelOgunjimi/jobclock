@@ -4,7 +4,7 @@ import { getStripe } from "@/lib/billing/stripe"
 import { CREDIT_PACKS, type CreditPackId } from "@/lib/billing/plans"
 import { grantPurchasedCredits } from "@/lib/billing/usage"
 import { sendEmail } from "@/lib/email/send"
-import { getAppUrl } from "@/lib/site"
+import { paymentFailedEmail, subscriptionEndedEmail, type RenderedEmail } from "@/lib/email/templates"
 
 function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
   const subscription = invoice.parent?.subscription_details?.subscription
@@ -33,13 +33,11 @@ async function grantCreditPack(session: Stripe.Checkout.Session): Promise<boolea
   })
 }
 
-const billingUrl = () => `${getAppUrl()}/settings?tab=billing`
-
 // Stripe sends its own receipts, so only the two notices Stripe does not cover are sent here.
 // Keyed by event id so a replayed webhook cannot email twice; sendEmail never throws.
-function sendBillingEmail(eventId: string, to: string | null | undefined, subject: string, paragraphs: string[]) {
+function sendBillingEmail(eventId: string, to: string | null | undefined, email: RenderedEmail) {
   if (!to) return Promise.resolve(false)
-  return sendEmail({ to, subject, html: paragraphs.map((p) => `<p>${p}</p>`).join(""), idempotencyKey: eventId })
+  return sendEmail({ to, ...email, idempotencyKey: eventId })
 }
 
 async function processEvent(event: Stripe.Event): Promise<boolean> {
@@ -53,11 +51,7 @@ async function processEvent(event: Stripe.Event): Promise<boolean> {
       await projectSubscription(event.data.object, event.created)
       const customerId = event.data.object.customer
       const customer = await stripe.customers.retrieve(typeof customerId === "string" ? customerId : customerId.id).catch(() => null)
-      await sendBillingEmail(event.id, customer && !customer.deleted ? customer.email : null, "Your JobClock Pro subscription has ended", [
-        "Your JobClock Pro subscription has ended, and your account is now on the free plan.",
-        "Nothing has been deleted. Your applications and documents are still there, and you can subscribe again any time from Settings → Billing: " + `<a href="${billingUrl()}">${billingUrl()}</a>`,
-        "If you did not expect this, reply to this email.",
-      ])
+      await sendBillingEmail(event.id, customer && !customer.deleted ? customer.email : null, subscriptionEndedEmail())
       return true
     }
     case "checkout.session.completed":
@@ -87,11 +81,7 @@ async function processEvent(event: Stripe.Event): Promise<boolean> {
       await projectSubscription(subscription, event.created)
       // Stripe retries a failed invoice several times; tell the user once, on the first failure.
       if (event.type === "invoice.payment_failed" && event.data.object.attempt_count === 1) {
-        await sendBillingEmail(event.id, event.data.object.customer_email, "Your JobClock payment did not go through", [
-          "We could not take your latest JobClock Pro payment.",
-          "Pro stays on for 7 days while Stripe tries again. To keep it, update your payment method in Settings → Billing: " + `<a href="${billingUrl()}">${billingUrl()}</a>`,
-          "If you need help, reply to this email.",
-        ])
+        await sendBillingEmail(event.id, event.data.object.customer_email, paymentFailedEmail())
       }
       return true
     }
