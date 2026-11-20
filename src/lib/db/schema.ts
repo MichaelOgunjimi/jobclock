@@ -57,6 +57,8 @@ export const profiles = pgTable("profiles", {
   githubUrl: text("github_url"),
   portfolioUrl: text("portfolio_url"),
   avatarUrl: text("avatar_url"),
+  // Set when the one-time welcome email is claimed, so it can never send twice. Existing accounts were backfilled.
+  welcomeSentAt: timestamp("welcome_sent_at", { withTimezone: true }),
 })
 
 // ============================================================

@@ -1,5 +1,6 @@
 import { createServerClient, type SetAllCookies } from "@supabase/ssr"
-import { NextResponse, type NextRequest } from "next/server"
+import { after, NextResponse, type NextRequest } from "next/server"
+import { sendWelcomeEmail } from "@/lib/email/welcome"
 import { getSupabaseConfig, getSupabaseSetupHint } from "@/lib/supabase/config"
 import type { Database } from "@/lib/supabase/database.types"
 import type { EmailOtpType } from "@supabase/supabase-js"
@@ -36,7 +37,8 @@ export async function GET(request: NextRequest) {
 
   // token_hash flow — works across browsers/devices, no PKCE verifier needed
   if (tokenHash && type) {
-    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
+    const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
+    if (!error && data.user) after(() => sendWelcomeEmail(data.user!.id, data.user!.email))
     if (error) {
       console.error("[auth/callback] verifyOtp error:", error.message)
       return NextResponse.redirect(
@@ -49,7 +51,8 @@ export async function GET(request: NextRequest) {
 
   // code flow — PKCE exchange (OAuth providers, same-browser email flows)
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error && data.user) after(() => sendWelcomeEmail(data.user!.id, data.user!.email))
     if (error) {
       console.error("[auth/callback] exchangeCodeForSession error:", error.message)
       return NextResponse.redirect(

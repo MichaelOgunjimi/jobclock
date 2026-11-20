@@ -338,3 +338,17 @@ export function creditsResetEmail({ limit }: { limit: number }, unsubscribeUrl: 
     unsubscribeUrl,
   })
 }
+
+/** One-time and transactional: no unsubscribe footer, but it says where to manage the optional emails. */
+export function welcomeEmail(): RenderedEmail {
+  return messageEmail({
+    subject: "Welcome to JobClock",
+    eyebrow: "Welcome",
+    heading: "Welcome to JobClock.",
+    lines: [
+      "Your account is ready. Save a job, track where each application stands, and let JobClock keep the details in one place.",
+      "We only send reminders and digests you ask for. You can choose which ones in Settings under Emails; they are all off until you turn them on.",
+    ],
+    cta: { label: "Open JobClock", url: `${getAppUrl()}/dashboard` },
+  })
+}
