@@ -30,7 +30,7 @@ concurrency:
 jobs:
   migrate:
     name: Run DB migrations
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: Production
     steps:
       - uses: actions/checkout@v4
@@ -51,7 +51,7 @@ jobs:
 
   deploy:
     name: Deploy to Vercel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: migrate
     steps:
       - uses: actions/checkout@v4
