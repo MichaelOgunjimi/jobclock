@@ -352,3 +352,21 @@ export function welcomeEmail(): RenderedEmail {
     cta: { label: "Open JobClock", url: `${getAppUrl()}/dashboard` },
   })
 }
+
+/**
+ * Security notice: a new way into the account was just created. Transactional, so no unsubscribe footer. It names the
+ * token or app and what it can do, never the token itself. `name` can come from an app, so it is escaped by the layout.
+ */
+export function agentAccessEmail({ kind, name, access, expires }: { kind: "token" | "app"; name: string; access: string; expires: string }): RenderedEmail {
+  const what = kind === "token" ? `an access token named "${name}"` : `the app "${name}"`
+  return messageEmail({
+    subject: kind === "token" ? "A new access token was created for your JobClock account" : "An app was connected to your JobClock account",
+    eyebrow: "Security",
+    heading: kind === "token" ? "A new access token was created." : "An app was connected.",
+    lines: [
+      `You just ${kind === "token" ? "created" : "connected"} ${what}. Access: ${access}. ${expires}.`,
+      "If this was you, there is nothing to do. If it was not, open Settings, go to AI Agent and revoke it now, then change your password.",
+    ],
+    cta: { label: "Review AI Agent access", url: `${getAppUrl()}/settings?tab=agent` },
+  })
+}

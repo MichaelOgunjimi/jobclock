@@ -6,6 +6,7 @@ vi.mock("@/lib/generation/enqueue", () => ({ enqueueGeneration }))
 
 import { applications, profiles, userCvs } from "@/lib/db/schema"
 import { persistJobForUser } from "@/lib/jobs/persist-job"
+import { runAsConnection } from "./connection-context"
 import { expectAllQueriesScopedTo, recorded, resetFakeDb, row, tableRow, type RecordedQuery } from "./fake-db"
 import {
   addApplication,
@@ -294,16 +295,46 @@ describe("input validation", () => {
 })
 
 describe("daily cap", () => {
-  it("refuses once the user has added the maximum through MCP in the last 24 hours", async () => {
-    seed([], { createdToday: DAILY_CREATE_CAP })
-    const result = await addApplication(OWNER, job(), NOW)
-    expect(result).toEqual({ error: expect.stringContaining("Daily limit") })
+  const as = (dailyCreateCap: number) => <T>(fn: () => T) => runAsConnection({ kind: "token", id: "tok-1", dailyCreateCap }, fn)
+
+  it("refuses once the connection has added its own limit in the last 24 hours, and the error names the limit, why and where to change it", async () => {
+    seed([], { createdToday: 5 })
+    const result = await as(5)(() => addApplication(OWNER, job(), NOW))
+    expect(result).toEqual({ error: expect.stringContaining("its limit is 5") })
+    const { error } = result as { error: string }
+    expect(error).toContain("flooding")
+    expect(error).toContain("Settings -> AI Agent")
+    expect(error).toContain("0 for no limit")
     expect(writes()).toHaveLength(0)
   })
 
+  it("uses the default of 100 when no connection is set (a direct call)", async () => {
+    seed([], { createdToday: DAILY_CREATE_CAP })
+    expect(await addApplication(OWNER, job(), NOW)).toEqual({ error: expect.stringContaining("its limit is 100") })
+  })
+
+  it("a cap of 0 means unlimited", async () => {
+    seed([], { createdToday: 1_000_000 })
+    expect(await as(0)(() => addApplication(OWNER, job(), NOW))).toEqual({ data: expect.objectContaining({ created: true }) })
+  })
+
+  it("a raised cap lets the same history through", async () => {
+    seed([], { createdToday: 100 })
+    expect(await as(500)(() => addApplication(OWNER, job(), NOW))).toEqual({ data: expect.objectContaining({ created: true }) })
+  })
+
+  it("counts only what this connection added, never another token's", async () => {
+    seed([], { createdToday: 0 })
+    await as(5)(() => addApplication(OWNER, job(), NOW))
+    const count = recorded.find((query) => /count\(\*\)/.test(query.sql))!
+    expect(count.sql).toContain("'connectionId'")
+    expect(count.params).toContain("tok-1")
+    expect(count.params).toContain(OWNER)
+  })
+
   it("counts created applications within a batch against the cap", async () => {
-    seed([], { createdToday: DAILY_CREATE_CAP - 1 })
-    const result = (await addApplications(OWNER, [job(), job({ url: "https://jobs.example.com/view/2" })], NOW)) as { data: { created: number; failed: number; results: { error?: string }[] } }
+    seed([], { createdToday: 4 })
+    const result = (await as(5)(() => addApplications(OWNER, [job(), job({ url: "https://jobs.example.com/view/2" })], NOW))) as { data: { created: number; failed: number; results: { error?: string }[] } }
     expect(result.data).toEqual(expect.objectContaining({ created: 1, failed: 1 }))
     expect(result.data.results[1].error).toContain("Daily limit")
   })
@@ -339,16 +370,13 @@ describe("add_applications", () => {
 
   it("accepts at most 20 jobs per call", async () => {
     const jobs = Array.from({ length: 21 }, (_, i) => job({ url: `https://jobs.example.com/view/${i}` }))
-    expect(await addApplications(OWNER, jobs, NOW)).toEqual({ error: expect.stringContaining("between 1 and 20") })
+    const { error } = (await addApplications(OWNER, jobs, NOW)) as { error: string }
+    expect(error).toContain("21 sent, at most 20 allowed")
+    expect(error).toContain("time limit") // why
+    expect(error).toContain("docs/mcp-agent-access.md") // how to change
     expect(await addApplications(OWNER, [], NOW)).toEqual({ error: expect.any(String) })
     expect(recorded).toHaveLength(0)
     expect(await addApplications(OWNER, jobs.slice(0, 20), NOW)).toEqual({ data: expect.objectContaining({ created: 20 }) })
-  })
-
-  it("bounds the total payload", async () => {
-    const jobs = Array.from({ length: 20 }, (_, i) => job({ url: `https://jobs.example.com/view/${i}`, description: "d".repeat(20_000) }))
-    expect(await addApplications(OWNER, jobs, NOW)).toEqual({ error: expect.stringContaining("too large") })
-    expect(recorded).toHaveLength(0)
   })
 
   it("a repeat of the same job inside one batch is caught as a duplicate", async () => {

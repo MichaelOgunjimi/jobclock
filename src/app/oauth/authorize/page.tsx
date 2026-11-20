@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AUTHORIZE_PARAMS, buildClientRedirect, parseAuthorizeRequest } from "@/lib/oauth/authorize"
 import { isLoopbackRedirect } from "@/lib/oauth/clients"
+import { CONNECTION_DURATION_OPTIONS, DEFAULT_CONNECTION_DURATION } from "@/lib/mcp/access-policy"
 import { SCOPE_WRITE } from "@/lib/oauth/config"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { createClient } from "@/lib/supabase/server"
@@ -105,6 +106,21 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
               It can never delete anything, spend AI credits or touch billing. You can disconnect it any time in Settings, under AI Agent.
             </p>
           </div>
+
+          <fieldset className="space-y-3">
+            <legend className="section-label">Keep me connected for</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {CONNECTION_DURATION_OPTIONS.map((option) => (
+                <label key={option.value} className="flex cursor-pointer items-center gap-3 border p-3 has-[:checked]:border-foreground">
+                  <input type="radio" name="duration" value={option.value} defaultChecked={option.value === DEFAULT_CONNECTION_DURATION} className="size-4 accent-foreground" />
+                  <span className="text-sm text-foreground">{option.label}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-[12px] text-muted-foreground">
+              The connection ends on its own at the end of this period, and also if the app is not used for 30 days. Settings, under AI Agent, shows when each one ends.
+            </p>
+          </fieldset>
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Button type="submit" name="decision" value="deny" variant="outline" size="lg" className="w-full sm:w-auto">

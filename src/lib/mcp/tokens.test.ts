@@ -5,13 +5,13 @@ vi.mock("@/lib/db", async () => ({ db: (await import("./fake-db")).fakeDb }))
 import { apiTokens } from "@/lib/db/schema"
 import { expectAllQueriesScopedTo, recorded, resetFakeDb, tableRow } from "./fake-db"
 import {
-  MAX_ACTIVE_TOKENS_PER_USER,
   authenticateApiToken,
   createApiToken,
   generateRawApiToken,
   hashApiToken,
   listApiTokens,
   revokeApiToken,
+  setApiTokenDailyCap,
 } from "./tokens"
 
 const USER = "11111111-1111-4111-8111-111111111111"
@@ -35,10 +35,7 @@ describe("createApiToken", () => {
   beforeEach(() => resetFakeDb())
 
   it("stores only the hash and a short prefix, never the plaintext, and returns the token once", async () => {
-    resetFakeDb(({ sql }) => {
-      if (/count\(\*\)/.test(sql)) return [[0]]
-      return [tableRow(apiTokens, { id: "t1", userId: USER, label: "Laptop", createdAt: new Date(), tokenPrefix: "jc_abcde", tokenHash: "x" })]
-    })
+    resetFakeDb(() => [tableRow(apiTokens, { id: "t1", userId: USER, label: "Laptop", createdAt: new Date(), tokenPrefix: "jc_abcde", tokenHash: "x", scopes: ["applications:read"], dailyCreateCap: 100 })])
 
     const result = await createApiToken(USER, "  Laptop ")
     if ("error" in result) throw new Error(result.error)
@@ -59,10 +56,47 @@ describe("createApiToken", () => {
     expect(recorded).toHaveLength(0)
   })
 
-  it("caps active tokens per user", async () => {
-    resetFakeDb(() => [[MAX_ACTIVE_TOKENS_PER_USER]])
-    expect(await createApiToken(USER, "One more")).toHaveProperty("error")
-    expect(recorded.some((query) => /^insert/i.test(query.sql))).toBe(false)
+  it("has no cap on how many tokens you can have (only you can create them, signed in)", async () => {
+    resetFakeDb(() => [tableRow(apiTokens, { id: "t1", userId: USER, label: "Eleventh", createdAt: new Date(), tokenPrefix: "jc_abcde", tokenHash: "x", scopes: ["applications:read"], dailyCreateCap: 100 })])
+    expect(await createApiToken(USER, "Eleventh")).toHaveProperty("token")
+    expect(recorded.some((query) => /count\(\*\)/.test(query.sql))).toBe(false)
+  })
+
+  it("stores the chosen scopes, expiry and daily limit, defaulting to read only for 90 days", async () => {
+    const now = new Date("2026-11-20T10:00:00.000Z")
+    resetFakeDb(() => [tableRow(apiTokens, { id: "t1", userId: USER, label: "L", createdAt: now, tokenPrefix: "jc_abcde", tokenHash: "x", scopes: ["applications:read"], dailyCreateCap: 100 })])
+    await createApiToken(USER, "Default", {}, now)
+    const [defaults] = recorded.filter((query) => /^insert/i.test(query.sql))
+    expect(defaults.params).toContain('{"applications:read"}')
+    expect(defaults.params).toContain("2027-02-18T10:00:00.000Z")
+    expect(defaults.params).toContain(100)
+
+    resetFakeDb(() => [tableRow(apiTokens, { id: "t1", userId: USER, label: "L", createdAt: now, tokenPrefix: "jc_abcde", tokenHash: "x", scopes: ["applications:read", "applications:write"], dailyCreateCap: 0 })])
+    await createApiToken(USER, "Full", { access: "write", expiry: "never", dailyCreateCap: 0 }, now)
+    const [chosen] = recorded.filter((query) => /^insert/i.test(query.sql))
+    expect(chosen.params).toContain('{"applications:read","applications:write"}')
+    expect(chosen.params).toContain(null) // never expires
+    expect(chosen.params).toContain(0)
+  })
+
+  it("rejects an unknown access, expiry or limit without touching the database", async () => {
+    expect(await createApiToken(USER, "x", { access: "admin" as never })).toHaveProperty("error")
+    expect(await createApiToken(USER, "x", { expiry: "forever" })).toHaveProperty("error")
+    expect(await createApiToken(USER, "x", { expiry: "3" })).toHaveProperty("error")
+    expect(await createApiToken(USER, "x", { dailyCreateCap: -1 })).toHaveProperty("error")
+    expect(await createApiToken(USER, "x", { dailyCreateCap: 1.5 })).toHaveProperty("error")
+    expect(recorded).toHaveLength(0)
+  })
+})
+
+describe("setApiTokenDailyCap", () => {
+  it("is bound to the owner, so another user's token id changes nothing", async () => {
+    resetFakeDb(({ params }) => (params.includes(USER) ? [["t1"]] : []))
+    expect(await setApiTokenDailyCap(USER, "t1", 7)).toBe(true)
+    expectAllQueriesScopedTo(USER)
+    resetFakeDb(({ params }) => (params.includes(USER) ? [["t1"]] : []))
+    expect(await setApiTokenDailyCap(OTHER, "t1", 7)).toBe(false)
+    expectAllQueriesScopedTo(OTHER, [USER])
   })
 })
 
@@ -101,12 +135,13 @@ describe("authenticateApiToken", () => {
 
   it("looks up by hash among non-revoked tokens, stamps last_used_at, and returns the owner", async () => {
     const token = generateRawApiToken()
-    resetFakeDb(() => [["t1", USER]])
-    expect(await authenticateApiToken(token)).toEqual({ tokenId: "t1", userId: USER })
+    resetFakeDb(() => [["t1", USER, ["applications:read"], 100]])
+    expect(await authenticateApiToken(token)).toEqual({ tokenId: "t1", userId: USER, scopes: ["applications:read"], dailyCreateCap: 100 })
 
     const [query] = recorded
     expect(query.sql).toMatch(/^update "api_tokens" set "last_used_at"/)
     expect(query.sql).toMatch(/"revoked_at" is null/)
+    expect(query.sql).toMatch(/"expires_at" is null or "api_tokens"."expires_at" > /)
     expect(query.params).toContain(hashApiToken(token))
     expect(JSON.stringify(recorded)).not.toContain(token)
   })
@@ -114,5 +149,11 @@ describe("authenticateApiToken", () => {
   it("returns null for an unknown or revoked token (no row matches)", async () => {
     resetFakeDb(() => [])
     expect(await authenticateApiToken(generateRawApiToken())).toBeNull()
+  })
+
+  it("says a known token has expired, rather than reporting it as unknown", async () => {
+    const expiredAt = new Date("2026-11-01T00:00:00.000Z")
+    resetFakeDb(({ sql }) => (/^select/i.test(sql) ? [[expiredAt]] : []))
+    expect(await authenticateApiToken(generateRawApiToken(), new Date("2026-11-20T00:00:00.000Z"))).toEqual({ expired: true, expiredAt })
   })
 })

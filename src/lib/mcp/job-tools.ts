@@ -5,6 +5,8 @@ import { applicationAuditEvents, applications, jobsCache, profiles, userCvs } fr
 import { persistJobForUser } from "@/lib/jobs/persist-job"
 import { jobUrlKey, normalizeJobUrl } from "@/lib/jobs/normalize-url"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
+import { currentConnection } from "./connection-context"
+import { DEFAULT_DAILY_CREATE_CAP, DUPLICATE_WINDOW_DAYS, limitMessage, MAX_BATCH_JOBS, MAX_DESCRIPTION_CHARS, tooBig, tooLong } from "./limits"
 import { addNote, escapeLike, MCP_SOURCE, setFollowUp, type ToolOutcome } from "./tools"
 
 /**
@@ -13,13 +15,10 @@ import { addNote, escapeLike, MCP_SOURCE, setFollowUp, type ToolOutcome } from "
  * used as an instruction, and no AI generation is started for it.
  */
 
-export const MAX_BATCH_JOBS = 20
-export const MAX_DESCRIPTION_CHARS = 20_000
-/** Applications one user can create through MCP in a rolling 24 hours. */
-export const DAILY_CREATE_CAP = 100
-/** An application with the same company and title created this recently is reported as a possible duplicate. */
-export const DUPLICATE_WINDOW_DAYS = 90
-const MAX_BATCH_CHARS = 100_000
+// The limits (and why each exists) live in ./limits; re-exported here for the tools and tests that import them from this file.
+export { DUPLICATE_WINDOW_DAYS, MAX_BATCH_JOBS, MAX_DESCRIPTION_CHARS }
+/** The default for a new token or connection; the owner can change it for each one (0 = unlimited). */
+export const DAILY_CREATE_CAP = DEFAULT_DAILY_CREATE_CAP
 const DAY_MS = 24 * 60 * 60 * 1000
 
 // Control characters (NUL breaks Postgres text), zero-width characters and bidi overrides (used to hide or spoof text).
@@ -30,20 +29,20 @@ export const cleanLine = (value: string) => cleanText(value).replace(/\s+/g, " "
 const timestamp = z.iso.datetime({ offset: true })
 
 export const jobFields = {
-  url: z.string().trim().min(1).max(2000).describe("The posting's http(s) URL. JobClock never fetches it."),
-  title: z.string().trim().min(1).max(200),
-  company: z.string().trim().min(1).max(200),
-  location: z.string().trim().max(200).optional(),
-  description: z.string().max(100_000).optional().describe(`The posting text, as plain text. Stored up to ${MAX_DESCRIPTION_CHARS} characters.`),
-  salary_min: z.number().min(0).max(10_000_000).optional(),
-  salary_max: z.number().min(0).max(10_000_000).optional(),
+  url: z.string().trim().min(1).max(2000, tooLong("url", 2000)).describe("The posting's http(s) URL. JobClock never fetches it."),
+  title: z.string().trim().min(1).max(200, tooLong("title", 200)),
+  company: z.string().trim().min(1).max(200, tooLong("company", 200)),
+  location: z.string().trim().max(200, tooLong("location", 200)).optional(),
+  description: z.string().max(100_000, tooLong("description", 100_000)).optional().describe(`The posting text, as plain text. Stored up to ${MAX_DESCRIPTION_CHARS} characters.`),
+  salary_min: z.number().min(0).max(10_000_000, tooBig("salary_min", 10_000_000, "Larger numbers are almost certainly a mistake (such as a monthly figure in pence).")).optional(),
+  salary_max: z.number().min(0).max(10_000_000, tooBig("salary_max", 10_000_000, "Larger numbers are almost certainly a mistake (such as a monthly figure in pence).")).optional(),
   salary_currency: z.string().trim().length(3).optional().describe("ISO 4217 code, e.g. GBP."),
   posted_at: z.union([z.iso.date(), timestamp]).optional(),
   apply_deadline: z.iso.date().optional().describe("YYYY-MM-DD."),
   remote: z.boolean().optional(),
   remote_type: z.enum(["remote", "hybrid", "on-site"]).optional(),
-  source: z.string().trim().max(40).optional().describe('Where the job was found, e.g. "linkedin". Default "mcp".'),
-  note: z.string().trim().min(1).max(2000).optional().describe("Why this job suits the owner. Added to the application's notes."),
+  source: z.string().trim().max(40, tooLong("source", 40)).optional().describe('Where the job was found, e.g. "linkedin". Default "mcp".'),
+  note: z.string().trim().min(1).max(2000, tooLong("note", 2000)).optional().describe("Why this job suits the owner. Added to the application's notes."),
   follow_up_due_at: timestamp.optional().describe("ISO 8601 timestamp with a timezone."),
   allow_duplicate: z.boolean().optional().describe("Add even if the same company and title was added recently."),
 }
@@ -130,7 +129,9 @@ export async function checkJobExists(userId: string, args: { url?: string; compa
   return { data: { exists: urlMatches.length > 0, url_matches: urlMatches, same_company_and_title: similar } }
 }
 
+/** What this connection added in the window. Without a connection (a direct call) it counts everything added through MCP by the user. */
 async function createdViaMcpSince(userId: string, since: Date): Promise<number> {
+  const connection = currentConnection()
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(applicationAuditEvents)
@@ -139,11 +140,14 @@ async function createdViaMcpSince(userId: string, since: Date): Promise<number> 
       eq(applicationAuditEvents.eventType, "application.created"),
       gte(applicationAuditEvents.createdAt, since),
       sql`${applicationAuditEvents.metadata}->>'source' = ${MCP_SOURCE}`,
+      connection ? sql`${applicationAuditEvents.metadata}->>'connectionId' = ${connection.id}` : undefined,
     ))
   return row?.count ?? 0
 }
 
-type AddContext = { createdToday: number; now: Date }
+type AddContext = { createdToday: number; now: Date; dailyCap: number }
+
+const dailyCapFor = () => currentConnection()?.dailyCreateCap ?? DAILY_CREATE_CAP
 
 async function addJob(userId: string, args: JobArgs, ctx: AddContext): Promise<ToolOutcome> {
   const normalized = normalizeJobUrl(args.url)
@@ -173,8 +177,14 @@ async function addJob(userId: string, args: JobArgs, ctx: AddContext): Promise<T
     }
   }
 
-  if (ctx.createdToday >= DAILY_CREATE_CAP) {
-    return { error: `Daily limit reached: at most ${DAILY_CREATE_CAP} applications can be added through the agent connection in 24 hours.` }
+  if (ctx.dailyCap > 0 && ctx.createdToday >= ctx.dailyCap) {
+    return {
+      error: limitMessage(
+        `Daily limit reached: this connection has already added ${ctx.createdToday} applications in the last 24 hours (its limit is ${ctx.dailyCap})`,
+        "The limit stops an agent that loops from flooding the owner's list.",
+        "The owner can raise it, or set it to 0 for no limit, in JobClock under Settings -> AI Agent, on this token or connected app.",
+      ),
+    }
   }
 
   const description = args.description ? cleanText(args.description) : ""
@@ -232,15 +242,17 @@ async function addJob(userId: string, args: JobArgs, ctx: AddContext): Promise<T
 }
 
 export async function addApplication(userId: string, args: JobArgs, now = new Date()): Promise<ToolOutcome> {
-  return addJob(userId, args, { createdToday: await createdViaMcpSince(userId, new Date(now.getTime() - DAY_MS)), now })
+  return addJob(userId, args, { createdToday: await createdViaMcpSince(userId, new Date(now.getTime() - DAY_MS)), now, dailyCap: dailyCapFor() })
 }
 
 /** Items are handled one after another (so a repeat inside the batch is caught as a duplicate); one bad item never stops the rest. */
 export async function addApplications(userId: string, items: unknown[], now = new Date()): Promise<ToolOutcome> {
-  if (items.length === 0 || items.length > MAX_BATCH_JOBS) return { error: `Send between 1 and ${MAX_BATCH_JOBS} jobs per call.` }
-  if (JSON.stringify(items).length > MAX_BATCH_CHARS) return { error: "The batch is too large. Send fewer jobs or shorter descriptions." }
+  if (items.length === 0) return { error: "Send at least one job." }
+  if (items.length > MAX_BATCH_JOBS) {
+    return { error: limitMessage(`Too many jobs in one call: ${items.length} sent, at most ${MAX_BATCH_JOBS} allowed`, "A batch is processed in one request, which has a time limit, and each job gets its own result. Send the rest in further calls.") }
+  }
 
-  const ctx = { createdToday: await createdViaMcpSince(userId, new Date(now.getTime() - DAY_MS)), now }
+  const ctx = { createdToday: await createdViaMcpSince(userId, new Date(now.getTime() - DAY_MS)), now, dailyCap: dailyCapFor() }
   const results: Record<string, unknown>[] = []
   for (const [index, item] of items.entries()) {
     const parsed = jobSchema.safeParse(item)

@@ -18,14 +18,26 @@ vi.mock("@/lib/telegram/pairing", () => ({
   disconnectTelegram: vi.fn(),
 }))
 vi.mock("@/lib/email/preferences", () => ({ setEmailPreference: vi.fn() }))
+vi.mock("@/lib/email/agent-access", () => ({ sendAgentAccessNotice: vi.fn() }))
+vi.mock("@/lib/mcp/tokens", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/mcp/tokens")>()),
+  createApiToken: vi.fn(),
+  setApiTokenDailyCap: vi.fn(),
+}))
+vi.mock("@/lib/oauth/tokens", () => ({ revokeConnectedApp: vi.fn(), setConnectedAppDailyCap: vi.fn() }))
 
+import { sendAgentAccessNotice } from "@/lib/email/agent-access"
 import { setEmailPreference } from "@/lib/email/preferences"
+import { createApiToken, setApiTokenDailyCap } from "@/lib/mcp/tokens"
+import { setConnectedAppDailyCap } from "@/lib/oauth/tokens"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { encrypt, isEncryptionConfigured } from "@/lib/crypto"
 import { generatePersonalApiToken, revokePersonalApiTokens } from "@/lib/personal-api-tokens"
 import { disconnectTelegram, generateTelegramPairingToken } from "@/lib/telegram/pairing"
 import {
+  createAgentToken,
+  setAgentDailyLimit,
   disconnectTelegramAccount,
   generateTelegramPairing,
   generateExtensionToken,
@@ -299,5 +311,56 @@ describe("settings actions", () => {
 
     vi.mocked(isSupabaseConfigured).mockReturnValue(false)
     await expect(saveEmailPreference("weekly_digest", true)).resolves.toEqual({ error: "Supabase not configured" })
+  })
+
+  describe("agent access", () => {
+    const metadata = { id: "tok-1", label: "Laptop", tokenPrefix: "jc_abcde", scopes: ["applications:read"], expiresAt: "2027-02-18T10:00:00.000Z", dailyCreateCap: 100, createdAt: "", lastUsedAt: null, revokedAt: null }
+
+    it("creates a token with the chosen access and expiry for the signed-in user, and emails a notice without the token", async () => {
+      vi.mocked(createApiToken).mockResolvedValue({ token: "jc_secret-token-value", metadata })
+      const result = await createAgentToken("Laptop", "read", "90")
+      expect(result).toMatchObject({ success: true, token: "jc_secret-token-value" })
+      expect(createApiToken).toHaveBeenCalledWith(mockUser.id, "Laptop", { access: "read", expiry: "90" })
+      expect(sendAgentAccessNotice).toHaveBeenCalledWith(mockUser.email, { kind: "token", name: "Laptop", scopes: ["applications:read"], expiresAt: metadata.expiresAt, idempotencyKey: "agent-token/tok-1" })
+      expect(JSON.stringify(vi.mocked(sendAgentAccessNotice).mock.calls)).not.toContain("jc_secret-token-value")
+      expect(revalidatePath).toHaveBeenCalledWith("/settings")
+    })
+
+    it("rejects an unknown access without creating anything or sending a notice", async () => {
+      await expect(createAgentToken("Laptop", "admin", "90")).resolves.toEqual({ error: expect.stringContaining("read only") })
+      expect(createApiToken).not.toHaveBeenCalled()
+      expect(sendAgentAccessNotice).not.toHaveBeenCalled()
+    })
+
+    it("sends no notice when creation is refused (bad expiry)", async () => {
+      vi.mocked(createApiToken).mockResolvedValue({ error: "Choose how long the token should last." })
+      await expect(createAgentToken("Laptop", "read", "forever")).resolves.toEqual({ error: "Choose how long the token should last." })
+      expect(sendAgentAccessNotice).not.toHaveBeenCalled()
+    })
+
+    it("sets a daily limit only for the signed-in owner, on tokens and on connected apps", async () => {
+      vi.mocked(setApiTokenDailyCap).mockResolvedValue(true)
+      vi.mocked(setConnectedAppDailyCap).mockResolvedValue(true)
+      await expect(setAgentDailyLimit("token", "tok-1", 25)).resolves.toEqual({ success: true, dailyCreateCap: 25 })
+      await expect(setAgentDailyLimit("app", "grant-1", 0)).resolves.toEqual({ success: true, dailyCreateCap: 0 })
+      expect(setApiTokenDailyCap).toHaveBeenCalledWith(mockUser.id, "tok-1", 25)
+      expect(setConnectedAppDailyCap).toHaveBeenCalledWith(mockUser.id, "grant-1", 0)
+    })
+
+    it.each([-1, 1.5, Number.NaN, 1_000_001])("rejects the daily limit %s and says what is allowed", async (value) => {
+      await expect(setAgentDailyLimit("token", "tok-1", value)).resolves.toEqual({ error: expect.stringContaining("0 means no daily limit") })
+      expect(setApiTokenDailyCap).not.toHaveBeenCalled()
+    })
+
+    it("reports a connection that is not theirs", async () => {
+      vi.mocked(setApiTokenDailyCap).mockResolvedValue(false)
+      await expect(setAgentDailyLimit("token", "someone-elses", 5)).resolves.toEqual({ error: "Connection not found or already removed" })
+    })
+
+    it("refuses when signed out", async () => {
+      supabaseMock.setUser(null)
+      await expect(setAgentDailyLimit("token", "tok-1", 5)).resolves.toEqual({ error: "Unauthorized" })
+      await expect(createAgentToken("Laptop", "read", "90")).resolves.toEqual({ error: "Unauthorized" })
+    })
   })
 })

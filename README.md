@@ -123,7 +123,7 @@ environment, webhook registration, pairing, testing, and rotation steps.
 
 ## AI agent access (MCP)
 
-An AI agent such as Claude can update your applications through an authenticated MCP server at `/api/mcp`. See [docs/mcp-agent-access.md](docs/mcp-agent-access.md).
+An AI agent such as Claude can update your applications through an authenticated MCP server at `https://jobclock.dev/api/mcp` (self-hosting: your `NEXT_PUBLIC_APP_URL` plus `/api/mcp`). You choose what each connection may do and how long it lasts, and see its limits and activity in Settings -> AI Agent. See [docs/mcp-agent-access.md](docs/mcp-agent-access.md).
 
 ## Technology
 

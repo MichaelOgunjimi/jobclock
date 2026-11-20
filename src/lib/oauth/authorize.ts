@@ -14,6 +14,7 @@ import {
   SUPPORTED_SCOPES,
   type OAuthScope,
 } from "./config"
+import { CONNECTION_DURATION_OPTIONS, DEFAULT_CONNECTION_DURATION, resolveExpiry } from "@/lib/mcp/access-policy"
 import { getClient, redirectUriMatches } from "./clients"
 import { isValidCodeChallenge } from "./pkce"
 
@@ -78,8 +79,19 @@ export function buildClientRedirect(redirectUri: string, params: { code?: string
   return url.toString()
 }
 
-/** Read is always granted; write only when the user ticked it AND the client asked for it. Returns the plaintext code (never stored). */
-export async function issueAuthorizationCode(userId: string, request: AuthorizeRequest, allowWrite: boolean): Promise<string> {
+/**
+ * The consent page's "Keep me connected for" choice. A missing field means the default (an older page still open in a
+ * tab); anything that is not one of the offered values is rejected rather than guessed, because it sets how long an app keeps access.
+ */
+export function parseConnectionDuration(value: FormDataEntryValue | null, now = new Date()) {
+  return resolveExpiry(CONNECTION_DURATION_OPTIONS, value ?? DEFAULT_CONNECTION_DURATION, now)
+}
+
+/**
+ * Read is always granted; write only when the user ticked it AND the client asked for it. `grantExpiresAt` is the owner's
+ * chosen end for the whole connection (null = until revoked). Returns the plaintext code (never stored).
+ */
+export async function issueAuthorizationCode(userId: string, request: AuthorizeRequest, allowWrite: boolean, grantExpiresAt: Date | null): Promise<string> {
   const scopes: OAuthScope[] = allowWrite && request.offeredScopes.includes(SCOPE_WRITE) ? [SCOPE_READ, SCOPE_WRITE] : [SCOPE_READ]
   const code = randomBytes(32).toString("base64url")
   await db.insert(oauthAuthorizationCodes).values({
@@ -91,6 +103,7 @@ export async function issueAuthorizationCode(userId: string, request: AuthorizeR
     scopes,
     resource: request.resource,
     expiresAt: new Date(Date.now() + AUTHORIZATION_CODE_TTL_MS),
+    grantExpiresAt,
   })
   return code
 }

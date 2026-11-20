@@ -25,6 +25,8 @@ import type { AiSettings, JobSources } from "@/lib/ai"
 import type { PersonalApiTokenMetadata } from "@/lib/personal-api-tokens"
 import type { ApiTokenMetadata } from "@/lib/mcp/tokens"
 import type { ConnectedApp } from "@/lib/oauth/tokens"
+import type { ConnectionActivityItem } from "@/lib/mcp/activity"
+import { AgentLimitsCard } from "./agent-limits-card"
 import { ConnectedAppsCard } from "./connected-apps-card"
 import type { TrackedCompany } from "./actions"
 import type { TelegramConnectionMetadata } from "@/lib/telegram/pairing"
@@ -73,6 +75,7 @@ export function SettingsTabs({
   extensionToken,
   agentTokens,
   connectedApps,
+  agentActivity,
   mcpUrl,
   telegramConnection,
   telegramBotUsername,
@@ -93,6 +96,7 @@ export function SettingsTabs({
   extensionToken: PersonalApiTokenMetadata | null
   agentTokens: ApiTokenMetadata[]
   connectedApps: ConnectedApp[]
+  agentActivity: Record<string, ConnectionActivityItem[]>
   mcpUrl: string
   telegramConnection: TelegramConnectionMetadata | null
   telegramBotUsername: string | null
@@ -230,8 +234,9 @@ export function SettingsTabs({
 
       <TabsContent value="agent">
         <div className="space-y-6">
-          <ConnectedAppsCard apps={connectedApps} mcpUrl={mcpUrl} />
-          <AgentAccessCard tokens={agentTokens} mcpUrl={mcpUrl} />
+          <ConnectedAppsCard apps={connectedApps} mcpUrl={mcpUrl} activity={agentActivity} />
+          <AgentAccessCard tokens={agentTokens} mcpUrl={mcpUrl} activity={agentActivity} />
+          <AgentLimitsCard />
         </div>
       </TabsContent>
 

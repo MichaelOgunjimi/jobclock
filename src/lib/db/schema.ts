@@ -201,6 +201,11 @@ export const apiTokens = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    // Rows from before these columns existed keep full access and never expire (the defaults).
+    scopes: text("scopes").array().notNull().default(sql`ARRAY['applications:read', 'applications:write']::text[]`),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    // New applications this token may add per rolling 24 hours; 0 = unlimited.
+    dailyCreateCap: integer("daily_create_cap").notNull().default(100),
   },
   (table) => [index("api_tokens_user_id_idx").on(table.userId)],
 )
@@ -235,6 +240,9 @@ export const oauthGrants = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    // The owner's "keep me connected for" choice; null = until revoked. Caps the refresh token's life.
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    dailyCreateCap: integer("daily_create_cap").notNull().default(100),
   },
   (table) => [index("oauth_grants_user_id_idx").on(table.userId), index("oauth_grants_client_id_idx").on(table.clientId)],
 )
@@ -256,6 +264,8 @@ export const oauthAuthorizationCodes = pgTable(
     scopes: text("scopes").array().notNull(),
     resource: text("resource").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    // What the owner chose on the consent page, copied to the grant when the code is exchanged (null = until revoked).
+    grantExpiresAt: timestamp("grant_expires_at", { withTimezone: true }),
     usedAt: timestamp("used_at", { withTimezone: true }),
     grantId: uuid("grant_id").references((): AnyPgColumn => oauthGrants.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

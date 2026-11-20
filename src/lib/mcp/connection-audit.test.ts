@@ -1,0 +1,74 @@
+import { beforeEach, describe, expect, it, vi } from "vitest"
+
+vi.mock("@/lib/db", async () => ({ db: (await import("./fake-db")).fakeDb }))
+
+import { appendApplicationAuditEvents } from "@/lib/applications/audit"
+import { listConnectionActivity } from "./activity"
+import { runAsConnection } from "./connection-context"
+import { expectAllQueriesScopedTo, fakeDb, recorded, resetFakeDb, row } from "./fake-db"
+
+const USER = "11111111-1111-4111-8111-111111111111"
+const APP = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+
+const metadataOfInsert = () => JSON.parse(recorded.find((query) => /^insert into "application_audit_events"/.test(query.sql))!.params.find((p) => typeof p === "string" && p.startsWith("{")) as string)
+
+describe("audit events record which connection made the change", () => {
+  beforeEach(() => resetFakeDb())
+
+  it("tags a change made through a token or connected app with its kind and id", async () => {
+    await runAsConnection({ kind: "token", id: "tok-1", dailyCreateCap: 100 }, () =>
+      appendApplicationAuditEvents(fakeDb as never, { applicationId: APP, userId: USER, eventType: "application.notes_updated", metadata: { source: "mcp" } }))
+    expect(metadataOfInsert()).toEqual({ connectionKind: "token", connectionId: "tok-1", source: "mcp" })
+  })
+
+  it("tags every event of a multi-step change", async () => {
+    await runAsConnection({ kind: "oauth", id: "grant-1", dailyCreateCap: 0 }, () =>
+      appendApplicationAuditEvents(fakeDb as never, [
+        { applicationId: APP, userId: USER, eventType: "application.status_changed", metadata: { fromStatus: "saved", toStatus: "applied" } },
+        { applicationId: APP, userId: USER, eventType: "application.status_changed", metadata: { fromStatus: "applied", toStatus: "interview" } },
+      ]))
+    const inserts = recorded.filter((query) => /^insert into "application_audit_events"/.test(query.sql))
+    expect(inserts[0].params.filter((p) => typeof p === "string" && p.includes("grant-1"))).toHaveLength(2)
+  })
+
+  it("leaves a change made in the web app untagged", async () => {
+    await appendApplicationAuditEvents(fakeDb as never, { applicationId: APP, userId: USER, eventType: "application.notes_updated", metadata: { source: "web" } })
+    expect(metadataOfInsert()).toEqual({ source: "web" })
+  })
+})
+
+describe("listConnectionActivity", () => {
+  const event = (id: string, connectionId: string, eventType: string, at: string, extra: Record<string, unknown> = {}, slug: string | null = "acme-eng") =>
+    row(["id", "eventType", "metadata", "createdAt", "slug", "customTitle", "jobTitle"], { id, eventType, metadata: { source: "mcp", connectionId, ...extra }, createdAt: new Date(at), slug, jobTitle: slug ? "Engineer" : null })
+
+  beforeEach(() => resetFakeDb())
+
+  it("groups by connection, newest first, naming the tool, the application and the status change", async () => {
+    resetFakeDb(() => [
+      event("e3", "tok-1", "application.status_changed", "2026-11-20T12:00:00Z", { fromStatus: "saved", toStatus: "applied" }),
+      event("e2", "grant-1", "application.notes_updated", "2026-11-20T11:00:00Z"),
+      event("e1", "tok-1", "application.created", "2026-11-20T10:00:00Z"),
+    ])
+    const activity = await listConnectionActivity(USER)
+    expect(Object.keys(activity).sort()).toEqual(["grant-1", "tok-1"])
+    expect(activity["tok-1"].map((item) => item.tool)).toEqual(["update_application_status", "add_application"])
+    expect(activity["tok-1"][0]).toMatchObject({ detail: "saved -> applied", applicationTitle: "Engineer", applicationSlug: "acme-eng", at: "2026-11-20T12:00:00.000Z" })
+    expect(activity["grant-1"][0].tool).toBe("add_note")
+  })
+
+  it("keeps only the last N per connection", async () => {
+    resetFakeDb(() => Array.from({ length: 15 }, (_, i) => event(`e${i}`, "tok-1", "application.notes_updated", `2026-11-20T${String(23 - i).padStart(2, "0")}:00:00Z`)))
+    expect((await listConnectionActivity(USER, 10))["tok-1"]).toHaveLength(10)
+  })
+
+  it("shows a removed application as such rather than failing", async () => {
+    resetFakeDb(() => [event("e1", "tok-1", "application.created", "2026-11-20T10:00:00Z", {}, null)])
+    expect((await listConnectionActivity(USER))["tok-1"][0]).toMatchObject({ applicationSlug: null, applicationTitle: null })
+  })
+
+  it("only ever reads the signed-in owner's events", async () => {
+    await listConnectionActivity(USER)
+    expectAllQueriesScopedTo(USER)
+    expect(recorded[0].sql).toContain("'connectionId'")
+  })
+})
