@@ -206,6 +206,10 @@ export const apiTokens = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     // New applications this token may add per rolling 24 hours; 0 = unlimited.
     dailyCreateCap: integer("daily_create_cap").notNull().default(100),
+    // applications:delete. 0 = deleting is switched off for this connection (there is no unlimited choice).
+    dailyDeleteCap: integer("daily_delete_cap").notNull().default(10),
+    // ai:generate. null = no limit (an explicit owner choice), 0 = generation switched off.
+    dailyCreditCap: integer("daily_credit_cap").default(20),
   },
   (table) => [index("api_tokens_user_id_idx").on(table.userId)],
 )
@@ -243,6 +247,10 @@ export const oauthGrants = pgTable(
     // The owner's "keep me connected for" choice; null = until revoked. Caps the refresh token's life.
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     dailyCreateCap: integer("daily_create_cap").notNull().default(100),
+    // applications:delete. 0 = deleting is switched off for this connection (there is no unlimited choice).
+    dailyDeleteCap: integer("daily_delete_cap").notNull().default(10),
+    // ai:generate. null = no limit (an explicit owner choice), 0 = generation switched off.
+    dailyCreditCap: integer("daily_credit_cap").default(20),
   },
   (table) => [index("oauth_grants_user_id_idx").on(table.userId), index("oauth_grants_client_id_idx").on(table.clientId)],
 )
@@ -567,10 +575,14 @@ export const generationJobs = pgTable(
     attempts: integer("attempts").notNull().default(0),
     params: jsonb("params"),
     seenAt: timestamp("seen_at", { withTimezone: true }),
+    // Set when an MCP token or connected app (ai:generate) started the job, so its daily credit cap can be counted.
+    requestedByKind: text("requested_by_kind"),
+    requestedById: uuid("requested_by_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
+    index("generation_jobs_requested_by_idx").on(table.requestedById, table.createdAt).where(sql`${table.requestedById} is not null`),
     uniqueIndex("generation_jobs_active_unique")
       .on(table.applicationId, table.kind)
       .where(sql`${table.status} in ('queued','running')`),

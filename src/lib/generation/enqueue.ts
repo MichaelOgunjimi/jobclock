@@ -11,6 +11,8 @@ export interface EnqueueInput {
   kind: GenerationKind
   applicationId: string
   params?: unknown
+  /** Set by the MCP tools only; the web app never passes it. */
+  requestedBy?: { kind: "token" | "oauth"; id: string }
 }
 
 export type EnqueueResult =
@@ -28,6 +30,7 @@ export async function enqueueGeneration(input: EnqueueInput): Promise<EnqueueRes
     applicationId: input.applicationId,
     kind: input.kind,
     params: input.params,
+    requestedBy: input.requestedBy,
   })
 
   if (deduped) {

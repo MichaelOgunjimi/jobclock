@@ -121,7 +121,7 @@ describe("discovery", () => {
     expect(await response.json()).toEqual({
       resource: `${ORIGIN}/api/mcp`,
       authorization_servers: [ORIGIN],
-      scopes_supported: ["applications:read", "applications:write", "profile:read", "interview:read", "profile:write"],
+      scopes_supported: ["applications:read", "applications:write", "profile:read", "interview:read", "profile:write", "applications:delete", "ai:generate"],
       bearer_methods_supported: ["header"],
       resource_name: "JobClock",
     })
@@ -174,7 +174,7 @@ describe("the whole flow with the MCP SDK's own OAuth client", () => {
 
   it("with write ticked, the client also sees the write tools", async () => {
     const { client } = await connectWithOAuth({ write: true })
-    expect((await client.listTools()).tools).toHaveLength(24)
+    expect((await client.listTools()).tools).toHaveLength(29)
   })
 
   it("a grant for user A only ever acts as user A", async () => {

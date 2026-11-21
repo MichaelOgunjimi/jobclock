@@ -20,7 +20,7 @@ const APP = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 const NOW = new Date("2026-11-20T10:00:00.000Z")
 
 const SUMMARY_KEYS = ["id", "slug", "status", "appliedAt", "lastStatusUpdate", "followUpDueAt", "interviewAt", "customTitle", "customCompany", "jobTitle", "jobCompany"]
-const DETAIL_KEYS = [...SUMMARY_KEYS, "notes", "followUpNotes", "followUpCount", "source", "postingUrl"]
+const DETAIL_KEYS = [...SUMMARY_KEYS, "archivedAt", "tags", "notes", "followUpNotes", "followUpCount", "source", "postingUrl"]
 
 /** Emulates the user_id condition: only a query bound to the owner's id sees the owner's application. */
 function seedOwnerData(state: { status: string; notes: string | null; followUpDueAt: Date | null; interviewAt: Date | null }) {
@@ -35,6 +35,8 @@ function seedOwnerData(state: { status: string; notes: string | null; followUpDu
     customTitle: "Engineer",
     customCompany: "Acme",
     notes: state.notes,
+    archivedAt: null,
+    tags: ["remote"],
     followUpNotes: null,
     followUpCount: 0,
     userId: OWNER,
@@ -134,6 +136,8 @@ describe("get_application", () => {
       data: expect.objectContaining({
         id: APP,
         notes: "",
+        archived_at: null,
+        tags: ["remote"],
         status_history: [{ from: null, to: "saved", at: NOW.toISOString() }],
         recent_activity: [{ type: "application.created", at: NOW.toISOString(), details: {} }],
       }),

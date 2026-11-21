@@ -9,13 +9,45 @@ import {
   createApiToken,
   generateRawApiToken,
   hashApiToken,
+  LIMIT_ERRORS,
   listApiTokens,
+  parseLimit,
   revokeApiToken,
   setApiTokenDailyCap,
 } from "./tokens"
+import { MAX_DAILY_CREATE_CAP, MAX_DAILY_CREDIT_CAP, MAX_DAILY_DELETE_CAP } from "./limits"
 
 const USER = "11111111-1111-4111-8111-111111111111"
 const OTHER = "22222222-2222-4222-8222-222222222222"
+
+describe("owner-chosen limits (parseLimit)", () => {
+  it("daily deletions: whole numbers from 0 (switched off) up to the maximum; null is not an option", () => {
+    expect(parseLimit("delete", 0)).toBe(0)
+    expect(parseLimit("delete", 10)).toBe(10)
+    expect(parseLimit("delete", MAX_DAILY_DELETE_CAP)).toBe(MAX_DAILY_DELETE_CAP)
+    for (const bad of [-1, 1.5, MAX_DAILY_DELETE_CAP + 1, null, "5", NaN, undefined]) expect(parseLimit("delete", bad), String(bad)).toBeUndefined()
+  })
+
+  it("daily credits: null is the explicit no-limit choice, 0 means generation off, and the rest are whole numbers up to the maximum", () => {
+    expect(parseLimit("credit", null)).toBeNull()
+    expect(parseLimit("credit", 0)).toBe(0)
+    expect(parseLimit("credit", 20)).toBe(20)
+    expect(parseLimit("credit", MAX_DAILY_CREDIT_CAP)).toBe(MAX_DAILY_CREDIT_CAP)
+    for (const bad of [-1, 2.5, MAX_DAILY_CREDIT_CAP + 1, "20", undefined]) expect(parseLimit("credit", bad), String(bad)).toBeUndefined()
+  })
+
+  it("daily creations: unchanged (0 = unlimited), and null is not accepted", () => {
+    expect(parseLimit("create", 0)).toBe(0)
+    expect(parseLimit("create", null)).toBeUndefined()
+    expect(parseLimit("create", MAX_DAILY_CREATE_CAP + 1)).toBeUndefined()
+  })
+
+  it("every kind has an error that says what 0 means", () => {
+    expect(LIMIT_ERRORS.delete).toMatch(/0 switches deleting off/)
+    expect(LIMIT_ERRORS.credit).toMatch(/0 switches AI generation off/)
+    expect(LIMIT_ERRORS.credit).toMatch(/no limit/)
+  })
+})
 
 describe("api token generation", () => {
   it("makes unique jc_ tokens with at least 256 bits of entropy", () => {

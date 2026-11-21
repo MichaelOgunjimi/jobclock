@@ -1,4 +1,4 @@
-import { SCOPE_INTERVIEW_READ, SCOPE_PROFILE_READ, SCOPE_PROFILE_WRITE, SCOPE_READ, SCOPE_WRITE } from "@/lib/oauth/config"
+import { SCOPE_AI_GENERATE, SCOPE_DELETE, SCOPE_INTERVIEW_READ, SCOPE_PROFILE_READ, SCOPE_PROFILE_WRITE, SCOPE_READ, SCOPE_WRITE } from "@/lib/oauth/config"
 
 /** What the owner can choose for a connection: how much it may do and how long it lasts. Pure, so Settings, the consent page and the server share it. */
 
@@ -17,16 +17,21 @@ export const canWrite = (scopes: readonly string[]) => scopes.includes(SCOPE_WRI
 export const scopeLabel = (scopes: readonly string[]) => (canWrite(scopes) ? "Read and change" : "Read only")
 
 /**
- * The private-data scopes. Each is its own opt-in, off by default, never implied by an applications scope and never
- * added to an existing token or grant: to get one the owner creates a new token or connects the app again.
+ * The optional scopes: private data, plus the two that carry real consequences (permanent deletion and spending AI
+ * credits). Each is its own opt-in, off by default, never implied by an applications scope and never added to an
+ * existing token or grant: to get one the owner creates a new token or connects the app again.
  */
-export const EXTRA_SCOPES = [SCOPE_PROFILE_READ, SCOPE_INTERVIEW_READ, SCOPE_PROFILE_WRITE] as const
+export const EXTRA_SCOPES = [SCOPE_PROFILE_READ, SCOPE_INTERVIEW_READ, SCOPE_PROFILE_WRITE, SCOPE_DELETE, SCOPE_AI_GENERATE] as const
 export type ExtraScope = (typeof EXTRA_SCOPES)[number]
 
 export interface ExtraScopeOption {
   scope: ExtraScope
+  /** "private" scopes share your data; "power" scopes can destroy data or spend money, so the forms set them apart. */
+  group: "private" | "power"
   /** Short name for badges and the Settings checkbox. */
   label: string
+  /** The plain-words headline on the consent page and the token form, when the short label would undersell it. */
+  prompt?: string
   /** Plain words for the consent page and Settings: what is shared. */
   description: string
   /** Completes "You gave it access to ..." in the security email. */
@@ -36,21 +41,40 @@ export interface ExtraScopeOption {
 export const EXTRA_SCOPE_OPTIONS: readonly ExtraScopeOption[] = [
   {
     scope: SCOPE_PROFILE_READ,
+    group: "private",
     label: "Profile and CVs",
     description: "Your name, phone, links and the full text of your CVs, plus your certificates list, tailored CVs and cover letters.",
     email: "read your profile, contact details and CVs",
   },
   {
     scope: SCOPE_INTERVIEW_READ,
+    group: "private",
     label: "Interview material",
     description: "Your interview stories and notes about yourself, saved interview prep and your saved practice answers.",
     email: "read your interview stories and notes about yourself",
   },
   {
     scope: SCOPE_PROFILE_WRITE,
+    group: "private",
     label: "Change profile and interview material",
-    description: "Change your profile details, CV names and primary CV, interview stories and notes about yourself. It can never delete anything.",
+    description: "Change your profile details, CV names and primary CV, interview stories and notes about yourself. It can never delete any of that.",
     email: "change your profile and interview material",
+  },
+  {
+    scope: SCOPE_DELETE,
+    group: "power",
+    label: "Delete applications",
+    prompt: "Permanently delete applications",
+    description: "Permanently delete applications. It can only delete one you have already archived, must repeat its exact title, and is limited per day. A deletion cannot be undone.",
+    email: "permanently delete your applications (only archived ones, and a deletion cannot be undone)",
+  },
+  {
+    scope: SCOPE_AI_GENERATE,
+    group: "power",
+    label: "Use AI credits",
+    prompt: "Use your AI credits (generate CVs, cover letters, research, interview prep)",
+    description: "Use your AI credits (generate CVs, cover letters, research, interview prep). Each use is charged to your plan and counted against a daily credit limit you set.",
+    email: "use your AI credits to generate CVs, cover letters, company research and interview prep (limited per day)",
   },
 ]
 

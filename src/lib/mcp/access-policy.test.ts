@@ -75,12 +75,49 @@ describe("scopes", () => {
   })
 })
 
+describe("delete and AI-generation scope choices", () => {
+  const delete_ = EXTRA_SCOPE_OPTIONS.find((option) => option.scope === "applications:delete")!
+  const generate = EXTRA_SCOPE_OPTIONS.find((option) => option.scope === "ai:generate")!
+
+  it("are separate opt-ins in the power group, in plain words", () => {
+    expect([delete_.group, generate.group]).toEqual(["power", "power"])
+    expect(delete_.description).toMatch(/Permanently delete applications/)
+    expect(delete_.description).toMatch(/cannot be undone/)
+    expect(generate.description).toMatch(/Use your AI credits \(generate CVs, cover letters, research, interview prep\)/)
+    expect(EXTRA_SCOPE_OPTIONS.filter((option) => option.group === "private").map((option) => option.scope)).toEqual(["profile:read", "interview:read", "profile:write"])
+  })
+
+  it("parseExtraScopes accepts them, in a fixed order, and still rejects anything unknown or repeated", () => {
+    expect(parseExtraScopes(["ai:generate", "applications:delete"])).toEqual(["applications:delete", "ai:generate"])
+    expect(parseExtraScopes(["ai:generate", "ai:generate"])).toBeNull()
+    expect(parseExtraScopes(["applications:delete", "admin"])).toBeNull()
+    expect(parseExtraScopes(["applications:*"])).toBeNull()
+    expect(parseExtraScopes([])).toEqual([])
+  })
+
+  it("a token holds them only when passed: never from write, never by default", () => {
+    for (const access of ["read", "write"] as const) {
+      expect(tokenScopes(access)).not.toContain("applications:delete")
+      expect(tokenScopes(access)).not.toContain("ai:generate")
+    }
+    expect(tokenScopes("write", ["applications:delete"])).toEqual(["applications:read", "applications:write", "applications:delete"])
+    expect(tokenScopes("read", ["ai:generate"])).toEqual(["applications:read", "ai:generate"])
+  })
+
+  it("badges and the security email name them, loudly", () => {
+    expect(extraScopeOptions(["applications:read", "applications:delete", "ai:generate"]).map((option) => option.label)).toEqual(["Delete applications", "Use AI credits"])
+    expect(describeAccess(["applications:read", "applications:write", "applications:delete"])).toMatch(/permanently delete your applications/i)
+    expect(describeAccess(["applications:read", "ai:generate"])).toMatch(/use your AI credits/i)
+    expect(describeAccess(["applications:read", "applications:write"])).not.toMatch(/delete|credits/i)
+  })
+})
+
 describe("private-data scope choices", () => {
   it("offers profile, interview and profile-write as three separate options with plain words", () => {
-    expect(EXTRA_SCOPE_OPTIONS.map((option) => option.scope)).toEqual(["profile:read", "interview:read", "profile:write"])
+    expect(EXTRA_SCOPE_OPTIONS.map((option) => option.scope)).toEqual(["profile:read", "interview:read", "profile:write", "applications:delete", "ai:generate"])
     expect(EXTRA_SCOPE_OPTIONS.map((option) => option.description).join(" ")).toMatch(/full text of your CVs/)
     expect(EXTRA_SCOPE_OPTIONS.map((option) => option.description).join(" ")).toMatch(/interview stories and notes about yourself/)
-    expect(EXTRA_SCOPE_OPTIONS[2].description).toMatch(/never delete anything/)
+    expect(EXTRA_SCOPE_OPTIONS[2].description).toMatch(/never delete any of that/)
   })
 
   it("a new token holds the applications scopes alone by default, and the private ones only when chosen", () => {

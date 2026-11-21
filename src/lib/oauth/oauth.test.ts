@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto"
-import { sql } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/db", async () => ({ db: await (await import("./test-db")).createOAuthTestDb() }))
@@ -569,6 +569,22 @@ describe("connection period (Keep me connected for)", () => {
     expect((await listConnectedApps(USER_A))[0].dailyCreateCap).toBe(0)
     expect((await listConnectedApps(USER_B))[0].dailyCreateCap).toBe(100)
     expect(await authenticateOAuthAccessToken((await connect(USER_A, client.client_id)).access_token)).toMatchObject({ dailyCreateCap: 100 }) // reconnecting starts from the default
+  })
+
+  it("the delete and credit limits are per connection too: defaults 10 and 20, owner-editable, null is no limit, and they reach the endpoint's auth context", async () => {
+    const client = await register()
+    await connect(USER_A, client.client_id)
+    await connect(USER_B, client.client_id)
+    const [mine] = await listConnectedApps(USER_A)
+    expect(mine).toMatchObject({ dailyDeleteCap: 10, dailyCreditCap: 20 })
+    expect(await setConnectedAppDailyCap(USER_B, mine.id, 1, "delete")).toBe(false)
+    expect(await setConnectedAppDailyCap(USER_A, mine.id, 2, "delete")).toBe(true)
+    expect(await setConnectedAppDailyCap(USER_A, mine.id, null, "credit")).toBe(true)
+    expect((await listConnectedApps(USER_A))[0]).toMatchObject({ dailyDeleteCap: 2, dailyCreditCap: null, dailyCreateCap: 100 })
+    expect((await listConnectedApps(USER_B))[0]).toMatchObject({ dailyDeleteCap: 10, dailyCreditCap: 20 })
+    // The same grant, refreshed: its caps come along with the scopes.
+    const grant = (await db.select().from(oauthGrants).where(eq(oauthGrants.id, mine.id)))[0]
+    expect([grant.dailyDeleteCap, grant.dailyCreditCap]).toEqual([2, null])
   })
 
   it("prune removes a connection whose period ended once its tokens are gone, and not before", async () => {

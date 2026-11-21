@@ -314,7 +314,7 @@ describe("settings actions", () => {
   })
 
   describe("agent access", () => {
-    const metadata = { id: "tok-1", label: "Laptop", tokenPrefix: "jc_abcde", scopes: ["applications:read"], expiresAt: "2027-02-18T10:00:00.000Z", dailyCreateCap: 100, createdAt: "", lastUsedAt: null, revokedAt: null }
+    const metadata = { id: "tok-1", label: "Laptop", tokenPrefix: "jc_abcde", scopes: ["applications:read"], expiresAt: "2027-02-18T10:00:00.000Z", dailyCreateCap: 100, dailyDeleteCap: 10, dailyCreditCap: 20, createdAt: "", lastUsedAt: null, revokedAt: null }
 
     it("creates a token with the chosen access and expiry for the signed-in user, and emails a notice without the token", async () => {
       vi.mocked(createApiToken).mockResolvedValue({ token: "jc_secret-token-value", metadata })
@@ -334,7 +334,15 @@ describe("settings actions", () => {
       expect(sendAgentAccessNotice).toHaveBeenCalledWith(mockUser.email, expect.objectContaining({ scopes: ["applications:read", "profile:read", "interview:read"] }))
     })
 
-    it.each([[["admin"]], [["applications:write"]], [["profile:read", "profile:read"]], [["profile:read", 5]], [["profile:read", "interview:read", "profile:write", "x"]]])("refuses the private scopes %j without creating anything", async (extras) => {
+    it("passes the two powerful scopes through when ticked and names them in the notice", async () => {
+      const power = { ...metadata, scopes: ["applications:read", "applications:delete", "ai:generate"] }
+      vi.mocked(createApiToken).mockResolvedValue({ token: "jc_secret-token-value", metadata: power })
+      await createAgentToken("Laptop", "read", "90", ["applications:delete", "ai:generate"])
+      expect(createApiToken).toHaveBeenCalledWith(mockUser.id, "Laptop", { access: "read", extraScopes: ["applications:delete", "ai:generate"], expiry: "90" })
+      expect(sendAgentAccessNotice).toHaveBeenCalledWith(mockUser.email, expect.objectContaining({ scopes: ["applications:read", "applications:delete", "ai:generate"] }))
+    })
+
+    it.each([[["admin"]], [["applications:write"]], [["profile:read", "profile:read"]], [["profile:read", 5]], [["profile:read", "interview:read", "profile:write", "applications:delete", "ai:generate", "x"]]])("refuses the private scopes %j without creating anything", async (extras) => {
       await expect(createAgentToken("Laptop", "read", "90", extras as never)).resolves.toEqual({ error: expect.stringContaining("private details") })
       expect(createApiToken).not.toHaveBeenCalled()
       expect(sendAgentAccessNotice).not.toHaveBeenCalled()
@@ -355,10 +363,27 @@ describe("settings actions", () => {
     it("sets a daily limit only for the signed-in owner, on tokens and on connected apps", async () => {
       vi.mocked(setApiTokenDailyCap).mockResolvedValue(true)
       vi.mocked(setConnectedAppDailyCap).mockResolvedValue(true)
-      await expect(setAgentDailyLimit("token", "tok-1", 25)).resolves.toEqual({ success: true, dailyCreateCap: 25 })
-      await expect(setAgentDailyLimit("app", "grant-1", 0)).resolves.toEqual({ success: true, dailyCreateCap: 0 })
-      expect(setApiTokenDailyCap).toHaveBeenCalledWith(mockUser.id, "tok-1", 25)
-      expect(setConnectedAppDailyCap).toHaveBeenCalledWith(mockUser.id, "grant-1", 0)
+      await expect(setAgentDailyLimit("token", "tok-1", 25)).resolves.toEqual({ success: true, cap: 25 })
+      await expect(setAgentDailyLimit("app", "grant-1", 0)).resolves.toEqual({ success: true, cap: 0 })
+      expect(setApiTokenDailyCap).toHaveBeenCalledWith(mockUser.id, "tok-1", 25, "create")
+      expect(setConnectedAppDailyCap).toHaveBeenCalledWith(mockUser.id, "grant-1", 0, "create")
+    })
+
+    it("sets the deletion and credit limits on the right kind, and only the credit limit may be 'no limit' (null)", async () => {
+      vi.mocked(setApiTokenDailyCap).mockResolvedValue(true)
+      vi.mocked(setConnectedAppDailyCap).mockResolvedValue(true)
+      await expect(setAgentDailyLimit("token", "tok-1", 3, "delete")).resolves.toEqual({ success: true, cap: 3 })
+      await expect(setAgentDailyLimit("app", "grant-1", null, "credit")).resolves.toEqual({ success: true, cap: null })
+      await expect(setAgentDailyLimit("token", "tok-1", 0, "credit")).resolves.toEqual({ success: true, cap: 0 })
+      expect(setApiTokenDailyCap).toHaveBeenCalledWith(mockUser.id, "tok-1", 3, "delete")
+      expect(setConnectedAppDailyCap).toHaveBeenCalledWith(mockUser.id, "grant-1", null, "credit")
+      vi.mocked(setApiTokenDailyCap).mockClear()
+      await expect(setAgentDailyLimit("token", "tok-1", null, "delete")).resolves.toEqual({ error: expect.stringContaining("switches deleting off") })
+      await expect(setAgentDailyLimit("token", "tok-1", null)).resolves.toEqual({ error: expect.stringContaining("0 means no daily limit") })
+      await expect(setAgentDailyLimit("token", "tok-1", 1001, "delete")).resolves.toEqual({ error: expect.stringContaining("switches deleting off") })
+      await expect(setAgentDailyLimit("token", "tok-1", -1, "credit")).resolves.toEqual({ error: expect.stringContaining("switches AI generation off") })
+      await expect(setAgentDailyLimit("token", "tok-1", 5, "nonsense" as never)).resolves.toEqual({ error: "Unknown limit." })
+      expect(setApiTokenDailyCap).not.toHaveBeenCalled()
     })
 
     it.each([-1, 1.5, Number.NaN, 1_000_001])("rejects the daily limit %s and says what is allowed", async (value) => {

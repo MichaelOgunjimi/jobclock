@@ -41,6 +41,15 @@ describe("sendAgentAccessNotice", () => {
     expect(send.mock.calls[1][0].text).not.toMatch(/profile|CVs|interview/)
   })
 
+  it("says plainly when a token or app may delete applications or spend AI credits", async () => {
+    await sendAgentAccessNotice("me@example.com", { kind: "token", name: "T", scopes: ["applications:read", "applications:write", "applications:delete", "ai:generate"], expiresAt: null })
+    const text = send.mock.calls[0][0].text
+    expect(text).toContain("permanently delete your applications (only archived ones, and a deletion cannot be undone)")
+    expect(text).toContain("use your AI credits to generate CVs, cover letters, company research and interview prep (limited per day)")
+    await sendAgentAccessNotice("me@example.com", { kind: "app", name: "Claude", scopes: ["applications:read", "applications:write"], expiresAt: null })
+    expect(send.mock.calls[1][0].text).not.toMatch(/delete|credits/)
+  })
+
   it("escapes an app name in the HTML and keeps it on one line", async () => {
     await sendAgentAccessNotice("me@example.com", { kind: "app", name: "<script>alert(1)</script>\nEvil", scopes: ["applications:read"], expiresAt: null })
     const email = send.mock.calls[0][0]

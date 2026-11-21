@@ -31,6 +31,7 @@ export type ApplicationAuditEventType =
   | "application.interview_question_added"
   | "application.interview_answer_generated"
   | "application.interview_answer_saved"
+  | "application.generation_requested"
 
 export interface ApplicationAuditEventInput {
   applicationId: string
@@ -177,9 +178,19 @@ export async function updateApplicationWithAuditForUser(
   return (await applyAuditedChangesForUser(userId, applicationId, changes, eventType)) !== null
 }
 
+export interface DeleteOptions {
+  /** Who deleted it (e.g. "mcp"); recorded in the audit event. */
+  source?: string
+  /** Record only who and when, never the application's slug, title or company. */
+  omitText?: boolean
+  /** Refuse (false) unless the application is archived, checked under the same row lock as the delete. */
+  requireArchived?: boolean
+}
+
 export async function deleteApplicationWithAuditForUser(
   userId: string,
   applicationId: string,
+  options: DeleteOptions = {},
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
     const [application] = await tx
@@ -187,6 +198,7 @@ export async function deleteApplicationWithAuditForUser(
         slug: applications.slug,
         title: applications.customTitle,
         company: applications.customCompany,
+        archivedAt: applications.archivedAt,
       })
       .from(applications)
       .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)))
@@ -194,15 +206,15 @@ export async function deleteApplicationWithAuditForUser(
       .for("update")
 
     if (!application) return false
+    if (options.requireArchived && !application.archivedAt) return false
 
     await appendApplicationAuditEvents(tx, {
       applicationId,
       userId,
       eventType: "application.deleted",
       metadata: {
-        slug: application.slug,
-        title: application.title,
-        company: application.company,
+        ...(options.source ? { source: options.source } : {}),
+        ...(options.omitText ? { text_omitted: true } : { slug: application.slug, title: application.title, company: application.company }),
       },
     })
     await tx

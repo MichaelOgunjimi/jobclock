@@ -20,6 +20,19 @@ const TOOLS: Record<string, string> = {
   "application.follow_up_updated": "set_follow_up",
   "application.interview_time_updated": "set_interview_time",
   "application.notes_updated": "add_note",
+  "application.details_updated": "update_application_details",
+  "application.archived": "archive_application",
+  "application.restored": "restore_application",
+  "application.tags_updated": "set_tags",
+  "application.source_updated": "set_source",
+  "application.applied_at_updated": "set_applied_at",
+  "application.deleted": "delete_application",
+}
+const GENERATION_TOOL_BY_KIND: Record<string, string> = {
+  company_research: "generate_company_research",
+  cover_letter: "generate_cover_letter",
+  cv_tailor: "tailor_cv",
+  interview_prep: "generate_interview_prep",
 }
 
 /** How many of the newest MCP changes of each kind are read to fill every connection's list. */
@@ -58,7 +71,7 @@ export async function listConnectionActivity(userId: string, perConnection = 10)
   ])
 
   const rows = [
-    ...applicationRows.map((row) => ({ ...row, tool: TOOLS[row.eventType] ?? row.eventType, slug: row.slug, title: row.customTitle ?? row.jobTitle ?? null })),
+    ...applicationRows.map((row) => ({ ...row, tool: row.eventType === "application.generation_requested" ? GENERATION_TOOL_BY_KIND[String((row.metadata as Record<string, unknown> | null)?.kind)] ?? row.eventType : TOOLS[row.eventType] ?? row.eventType, slug: row.slug, title: row.customTitle ?? row.jobTitle ?? null })),
     ...profileRows.map((row) => ({ ...row, tool: PROFILE_EVENT_TOOLS[row.eventType as ProfileEventType] ?? row.eventType, slug: null, title: "Profile and interview material" })),
   ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 

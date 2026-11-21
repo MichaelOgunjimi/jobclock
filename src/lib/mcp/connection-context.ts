@@ -10,6 +10,10 @@ export interface McpConnection {
   id: string
   /** New applications this connection may add in 24 hours; 0 = unlimited. */
   dailyCreateCap: number
+  /** Permanent deletions this connection may make in 24 hours; 0 = deleting switched off. */
+  dailyDeleteCap: number
+  /** AI credits this connection may spend in 24 hours; null = no limit, 0 = generation switched off. */
+  dailyCreditCap: number | null
 }
 
 const storage = new AsyncLocalStorage<McpConnection>()

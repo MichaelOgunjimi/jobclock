@@ -200,14 +200,18 @@ describe("consent decision", () => {
 
 describe("private details on the consent page", () => {
   const PRIVATE_NAMES = ["profile:read", "interview:read", "profile:write"]
+  const POWER_NAMES = ["applications:delete", "ai:generate"]
   const verifier = randomBytes(32).toString("base64url")
   const boxes = () => screen.getAllByRole("checkbox").map((box) => box.getAttribute("name"))
 
   it("shows each private scope as its own unticked option in plain words when the client named no scope", async () => {
     currentUser.id = USER
     render(await AuthorizePage({ searchParams: Promise.resolve(await params()) }))
-    expect(boxes()).toEqual(["write", ...PRIVATE_NAMES])
+    expect(boxes()).toEqual(["write", ...PRIVATE_NAMES, ...POWER_NAMES])
     for (const box of screen.getAllByRole("checkbox")) expect(box).not.toBeChecked()
+    expect(document.body.textContent).toContain("Permanently delete applications")
+    expect(document.body.textContent).toContain("Use your AI credits (generate CVs, cover letters, research, interview prep)")
+    expect(document.body.textContent).toContain("Powerful permissions (off unless you tick them)")
     expect(document.body.textContent).toContain("Your name, phone, links and the full text of your CVs")
     expect(document.body.textContent).toContain("Your interview stories and notes about yourself")
     expect(document.body.textContent).toContain("Change your profile details, CV names and primary CV")
@@ -244,6 +248,15 @@ describe("private details on the consent page", () => {
 
   it("grants nothing private unless ticked", async () => {
     expect(await decide(undefined, [])).toEqual(["applications:read"])
+  })
+
+  it("grants delete and AI generation only when ticked, each on its own, and only when the client asked for them", async () => {
+    expect(await decide(undefined, [])).not.toContain("applications:delete")
+    expect(await decide(undefined, ["applications:delete"])).toEqual(["applications:read", "applications:delete"])
+    expect(await decide(undefined, ["ai:generate"])).toEqual(["applications:read", "ai:generate"])
+    // write does not imply either
+    expect(await decide(undefined, ["write"])).toEqual(["applications:read", "applications:write"])
+    expect(await decide("applications:read applications:write", ["write", ...POWER_NAMES])).toEqual(["applications:read", "applications:write"])
   })
 
   it("grants exactly the ticked private scopes, separately from the applications ones", async () => {

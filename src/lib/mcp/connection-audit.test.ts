@@ -16,13 +16,13 @@ describe("audit events record which connection made the change", () => {
   beforeEach(() => resetFakeDb())
 
   it("tags a change made through a token or connected app with its kind and id", async () => {
-    await runAsConnection({ kind: "token", id: "tok-1", dailyCreateCap: 100 }, () =>
+    await runAsConnection({ kind: "token", id: "tok-1", dailyCreateCap: 100, dailyDeleteCap: 10, dailyCreditCap: 20 }, () =>
       appendApplicationAuditEvents(fakeDb as never, { applicationId: APP, userId: USER, eventType: "application.notes_updated", metadata: { source: "mcp" } }))
     expect(metadataOfInsert()).toEqual({ connectionKind: "token", connectionId: "tok-1", source: "mcp" })
   })
 
   it("tags every event of a multi-step change", async () => {
-    await runAsConnection({ kind: "oauth", id: "grant-1", dailyCreateCap: 0 }, () =>
+    await runAsConnection({ kind: "oauth", id: "grant-1", dailyCreateCap: 0, dailyDeleteCap: 10, dailyCreditCap: 20 }, () =>
       appendApplicationAuditEvents(fakeDb as never, [
         { applicationId: APP, userId: USER, eventType: "application.status_changed", metadata: { fromStatus: "saved", toStatus: "applied" } },
         { applicationId: APP, userId: USER, eventType: "application.status_changed", metadata: { fromStatus: "applied", toStatus: "interview" } },
@@ -81,6 +81,30 @@ describe("listConnectionActivity", () => {
   it("shows a removed application as such rather than failing", async () => {
     resetFakeDb(applicationEvents([event("e1", "tok-1", "application.created", "2026-11-20T10:00:00Z", {}, null)]))
     expect((await listConnectionActivity(USER))["tok-1"][0]).toMatchObject({ applicationSlug: null, applicationTitle: null })
+  })
+
+  it("names the new tools: archive, restore, tags, source, applied date, details, delete and each generation kind", async () => {
+    const types: [string, Record<string, unknown>, string][] = [
+      ["application.archived", {}, "archive_application"],
+      ["application.restored", {}, "restore_application"],
+      ["application.tags_updated", {}, "set_tags"],
+      ["application.source_updated", {}, "set_source"],
+      ["application.applied_at_updated", {}, "set_applied_at"],
+      ["application.details_updated", {}, "update_application_details"],
+      ["application.deleted", {}, "delete_application"],
+      ["application.generation_requested", { kind: "company_research" }, "generate_company_research"],
+      ["application.generation_requested", { kind: "cover_letter" }, "generate_cover_letter"],
+      ["application.generation_requested", { kind: "cv_tailor" }, "tailor_cv"],
+      ["application.generation_requested", { kind: "interview_prep" }, "generate_interview_prep"],
+    ]
+    resetFakeDb(applicationEvents(types.map(([type, extra], i) => event(`e${i}`, "tok-1", type, `2026-11-20T${String(10 + i).padStart(2, "0")}:00:00Z`, extra))))
+    const tools = (await listConnectionActivity(USER, 20))["tok-1"].map((item) => item.tool).reverse()
+    expect(tools).toEqual(types.map(([, , tool]) => tool))
+  })
+
+  it("lists a CV review as review_cv", async () => {
+    resetFakeDb(({ sql }) => (/from "profile_audit_events"/.test(sql) ? [row(["id", "eventType", "metadata", "createdAt"], { id: "p1", eventType: "profile.cv_reviewed", metadata: { source: "mcp", connectionId: "tok-1", cvId: "x", credits: 2 }, createdAt: new Date("2026-11-20T13:00:00Z") })] : []))
+    expect((await listConnectionActivity(USER))["tok-1"][0].tool).toBe("review_cv")
   })
 
   it("only ever reads the signed-in owner's events", async () => {

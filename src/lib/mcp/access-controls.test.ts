@@ -47,6 +47,58 @@ describe("migration 0037 on existing data", () => {
 }, 30_000)
 })
 
+describe("migration 0040 (delete and AI-generation limits)", () => {
+  it("gives existing tokens and grants a delete limit of 10 and a credit limit of 20, and the credit limit can be null (no limit)", async () => {
+    const client = new PGlite()
+    await client.exec("CREATE TABLE profiles (id uuid PRIMARY KEY)")
+    await client.exec("CREATE TABLE generation_jobs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), created_at timestamptz DEFAULT now() NOT NULL)")
+    await client.exec(`INSERT INTO profiles (id) VALUES ('${USER}')`)
+    await applyMigrations(client, ["0035_mcp_api_tokens", "0036_mcp_oauth", "0037_mcp_access_controls"])
+    await client.exec(`INSERT INTO api_tokens (user_id, label, token_hash, token_prefix) VALUES ('${USER}', 'Old token', 'h1', 'jc_abcde')`)
+    await client.exec(`INSERT INTO oauth_clients (id, client_name, redirect_uris) VALUES ('33333333-3333-4333-8333-333333333333', 'Claude', ARRAY['https://claude.ai/cb'])`)
+    await client.exec(`INSERT INTO oauth_grants (user_id, client_id, scopes, resource) VALUES ('${USER}', '33333333-3333-4333-8333-333333333333', ARRAY['applications:read', 'applications:write'], 'https://jobclock.dev/api/mcp')`)
+
+    await applyMigrations(client, ["0040_mcp_delete_and_ai_generate"])
+
+    const limits = "daily_delete_cap, daily_credit_cap, scopes"
+    expect((await client.query(`SELECT ${limits} FROM api_tokens`)).rows[0]).toEqual({ daily_delete_cap: 10, daily_credit_cap: 20, scopes: ["applications:read", "applications:write"] })
+    expect((await client.query(`SELECT ${limits} FROM oauth_grants`)).rows[0]).toEqual({ daily_delete_cap: 10, daily_credit_cap: 20, scopes: ["applications:read", "applications:write"] }) // no retroactive scope
+    await client.exec("UPDATE api_tokens SET daily_credit_cap = NULL")
+    expect((await client.query("SELECT daily_credit_cap FROM api_tokens")).rows[0]).toEqual({ daily_credit_cap: null })
+    await expect(client.exec("UPDATE api_tokens SET daily_delete_cap = NULL")).rejects.toThrow() // deleting has no unlimited choice
+    const jobs = await client.query<{ column_name: string }>("SELECT column_name FROM information_schema.columns WHERE table_name = 'generation_jobs' AND column_name LIKE 'requested_by%' ORDER BY 1")
+    expect(jobs.rows.map((r) => r.column_name)).toEqual(["requested_by_id", "requested_by_kind"])
+  }, 30_000)
+})
+
+describe("new token limits and scopes", () => {
+  it("a new token starts with a delete limit of 10 and a credit limit of 20, and neither new scope", async () => {
+    const { metadata } = await make("Defaults", { access: "write" })
+    expect(metadata).toMatchObject({ dailyDeleteCap: 10, dailyCreditCap: 20, scopes: ["applications:read", "applications:write"] })
+    expect(await authenticateApiToken((await make("Auth")).token, NOW)).toMatchObject({ dailyDeleteCap: 10, dailyCreditCap: 20 })
+  })
+
+  it("holds the new scopes only when the owner ticked them", async () => {
+    const { metadata } = await make("Strong", { access: "write", extraScopes: ["ai:generate", "applications:delete"] })
+    expect(metadata.scopes).toEqual(["applications:read", "applications:write", "applications:delete", "ai:generate"])
+  })
+
+  it("the owner can set each limit separately, including no limit (null) and 0, and only on their own token", async () => {
+    const mine = await make("Mine", {}, USER)
+    const theirs = await make("Theirs", {}, OTHER)
+    expect(await setApiTokenDailyCap(USER, theirs.metadata.id, 3, "delete")).toBe(false)
+    expect(await setApiTokenDailyCap(USER, mine.metadata.id, 3, "delete")).toBe(true)
+    expect(await setApiTokenDailyCap(USER, mine.metadata.id, null, "credit")).toBe(true)
+    let [token] = await listApiTokens(USER)
+    expect(token).toMatchObject({ dailyDeleteCap: 3, dailyCreditCap: null, dailyCreateCap: 100 })
+    expect(await setApiTokenDailyCap(USER, mine.metadata.id, 0, "credit")).toBe(true)
+    ;[token] = await listApiTokens(USER)
+    expect(token.dailyCreditCap).toBe(0)
+    expect((await listApiTokens(OTHER))[0]).toMatchObject({ dailyDeleteCap: 10, dailyCreditCap: 20 })
+    expect(await authenticateApiToken(mine.token, NOW)).toMatchObject({ dailyDeleteCap: 3, dailyCreditCap: 0 })
+  })
+})
+
 describe("manual token scopes", () => {
   it("a read-only token authenticates with only the read scope, a read + changes token with both", async () => {
     const readOnly = await make("Reader", { access: "read" })

@@ -21,6 +21,10 @@ const APPLICATION_WRITE = [
 const PROFILE_READ = ["get_cover_letter", "get_cv", "get_profile", "get_tailored_cv", "list_profile_documents"]
 const INTERVIEW_READ = ["get_interview_prep", "get_interview_profile_facts", "get_story", "list_stories"]
 const PROFILE_WRITE = ["add_interview_profile_fact", "add_story", "rename_cv", "set_primary_cv", "update_interview_profile_fact", "update_profile", "update_story"]
+const APPLICATION_MANAGE = ["archive_application", "restore_application", "set_applied_at", "set_source", "set_tags"]
+const DELETE = ["delete_application"]
+const AI_GENERATE = ["generate_company_research", "generate_cover_letter", "generate_interview_prep", "get_generation_status", "review_cv", "tailor_cv"]
+const NEW_TOOLS = [...DELETE, ...AI_GENERATE]
 const PRIVATE_TOOLS = [...PROFILE_READ, ...INTERVIEW_READ, ...PROFILE_WRITE]
 
 async function connect(scopes?: string[]) {
@@ -43,13 +47,16 @@ describe("scope matrix", () => {
   it("applications read and write see no profile, CV or interview tool: the applications scopes never imply them", async () => {
     const { names } = await connect(["applications:read", "applications:write"])
     const seen = await names()
-    expect(seen).toEqual([...APPLICATION_READ, ...APPLICATION_WRITE].sort())
+    expect(seen).toEqual([...APPLICATION_READ, ...APPLICATION_WRITE, ...APPLICATION_MANAGE].sort())
     expect(seen.filter((name) => PRIVATE_TOOLS.includes(name))).toEqual([])
-    expect(seen).toHaveLength(24)
+    expect(seen).toHaveLength(29)
+    expect(seen.filter((name) => NEW_TOOLS.includes(name))).toEqual([])
   })
 
-  it("the default (a full-access jc_ token from before) is still exactly the 24 application tools", async () => {
-    expect(await (await connect()).names()).toHaveLength(24)
+  it("the default (a full-access jc_ token from before) is still exactly the 29 application tools and none of the delete or AI ones", async () => {
+    const names = await (await connect()).names()
+    expect(names).toHaveLength(29)
+    expect(names.filter((name) => NEW_TOOLS.includes(name))).toEqual([])
   })
 
   it("profile:read alone sees exactly the profile read tools, plus the CV list that finds a cv_id", async () => {
@@ -69,10 +76,51 @@ describe("scope matrix", () => {
     expect(names).toEqual([...APPLICATION_READ, ...PROFILE_READ].sort())
   })
 
-  it("every scope together is every tool, and there are no delete tools anywhere", async () => {
+  it("every scope together is every tool", async () => {
     const names = await (await connect([...SUPPORTED_SCOPES])).names()
-    expect(names).toEqual([...APPLICATION_READ, ...APPLICATION_WRITE, ...PRIVATE_TOOLS].sort())
-    expect(names.filter((name) => /delete|remove|generate|regenerate/.test(name))).toEqual([])
+    expect(names).toEqual([...APPLICATION_READ, ...APPLICATION_WRITE, ...APPLICATION_MANAGE, ...PRIVATE_TOOLS, ...NEW_TOOLS].sort())
+  })
+
+  it("applications:delete (with the always-present read) adds exactly delete_application", async () => {
+    expect(await (await connect(["applications:read", "applications:delete"])).names()).toEqual([...APPLICATION_READ, ...DELETE].sort())
+  })
+
+  it("ai:generate (with read) adds exactly the generation tools and get_generation_status", async () => {
+    expect(await (await connect(["applications:read", "ai:generate"])).names()).toEqual([...APPLICATION_READ, ...AI_GENERATE].sort())
+  })
+
+  it("ai:generate or applications:delete alone register only their own tools, never write or private ones", async () => {
+    expect(await (await connect(["applications:delete"])).names()).toEqual(DELETE)
+    expect(await (await connect(["ai:generate"])).names()).toEqual([...AI_GENERATE].sort())
+  })
+
+  it("write alone does not bring delete or generation, and the manage tools need write", async () => {
+    const names = await (await connect(["applications:read", "applications:write"])).names()
+    for (const name of [...APPLICATION_MANAGE]) expect(names).toContain(name)
+    expect(names.filter((name) => NEW_TOOLS.includes(name))).toEqual([])
+    const readOnly = await (await connect(["applications:read"])).names()
+    expect(readOnly.filter((name) => [...APPLICATION_MANAGE, ...NEW_TOOLS].includes(name))).toEqual([])
+  })
+
+  it("profile-only connections see none of the new tools", async () => {
+    for (const scopes of [["profile:read"], ["interview:read"], ["profile:write"], ["profile:read", "interview:read", "profile:write"]]) {
+      const names = await (await connect(scopes)).names()
+      expect(names.filter((name) => [...APPLICATION_MANAGE, ...NEW_TOOLS].includes(name)), scopes.join()).toEqual([])
+    }
+  })
+
+  it("a connection without the scope cannot call the tool: nothing is queried", async () => {
+    const { client } = await connect(["applications:read", "applications:write"])
+    for (const [name, args] of [
+      ["delete_application", { application_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", confirm_title: "x" }],
+      ["generate_company_research", { application_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }],
+      ["review_cv", { cv_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }],
+      ["get_generation_status", { job_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }],
+    ] as const) {
+      const result = await client.callTool({ name, arguments: args }).catch(() => ({ isError: true }))
+      expect(result.isError, name).toBe(true)
+    }
+    expect(recorded).toHaveLength(0)
   })
 
   it("an unknown scope grants nothing", async () => {
@@ -110,7 +158,18 @@ describe("server instructions", () => {
   })
 
   it("stay short", async () => {
-    expect((await connect([...SUPPORTED_SCOPES])).instructions().length).toBeLessThan(1100)
+    expect((await connect([...SUPPORTED_SCOPES])).instructions().length).toBeLessThan(1800)
+  })
+
+  it("mention credits and permanent deletion only when those scopes are held", async () => {
+    const plain = (await connect(["applications:read", "applications:write"])).instructions()
+    expect(plain).not.toMatch(/credits|permanently delete/)
+    expect(plain).toMatch(/cannot delete/)
+    expect(plain).toMatch(/cannot start AI generation/)
+    const strong = (await connect(["applications:read", "applications:write", "applications:delete", "ai:generate"])).instructions()
+    expect(strong).toMatch(/permanently delete/)
+    expect(strong).toMatch(/deletion cannot be undone/)
+    expect(strong).toMatch(/credits/)
   })
 })
 

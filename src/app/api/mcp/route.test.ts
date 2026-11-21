@@ -25,7 +25,7 @@ vi.mock("@/lib/mcp/tools", async (importOriginal) => ({ ...(await importOriginal
 import { currentConnection } from "@/lib/mcp/connection-context"
 import { DELETE, GET, POST } from "./route"
 
-const FULL_TOKEN = { tokenId: "t1", userId: "user-a", scopes: ["applications:read", "applications:write"], dailyCreateCap: 100 }
+const FULL_TOKEN = { tokenId: "t1", userId: "user-a", scopes: ["applications:read", "applications:write"], dailyCreateCap: 100, dailyDeleteCap: 10, dailyCreditCap: 20 }
 const READ_TOKEN = { ...FULL_TOKEN, scopes: ["applications:read"] }
 
 const rpc = (body: unknown, headers: Record<string, string> = {}) =>
@@ -75,7 +75,7 @@ describe("/api/mcp", () => {
 
   it("the scope hint names every scope the server supports, private ones included, so a client can ask for them", async () => {
     const header = (await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }))).headers.get("www-authenticate") ?? ""
-    expect(header).toContain('scope="applications:read applications:write profile:read interview:read profile:write"')
+    expect(header).toContain('scope="applications:read applications:write profile:read interview:read profile:write applications:delete ai:generate"')
   })
 
   it("reports invalid_token when a credential was presented but is not valid", async () => {
@@ -84,7 +84,7 @@ describe("/api/mcp", () => {
   })
 
   describe("OAuth access tokens", () => {
-    const grant = (scopes: string[], resource = "https://jobclock.dev/api/mcp") => ({ userId: "user-a", scopes, grantId: "g1", resource, dailyCreateCap: 100 })
+    const grant = (scopes: string[], resource = "https://jobclock.dev/api/mcp") => ({ userId: "user-a", scopes, grantId: "g1", resource, dailyCreateCap: 100, dailyDeleteCap: 10, dailyCreditCap: 20 })
     const toolNames = async (headers: Record<string, string>) =>
       ((await (await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, headers))).json()).result.tools as { name: string }[]).map((tool) => tool.name).sort()
 
@@ -135,7 +135,8 @@ describe("/api/mcp", () => {
         "get_company_research", "get_credits", "get_job_preferences", "get_pipeline_summary", "list_applications", "list_cvs", "list_due",
         "list_stale_applications", "list_upcoming_deadlines", "list_upcoming_interviews", "set_follow_up", "set_interview_time", "snooze_follow_up",
         "undo_last_change", "update_application_details", "update_application_status", "update_application_statuses",
-      ])
+        "archive_application", "restore_application", "set_applied_at", "set_source", "set_tags",
+      ].sort())
       await POST(rpc(callTool("set_follow_up", { application_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", note: "x" }), headers))
       expect(setFollowUp).toHaveBeenCalledWith("user-a", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", expect.objectContaining({ note: "x" }))
     })
@@ -200,7 +201,12 @@ describe("/api/mcp", () => {
       "update_application_details",
       "update_application_status",
       "update_application_statuses",
-    ])
+      "archive_application",
+      "restore_application",
+      "set_applied_at",
+      "set_source",
+      "set_tags",
+    ].sort())
   })
 
   describe("private data scopes", () => {
@@ -219,7 +225,7 @@ describe("/api/mcp", () => {
 
     it.each([
       ["jc_ token", () => authenticateApiToken.mockResolvedValue(tokenWith(["applications:read", "profile:read"])), "Bearer jc_ok"],
-      ["OAuth grant", () => authenticateOAuthAccessToken.mockResolvedValue({ userId: "user-a", scopes: ["applications:read", "profile:read"], grantId: "g1", resource: "https://jobclock.dev/api/mcp", dailyCreateCap: 100 }), "Bearer jat_ok"],
+      ["OAuth grant", () => authenticateOAuthAccessToken.mockResolvedValue({ userId: "user-a", scopes: ["applications:read", "profile:read"], grantId: "g1", resource: "https://jobclock.dev/api/mcp", dailyCreateCap: 100, dailyDeleteCap: 10, dailyCreditCap: 20 }), "Bearer jat_ok"],
     ])("a %s with profile:read sees the profile tools and they run as the token's user, never one named in the request", async (_name, authenticate, authorization) => {
       authenticate()
       expect(await list({ authorization })).toEqual(expect.arrayContaining(["get_profile", "get_cv", "list_profile_documents", "get_tailored_cv", "get_cover_letter"]))
@@ -359,25 +365,25 @@ describe("/api/mcp", () => {
 
   describe("the connection making the request", () => {
     it("is known to the tools: a token's id and daily limit", async () => {
-      authenticateApiToken.mockResolvedValue({ ...FULL_TOKEN, tokenId: "tok-9", dailyCreateCap: 7 })
+      authenticateApiToken.mockResolvedValue({ ...FULL_TOKEN, tokenId: "tok-9", dailyCreateCap: 7, dailyDeleteCap: 3, dailyCreditCap: null })
       let seen: unknown
       addApplication.mockImplementation(async () => {
         seen = currentConnection()
         return { data: { created: true } }
       })
       await POST(rpc(callTool("add_application", { url: "https://example.com/jobs/1", title: "Engineer", company: "Acme" }), { authorization: "Bearer jc_ok" }))
-      expect(seen).toEqual({ kind: "token", id: "tok-9", dailyCreateCap: 7 })
+      expect(seen).toEqual({ kind: "token", id: "tok-9", dailyCreateCap: 7, dailyDeleteCap: 3, dailyCreditCap: null })
     })
 
     it("is known to the tools: a connected app's grant id and daily limit", async () => {
-      authenticateOAuthAccessToken.mockResolvedValue({ userId: "user-a", scopes: ["applications:read", "applications:write"], grantId: "grant-3", resource: "https://jobclock.dev/api/mcp", dailyCreateCap: 0 })
+      authenticateOAuthAccessToken.mockResolvedValue({ userId: "user-a", scopes: ["applications:read", "applications:write"], grantId: "grant-3", resource: "https://jobclock.dev/api/mcp", dailyCreateCap: 0, dailyDeleteCap: 10, dailyCreditCap: 20 })
       let seen: unknown
       addApplication.mockImplementation(async () => {
         seen = currentConnection()
         return { data: { created: true } }
       })
       await POST(rpc(callTool("add_application", { url: "https://example.com/jobs/1", title: "Engineer", company: "Acme" }), { authorization: "Bearer jat_ok" }))
-      expect(seen).toEqual({ kind: "oauth", id: "grant-3", dailyCreateCap: 0 })
+      expect(seen).toEqual({ kind: "oauth", id: "grant-3", dailyCreateCap: 0, dailyDeleteCap: 10, dailyCreditCap: 20 })
     })
 
     it("does not leak into the next request", async () => {
