@@ -10,7 +10,6 @@ import {
   MAX_STATE_LENGTH,
   parseScopes,
   SCOPE_READ,
-  SCOPE_WRITE,
   SUPPORTED_SCOPES,
   type OAuthScope,
 } from "./config"
@@ -88,11 +87,22 @@ export function parseConnectionDuration(value: FormDataEntryValue | null, now = 
 }
 
 /**
- * Read is always granted; write only when the user ticked it AND the client asked for it. `grantExpiresAt` is the owner's
- * chosen end for the whole connection (null = until revoked). Returns the plaintext code (never stored).
+ * What is granted: applications read always, plus exactly the optional scopes the user ticked that the client also
+ * asked for (or all of them when it asked for none). A ticked scope that was not offered is ignored, never added.
  */
-export async function issueAuthorizationCode(userId: string, request: AuthorizeRequest, allowWrite: boolean, grantExpiresAt: Date | null): Promise<string> {
-  const scopes: OAuthScope[] = allowWrite && request.offeredScopes.includes(SCOPE_WRITE) ? [SCOPE_READ, SCOPE_WRITE] : [SCOPE_READ]
+export function grantedScopes(request: Pick<AuthorizeRequest, "offeredScopes">, ticked: readonly string[]): OAuthScope[] {
+  return SUPPORTED_SCOPES.filter((scope) => scope === SCOPE_READ || (ticked.includes(scope) && request.offeredScopes.includes(scope)))
+}
+
+/** The optional scopes a consent form can tick. The names are the scope strings themselves. */
+export const CONSENT_SCOPE_FIELDS = SUPPORTED_SCOPES.filter((scope) => scope !== SCOPE_READ)
+
+/**
+ * `ticked` is what the user ticked on the consent page. `grantExpiresAt` is the owner's chosen end for the whole
+ * connection (null = until revoked). Returns the plaintext code (never stored).
+ */
+export async function issueAuthorizationCode(userId: string, request: AuthorizeRequest, ticked: readonly string[], grantExpiresAt: Date | null): Promise<string> {
+  const scopes = grantedScopes(request, ticked)
   const code = randomBytes(32).toString("base64url")
   await db.insert(oauthAuthorizationCodes).values({
     codeHash: hashApiToken(code),

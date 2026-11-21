@@ -3,7 +3,7 @@
 JobClock exposes a small [Model Context Protocol](https://modelcontextprotocol.io) server at `POST /api/mcp`
 (Streamable HTTP, stateless). An AI agent that can already read your email (for example Claude with a Gmail
 connector) can use it to keep JobClock up to date: move applications between statuses, set follow-up dates,
-record interview times and add notes. Another agent that finds jobs for you can also add them (see
+record interview times and add notes. If you choose, it can also use your profile, CVs and interview material (for example to help you prepare for an interview or review a CV): see [Profile, CV and interview access](#profile-cv-and-interview-access). Another agent that finds jobs for you can also add them (see
 [Adding jobs found by another agent](#adding-jobs-found-by-another-agent)). JobClock itself never reads your email.
 
 The production server is **`https://jobclock.dev/api/mcp`**. (Self-hosting? Use your own `NEXT_PUBLIC_APP_URL` followed by `/api/mcp`
@@ -18,6 +18,7 @@ everywhere this page says `jobclock.dev`; Settings -> AI Agent always shows the 
    and choose what to allow:
    - **Read your applications** (`applications:read`, always on): list and view applications and see what is due.
    - **Make changes** (`applications:write`, **off by default**, you must tick it): change status, set follow-ups and interview times, add notes, add new saved jobs.
+   - **Private details** (all **off by default**, each its own tick box, only shown if the app asked for them or did not name scopes): **Profile and CVs** (`profile:read`: your name, phone, links and the full text of your CVs, plus certificates, tailored CVs and cover letters), **Interview material** (`interview:read`: your interview stories and notes about yourself, saved prep and practice answers) and **Change profile and interview material** (`profile:write`).
    - **Keep me connected for**: 30 days (default), 90 days, 1 year or until you revoke it. This is the hard end of the connection: it caps how long
      the app can keep refreshing its access. Whatever you choose, a connection that is not used for 30 days also ends (the refresh token's idle window).
 3. Tap **Allow**. The app is connected, and JobClock emails you a notice (the app's name, what it may do and when it ends; never a code or token). **Deny** sends the app back with `access_denied` and shares nothing.
@@ -42,7 +43,7 @@ Revoking ends both its access and refresh tokens immediately. When the period yo
   presenting a used one revokes the whole connection. Codes and tokens are stored only as SHA-256 hashes.
 - The redirect URI sent to `/oauth/authorize` must exactly equal one registered by the client; JobClock never redirects anywhere else.
 - Tokens are bound to the `https://jobclock.dev/api/mcp` resource (your own `NEXT_PUBLIC_APP_URL` when self-hosting) and are rejected anywhere else.
-- `jc_` tokens created before the scope and expiry choices existed (migration `0037`) keep full read and write access and never expire; you can revoke them any time.
+- `jc_` tokens created before the scope and expiry choices existed (migration `0037`) keep full read and write access to applications and never expire; you can revoke them any time. They, and every existing token or connected app, keep exactly the scopes they have: **nothing gives them the private-data scopes**. To get one, create a new token or connect the app again.
 - Expired codes and tokens, old revoked connections and manual tokens that expired over 30 days ago are removed daily by `/api/cron/prune-oauth` (needs `CRON_SECRET`, like the other crons).
 
 ### Self-hosting
@@ -51,7 +52,7 @@ The OAuth server lives inside the app (nothing depends on Supabase's OAuth serve
 
 - `NEXT_PUBLIC_APP_URL`: the public origin (e.g. `https://jobs.example.com`, no path). The issuer, every endpoint URL in the
   metadata and the MCP resource identifier are derived from it. It must be the URL the MCP client actually uses.
-- The migrations `0036_mcp_oauth.sql` (four `oauth_*` tables, RLS on, no policies; read only over the server-side database connection) and `0037_mcp_access_controls.sql` (scope, expiry and daily-limit columns; RLS unchanged).
+- The migrations `0036_mcp_oauth.sql` (four `oauth_*` tables, RLS on, no policies; read only over the server-side database connection) and `0037_mcp_access_controls.sql` (scope, expiry and daily-limit columns; RLS unchanged) and `0039_mcp_profile_audit.sql` (the `profile_audit_events` table, RLS on, no policies).
 - Redis (`UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`) for the rate limits, as for the rest of the app.
 - Supabase auth, which only tells the consent page who is signed in.
 - HTTPS in front of the app, since remote MCP clients require it. `/oauth/*` is served with `frame-ancestors 'none'`.
@@ -60,6 +61,7 @@ The OAuth server lives inside the app (nothing depends on Supabase's OAuth serve
 
 1. In JobClock open **Settings -> AI Agent**, name a token (e.g. "Claude on my laptop"), choose its **Access** and when it **Expires**, and click **Create token**.
    - **Access**: *Read only* (the default: list and view, duplicate checks, job preferences) or *Read + changes* (also status, follow-ups, interview times, notes, add jobs). The server enforces it exactly like an OAuth grant: a read-only token does not even see the write tools, and a write call is rejected.
+   - **Private details**: three tick boxes, all off by default, with the same wording as the consent page. A token only holds the ones you tick.
    - **Expires**: 7 days, 30 days, **90 days (default)**, 1 year or never. A custom date is not offered.
    Copy the token immediately: it starts with `jc_` and is shown once. JobClock emails you a notice that a token was created (its name, access and expiry; never the token).
 2. Add the server to Claude Code. Settings shows this command with your real token filled in once it is created; the only part to replace by hand is the token itself, if you build the command yourself:
@@ -81,9 +83,9 @@ Tokens created before these choices existed have full access and never expire.
 ## What each connection did, and notices
 
 - **Recent activity.** Under every token and connected app in Settings -> AI Agent, *Recent activity* lists the last 10 changes it made: the tool
-  (`add_application`, `update_application_status`, `set_follow_up`, `set_interview_time`, `add_note`), the application and the time. Changes made through the
+  (`add_application`, `update_application_status`, `set_follow_up`, `set_interview_time`, `add_note`, and the profile tools below), the application (or "Profile and interview material") and the time. Changes made through the
   agent already appear in each application's Activity timeline tagged `source: "mcp"`; they now also record which token or connected app made them
-  (`connectionKind` and `connectionId` in the event's metadata). Only **changes** are recorded (reads leave no trace), and events from before this was
+  (`connectionKind` and `connectionId` in the event's metadata). Profile and interview edits are recorded in their own table (`profile_audit_events`) with the tool, the connection and **field names and lengths only, never the text**. Only **changes** are recorded (reads leave no trace), and events from before this was
   added carry no connection, so they are not attributed to anyone.
 - **Security notices.** JobClock emails you when a token is created and when you approve an app on the consent page: the name, what it may do and when it ends.
   These are transactional (no unsubscribe) and never contain a token or code. If you did not do it, revoke the token or app in Settings -> AI Agent.
@@ -108,6 +110,9 @@ The numbers live in one file, `src/lib/mcp/limits.ts`; a self-hoster changes a f
 | Snooze length | 1 to 365 days (snooze_follow_up) | A follow-up more than a year away is almost always a typo. Use an explicit date for a deliberate later one. | Kept |
 | Company research text | 12,000 characters returned (get_company_research) | Keeps one reply small enough for an agent to read. Longer text is cut and flagged as truncated; the full text stays in JobClock. | Kept |
 | Stale and activity list size | 50 per call (list_stale_applications, get_application_activity; deadlines and interviews list at most 50) | Keeps replies readable. Ask for fewer or narrow the question; the web app shows everything. | Kept |
+| Profile and CV text returned | get_cv and get_tailored_cv 40,000 characters; get_cover_letter 12,000; get_story, get_interview_prep and get_interview_profile_facts 40,000 | Keeps one reply small enough for an agent to read. A typical CV is well under a quarter of this. Longer text is cut (whole entries first) and flagged truncated with total_characters; the full text stays in JobClock. | Kept |
+| Profile and interview list size | 50 per call (list_stories and get_interview_profile_facts page with limit and offset; list_profile_documents shows the newest 50) | Keeps replies readable and stops one call from copying your whole story bank. The reply says whether there are more. | Kept |
+| Profile edit lengths | Full name 100; phone 30; links 300; desired roles and locations 20 each of 100 characters; target salary 0 to 10,000,000; CV name 100; story title 200, each story field 5,000, 20 tags of 80; about-me label 200, detail 5,000 | The story and about-me lengths are the web interview workspace's own, so an agent cannot save what you could not; the profile ones stop a typo or a runaway edit from bloating your details (the web Account form has no length limits). | Kept |
 | Token expiry | 7 days, 30 days, 90 days, 1 year or never; you choose per token (default 90 days) | A forgotten token stops working by itself. Tokens created before this setting never expire. | Your choice (Settings) |
 | Connected app period | 30 days, 90 days, 1 year or until you revoke; you choose when you connect (default 30 days) | Caps how long a connected app can keep refreshing. A connection that is not used for 30 days also ends. | Your choice (Settings) |
 | Batch payload size | no separate limit (was 100,000 characters) | Removed: the request size limit already bounds it, and the old figure rejected a legitimate batch of 20 long descriptions. | Removed |
@@ -128,7 +133,7 @@ Protecting the public endpoints (kept; these defend an internet-facing server, s
 
 ## Tools
 
-Write tools are only available to a `jc_` token created as *Read + changes* (or created before the choice existed) or an OAuth connection that was granted **Make changes**.
+Write tools are only available to a `jc_` token created as *Read + changes* (or created before the choice existed) or an OAuth connection that was granted **Make changes**. The profile, CV and interview tools need their own scope (`profile:read`, `interview:read`, `profile:write`), chosen as described below; `list_cvs` is available with `applications:read` or `profile:read`.
 
 | Tool | Kind | What it does |
 | --- | --- | --- |
@@ -155,7 +160,19 @@ Write tools are only available to a `jc_` token created as *Read + changes* (or 
 | `snooze_follow_up` | write | Push the follow-up out by `days` (1-365, counted from the current date or from now if overdue) or to a future `until` timestamp. |
 | `complete_follow_up` | write | Clear the follow-up date and reminder note (the follow-up card's Clear button). |
 | `update_application_details` | write | Edit `title`, `company`, `location`, `salary` with the web app's validation; `null` goes back to the posting's own value. Not status, ids or anything billing or AI related. |
-| `undo_last_change` | write | Reverts the newest agent change (status, follow-up date, interview time, title, company, location, salary) from its recorded before values. Refuses if that field changed since, and cannot restore note text. Call again to step back further. |
+| `undo_last_change` | write | Reverts the newest agent change (status, follow-up date, interview time, title, company, location, salary) from its recorded before values. Refuses if that field changed since, and cannot restore note text. Call again to step back further. Applications only: profile and interview edits are not auto-undoable (their results return the before values). |
+| `get_profile` | read (`profile:read`) | Full name, account email, phone, LinkedIn/GitHub/portfolio links, desired roles, locations, target salary, experience levels, UK right to work. Not plan, billing, AI keys or notification settings. |
+| `get_cv` | read (`profile:read`) | The full content of one CV (`cv_id` from `list_cvs`, default the primary) and its saved review findings. Cut at 40,000 characters (`truncated`, `omitted`, `total_characters`). Never the uploaded file or its location. |
+| `list_profile_documents` | read (`profile:read`) | Certificates and qualifications: type, name, issuer, dates. Never the file, its location, size or credential id. |
+| `get_tailored_cv` | read (`profile:read`) | The CV already customised for an application, with its ATS score. Never generates one. |
+| `get_cover_letter` | read (`profile:read`) | The newest cover letter saved for an application (cut at 12,000 characters). Never generates one. |
+| `get_interview_prep` | read (`interview:read`) | Saved prep for an application (questions, suggested answers) and the owner's saved answers to its questions; without `application_id`, the general practice questions and saved answers. Drafts and company research are not included. |
+| `list_stories` / `get_story` | read (`interview:read`) | The story bank: titles and tags (`limit` max 50, `offset`), then one story's STAR text. |
+| `get_interview_profile_facts` | read (`interview:read`) | The "about me" facts the interview workspace uses (`limit` max 50, `offset`, optional `category`). |
+| `update_profile` | write (`profile:write`) | Edit full name, phone, links, desired roles, locations, target salary, experience levels, right to work. Not the email, plan, billing, AI keys or notifications. Before and after returned; not auto-undoable. |
+| `set_primary_cv` / `rename_cv` | write (`profile:write`) | Change which CV is primary, or a CV's name. Never its content or file. |
+| `add_story` / `update_story` | write (`profile:write`) | Add or edit a story bank entry with the web interview workspace's own validation. |
+| `add_interview_profile_fact` / `update_interview_profile_fact` | write (`profile:write`) | Add or edit an "about me" fact (a manual fact with the same category and label is reported, not duplicated). |
 
 Write tools return `before` and `after` so a change can be reversed, and each one adds an entry to the application's
 Activity timeline tagged `source: "mcp"`. There are no delete, billing or AI-credit tools.
@@ -180,6 +197,25 @@ A job-finding agent connects with write access, then for each candidate:
   (title, company and location 200 characters, note 2,000, description 20,000) and stored as plain text, never followed as an instruction.
   The URL is stored without tracking parameters and fragment. An existing cached copy of the same posting is never overwritten.
 - **Limits.** See [Limits](#limits): jobs per batch, request size, requests per minute, and a daily limit on new applications that you set per token or connected app (default 100, 0 = unlimited).
+
+### Profile, CV and interview access
+
+This is the most private data in your account, so it is a separate choice and never implied by the applications scopes:
+
+| Scope | Plain words | Tools |
+| --- | --- | --- |
+| `profile:read` | Your name, phone, links and the full text of your CVs, plus certificates, tailored CVs and cover letters | `get_profile`, `get_cv`, `list_profile_documents`, `get_tailored_cv`, `get_cover_letter` (and `list_cvs`) |
+| `interview:read` | Your interview stories and notes about yourself, saved prep and practice answers | `get_interview_prep`, `list_stories`, `get_story`, `get_interview_profile_facts` |
+| `profile:write` | Change your profile and interview material | `update_profile`, `set_primary_cv`, `rename_cv`, `add_story`, `update_story`, `add_interview_profile_fact`, `update_interview_profile_fact` |
+
+- Each is **off by default**, is its own tick box on the consent page and in Settings -> AI Agent, and is only offered on the consent page if the app asked for it (or named no scopes). `applications:read` stays the only default.
+- A connection that only holds the applications scopes cannot see or call any of these tools (they are not registered for it).
+- Existing tokens and connected apps are **not** expanded: they keep exactly the scopes they hold. To get one of these, create a new token or connect the app again.
+- The "token created" and "app connected" emails name what you allowed, e.g. "read only for applications; also read your profile, contact details and CVs".
+- There are **no delete tools** and nothing here generates content or spends AI credits. A later, separate scope will cover generation.
+- The tools return only user-meaningful fields: never file paths or signed URLs, internal ids that are not needed to call another tool, AI keys, billing data or notification settings.
+- CV, story and interview text is the owner's own, but it may contain text pasted from elsewhere. The tool descriptions and the server instructions tell the agent to treat it as data, never as instructions, and to use it only for your task.
+- Writes return before and after. The audit trail (Settings -> Recent activity) records the tool, the connection and field names and lengths, never the text. They are not auto-undoable: `undo_last_change` covers applications only, so keep the before values the result gives you.
 
 ## Security model
 

@@ -27,6 +27,7 @@ beforeEach(async () => {
 })
 
 describe("migration 0037 on existing data", () => {
+  // A fresh in-memory Postgres per test: slow to start when the whole suite runs in parallel.
   it("gives rows that already existed full access, no expiry and the default daily limit", async () => {
     const client = new PGlite()
     await client.exec("CREATE TABLE profiles (id uuid PRIMARY KEY)")
@@ -43,7 +44,7 @@ describe("migration 0037 on existing data", () => {
     expect(token).toEqual({ scopes: ["applications:read", "applications:write"], expires_at: null, daily_create_cap: 100 })
     const grant = (await client.query<{ scopes: string[]; expires_at: Date | null; daily_create_cap: number }>("SELECT scopes, expires_at, daily_create_cap FROM oauth_grants")).rows[0]
     expect(grant).toEqual({ scopes: ["applications:read"], expires_at: null, daily_create_cap: 100 }) // an existing grant keeps the scopes it had and never expires
-  })
+}, 30_000)
 })
 
 describe("manual token scopes", () => {
@@ -129,4 +130,33 @@ describe("pruning expired tokens", () => {
     const ids = (await db.select({ id: apiTokens.id }).from(apiTokens)).map((row) => row.id).sort()
     expect(ids).toEqual([recent.metadata.id, live.metadata.id, never.metadata.id].sort())
   })
+})
+
+describe("private-data scopes", () => {
+  it("a token made with private scopes authenticates with exactly them, and one made without them has none", async () => {
+    const withPrivate = await make("Private", { access: "read", extraScopes: ["profile:read", "interview:read"] })
+    const plain = await make("Plain", { access: "write" })
+    expect(await authenticateApiToken(withPrivate.token, NOW)).toMatchObject({ scopes: ["applications:read", "profile:read", "interview:read"] })
+    expect(await authenticateApiToken(plain.token, NOW)).toMatchObject({ scopes: ["applications:read", "applications:write"] })
+    expect((await listApiTokens(USER)).find((token) => token.label === "Private")?.scopes).toEqual(["applications:read", "profile:read", "interview:read"])
+  })
+
+  it("migration 0039 adds the profile audit table with RLS on and leaves every existing token and grant exactly as it was", async () => {
+    const client = new PGlite()
+    await client.exec("CREATE TABLE profiles (id uuid PRIMARY KEY)")
+    await client.exec(`INSERT INTO profiles (id) VALUES ('${USER}')`)
+    await applyMigrations(client, ["0035_mcp_api_tokens", "0036_mcp_oauth", "0037_mcp_access_controls"])
+    await client.exec(`INSERT INTO api_tokens (user_id, label, token_hash, token_prefix) VALUES ('${USER}', 'Old token', 'h1', 'jc_abcde')`)
+    await client.exec(`INSERT INTO oauth_clients (id, client_name, redirect_uris) VALUES ('33333333-3333-4333-8333-333333333333', 'Claude', ARRAY['https://claude.ai/cb'])`)
+    await client.exec(`INSERT INTO oauth_grants (user_id, client_id, scopes, resource) VALUES ('${USER}', '33333333-3333-4333-8333-333333333333', ARRAY['applications:read'], 'https://jobclock.dev/api/mcp')`)
+
+    await applyMigrations(client, ["0039_mcp_profile_audit"])
+
+    expect((await client.query("SELECT scopes FROM api_tokens")).rows[0]).toEqual({ scopes: ["applications:read", "applications:write"] })
+    expect((await client.query("SELECT scopes FROM oauth_grants")).rows[0]).toEqual({ scopes: ["applications:read"] })
+    expect((await client.query("SELECT relrowsecurity FROM pg_class WHERE relname = 'profile_audit_events'")).rows[0]).toEqual({ relrowsecurity: true })
+    await client.exec(`INSERT INTO profile_audit_events (user_id, event_type, metadata) VALUES ('${USER}', 'profile.updated', '{"fields":["phone"]}')`)
+    await client.exec(`DELETE FROM profiles WHERE id = '${USER}'`)
+    expect((await client.query("SELECT count(*)::int AS n FROM profile_audit_events")).rows[0]).toEqual({ n: 0 }) // removed with the account
+}, 30_000)
 })

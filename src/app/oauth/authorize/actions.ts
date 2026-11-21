@@ -2,8 +2,8 @@
 
 import { redirect } from "next/navigation"
 import { sendAgentAccessNotice } from "@/lib/email/agent-access"
-import { buildClientRedirect, issueAuthorizationCode, parseAuthorizeRequest, parseConnectionDuration } from "@/lib/oauth/authorize"
-import { SCOPE_READ, SCOPE_WRITE } from "@/lib/oauth/config"
+import { buildClientRedirect, CONSENT_SCOPE_FIELDS, grantedScopes, issueAuthorizationCode, parseAuthorizeRequest, parseConnectionDuration } from "@/lib/oauth/authorize"
+import { SCOPE_WRITE } from "@/lib/oauth/config"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 
@@ -38,13 +38,15 @@ export async function decideConsent(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth")
 
-  const allowWrite = formData.get("write") === "on"
-  const code = await issueAuthorizationCode(user.id, request, allowWrite, duration.expiresAt)
+  // Only a box that is on and was offered counts; `write` is the applications:write box, the others are named by their scope.
+  const ticked = CONSENT_SCOPE_FIELDS.filter((scope) => formData.get(scope === SCOPE_WRITE ? "write" : scope) === "on")
+  const scopes = grantedScopes(request, ticked)
+  const code = await issueAuthorizationCode(user.id, request, ticked, duration.expiresAt)
   // The grant itself is created when the app exchanges the code a moment later; this is the owner's own approval, which is what they should hear about.
   await sendAgentAccessNotice(user.email, {
     kind: "app",
     name: request.clientName,
-    scopes: allowWrite && request.offeredScopes.includes(SCOPE_WRITE) ? [SCOPE_READ, SCOPE_WRITE] : [SCOPE_READ],
+    scopes,
     expiresAt: duration.expiresAt?.toISOString() ?? null,
   })
   redirect(buildClientRedirect(request.redirectUri, { code, state: request.state }))

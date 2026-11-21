@@ -1,4 +1,4 @@
-import { describeExpiry, scopeLabel } from "@/lib/mcp/access-policy"
+import { describeAccess, describeExpiry } from "@/lib/mcp/access-policy"
 import { sendEmail } from "./send"
 import { agentAccessEmail } from "./templates"
 
@@ -16,7 +16,7 @@ export async function sendAgentAccessNotice(
     return await sendEmail({
       to: email,
       // An app chooses its own name, so keep it on one line.
-      ...agentAccessEmail({ kind: notice.kind, name: notice.name.replace(/\s+/g, " ").trim(), access: scopeLabel(notice.scopes).toLowerCase(), expires: expiry.text }),
+      ...agentAccessEmail({ kind: notice.kind, name: notice.name.replace(/\s+/g, " ").trim(), access: describeAccess(notice.scopes), expires: expiry.text }),
       idempotencyKey: notice.idempotencyKey,
     })
   } catch (err) {

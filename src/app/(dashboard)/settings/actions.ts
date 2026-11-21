@@ -11,7 +11,7 @@ import {
   type PersonalApiTokenMetadata,
 } from "@/lib/personal-api-tokens"
 import { sendAgentAccessNotice } from "@/lib/email/agent-access"
-import { parseTokenAccess } from "@/lib/mcp/access-policy"
+import { parseExtraScopes, parseTokenAccess } from "@/lib/mcp/access-policy"
 import { createApiToken, DAILY_CAP_ERROR, parseDailyCap, revokeApiToken, setApiTokenDailyCap } from "@/lib/mcp/tokens"
 import { revokeConnectedApp, setConnectedAppDailyCap } from "@/lib/oauth/tokens"
 import { and, eq } from "drizzle-orm"
@@ -401,14 +401,17 @@ export async function deleteTrackedCompany(id: string): Promise<{ error?: string
   return {}
 }
 
-export async function createAgentToken(label: string, access: string, expiry: string) {
+export async function createAgentToken(label: string, access: string, expiry: string, extraScopes: string[] = []) {
   const auth = await getAuthenticatedUserId()
   if ("error" in auth) return { error: auth.error }
   const parsedAccess = parseTokenAccess(access)
   if (!parsedAccess) return { error: "Choose whether the token is read only or can also make changes." }
+  // Anything that is not exactly one of the offered private-data choices is refused, never ignored: it decides what the token can see.
+  const parsedExtras = parseExtraScopes(extraScopes)
+  if (!parsedExtras) return { error: "Choose which private details the token may use from the options offered." }
 
   try {
-    const result = await createApiToken(auth.userId, label, { access: parsedAccess, expiry })
+    const result = await createApiToken(auth.userId, label, { access: parsedAccess, extraScopes: parsedExtras, expiry })
     if ("error" in result) return { error: result.error }
     // Never includes the token. Failure to send must not fail the creation.
     await sendAgentAccessNotice(auth.email, {

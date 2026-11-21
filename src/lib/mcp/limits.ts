@@ -18,6 +18,19 @@ export const MAX_DAILY_CREATE_CAP = 1_000_000
 /** An application with the same company and title created this recently is reported as a possible duplicate. */
 export const DUPLICATE_WINDOW_DAYS = 90
 export const MAX_DESCRIPTION_CHARS = 20_000
+/** Profile, CV and interview text an agent reads (profile:read, interview:read). Longer text is cut and flagged `truncated` with `total_characters`. */
+export const MAX_CV_CHARS = 40_000
+export const MAX_LETTER_CHARS = 12_000
+export const MAX_INTERVIEW_CHARS = 40_000
+/** Rows per call for the story, about-me fact and certificate lists (`limit` and `offset` page through the rest). */
+export const MAX_PRIVATE_LIST = 50
+/** Profile fields an agent may write (profile:write). The story and fact limits are the web interview workspace's own. */
+export const MAX_NAME_CHARS = 100
+export const MAX_PHONE_CHARS = 30
+export const MAX_LINK_CHARS = 300
+export const MAX_PROFILE_LIST_ITEMS = 20
+export const MAX_PROFILE_LIST_ITEM_CHARS = 100
+export const MAX_TARGET_SALARY = 10_000_000
 export const OAUTH_REGISTRATIONS_PER_MINUTE = 10
 export const OAUTH_TOKEN_REQUESTS_PER_MINUTE = 30
 export const OAUTH_TOKEN_BODY_BYTES = 10_000
@@ -62,6 +75,9 @@ export const LIMITS: LimitInfo[] = [
   { name: "Snooze length", value: "1 to 365 days (snooze_follow_up)", reason: "A follow-up more than a year away is almost always a typo. Use an explicit date for a deliberate later one.", status: "kept", owner: true },
   { name: "Company research text", value: "12,000 characters returned (get_company_research)", reason: "Keeps one reply small enough for an agent to read. Longer text is cut and flagged as truncated; the full text stays in JobClock.", status: "kept", owner: true },
   { name: "Stale and activity list size", value: "50 per call (list_stale_applications, get_application_activity; deadlines and interviews list at most 50)", reason: "Keeps replies readable. Ask for fewer or narrow the question; the web app shows everything.", status: "kept", owner: true },
+  { name: "Profile and CV text returned", value: `get_cv and get_tailored_cv ${MAX_CV_CHARS.toLocaleString("en-GB")} characters; get_cover_letter ${MAX_LETTER_CHARS.toLocaleString("en-GB")}; get_story, get_interview_prep and get_interview_profile_facts ${MAX_INTERVIEW_CHARS.toLocaleString("en-GB")}`, reason: "Keeps one reply small enough for an agent to read. A typical CV is well under a quarter of this. Longer text is cut (whole entries first) and flagged truncated with total_characters; the full text stays in JobClock.", status: "kept", owner: true },
+  { name: "Profile and interview list size", value: `${MAX_PRIVATE_LIST} per call (list_stories and get_interview_profile_facts page with limit and offset; list_profile_documents shows the newest ${MAX_PRIVATE_LIST})`, reason: "Keeps replies readable and stops one call from copying your whole story bank. The reply says whether there are more.", status: "kept", owner: true },
+  { name: "Profile edit lengths", value: `Full name ${MAX_NAME_CHARS}; phone ${MAX_PHONE_CHARS}; links ${MAX_LINK_CHARS}; desired roles and locations ${MAX_PROFILE_LIST_ITEMS} each of ${MAX_PROFILE_LIST_ITEM_CHARS} characters; target salary 0 to ${MAX_TARGET_SALARY.toLocaleString("en-GB")}; CV name ${MAX_NAME_CHARS}; story title 200, each story field 5,000, 20 tags of 80; about-me label 200, detail 5,000`, reason: "The story and about-me lengths are the web interview workspace's own, so an agent cannot save what you could not; the profile ones stop a typo or a runaway edit from bloating your details (the web Account form has no length limits).", status: "kept", owner: true },
   { name: "Token expiry", value: "7 days, 30 days, 90 days, 1 year or never; you choose per token (default 90 days)", reason: "A forgotten token stops working by itself. Tokens created before this setting never expire.", status: "owner-chosen", owner: true },
   { name: "Connected app period", value: "30 days, 90 days, 1 year or until you revoke; you choose when you connect (default 30 days)", reason: "Caps how long a connected app can keep refreshing. A connection that is not used for 30 days also ends.", status: "owner-chosen", owner: true },
   { name: "Batch payload size", value: "no separate limit (was 100,000 characters)", reason: "Removed: the request size limit already bounds it, and the old figure rejected a legitimate batch of 20 long descriptions.", status: "removed", owner: true },

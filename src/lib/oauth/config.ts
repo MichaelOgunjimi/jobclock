@@ -5,7 +5,13 @@ export const MCP_RESOURCE_PATH = "/api/mcp"
 
 export const SCOPE_READ = "applications:read"
 export const SCOPE_WRITE = "applications:write"
-export const SUPPORTED_SCOPES = [SCOPE_READ, SCOPE_WRITE] as const
+/** Profile, contact details, CVs, certificates, tailored CVs and cover letters. Separate opt-in; never implied by an applications scope. */
+export const SCOPE_PROFILE_READ = "profile:read"
+/** Interview stories, "about me" facts and saved interview prep and answers. Separate opt-in. */
+export const SCOPE_INTERVIEW_READ = "interview:read"
+/** Edit profile fields and interview material. Separate opt-in; there are no delete tools under any scope. */
+export const SCOPE_PROFILE_WRITE = "profile:write"
+export const SUPPORTED_SCOPES = [SCOPE_READ, SCOPE_WRITE, SCOPE_PROFILE_READ, SCOPE_INTERVIEW_READ, SCOPE_PROFILE_WRITE] as const
 export type OAuthScope = (typeof SUPPORTED_SCOPES)[number]
 
 export const AUTHORIZATION_CODE_TTL_MS = 60_000

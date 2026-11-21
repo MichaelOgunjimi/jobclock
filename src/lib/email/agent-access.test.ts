@@ -33,6 +33,14 @@ describe("sendAgentAccessNotice", () => {
     expect(send.mock.calls[1][0].text).toContain("It stays connected until you revoke it")
   })
 
+  it("names the private scopes that were allowed, for a token and for an app", async () => {
+    await sendAgentAccessNotice("me@example.com", { kind: "token", name: "T", scopes: ["applications:read", "profile:read", "interview:read", "profile:write"], expiresAt: null })
+    const text = send.mock.calls[0][0].text
+    expect(text).toContain("read only for applications; also read your profile, contact details and CVs; read your interview stories and notes about yourself; change your profile and interview material")
+    await sendAgentAccessNotice("me@example.com", { kind: "app", name: "Claude", scopes: ["applications:read"], expiresAt: null })
+    expect(send.mock.calls[1][0].text).not.toMatch(/profile|CVs|interview/)
+  })
+
   it("escapes an app name in the HTML and keeps it on one line", async () => {
     await sendAgentAccessNotice("me@example.com", { kind: "app", name: "<script>alert(1)</script>\nEvil", scopes: ["applications:read"], expiresAt: null })
     const email = send.mock.calls[0][0]

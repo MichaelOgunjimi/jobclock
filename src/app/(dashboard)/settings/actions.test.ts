@@ -320,10 +320,24 @@ describe("settings actions", () => {
       vi.mocked(createApiToken).mockResolvedValue({ token: "jc_secret-token-value", metadata })
       const result = await createAgentToken("Laptop", "read", "90")
       expect(result).toMatchObject({ success: true, token: "jc_secret-token-value" })
-      expect(createApiToken).toHaveBeenCalledWith(mockUser.id, "Laptop", { access: "read", expiry: "90" })
+      expect(createApiToken).toHaveBeenCalledWith(mockUser.id, "Laptop", { access: "read", extraScopes: [], expiry: "90" })
       expect(sendAgentAccessNotice).toHaveBeenCalledWith(mockUser.email, { kind: "token", name: "Laptop", scopes: ["applications:read"], expiresAt: metadata.expiresAt, idempotencyKey: "agent-token/tok-1" })
       expect(JSON.stringify(vi.mocked(sendAgentAccessNotice).mock.calls)).not.toContain("jc_secret-token-value")
       expect(revalidatePath).toHaveBeenCalledWith("/settings")
+    })
+
+    it("passes the chosen private scopes through and names them in the notice", async () => {
+      const withExtras = { ...metadata, scopes: ["applications:read", "profile:read", "interview:read"] }
+      vi.mocked(createApiToken).mockResolvedValue({ token: "jc_secret-token-value", metadata: withExtras })
+      await createAgentToken("Laptop", "read", "90", ["profile:read", "interview:read"])
+      expect(createApiToken).toHaveBeenCalledWith(mockUser.id, "Laptop", { access: "read", extraScopes: ["profile:read", "interview:read"], expiry: "90" })
+      expect(sendAgentAccessNotice).toHaveBeenCalledWith(mockUser.email, expect.objectContaining({ scopes: ["applications:read", "profile:read", "interview:read"] }))
+    })
+
+    it.each([[["admin"]], [["applications:write"]], [["profile:read", "profile:read"]], [["profile:read", 5]], [["profile:read", "interview:read", "profile:write", "x"]]])("refuses the private scopes %j without creating anything", async (extras) => {
+      await expect(createAgentToken("Laptop", "read", "90", extras as never)).resolves.toEqual({ error: expect.stringContaining("private details") })
+      expect(createApiToken).not.toHaveBeenCalled()
+      expect(sendAgentAccessNotice).not.toHaveBeenCalled()
     })
 
     it("rejects an unknown access without creating anything or sending a notice", async () => {

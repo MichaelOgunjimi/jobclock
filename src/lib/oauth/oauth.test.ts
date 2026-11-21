@@ -8,7 +8,7 @@ import { db } from "@/lib/db"
 import { oauthAuthorizationCodes, oauthGrants, oauthTokens } from "@/lib/db/schema"
 import { buildClientRedirect, issueAuthorizationCode, parseAuthorizeRequest, parseConnectionDuration } from "./authorize"
 import { isAllowedRedirectUri, registerClient } from "./clients"
-import { getMcpResourceUrl, SCOPE_READ, SCOPE_WRITE } from "./config"
+import { getMcpResourceUrl, SCOPE_INTERVIEW_READ, SCOPE_PROFILE_READ, SCOPE_PROFILE_WRITE, SCOPE_READ, SCOPE_WRITE, SUPPORTED_SCOPES } from "./config"
 import { s256Challenge } from "./pkce"
 import {
   authenticateOAuthAccessToken,
@@ -48,17 +48,17 @@ function authorizeParams(clientId: string, overrides: Record<string, string> = {
 }
 
 /** The consent step as the user would complete it: validate the request, then issue a code for `userId`. */
-async function consent(userId: string, clientId: string, { write = false, scope, duration = "forever" }: { write?: boolean; scope?: string; duration?: string } = {}) {
+async function consent(userId: string, clientId: string, { write = false, scope, duration = "forever", ticked = [] }: { write?: boolean; scope?: string; duration?: string; ticked?: string[] } = {}) {
   const { params, verifier } = authorizeParams(clientId, scope === undefined ? {} : { scope })
   const parsed = await parseAuthorizeRequest((name) => params.get(name))
   if (!parsed.ok) throw new Error(JSON.stringify(parsed))
   const period = parseConnectionDuration(duration)
   if (!period.ok) throw new Error(`bad duration ${duration}`)
-  const code = await issueAuthorizationCode(userId, parsed.request, write, period.expiresAt)
+  const code = await issueAuthorizationCode(userId, parsed.request, write ? [SCOPE_WRITE, ...ticked] : ticked, period.expiresAt)
   return { code, verifier, redirectUri: parsed.request.redirectUri }
 }
 
-async function connect(userId: string, clientId: string, opts: { write?: boolean; duration?: string } = {}) {
+async function connect(userId: string, clientId: string, opts: { write?: boolean; duration?: string; ticked?: string[] } = {}) {
   const { code, verifier, redirectUri } = await consent(userId, clientId, opts)
   const result = await exchangeAuthorizationCode({ code, clientId, redirectUri, codeVerifier: verifier })
   if (!result.ok) throw new Error(result.description)
@@ -161,10 +161,13 @@ describe("authorization request", () => {
       const parsed = await parseAuthorizeRequest((name) => params.get(name))
       return parsed.ok ? parsed.request.offeredScopes : null
     }
-    expect(await offered()).toEqual([SCOPE_READ, SCOPE_WRITE])
+    expect(await offered()).toEqual([...SUPPORTED_SCOPES])
     expect(await offered(SCOPE_READ)).toEqual([SCOPE_READ])
     expect(await offered(`${SCOPE_READ} ${SCOPE_WRITE}`)).toEqual([SCOPE_READ, SCOPE_WRITE])
-    expect(await offered("admin")).toEqual([SCOPE_READ, SCOPE_WRITE])
+    expect(await offered("admin")).toEqual([...SUPPORTED_SCOPES])
+    // The private-data scopes are only offered when the client named them.
+    expect(await offered(`${SCOPE_READ} ${SCOPE_PROFILE_READ}`)).toEqual([SCOPE_READ, SCOPE_PROFILE_READ])
+    expect(await offered(SCOPE_INTERVIEW_READ)).toEqual([SCOPE_READ, SCOPE_INTERVIEW_READ])
   })
 
   it("builds the client redirect with code, state and iss", () => {
@@ -184,6 +187,40 @@ describe("authorization request", () => {
     const { code, verifier, redirectUri } = await consent(USER_A, client.client_id, { write: true, scope: SCOPE_READ })
     const result = await exchangeAuthorizationCode({ code, clientId: client.client_id, redirectUri, codeVerifier: verifier })
     expect(result).toMatchObject({ ok: true, body: { scope: SCOPE_READ } })
+  })
+})
+
+describe("private-data scopes in a grant", () => {
+  it("are granted only when ticked, in a fixed order after the applications scopes", async () => {
+    const client = await register()
+    expect((await connect(USER_A, client.client_id, { ticked: [SCOPE_PROFILE_WRITE, SCOPE_PROFILE_READ] })).scope).toBe(`${SCOPE_READ} ${SCOPE_PROFILE_READ} ${SCOPE_PROFILE_WRITE}`)
+    expect((await connect(USER_A, client.client_id, { write: true, ticked: [SCOPE_INTERVIEW_READ] })).scope).toBe(`${SCOPE_READ} ${SCOPE_WRITE} ${SCOPE_INTERVIEW_READ}`)
+    expect((await connect(USER_A, client.client_id)).scope).toBe(SCOPE_READ)
+  })
+
+  it("a ticked scope the client did not ask for is ignored", async () => {
+    const client = await register()
+    const { code, verifier, redirectUri } = await consent(USER_A, client.client_id, { scope: SCOPE_READ, ticked: [SCOPE_PROFILE_READ, SCOPE_PROFILE_WRITE] })
+    expect(await exchangeAuthorizationCode({ code, clientId: client.client_id, redirectUri, codeVerifier: verifier })).toMatchObject({ ok: true, body: { scope: SCOPE_READ } })
+  })
+
+  it("the access token carries them, a refresh keeps exactly them, and Settings lists them", async () => {
+    const client = await register()
+    const tokens = await connect(USER_A, client.client_id, { ticked: [SCOPE_PROFILE_READ] })
+    expect(await authenticateOAuthAccessToken(tokens.access_token)).toMatchObject({ userId: USER_A, scopes: [SCOPE_READ, SCOPE_PROFILE_READ] })
+    const refreshed = await refreshAccessToken({ refreshToken: tokens.refresh_token, clientId: client.client_id })
+    expect(refreshed).toMatchObject({ ok: true, body: { scope: `${SCOPE_READ} ${SCOPE_PROFILE_READ}` } })
+    expect((await listConnectedApps(USER_A))[0].scopes).toEqual([SCOPE_READ, SCOPE_PROFILE_READ])
+  })
+
+  it("connecting again replaces the connection with the new choice, so private scopes are never added to an old one", async () => {
+    const client = await register()
+    const first = await connect(USER_A, client.client_id)
+    expect(await authenticateOAuthAccessToken(first.access_token)).toMatchObject({ scopes: [SCOPE_READ] })
+    await connect(USER_A, client.client_id, { ticked: [SCOPE_PROFILE_READ] })
+    // The first connection's own scopes never changed; it was replaced, not widened.
+    expect((await db.select().from(oauthGrants)).filter((grant) => !grant.revokedAt).map((grant) => grant.scopes)).toEqual([[SCOPE_READ, SCOPE_PROFILE_READ]])
+    expect(await authenticateOAuthAccessToken(first.access_token)).toBeNull()
   })
 })
 

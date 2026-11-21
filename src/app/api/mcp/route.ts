@@ -3,7 +3,7 @@ import { runAsConnection, type McpConnection } from "@/lib/mcp/connection-contex
 import { limitMessage, MCP_AUTH_FAILURES_PER_MINUTE, MCP_MAX_BODY_BYTES, MCP_REQUESTS_PER_MINUTE } from "@/lib/mcp/limits"
 import { createMcpServer } from "@/lib/mcp/server"
 import { authenticateApiToken } from "@/lib/mcp/tokens"
-import { ACCESS_TOKEN_PREFIX, getMcpResourceUrl, getProtectedResourceMetadataUrl, SCOPE_READ, SCOPE_WRITE } from "@/lib/oauth/config"
+import { ACCESS_TOKEN_PREFIX, getMcpResourceUrl, getProtectedResourceMetadataUrl, SUPPORTED_SCOPES } from "@/lib/oauth/config"
 import { authenticateOAuthAccessToken } from "@/lib/oauth/tokens"
 import { mcpAuthFailureLimit, mcpRateLimit } from "@/lib/rate-limit"
 
@@ -43,7 +43,7 @@ async function authenticate(bearer: string): Promise<Auth | Failure> {
 /** RFC 9728: points OAuth clients at the protected resource metadata. Without a credential there is no `error`; with a bad one it is invalid_token. */
 function challenge(hadCredential: boolean, description?: string) {
   const error = hadCredential ? `, error="invalid_token"${description ? `, error_description="${description.replace(/"/g, "'")}"` : ""}` : ""
-  return `Bearer realm="jobclock"${error}, resource_metadata="${getProtectedResourceMetadataUrl()}", scope="${SCOPE_READ} ${SCOPE_WRITE}"`
+  return `Bearer realm="jobclock"${error}, resource_metadata="${getProtectedResourceMetadataUrl()}", scope="${SUPPORTED_SCOPES.join(" ")}"`
 }
 
 /** The owner's AI agent: a stateless MCP server over Streamable HTTP, authenticated by a `jc_` token or an OAuth access token. */

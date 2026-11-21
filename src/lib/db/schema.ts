@@ -488,6 +488,23 @@ export const applicationAuditEvents = pgTable(
   ],
 )
 
+// Changes an AI agent made to the owner's profile, CVs and interview material through MCP (profile:write). The app
+// has no other profile-level audit trail. Metadata holds field names, ids and lengths, never the text itself, so this
+// table never becomes a second copy of the owner's private data. RLS on, no policies: server-side connection only.
+export const profileAuditEvents = pgTable(
+  "profile_audit_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references((): AnyPgColumn => profiles.id, { onDelete: "cascade" }),
+    eventType: text("event_type").notNull(),
+    metadata: jsonb("metadata").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("profile_audit_events_user_created_idx").on(table.userId, table.createdAt)],
+)
+
 // ============================================================
 // COVER LETTERS
 // ============================================================
