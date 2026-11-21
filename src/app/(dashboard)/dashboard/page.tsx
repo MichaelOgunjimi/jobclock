@@ -40,7 +40,8 @@ export default async function DashboardPage() {
     supabase
       .from("applications")
       .select("status")
-      .eq("user_id", user.id),
+      .eq("user_id", user.id)
+      .is("archived_at", null),
     supabase
       .from("applications")
       .select(`
@@ -56,6 +57,7 @@ export default async function DashboardPage() {
         )
       `)
       .eq("user_id", user.id)
+      .is("archived_at", null)
       .order("created_at", { ascending: false })
       .limit(5),
   ])

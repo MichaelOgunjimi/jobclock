@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useEffect, useRef } from "react"
 import type { ChangeEvent } from "react"
-import { Search } from "lucide-react"
+import { Archive, Search, X } from "lucide-react"
 import { SelectInput } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
@@ -40,9 +40,12 @@ interface Props {
   activeStatus: string
   activeSort: string
   activeSearch: string
+  archivedCount?: number
+  showArchived?: boolean
+  activeTag?: string
 }
 
-export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort, activeSearch }: Props) {
+export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort, activeSearch, archivedCount = 0, showArchived = false, activeTag = "" }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -71,9 +74,11 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
         status: activeStatus,
         sort: activeSort,
         q: activeSearch,
+        archived: showArchived ? "1" : undefined,
+        tag: activeTag,
       })
     )
-  }, [activeSearch, activeSort, activeStatus, searchParams])
+  }, [activeSearch, activeSort, activeStatus, activeTag, searchParams, showArchived])
 
   // Sync external URL changes, but never let an older search response replace
   // text the user has typed while that navigation was in flight.
@@ -140,6 +145,22 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
         />
       </div>
 
+      {activeTag && (
+        <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+          Tag
+          <Link
+            href={buildUrl({ tag: null })}
+            scroll={false}
+            onClick={() => persistFilterHref(buildUrl({ tag: null }))}
+            aria-label={`Clear tag filter ${activeTag}`}
+            className="inline-flex items-center gap-1.5 border border-foreground/30 bg-foreground/8 px-2.5 py-1 font-medium text-foreground"
+          >
+            {activeTag}
+            <X className="size-3" />
+          </Link>
+        </div>
+      )}
+
       {/* Status pills + sort */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Status pills */}
@@ -169,6 +190,27 @@ export function ApplicationsFilterBar({ counts, total, activeStatus, activeSort,
               </Link>
             )
           })}
+          {(() => {
+            const href = buildUrl({ archived: showArchived ? null : "1", status: null })
+            return (
+              <Link
+                href={href}
+                scroll={false}
+                onClick={() => persistFilterHref(href)}
+                aria-current={showArchived ? "page" : undefined}
+                className={cn(
+                  "inline-flex items-center gap-1.5 border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.10em] transition-colors",
+                  showArchived
+                    ? "border-foreground/30 bg-foreground/8 text-foreground"
+                    : "border-dashed border-border bg-background text-muted-foreground hover:border-foreground/20 hover:text-foreground"
+                )}
+              >
+                <Archive className="size-3" />
+                Archived
+                <span className={cn("ml-0.5 tabular-nums", showArchived ? "text-foreground/70" : "text-muted-foreground/70")}>{archivedCount}</span>
+              </Link>
+            )
+          })()}
         </div>
 
         {/* Sort dropdown */}
@@ -196,6 +238,8 @@ function persistFilterHref(href: string) {
       status: params.get("status") ?? "all",
       sort: params.get("sort") ?? "saved_desc",
       q: params.get("q") ?? "",
+      archived: params.get("archived") ?? undefined,
+      tag: params.get("tag") ?? undefined,
     })
   )
 }

@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, isNull } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { applicationStatusEvents, applications, jobsCache, profiles } from "@/lib/db/schema"
 import { enqueueGeneration } from "@/lib/generation/enqueue"
@@ -122,7 +122,7 @@ export async function listRecentApplicationsForUser(
     })
     .from(applications)
     .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
-    .where(eq(applications.userId, userId))
+    .where(and(eq(applications.userId, userId), isNull(applications.archivedAt)))
     .orderBy(desc(applications.createdAt))
     .limit(limit)
 

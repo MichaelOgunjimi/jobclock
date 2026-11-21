@@ -1,4 +1,4 @@
-import { count, eq, sql } from "drizzle-orm"
+import { and, count, eq, isNull, sql } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { applications } from "@/lib/db/schema"
 import { summarizeStats } from "@/lib/applications/stats-summary"
@@ -52,7 +52,7 @@ export async function getApplicationStats(userId: string): Promise<ApplicationSt
     db
       .select({ status: applications.status, total: count() })
       .from(applications)
-      .where(eq(applications.userId, userId))
+      .where(and(eq(applications.userId, userId), isNull(applications.archivedAt)))
       .groupBy(applications.status),
     db
       .select({
@@ -60,7 +60,7 @@ export async function getApplicationStats(userId: string): Promise<ApplicationSt
         applied: sql<number>`count(*) filter (where ${applications.appliedAt} >= ${weekAgo}::timestamptz)`.mapWith(Number),
       })
       .from(applications)
-      .where(eq(applications.userId, userId)),
+      .where(and(eq(applications.userId, userId), isNull(applications.archivedAt))),
   ])
 
   return {

@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, gte, inArray, isNotNull, lt, lte } from "drizzle-orm"
+import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { applications, emailPreferences, jobsCache } from "@/lib/db/schema"
 import { DEADLINE_WINDOW_DAYS, STALE_AFTER_DAYS, STALE_STATUSES } from "@/lib/applications/attention"
@@ -81,7 +81,7 @@ export async function sendFollowUpReminders(now = new Date()): Promise<JobRunRes
     .from(applications)
     .innerJoin(emailPreferences, and(eq(emailPreferences.userId, applications.userId), eq(emailPreferences.followUpReminders, true)))
     .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
-    .where(and(isNotNull(applications.followUpDueAt), lte(applications.followUpDueAt, now), inArray(applications.status, [...FOLLOW_UP_STATUSES])))
+    .where(and(isNull(applications.archivedAt), isNotNull(applications.followUpDueAt), lte(applications.followUpDueAt, now), inArray(applications.status, [...FOLLOW_UP_STATUSES])))
     .orderBy(asc(applications.followUpDueAt))
 
   return eachUser(byUser(rows), "follow-ups", (userId, userRows) => {
@@ -114,7 +114,7 @@ export async function sendDeadlineReminders(now = new Date()): Promise<JobRunRes
     .from(applications)
     .innerJoin(emailPreferences, and(eq(emailPreferences.userId, applications.userId), eq(emailPreferences.deadlineReminders, true)))
     .innerJoin(jobsCache, eq(applications.jobId, jobsCache.id))
-    .where(and(eq(applications.status, "saved"), gt(jobsCache.applyDeadline, today), lte(jobsCache.applyDeadline, dayKey(new Date(now.getTime() + DEADLINE_WINDOW_DAYS * DAY_MS)))))
+    .where(and(isNull(applications.archivedAt), eq(applications.status, "saved"), gt(jobsCache.applyDeadline, today), lte(jobsCache.applyDeadline, dayKey(new Date(now.getTime() + DEADLINE_WINDOW_DAYS * DAY_MS)))))
     .orderBy(asc(jobsCache.applyDeadline))
 
   return eachUser(byUser(rows), "deadlines", async (userId, userRows) => {
@@ -152,7 +152,7 @@ export async function sendInterviewReminders(now = new Date()): Promise<JobRunRe
     .from(applications)
     .innerJoin(emailPreferences, and(eq(emailPreferences.userId, applications.userId), eq(emailPreferences.interviewReminders, true)))
     .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
-    .where(and(gte(applications.interviewAt, tomorrow), lt(applications.interviewAt, dayAfter), inArray(applications.status, [...FOLLOW_UP_STATUSES])))
+    .where(and(isNull(applications.archivedAt), gte(applications.interviewAt, tomorrow), lt(applications.interviewAt, dayAfter), inArray(applications.status, [...FOLLOW_UP_STATUSES])))
     .orderBy(asc(applications.interviewAt))
 
   return eachUser(byUser(rows), "interviews", async (userId, userRows) => {
@@ -188,7 +188,7 @@ export async function sendStaleApplicationNudges(now = new Date()): Promise<JobR
     .from(applications)
     .innerJoin(emailPreferences, and(eq(emailPreferences.userId, applications.userId), eq(emailPreferences.staleApplicationNudges, true)))
     .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
-    .where(and(inArray(applications.status, [...STALE_STATUSES]), lte(applications.lastStatusUpdate, new Date(now.getTime() - STALE_AFTER_DAYS * DAY_MS))))
+    .where(and(isNull(applications.archivedAt), inArray(applications.status, [...STALE_STATUSES]), lte(applications.lastStatusUpdate, new Date(now.getTime() - STALE_AFTER_DAYS * DAY_MS))))
     .orderBy(asc(applications.lastStatusUpdate))
 
   return eachUser(byUser(rows), "stale-applications", (userId, userRows) => {

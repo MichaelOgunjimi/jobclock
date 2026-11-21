@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNotNull, lte } from "drizzle-orm"
+import { and, asc, eq, inArray, isNotNull, isNull, lte } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { applications, jobsCache } from "@/lib/db/schema"
 import { escapeHtml } from "./client"
@@ -48,6 +48,7 @@ async function listOverdueFollowUps(userId: string): Promise<FollowUpItem[]> {
     .where(
       and(
         eq(applications.userId, userId),
+        isNull(applications.archivedAt),
         isNotNull(applications.followUpDueAt),
         lte(applications.followUpDueAt, new Date()),
         inArray(applications.status, [...FOLLOW_UP_STATUSES])

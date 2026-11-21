@@ -10,14 +10,17 @@ import {
   Search,
   CalendarDays,
   MapPin,
+  ArchiveRestore,
   Plus,
   Wallet,
 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-styles"
 import type { ApplicationStatus, Database } from "@/lib/supabase/database.types"
 import { updateApplicationStatusForUser } from "@/lib/jobs/persist-job"
+import { restoreApplicationForUser } from "@/lib/applications/manage"
 import { ApplicationsFilterBar } from "./applications-filter-bar"
 import { ApplicationStatusForm } from "./application-status-form"
 import { APPLICATION_STATUS_OPTIONS } from "./pipeline-metrics"
@@ -43,7 +46,7 @@ const APPLICATIONS_PER_PAGE = 8
 export default async function ApplicationsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ page?: string; status?: string; sort?: string; q?: string }>
+  searchParams?: Promise<{ page?: string; status?: string; sort?: string; q?: string; archived?: string; tag?: string }>
 }) {
   if (!isSupabaseConfigured()) {
     redirect("/auth")
@@ -67,6 +70,10 @@ export default async function ApplicationsPage({
 
   // Search param
   const activeSearch = (resolvedSearchParams?.q ?? "").trim().slice(0, 100)
+
+  // Archived view and tag filter
+  const showArchived = resolvedSearchParams?.archived === "1"
+  const activeTag = (resolvedSearchParams?.tag ?? "").trim().slice(0, 30)
 
   const rangeStart = (currentPage - 1) * APPLICATIONS_PER_PAGE
   const rangeEnd = rangeStart + APPLICATIONS_PER_PAGE - 1
@@ -106,6 +113,10 @@ export default async function ApplicationsPage({
       )
     `, { count: "exact" })
     .eq("user_id", user.id)
+
+  // Archived applications only show in the Archived view
+  query = showArchived ? query.not("archived_at", "is", null) : query.is("archived_at", null)
+  if (activeTag) query = query.contains("tags", [activeTag])
 
   // Apply status filter
   if (activeStatus !== "all") {
@@ -156,7 +167,7 @@ export default async function ApplicationsPage({
     query.range(rangeStart, rangeEnd),
     supabase
       .from("applications")
-      .select("status")
+      .select("status, archived_at")
       .eq("user_id", user.id),
   ])
 
@@ -176,11 +187,14 @@ export default async function ApplicationsPage({
   const safeCurrentPage = Math.min(currentPage, totalPages)
 
   if ((totalApplications ?? 0) > 0 && currentPage !== safeCurrentPage) {
-    redirect(buildApplicationsPageHref(safeCurrentPage, activeStatus, activeSort, activeSearch))
+    redirect(buildApplicationsPageHref(safeCurrentPage, activeStatus, activeSort, activeSearch, showArchived, activeTag))
   }
 
   const statusOptions = APPLICATION_STATUS_OPTIONS
-  const statusCounts = (applicationStatuses ?? []).reduce(
+  const allStatuses = applicationStatuses ?? []
+  const archivedCount = allStatuses.filter((app) => app.archived_at).length
+  const viewStatuses = allStatuses.filter((app) => !!app.archived_at === showArchived)
+  const statusCounts = viewStatuses.reduce(
     (acc, app) => {
       acc[app.status] = (acc[app.status] ?? 0) + 1
       return acc
@@ -206,7 +220,7 @@ export default async function ApplicationsPage({
         </Link>
       </div>
 
-      {(applicationStatuses ?? []).length === 0 ? (
+      {allStatuses.length === 0 ? (
         <Card>
           <CardContent className="py-14 text-center text-muted-foreground">
             <Briefcase className="mx-auto mb-4 h-10 w-10" />
@@ -221,7 +235,10 @@ export default async function ApplicationsPage({
         <div className="space-y-4">
           <ApplicationsFilterBar
             counts={statusCounts}
-            total={(applicationStatuses ?? []).length}
+            total={viewStatuses.length}
+            archivedCount={archivedCount}
+            showArchived={showArchived}
+            activeTag={activeTag}
             activeStatus={activeStatus}
             activeSort={activeSort}
             activeSearch={activeSearch}
@@ -231,7 +248,7 @@ export default async function ApplicationsPage({
               <CardContent className="py-12 text-center text-muted-foreground">
                 <Search className="mx-auto mb-3 h-8 w-8" />
                 <p className="font-medium text-foreground">No results</p>
-                <p className="mt-1 text-sm">No applications match your search or filter.</p>
+                <p className="mt-1 text-sm">{showArchived ? "No archived applications match." : "No applications match your search or filter."}</p>
               </CardContent>
             </Card>
           ) : (
@@ -246,7 +263,7 @@ export default async function ApplicationsPage({
               <span className="font-medium text-foreground">
                 {(totalApplications ?? applications.length).toLocaleString()}
               </span>{" "}
-              {activeStatus !== "all" ? `${activeStatus} ` : ""}applications
+              {activeStatus !== "all" ? `${activeStatus} ` : ""}{showArchived ? "archived " : ""}applications
             </p>
             <p>
               Page{" "}
@@ -350,12 +367,14 @@ export default async function ApplicationsPage({
                       {Array.isArray(app.tags) && app.tags.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
                           {app.tags.slice(0, 4).map((tag) => (
-                            <span
+                            <Link
                               key={tag}
-                              className="border border-border bg-background px-3 py-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground"
+                              href={buildApplicationsPageHref(1, activeStatus, activeSort, activeSearch, showArchived, tag)}
+                              aria-label={`Show applications tagged ${tag}`}
+                              className="pointer-events-auto relative z-20 border border-border bg-background px-3 py-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground hover:border-foreground/30 hover:text-foreground"
                             >
                               {tag}
-                            </span>
+                            </Link>
                           ))}
                         </div>
                       ) : (
@@ -383,12 +402,23 @@ export default async function ApplicationsPage({
                   </div>
 
                   <div className="pointer-events-auto relative z-20 border-t border-border bg-secondary/35 px-5 py-5 sm:px-7">
-                    <ApplicationStatusForm
-                      applicationId={app.id}
-                      currentStatus={app.status}
-                      statusOptions={availableStatusOptions}
-                      action={updateApplicationStatus}
-                    />
+                    {showArchived ? (
+                      <form action={restoreApplicationAction} className="flex items-center justify-between gap-3">
+                        <input type="hidden" name="applicationId" value={app.id} />
+                        <p className="text-sm text-muted-foreground">Archived: no reminders are sent.</p>
+                        <Button type="submit" size="sm">
+                          <ArchiveRestore className="h-3.5 w-3.5" />
+                          Restore
+                        </Button>
+                      </form>
+                    ) : (
+                      <ApplicationStatusForm
+                        applicationId={app.id}
+                        currentStatus={app.status}
+                        statusOptions={availableStatusOptions}
+                        action={updateApplicationStatus}
+                      />
+                    )}
                   </div>
                 </div>
               </Card>
@@ -405,7 +435,7 @@ export default async function ApplicationsPage({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Link
-                  href={buildApplicationsPageHref(Math.max(1, safeCurrentPage - 1), activeStatus, activeSort, activeSearch)}
+                  href={buildApplicationsPageHref(Math.max(1, safeCurrentPage - 1), activeStatus, activeSort, activeSearch, showArchived, activeTag)}
                   aria-disabled={safeCurrentPage === 1}
                   className={cn(
                     buttonVariants({ variant: "outline", size: "sm" }),
@@ -425,7 +455,7 @@ export default async function ApplicationsPage({
                   ) : (
                     <Link
                       key={entry}
-                      href={buildApplicationsPageHref(entry, activeStatus, activeSort, activeSearch)}
+                      href={buildApplicationsPageHref(entry, activeStatus, activeSort, activeSearch, showArchived, activeTag)}
                       className={cn(
                         buttonVariants({
                           variant: entry === safeCurrentPage ? "default" : "outline",
@@ -439,7 +469,7 @@ export default async function ApplicationsPage({
                   )
                 )}
                 <Link
-                  href={buildApplicationsPageHref(Math.min(totalPages, safeCurrentPage + 1), activeStatus, activeSort, activeSearch)}
+                  href={buildApplicationsPageHref(Math.min(totalPages, safeCurrentPage + 1), activeStatus, activeSort, activeSearch, showArchived, activeTag)}
                   aria-disabled={safeCurrentPage === totalPages}
                   className={cn(
                     buttonVariants({ variant: "outline", size: "sm" }),
@@ -459,12 +489,14 @@ export default async function ApplicationsPage({
   )
 }
 
-function buildApplicationsPageHref(page: number, status?: string, sort?: string, q?: string) {
+function buildApplicationsPageHref(page: number, status?: string, sort?: string, q?: string, archived?: boolean, tag?: string) {
   const params = new URLSearchParams()
   if (page > 1) params.set("page", String(page))
   if (status && status !== "all") params.set("status", status)
   if (sort && sort !== "saved_desc") params.set("sort", sort)
   if (q) params.set("q", q)
+  if (archived) params.set("archived", "1")
+  if (tag) params.set("tag", tag)
   const qs = params.toString()
   return qs ? `/applications?${qs}` : "/applications"
 }
@@ -505,6 +537,25 @@ async function updateApplicationStatus(formData: FormData) {
   }
 
   await updateApplicationStatusForUser(user.id, applicationId, status)
+
+  revalidatePath("/applications")
+  revalidatePath(`/applications/${applicationId}`)
+  revalidatePath("/dashboard")
+}
+
+async function restoreApplicationAction(formData: FormData) {
+  "use server"
+
+  if (!isSupabaseConfigured()) return
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const applicationId = formData.get("applicationId")
+  if (typeof applicationId !== "string" || !applicationId) return
+
+  await restoreApplicationForUser(user.id, applicationId)
 
   revalidatePath("/applications")
   revalidatePath(`/applications/${applicationId}`)

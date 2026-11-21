@@ -29,6 +29,11 @@ const EVENT_LABELS: Record<string, string> = {
   "application.interview_answer_generated": "Interview answer generated",
   "application.interview_answer_saved": "Interview answer saved",
   "application.deleted": "Application deleted",
+  "application.archived": "Application archived",
+  "application.restored": "Application restored",
+  "application.tags_updated": "Tags updated",
+  "application.source_updated": "Source updated",
+  "application.applied_at_updated": "Applied date updated",
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -60,6 +65,9 @@ function changeDetail(metadata: unknown) {
     followUpDueAt: "date",
     followUpNotes: "notes",
     interviewAt: "date",
+    tags: "tags",
+    source: "source",
+    appliedAt: "applied date",
   }
   const fields = Object.keys(metadata.changes).map((field) => labels[field] ?? field)
   return fields.length ? fields.join(", ") : null
