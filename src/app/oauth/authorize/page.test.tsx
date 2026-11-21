@@ -197,3 +197,73 @@ describe("consent decision", () => {
     expect(await db.select().from(oauthAuthorizationCodes)).toHaveLength(0)
   })
 })
+
+describe("private details on the consent page", () => {
+  const PRIVATE_NAMES = ["profile:read", "interview:read", "profile:write"]
+  const verifier = randomBytes(32).toString("base64url")
+  const boxes = () => screen.getAllByRole("checkbox").map((box) => box.getAttribute("name"))
+
+  it("shows each private scope as its own unticked option in plain words when the client named no scope", async () => {
+    currentUser.id = USER
+    render(await AuthorizePage({ searchParams: Promise.resolve(await params()) }))
+    expect(boxes()).toEqual(["write", ...PRIVATE_NAMES])
+    for (const box of screen.getAllByRole("checkbox")) expect(box).not.toBeChecked()
+    expect(document.body.textContent).toContain("Your name, phone, links and the full text of your CVs")
+    expect(document.body.textContent).toContain("Your interview stories and notes about yourself")
+    expect(document.body.textContent).toContain("Change your profile details, CV names and primary CV")
+    expect(document.body.textContent).toContain("Private details (all off unless you tick them)")
+    // Read-only applications access stays the one thing always on.
+    expect(screen.getByText("Read your applications")).toBeInTheDocument()
+  })
+
+  it("offers only the private scopes the client asked for", async () => {
+    currentUser.id = USER
+    render(await AuthorizePage({ searchParams: Promise.resolve(await params({ scope: "applications:read interview:read" })) }))
+    expect(boxes()).toEqual(["interview:read"])
+  })
+
+  it("offers none when the client asked only for the applications scopes", async () => {
+    currentUser.id = USER
+    render(await AuthorizePage({ searchParams: Promise.resolve(await params({ scope: "applications:read applications:write" })) }))
+    expect(boxes()).toEqual(["write"])
+    expect(document.body.textContent).not.toContain("Private details")
+  })
+
+  async function decide(scope: string | undefined, ticked: string[]) {
+    currentUser.id = USER
+    const query = await params({ code_challenge: s256Challenge(verifier), ...(scope ? { scope } : {}) })
+    const form = new FormData()
+    for (const [name, value] of Object.entries(query)) form.set(name, value)
+    form.set("decision", "allow")
+    for (const name of ticked) form.set(name, "on")
+    const url = new URL((await redirectTarget(decideConsent(form)))!)
+    const result = await exchangeAuthorizationCode({ code: url.searchParams.get("code")!, clientId: query.client_id, redirectUri: query.redirect_uri, codeVerifier: verifier })
+    if (!result.ok) throw new Error(result.description)
+    return result.body.scope.split(" ")
+  }
+
+  it("grants nothing private unless ticked", async () => {
+    expect(await decide(undefined, [])).toEqual(["applications:read"])
+  })
+
+  it("grants exactly the ticked private scopes, separately from the applications ones", async () => {
+    expect(await decide(undefined, ["profile:read"])).toEqual(["applications:read", "profile:read"])
+    expect(await decide(undefined, ["interview:read", "profile:write"])).toEqual(["applications:read", "interview:read", "profile:write"])
+    expect(await decide(undefined, ["write", "profile:read", "interview:read", "profile:write"])).toEqual(["applications:read", "applications:write", "profile:read", "interview:read", "profile:write"])
+  })
+
+  it("never grants a private scope the client did not ask for, even if the form says so", async () => {
+    expect(await decide("applications:read", PRIVATE_NAMES)).toEqual(["applications:read"])
+    expect(await decide("applications:read profile:read", PRIVATE_NAMES)).toEqual(["applications:read", "profile:read"])
+  })
+
+  it("ignores made-up form fields", async () => {
+    expect(await decide(undefined, ["profile", "private", "profile:everything", "read"])).toEqual(["applications:read"])
+  })
+
+  it("the notice email names the private scopes that were granted, and only those", async () => {
+    sendNotice.mockReset()
+    await decide(undefined, ["profile:read"])
+    expect(sendNotice.mock.calls[0][1]).toMatchObject({ kind: "app", scopes: ["applications:read", "profile:read"] })
+  })
+})

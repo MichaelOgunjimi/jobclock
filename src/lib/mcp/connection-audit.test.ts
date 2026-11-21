@@ -41,14 +41,31 @@ describe("listConnectionActivity", () => {
   const event = (id: string, connectionId: string, eventType: string, at: string, extra: Record<string, unknown> = {}, slug: string | null = "acme-eng") =>
     row(["id", "eventType", "metadata", "createdAt", "slug", "customTitle", "jobTitle"], { id, eventType, metadata: { source: "mcp", connectionId, ...extra }, createdAt: new Date(at), slug, jobTitle: slug ? "Engineer" : null })
 
+  /** The same rows answer the application query only; profile events are a separate table. */
+  const applicationEvents = (rows: unknown[][]) => ({ sql }: { sql: string }) => (/from "application_audit_events"/.test(sql) ? rows : [])
+
   beforeEach(() => resetFakeDb())
 
+  it("lists profile and interview edits next to application changes, naming the tool and never any text", async () => {
+    resetFakeDb(({ sql }) =>
+      /from "profile_audit_events"/.test(sql)
+        ? [row(["id", "eventType", "metadata", "createdAt"], { id: "p1", eventType: "interview.story_updated", metadata: { source: "mcp", connectionId: "tok-1", fields: ["action"], lengths: { action: 120 } }, createdAt: new Date("2026-11-20T13:00:00Z") })]
+        : /from "application_audit_events"/.test(sql)
+          ? [event("e1", "tok-1", "application.created", "2026-11-20T10:00:00Z")]
+          : [],
+    )
+    const items = (await listConnectionActivity(USER))["tok-1"]
+    expect(items.map((item) => item.tool)).toEqual(["update_story", "add_application"])
+    expect(items[0]).toMatchObject({ applicationSlug: null, applicationTitle: "Profile and interview material" })
+    expect(JSON.stringify(items)).not.toContain("120")
+  })
+
   it("groups by connection, newest first, naming the tool, the application and the status change", async () => {
-    resetFakeDb(() => [
+    resetFakeDb(applicationEvents([
       event("e3", "tok-1", "application.status_changed", "2026-11-20T12:00:00Z", { fromStatus: "saved", toStatus: "applied" }),
       event("e2", "grant-1", "application.notes_updated", "2026-11-20T11:00:00Z"),
       event("e1", "tok-1", "application.created", "2026-11-20T10:00:00Z"),
-    ])
+    ]))
     const activity = await listConnectionActivity(USER)
     expect(Object.keys(activity).sort()).toEqual(["grant-1", "tok-1"])
     expect(activity["tok-1"].map((item) => item.tool)).toEqual(["update_application_status", "add_application"])
@@ -57,18 +74,19 @@ describe("listConnectionActivity", () => {
   })
 
   it("keeps only the last N per connection", async () => {
-    resetFakeDb(() => Array.from({ length: 15 }, (_, i) => event(`e${i}`, "tok-1", "application.notes_updated", `2026-11-20T${String(23 - i).padStart(2, "0")}:00:00Z`)))
+    resetFakeDb(applicationEvents(Array.from({ length: 15 }, (_, i) => event(`e${i}`, "tok-1", "application.notes_updated", `2026-11-20T${String(23 - i).padStart(2, "0")}:00:00Z`))))
     expect((await listConnectionActivity(USER, 10))["tok-1"]).toHaveLength(10)
   })
 
   it("shows a removed application as such rather than failing", async () => {
-    resetFakeDb(() => [event("e1", "tok-1", "application.created", "2026-11-20T10:00:00Z", {}, null)])
+    resetFakeDb(applicationEvents([event("e1", "tok-1", "application.created", "2026-11-20T10:00:00Z", {}, null)]))
     expect((await listConnectionActivity(USER))["tok-1"][0]).toMatchObject({ applicationSlug: null, applicationTitle: null })
   })
 
   it("only ever reads the signed-in owner's events", async () => {
     await listConnectionActivity(USER)
     expectAllQueriesScopedTo(USER)
-    expect(recorded[0].sql).toContain("'connectionId'")
+    expect(recorded.map((query) => query.sql).every((sql) => sql.includes("'connectionId'"))).toBe(true)
+    expect(recorded.some((query) => query.sql.includes('"profile_audit_events"'))).toBe(true)
   })
 })

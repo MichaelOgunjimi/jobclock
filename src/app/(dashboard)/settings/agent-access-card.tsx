@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import { createAgentToken, revokeAgentToken } from "./actions"
 import { DailyLimitEditor, formatDate, RecentActivity } from "./connection-details"
-import { DEFAULT_TOKEN_ACCESS, DEFAULT_TOKEN_EXPIRY, describeExpiry, scopeLabel, TOKEN_EXPIRY_OPTIONS, type TokenAccess } from "@/lib/mcp/access-policy"
+import { DEFAULT_TOKEN_ACCESS, DEFAULT_TOKEN_EXPIRY, describeExpiry, EXTRA_SCOPE_OPTIONS, extraScopeOptions, scopeLabel, TOKEN_EXPIRY_OPTIONS, type ExtraScope, type TokenAccess } from "@/lib/mcp/access-policy"
 import type { ConnectionActivityItem } from "@/lib/mcp/activity"
 import type { ApiTokenMetadata } from "@/lib/mcp/tokens"
 
@@ -25,13 +25,14 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl, activity }: { t
   const [label, setLabel] = useState("")
   const [access, setAccess] = useState<TokenAccess>(DEFAULT_TOKEN_ACCESS)
   const [expiry, setExpiry] = useState(DEFAULT_TOKEN_EXPIRY)
+  const [extras, setExtras] = useState<ExtraScope[]>([])
   const [rawToken, setRawToken] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function handleCreate(event: React.FormEvent) {
     event.preventDefault()
     startTransition(async () => {
-      const result = await createAgentToken(label, access, expiry)
+      const result = await createAgentToken(label, access, expiry, extras)
       if ("error" in result) {
         toast.error(result.error)
         return
@@ -39,6 +40,7 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl, activity }: { t
       setRawToken(result.token)
       setTokens((current) => [result.metadata, ...current])
       setLabel("")
+      setExtras([])
       toast.success("Token created. A notice was emailed to you.")
     })
   }
@@ -89,6 +91,25 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl, activity }: { t
             <Label htmlFor="agent-token-expiry">Expires</Label>
             <SelectInput id="agent-token-expiry" options={TOKEN_EXPIRY_OPTIONS.map(({ value, label }) => ({ value, label }))} value={expiry} onValueChange={setExpiry} className="w-44" />
           </div>
+          <fieldset className="w-full space-y-2">
+            <legend className="text-sm font-medium text-foreground">Private details (all off unless you tick them)</legend>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {EXTRA_SCOPE_OPTIONS.map((option) => (
+                <label key={option.scope} className="flex cursor-pointer gap-3 border p-3 has-[:checked]:border-foreground">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-5 shrink-0 accent-foreground"
+                    checked={extras.includes(option.scope)}
+                    onChange={(event) => setExtras((current) => (event.target.checked ? [...current, option.scope] : current.filter((scope) => scope !== option.scope)))}
+                  />
+                  <span className="space-y-1">
+                    <span className="block text-sm text-foreground">{option.label}</span>
+                    <span className="block text-xs text-muted-foreground">{option.description}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <Button type="submit" disabled={isPending || !label.trim()}>
             {isPending ? "Working…" : "Create token"}
           </Button>
@@ -97,6 +118,7 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl, activity }: { t
           {access === "read"
             ? "Read only: the agent can list and view applications, check for duplicates and read your job preferences."
             : "Read + changes: the agent can also change status, set follow-ups and interview times, add notes and add new saved jobs."}
+          {extras.length > 0 ? " This token will also be able to use the private details you ticked." : ""}
           {" "}We email you when a token is created. The token itself is never emailed.
         </p>
 
@@ -125,6 +147,7 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl, activity }: { t
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-medium text-foreground">{token.label}</p>
                         <Badge variant="outline">{scopeLabel(token.scopes)}</Badge>
+                        {extraScopeOptions(token.scopes).map((option) => <Badge key={option.scope} variant="outline">{option.label}</Badge>)}
                         {token.revokedAt ? <Badge variant="outline">Revoked</Badge> : expired ? <Badge variant="destructive">Expired</Badge> : <Badge variant="outline">Active</Badge>}
                       </div>
                       <p className="text-xs text-muted-foreground">

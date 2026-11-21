@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { authenticateApiToken, authenticateOAuthAccessToken, mcpRateLimit, mcpAuthFailureLimit, listApplications, setFollowUp, addApplication } = vi.hoisted(() => ({
+const { authenticateApiToken, authenticateOAuthAccessToken, mcpRateLimit, mcpAuthFailureLimit, listApplications, setFollowUp, addApplication, getProfile, updateProfile, getStory } = vi.hoisted(() => ({
   authenticateApiToken: vi.fn(),
   authenticateOAuthAccessToken: vi.fn(),
   mcpRateLimit: { limit: vi.fn() },
@@ -8,6 +8,9 @@ const { authenticateApiToken, authenticateOAuthAccessToken, mcpRateLimit, mcpAut
   listApplications: vi.fn(),
   setFollowUp: vi.fn(),
   addApplication: vi.fn(),
+  getProfile: vi.fn(),
+  updateProfile: vi.fn(),
+  getStory: vi.fn(),
 }))
 
 vi.mock("@/lib/mcp/tokens", () => ({ authenticateApiToken }))
@@ -15,6 +18,8 @@ vi.mock("@/lib/oauth/tokens", () => ({ authenticateOAuthAccessToken }))
 vi.mock("@/lib/rate-limit", () => ({ mcpRateLimit, mcpAuthFailureLimit }))
 vi.mock("@/lib/db", () => ({ db: {} }))
 vi.mock("@/lib/mcp/job-tools", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/mcp/job-tools")>()), addApplication }))
+vi.mock("@/lib/mcp/profile-tools", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/mcp/profile-tools")>()), getProfile, updateProfile }))
+vi.mock("@/lib/mcp/interview-tools", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/mcp/interview-tools")>()), getStory }))
 vi.mock("@/lib/mcp/tools", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/mcp/tools")>()), listApplications, setFollowUp }))
 
 import { currentConnection } from "@/lib/mcp/connection-context"
@@ -42,6 +47,9 @@ describe("/api/mcp", () => {
     listApplications.mockResolvedValue({ data: { count: 0, applications: [] } })
     setFollowUp.mockResolvedValue({ data: {} })
     addApplication.mockResolvedValue({ data: { created: true } })
+    getProfile.mockResolvedValue({ data: { full_name: "Ada" } })
+    updateProfile.mockResolvedValue({ data: { changed: true } })
+    getStory.mockResolvedValue({ data: { title: "A story" } })
   })
 
   it.each([
@@ -63,6 +71,11 @@ describe("/api/mcp", () => {
     expect(header).toContain('realm="jobclock"')
     expect(header).toContain('resource_metadata="https://jobclock.dev/.well-known/oauth-protected-resource/api/mcp"')
     expect(header).not.toContain("error=")
+  })
+
+  it("the scope hint names every scope the server supports, private ones included, so a client can ask for them", async () => {
+    const header = (await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }))).headers.get("www-authenticate") ?? ""
+    expect(header).toContain('scope="applications:read applications:write profile:read interview:read profile:write"')
   })
 
   it("reports invalid_token when a credential was presented but is not valid", async () => {
@@ -188,6 +201,65 @@ describe("/api/mcp", () => {
       "update_application_status",
       "update_application_statuses",
     ])
+  })
+
+  describe("private data scopes", () => {
+    const tokenWith = (scopes: string[]) => ({ ...FULL_TOKEN, scopes })
+    const list = async (header: Record<string, string>) =>
+      ((await (await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, header))).json()).result.tools as { name: string }[]).map((tool) => tool.name)
+
+    it("a token with the applications scopes only (including every token made before these scopes existed) cannot reach any private tool", async () => {
+      authenticateApiToken.mockResolvedValue(FULL_TOKEN)
+      const names = await list({ authorization: "Bearer jc_ok" })
+      expect(names.filter((name) => /profile|cv|story|stories|interview_prep|cover_letter/.test(name) && name !== "list_cvs")).toEqual([])
+      const body = await (await POST(rpc(callTool("get_profile", {}), { authorization: "Bearer jc_ok" }))).json()
+      expect(body.result?.isError ?? Boolean(body.error)).toBe(true)
+      expect(getProfile).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ["jc_ token", () => authenticateApiToken.mockResolvedValue(tokenWith(["applications:read", "profile:read"])), "Bearer jc_ok"],
+      ["OAuth grant", () => authenticateOAuthAccessToken.mockResolvedValue({ userId: "user-a", scopes: ["applications:read", "profile:read"], grantId: "g1", resource: "https://jobclock.dev/api/mcp", dailyCreateCap: 100 }), "Bearer jat_ok"],
+    ])("a %s with profile:read sees the profile tools and they run as the token's user, never one named in the request", async (_name, authenticate, authorization) => {
+      authenticate()
+      expect(await list({ authorization })).toEqual(expect.arrayContaining(["get_profile", "get_cv", "list_profile_documents", "get_tailored_cv", "get_cover_letter"]))
+      const response = await POST(rpc(callTool("get_profile", { user_id: "user-b" }), { authorization }))
+      expect(response.status).toBe(200)
+      expect(getProfile).toHaveBeenCalledWith("user-a")
+      expect(JSON.stringify(getProfile.mock.calls)).not.toContain("user-b")
+    })
+
+    it("profile:read alone does not unlock a write tool, and profile:write does not unlock reading", async () => {
+      authenticateApiToken.mockResolvedValue(tokenWith(["applications:read", "profile:read"]))
+      const denied = await (await POST(rpc(callTool("update_profile", { phone: "+44 7700 900000" }), { authorization: "Bearer jc_ok" }))).json()
+      expect(denied.result?.isError ?? Boolean(denied.error)).toBe(true)
+      expect(updateProfile).not.toHaveBeenCalled()
+
+      authenticateApiToken.mockResolvedValue(tokenWith(["applications:read", "profile:write"]))
+      await POST(rpc(callTool("update_profile", { phone: "+44 7700 900000" }), { authorization: "Bearer jc_ok" }))
+      expect(updateProfile).toHaveBeenCalledWith("user-a", expect.objectContaining({ phone: "+44 7700 900000" }))
+      const read = await (await POST(rpc(callTool("get_story", { story_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }), { authorization: "Bearer jc_ok" }))).json()
+      expect(read.result?.isError ?? Boolean(read.error)).toBe(true)
+      expect(getStory).not.toHaveBeenCalled()
+    })
+
+    it("rejects malformed arguments before any query: a bad uuid, an unknown category, an out-of-range page", async () => {
+      authenticateApiToken.mockResolvedValue(tokenWith(["applications:read", "interview:read", "profile:write"]))
+      const headers = { authorization: "Bearer jc_ok" }
+      for (const call of [callTool("get_story", { story_id: "not-a-uuid" }), callTool("list_stories", { limit: 51 }), callTool("list_stories", { offset: -1 }), callTool("add_interview_profile_fact", { category: "secrets", label: "a", detail: "b" })]) {
+        const body = await (await POST(rpc(call, headers))).json()
+        expect(body.result?.isError ?? Boolean(body.error)).toBe(true)
+      }
+      expect(getStory).not.toHaveBeenCalled()
+    })
+
+    it("a list page over the cap names the limit, why and that it is fixed", async () => {
+      authenticateApiToken.mockResolvedValue(tokenWith(["applications:read", "interview:read"]))
+      const body = await (await POST(rpc(callTool("list_stories", { limit: 500 }), { authorization: "Bearer jc_ok" }))).json()
+      const text = JSON.stringify(body)
+      expect(text).toContain("limit is above the limit of 50")
+      expect(text).toContain("docs/mcp-agent-access.md")
+    })
   })
 
   it("binds tools to the authenticated token's user, never to a user id from the request", async () => {

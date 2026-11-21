@@ -19,19 +19,23 @@ import {
   type StoryEntry,
 } from "./data"
 import { COMMON_INTERVIEW_QUESTIONS_BY_KEY, resolveQuestionDefinition } from "@/lib/interview/question-catalog"
-import type { ProfileFactCategory } from "@/lib/interview/types"
+import {
+  isAllowedFactCategory,
+  MAX_FACT_DETAIL_LENGTH,
+  MAX_FACT_LABEL_LENGTH,
+  MAX_STORY_FIELD_LENGTH,
+  MAX_STORY_TITLE_LENGTH,
+  normalizeTags,
+  normalizeText,
+  trim,
+  type ValidationResult,
+} from "@/lib/interview/validation"
 import { appendApplicationAuditEvents } from "@/lib/applications/audit"
 
 export type { StoryEntry } from "./data"
 
 const MAX_QUESTION_LENGTH = 2000
 const MAX_ANSWER_LENGTH = 5000
-const MAX_STORY_TITLE_LENGTH = 200
-const MAX_STORY_FIELD_LENGTH = 5000
-const MAX_FACT_LABEL_LENGTH = 200
-const MAX_FACT_DETAIL_LENGTH = 5000
-const MAX_TAG_LENGTH = 80
-const MAX_TAGS = 20
 const MAX_EVIDENCE_FACT_IDS = 6
 const MAX_EVIDENCE_STORY_IDS = 3
 
@@ -54,66 +58,8 @@ const VALID_SOURCE_TYPES = new Set<InterviewQuestionSourceType>([
   "application_generated",
 ])
 
-const CANONICAL_FACT_CATEGORIES = new Set<ProfileFactCategory>([
-  "summary",
-  "education",
-  "experience",
-  "project",
-  "skill",
-  "certification",
-  "activity",
-  "language",
-])
-
-const VALID_INTERVIEW_FACT_CATEGORIES = new Set<string>([
-  ...CANONICAL_FACT_CATEGORIES,
-  "achievement",
-  "strengths",
-  "goals",
-  "personal_context",
-])
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object"
-}
-
-function trim(value: unknown): string {
-  return typeof value === "string" ? value.trim() : ""
-}
-
-type ValidationOk<T> = { value: T; error?: never }
-type ValidationError = { error: string; value?: never }
-type ValidationResult<T> = ValidationOk<T> | ValidationError
-
-function normalizeText(
-  label: string,
-  value: unknown,
-  maxLength: number,
-  options: { required?: boolean } = {},
-): ValidationResult<string> {
-  const text = trim(value)
-  if (!text) {
-    return options.required === false ? { value: "" } : { error: `${label} is required` }
-  }
-  if (text.length > maxLength) return { error: `${label} is too long` }
-  return { value: text }
-}
-
-function normalizeTags(value: unknown): ValidationResult<string[]> {
-  if (value == null) return { value: [] }
-  if (!Array.isArray(value)) return { error: "Tags are invalid" }
-  if (value.length > MAX_TAGS) return { error: "Tags are invalid" }
-
-  const tags: string[] = []
-  for (const rawTag of value) {
-    const tag = trim(rawTag)
-    if (!tag || tag.length > MAX_TAG_LENGTH || tags.includes(tag)) {
-      return { error: "Tags are invalid" }
-    }
-    tags.push(tag)
-  }
-
-  return { value: tags }
 }
 
 function normalizeEvidenceSnapshot(value: unknown): ValidationResult<EvidenceSnapshot> {
@@ -202,10 +148,6 @@ function validateQuestionCategory(category: unknown): category is InterviewQuest
 
 function validateSourceType(sourceType: unknown): sourceType is InterviewQuestionSourceType {
   return typeof sourceType === "string" && VALID_SOURCE_TYPES.has(sourceType as InterviewQuestionSourceType)
-}
-
-function isAllowedFactCategory(value: unknown): value is string {
-  return typeof value === "string" && VALID_INTERVIEW_FACT_CATEGORIES.has(value.trim())
 }
 
 async function ensureOwnedApplication(userId: string, applicationId: string | null | undefined) {

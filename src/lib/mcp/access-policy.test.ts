@@ -4,11 +4,16 @@ import {
   DEFAULT_CONNECTION_DURATION,
   DEFAULT_TOKEN_ACCESS,
   DEFAULT_TOKEN_EXPIRY,
+  describeAccess,
   describeExpiry,
+  EXTRA_SCOPE_OPTIONS,
+  extraScopeOptions,
+  parseExtraScopes,
   parseTokenAccess,
   resolveExpiry,
   scopeLabel,
   TOKEN_EXPIRY_OPTIONS,
+  tokenScopes,
 } from "./access-policy"
 
 const NOW = new Date("2026-11-20T10:00:00.000Z")
@@ -67,5 +72,44 @@ describe("scopes", () => {
     expect(parseTokenAccess("admin")).toBeNull()
     expect(scopeLabel(["applications:read"])).toBe("Read only")
     expect(scopeLabel(["applications:read", "applications:write"])).toBe("Read and change")
+  })
+})
+
+describe("private-data scope choices", () => {
+  it("offers profile, interview and profile-write as three separate options with plain words", () => {
+    expect(EXTRA_SCOPE_OPTIONS.map((option) => option.scope)).toEqual(["profile:read", "interview:read", "profile:write"])
+    expect(EXTRA_SCOPE_OPTIONS.map((option) => option.description).join(" ")).toMatch(/full text of your CVs/)
+    expect(EXTRA_SCOPE_OPTIONS.map((option) => option.description).join(" ")).toMatch(/interview stories and notes about yourself/)
+    expect(EXTRA_SCOPE_OPTIONS[2].description).toMatch(/never delete anything/)
+  })
+
+  it("a new token holds the applications scopes alone by default, and the private ones only when chosen", () => {
+    expect(tokenScopes("read")).toEqual(["applications:read"])
+    expect(tokenScopes("write")).toEqual(["applications:read", "applications:write"])
+    expect(tokenScopes("read", ["profile:read"])).toEqual(["applications:read", "profile:read"])
+    expect(tokenScopes("write", ["profile:write", "interview:read"])).toEqual(["applications:read", "applications:write", "interview:read", "profile:write"])
+  })
+
+  it("no applications choice implies a private scope", () => {
+    for (const access of ["read", "write"] as const) expect(tokenScopes(access).filter((scope) => !scope.startsWith("applications:"))).toEqual([])
+  })
+
+  it.each([[undefined, []], [null, []], [[], []], [["profile:read"], ["profile:read"]], [["profile:write", "profile:read"], ["profile:read", "profile:write"]]])("parses %j", (value, expected) => {
+    expect(parseExtraScopes(value)).toEqual(expected)
+  })
+
+  it.each([["profile:read"], ["admin"], [["applications:write"]], [["profile:read", "profile:read"]], [["profile:read", "admin"]], [[1]], [{}], [["profile:read", "interview:read", "profile:write", "x"]]])("rejects %j instead of ignoring it", (value) => {
+    expect(parseExtraScopes(value)).toBeNull()
+  })
+
+  it("lists the private scopes a connection holds, in plain words", () => {
+    expect(extraScopeOptions(["applications:read", "applications:write"])).toEqual([])
+    expect(extraScopeOptions(["applications:read", "interview:read"]).map((option) => option.label)).toEqual(["Interview material"])
+  })
+
+  it("describes access for the security email: unchanged for applications-only, with the private scopes named otherwise", () => {
+    expect(describeAccess(["applications:read"])).toBe("read only")
+    expect(describeAccess(["applications:read", "applications:write"])).toBe("read and change")
+    expect(describeAccess(["applications:read", "profile:read", "profile:write"])).toBe("read only for applications; also read your profile, contact details and CVs; change your profile and interview material")
   })
 })

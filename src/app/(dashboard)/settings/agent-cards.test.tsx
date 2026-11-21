@@ -87,7 +87,33 @@ describe("access tokens card", () => {
 
     typeName("Mine")
     fireEvent.click(screen.getByRole("button", { name: "Create token" }))
-    await waitFor(() => expect(createAgentToken).toHaveBeenCalledWith("Mine", "read", "90"))
+    await waitFor(() => expect(createAgentToken).toHaveBeenCalledWith("Mine", "read", "90", []))
+  })
+
+  it("offers the three private-data choices unticked, in plain words, and sends exactly the ticked ones", async () => {
+    createAgentToken.mockResolvedValue({ success: true, token: "jc_realtokenvalue", metadata: token({ id: "new", label: "Private", scopes: ["applications:read", "profile:read"] }) })
+    render(<AgentAccessCard mcpUrl={MCP_URL} activity={{}} tokens={[]} />)
+    const boxes = screen.getAllByRole("checkbox")
+    expect(boxes).toHaveLength(3)
+    for (const box of boxes) expect(box).not.toBeChecked()
+    expect(screen.getByText(/Your name, phone, links and the full text of your CVs/)).toBeInTheDocument()
+    expect(screen.getByText(/Your interview stories and notes about yourself/)).toBeInTheDocument()
+    expect(screen.getByText("Change profile and interview material")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /Profile and CVs/ }))
+    typeName("Private")
+    fireEvent.click(screen.getByRole("button", { name: "Create token" }))
+    await waitFor(() => expect(createAgentToken).toHaveBeenCalledWith("Private", "read", "90", ["profile:read"]))
+    // The choice resets after creating, so the next token starts from the safe default.
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: /Profile and CVs/ })).not.toBeChecked())
+  })
+
+  it("shows the private scopes a token holds as their own badges", () => {
+    render(<AgentAccessCard mcpUrl={MCP_URL} activity={{}} tokens={[token({ id: "a", scopes: ["applications:read", "interview:read", "profile:write"] }), token({ id: "b", scopes: ["applications:read"] })]} />)
+    const [first, second] = screen.getAllByRole("listitem").filter((li) => li.textContent?.includes("jc_abcde"))
+    expect(within(first).getByText("Interview material")).toBeInTheDocument()
+    expect(within(first).getByText("Change profile and interview material")).toBeInTheDocument()
+    expect(within(second).queryByText("Interview material")).toBeNull()
   })
 
   it("lets you choose read + changes and any of the five lifetimes", async () => {
@@ -98,7 +124,7 @@ describe("access tokens card", () => {
     fireEvent.click(screen.getByRole("option", { name: "7 days" }))
     typeName("Short")
     fireEvent.click(screen.getByRole("button", { name: "Create token" }))
-    await waitFor(() => expect(createAgentToken).toHaveBeenCalledWith("Short", "write", "7"))
+    await waitFor(() => expect(createAgentToken).toHaveBeenCalledWith("Short", "write", "7", []))
   })
 
   it("the only placeholder is the token itself, and once created the command contains the real token and URL", async () => {
@@ -127,7 +153,7 @@ describe("access tokens card", () => {
     expect(screen.getByText("add_note")).toBeInTheDocument()
     expect(screen.getByRole("link", { name: "Engineer" })).toHaveAttribute("href", "/applications/acme-eng")
     expect(screen.getByText("Recent activity (0)")).toBeInTheDocument()
-    expect(screen.getByText(/reading applications leaves no record/)).toBeInTheDocument()
+    expect(screen.getByText(/reading leaves no record/)).toBeInTheDocument()
   })
 
   it("saves the daily limit for a token with write access, and hides it for a read-only one", async () => {

@@ -8,6 +8,8 @@ import {
   resolveExpiry,
   TOKEN_ACCESS_SCOPES,
   TOKEN_EXPIRY_OPTIONS,
+  tokenScopes,
+  type ExtraScope,
   type TokenAccess,
 } from "./access-policy"
 import { DEFAULT_DAILY_CREATE_CAP, MAX_DAILY_CREATE_CAP } from "./limits"
@@ -60,6 +62,8 @@ export const DAILY_CAP_ERROR = `Enter a whole number from 0 to ${MAX_DAILY_CREAT
 export interface CreateTokenOptions {
   /** Default: read only. */
   access?: TokenAccess
+  /** Private-data scopes the owner ticked (default none). Already validated with parseExtraScopes. */
+  extraScopes?: readonly ExtraScope[]
   /** One of TOKEN_EXPIRY_OPTIONS (default 90 days). */
   expiry?: string
   dailyCreateCap?: number
@@ -89,7 +93,7 @@ export async function createApiToken(
       label: trimmed,
       tokenHash: hashApiToken(token),
       tokenPrefix: token.slice(0, TOKEN_PREFIX.length + 5),
-      scopes: TOKEN_ACCESS_SCOPES[access],
+      scopes: tokenScopes(access, options.extraScopes),
       expiresAt: expiry.expiresAt,
       dailyCreateCap,
     })

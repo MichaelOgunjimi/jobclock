@@ -1,4 +1,4 @@
-import { SCOPE_READ, SCOPE_WRITE } from "@/lib/oauth/config"
+import { SCOPE_INTERVIEW_READ, SCOPE_PROFILE_READ, SCOPE_PROFILE_WRITE, SCOPE_READ, SCOPE_WRITE } from "@/lib/oauth/config"
 
 /** What the owner can choose for a connection: how much it may do and how long it lasts. Pure, so Settings, the consent page and the server share it. */
 
@@ -15,6 +15,68 @@ export function parseTokenAccess(value: unknown): TokenAccess | null {
 
 export const canWrite = (scopes: readonly string[]) => scopes.includes(SCOPE_WRITE)
 export const scopeLabel = (scopes: readonly string[]) => (canWrite(scopes) ? "Read and change" : "Read only")
+
+/**
+ * The private-data scopes. Each is its own opt-in, off by default, never implied by an applications scope and never
+ * added to an existing token or grant: to get one the owner creates a new token or connects the app again.
+ */
+export const EXTRA_SCOPES = [SCOPE_PROFILE_READ, SCOPE_INTERVIEW_READ, SCOPE_PROFILE_WRITE] as const
+export type ExtraScope = (typeof EXTRA_SCOPES)[number]
+
+export interface ExtraScopeOption {
+  scope: ExtraScope
+  /** Short name for badges and the Settings checkbox. */
+  label: string
+  /** Plain words for the consent page and Settings: what is shared. */
+  description: string
+  /** Completes "You gave it access to ..." in the security email. */
+  email: string
+}
+
+export const EXTRA_SCOPE_OPTIONS: readonly ExtraScopeOption[] = [
+  {
+    scope: SCOPE_PROFILE_READ,
+    label: "Profile and CVs",
+    description: "Your name, phone, links and the full text of your CVs, plus your certificates list, tailored CVs and cover letters.",
+    email: "read your profile, contact details and CVs",
+  },
+  {
+    scope: SCOPE_INTERVIEW_READ,
+    label: "Interview material",
+    description: "Your interview stories and notes about yourself, saved interview prep and your saved practice answers.",
+    email: "read your interview stories and notes about yourself",
+  },
+  {
+    scope: SCOPE_PROFILE_WRITE,
+    label: "Change profile and interview material",
+    description: "Change your profile details, CV names and primary CV, interview stories and notes about yourself. It can never delete anything.",
+    email: "change your profile and interview material",
+  },
+]
+
+/** Every entry must be one of the offered scopes (unknown or repeated values are rejected, never ignored). Null when invalid. */
+export function parseExtraScopes(value: unknown): ExtraScope[] | null {
+  if (value === undefined || value === null) return []
+  if (!Array.isArray(value) || value.length > EXTRA_SCOPES.length) return null
+  const wanted = new Set<unknown>(value)
+  if (wanted.size !== value.length || value.some((item) => !EXTRA_SCOPES.includes(item as ExtraScope))) return null
+  return EXTRA_SCOPES.filter((scope) => wanted.has(scope))
+}
+
+/** The scopes a new manual token is stored with. */
+export const tokenScopes = (access: TokenAccess, extras: readonly ExtraScope[] = []): string[] => [
+  ...TOKEN_ACCESS_SCOPES[access],
+  ...EXTRA_SCOPES.filter((scope) => extras.includes(scope)),
+]
+
+/** The private-data options a connection holds, for badges and lists. */
+export const extraScopeOptions = (scopes: readonly string[]) => EXTRA_SCOPE_OPTIONS.filter((option) => scopes.includes(option.scope))
+
+/** "read and change", or "read only; also read your profile, contact details and CVs", for the security email. */
+export function describeAccess(scopes: readonly string[]): string {
+  const extras = extraScopeOptions(scopes).map((option) => option.email)
+  return extras.length === 0 ? scopeLabel(scopes).toLowerCase() : `${scopeLabel(scopes).toLowerCase()} for applications; also ${extras.join("; ")}`
+}
 
 export interface DurationOption {
   value: string

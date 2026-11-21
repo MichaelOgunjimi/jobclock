@@ -77,23 +77,24 @@ class TestProvider implements OAuthClientProvider {
 }
 
 /** The browser leg: open the authorization URL's consent screen as the signed-in user and press a button. */
-async function userDecides(provider: TestProvider, { write, decision = "allow" }: { write: boolean; decision?: string }) {
+async function userDecides(provider: TestProvider, { write, ticked = [], decision = "allow" }: { write: boolean; ticked?: string[]; decision?: string }) {
   const form = new FormData()
   for (const [name, value] of provider.authorizationUrl!.searchParams) form.set(name, value)
   form.set("decision", decision)
   if (write) form.set("write", "on")
+  for (const name of ticked) form.set(name, "on")
   const error = await decideConsent(form).then(() => null, (thrown) => thrown as { redirectUrl: string })
   return new URL(error!.redirectUrl)
 }
 
-async function connectWithOAuth({ write, userId = USER_A }: { write: boolean; userId?: string }) {
+async function connectWithOAuth({ write, ticked = [], userId = USER_A }: { write: boolean; ticked?: string[]; userId?: string }) {
   currentUser.id = userId
   const provider = new TestProvider()
   const first = new StreamableHTTPClientTransport(new URL(`${ORIGIN}/api/mcp`), { authProvider: provider, fetch: appFetch })
   // No token: the server must answer 401 + resource_metadata, which sends the SDK through discovery, registration and the authorize redirect.
   await expect(new Client({ name: "test", version: "1" }).connect(first)).rejects.toThrow()
   expect(provider.authorizationUrl).toBeDefined()
-  const redirect = await userDecides(provider, { write })
+  const redirect = await userDecides(provider, { write, ticked })
   expect(redirect.searchParams.get("state")).toBe("client-state-123")
   expect(redirect.searchParams.get("iss")).toBe(ORIGIN)
   await first.finishAuth(redirect.searchParams.get("code")!)
@@ -120,7 +121,7 @@ describe("discovery", () => {
     expect(await response.json()).toEqual({
       resource: `${ORIGIN}/api/mcp`,
       authorization_servers: [ORIGIN],
-      scopes_supported: ["applications:read", "applications:write"],
+      scopes_supported: ["applications:read", "applications:write", "profile:read", "interview:read", "profile:write"],
       bearer_methods_supported: ["header"],
       resource_name: "JobClock",
     })
@@ -155,6 +156,20 @@ describe("the whole flow with the MCP SDK's own OAuth client", () => {
     expect(listApplications).toHaveBeenCalledWith(USER_A, expect.objectContaining({ limit: 2 }))
 
     await expect(client.callTool({ name: "add_note", arguments: { application_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", note: "hi" } })).resolves.toMatchObject({ isError: true })
+  })
+
+  it("with private details ticked on the consent screen, the client sees exactly those tools and still cannot call the ones it was not given", async () => {
+    const { client } = await connectWithOAuth({ write: false, ticked: ["interview:read"] })
+    const names = (await client.listTools()).tools.map((tool) => tool.name)
+    expect(names).toEqual(expect.arrayContaining(["get_interview_prep", "list_stories", "get_story", "get_interview_profile_facts", "list_applications"]))
+    expect(names.filter((name) => ["get_profile", "get_cv", "update_profile", "add_story", "add_note"].includes(name))).toEqual([])
+    await expect(client.callTool({ name: "get_profile", arguments: {} })).resolves.toMatchObject({ isError: true })
+    await expect(client.callTool({ name: "add_story", arguments: { title: "x" } })).resolves.toMatchObject({ isError: true })
+  })
+
+  it("a connection that ticked nothing private sees none of the private tools", async () => {
+    const { client } = await connectWithOAuth({ write: true })
+    expect((await client.listTools()).tools.map((tool) => tool.name).filter((name) => /^(get_(profile|cv|story|tailored_cv|cover_letter|interview_prep|interview_profile_facts)|list_(stories|profile_documents)|update_profile|set_primary_cv|rename_cv|add_story|update_story|.*interview_profile_fact)$/.test(name))).toEqual([])
   })
 
   it("with write ticked, the client also sees the write tools", async () => {

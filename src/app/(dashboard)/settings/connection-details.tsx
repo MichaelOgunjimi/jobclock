@@ -61,7 +61,7 @@ export function RecentActivity({ items }: { items: ConnectionActivityItem[] }) {
     <details className="text-sm">
       <summary className="cursor-pointer text-xs text-muted-foreground">Recent activity ({items.length})</summary>
       {items.length === 0 ? (
-        <p className="pt-2 text-xs text-muted-foreground">No changes yet. Only changes are listed; reading applications leaves no record.</p>
+        <p className="pt-2 text-xs text-muted-foreground">No changes yet. Only changes are listed; reading leaves no record.</p>
       ) : (
         <ul className="space-y-1 pt-2">
           {items.map((item) => (

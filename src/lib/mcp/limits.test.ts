@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { describe, expect, it, vi } from "vitest"
-import { LIMITS, limitMessage, MAX_BATCH_JOBS, MCP_AUTH_FAILURES_PER_MINUTE, MCP_MAX_BODY_BYTES, MCP_REQUESTS_PER_MINUTE } from "./limits"
+import { LIMITS, limitMessage, MAX_BATCH_JOBS, MAX_CV_CHARS, MAX_INTERVIEW_CHARS, MAX_LETTER_CHARS, MAX_LINK_CHARS, MAX_NAME_CHARS, MAX_PHONE_CHARS, MAX_PRIVATE_LIST, MAX_PROFILE_LIST_ITEM_CHARS, MAX_PROFILE_LIST_ITEMS, MAX_TARGET_SALARY, MCP_AUTH_FAILURES_PER_MINUTE, MCP_MAX_BODY_BYTES, MCP_REQUESTS_PER_MINUTE } from "./limits"
 
 const docs = readFileSync(resolve(process.cwd(), "docs/mcp-agent-access.md"), "utf8")
 
@@ -54,5 +54,32 @@ describe("limits that live next to their tools", () => {
     expect(byName("Status changes per batch call")).toContain("25")
     expect(byName("Snooze length")).toContain("365")
     expect(byName("Company research text")).toContain("12,000")
+  })
+})
+
+describe("limits of the profile, CV and interview tools", () => {
+  const byName = (name: string) => LIMITS.find((limit) => limit.name === name)!
+
+  it("every cap is named in the limits list with its reason, so Settings and the docs show it", () => {
+    expect(byName("Profile and CV text returned").value).toContain("40,000")
+    expect(byName("Profile and CV text returned").value).toContain("12,000")
+    expect(byName("Profile and CV text returned").reason).toMatch(/truncated/)
+    expect(byName("Profile and interview list size").value).toContain(String(MAX_PRIVATE_LIST))
+    const edits = byName("Profile edit lengths").value
+    for (const number of [MAX_NAME_CHARS, MAX_PHONE_CHARS, MAX_LINK_CHARS, MAX_PROFILE_LIST_ITEMS, MAX_PROFILE_LIST_ITEM_CHARS]) expect(edits).toContain(String(number))
+    expect(edits).toContain(MAX_TARGET_SALARY.toLocaleString("en-GB"))
+    expect([MAX_CV_CHARS, MAX_LETTER_CHARS, MAX_INTERVIEW_CHARS]).toEqual([40_000, 12_000, 40_000])
+  })
+
+  it("are shown to the owner in Settings", () => {
+    for (const name of ["Profile and CV text returned", "Profile and interview list size", "Profile edit lengths"]) expect(byName(name).owner).toBe(true)
+  })
+
+  it("the story and about-me lengths are the interview workspace's own, imported rather than copied", async () => {
+    const validation = await import("@/lib/interview/validation")
+    expect(byName("Profile edit lengths").value).toContain(`story title ${validation.MAX_STORY_TITLE_LENGTH}`)
+    expect(byName("Profile edit lengths").value).toContain(`each story field ${validation.MAX_STORY_FIELD_LENGTH.toLocaleString("en-GB")}`)
+    expect(byName("Profile edit lengths").value).toContain(`${validation.MAX_TAGS} tags of ${validation.MAX_TAG_LENGTH}`)
+    expect(byName("Profile edit lengths").value).toContain(`about-me label ${validation.MAX_FACT_LABEL_LENGTH}, detail ${validation.MAX_FACT_DETAIL_LENGTH.toLocaleString("en-GB")}`)
   })
 })

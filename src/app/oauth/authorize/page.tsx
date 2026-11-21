@@ -1,12 +1,12 @@
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
-import { Briefcase, Eye, Pencil } from "lucide-react"
+import { Briefcase, Eye, MessagesSquare, Pencil, UserRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AUTHORIZE_PARAMS, buildClientRedirect, parseAuthorizeRequest } from "@/lib/oauth/authorize"
 import { isLoopbackRedirect } from "@/lib/oauth/clients"
-import { CONNECTION_DURATION_OPTIONS, DEFAULT_CONNECTION_DURATION } from "@/lib/mcp/access-policy"
-import { SCOPE_WRITE } from "@/lib/oauth/config"
+import { CONNECTION_DURATION_OPTIONS, DEFAULT_CONNECTION_DURATION, EXTRA_SCOPE_OPTIONS, type ExtraScope } from "@/lib/mcp/access-policy"
+import { SCOPE_INTERVIEW_READ, SCOPE_PROFILE_READ, SCOPE_PROFILE_WRITE, SCOPE_WRITE } from "@/lib/oauth/config"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { createClient } from "@/lib/supabase/server"
 import { decideConsent } from "./actions"
@@ -17,6 +17,12 @@ export const metadata: Metadata = {
 }
 
 export const dynamic = "force-dynamic"
+
+const EXTRA_ICONS: Record<ExtraScope, React.ReactNode> = {
+  [SCOPE_PROFILE_READ]: <UserRound className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />,
+  [SCOPE_INTERVIEW_READ]: <MessagesSquare className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />,
+  [SCOPE_PROFILE_WRITE]: <Pencil className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />,
+}
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -63,6 +69,7 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
   const redirectUrl = new URL(request.redirectUri)
   const local = isLoopbackRedirect(request.redirectUri)
   const offersWrite = request.offeredScopes.includes(SCOPE_WRITE)
+  const offeredExtras = EXTRA_SCOPE_OPTIONS.filter((option) => request.offeredScopes.includes(option.scope))
 
   return (
     <Shell>
@@ -101,6 +108,24 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
                 </div>
                 <input type="checkbox" name="write" className="mt-0.5 size-5 shrink-0 accent-foreground" aria-label="Allow making changes to my applications" />
               </label>
+            )}
+            {offeredExtras.length > 0 && (
+              <div className="space-y-3 pt-2">
+                <p className="section-label">Private details (all off unless you tick them)</p>
+                {offeredExtras.map((option) => (
+                  <label key={option.scope} className="flex cursor-pointer gap-3 border p-4 has-[:checked]:border-foreground">
+                    {EXTRA_ICONS[option.scope]}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="text-sm font-medium text-foreground">{option.label}</p>
+                      <p className="text-[13px] text-muted-foreground">{option.description}</p>
+                    </div>
+                    <input type="checkbox" name={option.scope} className="mt-0.5 size-5 shrink-0 accent-foreground" aria-label={`Allow access to: ${option.label}`} />
+                  </label>
+                ))}
+                <p className="text-[12px] text-muted-foreground">
+                  This is the most private data in your account. Only tick what the app needs for what you asked it to do.
+                </p>
+              </div>
             )}
             <p className="text-[12px] text-muted-foreground">
               It can never delete anything, spend AI credits or touch billing. You can disconnect it any time in Settings, under AI Agent.

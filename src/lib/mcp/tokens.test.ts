@@ -79,6 +79,18 @@ describe("createApiToken", () => {
     expect(chosen.params).toContain(0)
   })
 
+  it("stores the private scopes only when they were chosen, after the applications ones", async () => {
+    const now = new Date("2026-11-20T10:00:00.000Z")
+    resetFakeDb(() => [tableRow(apiTokens, { id: "t1", userId: USER, label: "L", createdAt: now, tokenPrefix: "jc_abcde", tokenHash: "x", scopes: ["applications:read", "profile:read", "profile:write"], dailyCreateCap: 100 })])
+    await createApiToken(USER, "Private", { access: "read", extraScopes: ["profile:read", "profile:write"] }, now)
+    const [insert] = recorded.filter((query) => /^insert/i.test(query.sql))
+    expect(insert.params).toContain('{"applications:read","profile:read","profile:write"}')
+
+    resetFakeDb(() => [tableRow(apiTokens, { id: "t1", userId: USER, label: "L", createdAt: now, tokenPrefix: "jc_abcde", tokenHash: "x", scopes: ["applications:read"], dailyCreateCap: 100 })])
+    await createApiToken(USER, "Plain", { access: "read" }, now)
+    expect(recorded.filter((query) => /^insert/i.test(query.sql))[0].params).toContain('{"applications:read"}')
+  })
+
   it("rejects an unknown access, expiry or limit without touching the database", async () => {
     expect(await createApiToken(USER, "x", { access: "admin" as never })).toHaveProperty("error")
     expect(await createApiToken(USER, "x", { expiry: "forever" })).toHaveProperty("error")

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { canWrite, describeExpiry, scopeLabel } from "@/lib/mcp/access-policy"
+import { canWrite, describeExpiry, extraScopeOptions, scopeLabel } from "@/lib/mcp/access-policy"
 import type { ConnectionActivityItem } from "@/lib/mcp/activity"
 import type { ConnectedApp } from "@/lib/oauth/tokens"
 import { revokeAgentConnection } from "./actions"
@@ -57,6 +57,7 @@ export function ConnectedAppsCard({ apps: initialApps, mcpUrl, activity }: { app
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="break-words text-sm font-medium text-foreground">{app.clientName}</p>
                         <Badge variant="outline">{scopeLabel(app.scopes)}</Badge>
+                        {extraScopeOptions(app.scopes).map((option) => <Badge key={option.scope} variant="outline">{option.label}</Badge>)}
                         {expired && <Badge variant="destructive">Expired</Badge>}
                       </div>
                       <p className="break-all text-xs text-muted-foreground">
