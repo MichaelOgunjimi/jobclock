@@ -7,6 +7,11 @@ import type { Json } from "@/lib/supabase/database.types"
 export type ApplicationAuditEventType =
   | "application.created"
   | "application.deleted"
+  | "application.archived"
+  | "application.restored"
+  | "application.tags_updated"
+  | "application.source_updated"
+  | "application.applied_at_updated"
   | "application.details_updated"
   | "application.description_updated"
   | "application.notes_updated"
@@ -70,6 +75,10 @@ export type AuditedApplicationChanges = Partial<Pick<
   | "followUpDueAt"
   | "followUpNotes"
   | "interviewAt"
+  | "archivedAt"
+  | "tags"
+  | "source"
+  | "appliedAt"
 >>
 
 const CONTENT_FIELDS = new Set<keyof AuditedApplicationChanges>([
@@ -88,6 +97,10 @@ function safeValue(field: keyof AuditedApplicationChanges, value: unknown): Json
 }
 
 function equalValues(before: unknown, after: unknown) {
+  // A missing tag list and an empty one are the same thing.
+  if (Array.isArray(before) || Array.isArray(after)) {
+    return JSON.stringify(before ?? []) === JSON.stringify(after ?? [])
+  }
   const left = before instanceof Date ? before.toISOString() : before ?? null
   const right = after instanceof Date ? after.toISOString() : after ?? null
   return left === right

@@ -440,6 +440,8 @@ export const applications = pgTable(
     followUpNotes: text("follow_up_notes"),
     // When the interview is. Nothing in the app sets it yet; the interview reminder email uses it once something does.
     interviewAt: timestamp("interview_at", { withTimezone: true }),
+    // Set when the owner archives the application. Archived rows stay out of the default list and every reminder; status is untouched.
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
   },
   (table) => [
     uniqueIndex("applications_slug_unique").on(table.slug),

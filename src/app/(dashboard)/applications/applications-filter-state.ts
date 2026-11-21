@@ -3,7 +3,7 @@ import type { ApplicationStatus } from "@/lib/supabase/database.types"
 export const APPLICATIONS_FILTER_STATE_STORAGE_KEY = "applications-filter-state"
 
 const DEFAULT_SORT = "saved_desc"
-const APPLICATION_LIST_PARAMS = new Set(["page", "status", "sort", "q"])
+const APPLICATION_LIST_PARAMS = new Set(["page", "status", "sort", "q", "archived", "tag"])
 const VALID_STATUSES = new Set<ApplicationStatus>([
   "saved",
   "applied",
@@ -22,6 +22,8 @@ interface ApplicationsFilterState {
   status?: string
   sort?: string
   q?: string
+  archived?: string
+  tag?: string
 }
 
 export function hasApplicationsListParams(
@@ -58,6 +60,13 @@ export function serializeApplicationsFilterState(state: ApplicationsFilterState)
   if (q) {
     params.set("q", q)
   }
+  if (state.archived === "1") {
+    params.set("archived", "1")
+  }
+  const tag = (state.tag ?? "").trim().slice(0, 30)
+  if (tag) {
+    params.set("tag", tag)
+  }
 
   const serialized = params.toString()
   return serialized || null
@@ -79,6 +88,8 @@ export function getPersistedApplicationsFilterHref(storageValue: string | undefi
   const status = params.get("status")
   const sort = params.get("sort")
   const q = params.get("q")
+  const archived = params.get("archived")
+  const tag = params.get("tag")
 
   if (status && !VALID_STATUSES.has(status as ApplicationStatus)) return null
   if (sort && !VALID_SORTS.has(sort)) return null
@@ -87,6 +98,8 @@ export function getPersistedApplicationsFilterHref(storageValue: string | undefi
     status: status ?? "all",
     sort: sort ?? DEFAULT_SORT,
     q: q ?? "",
+    archived: archived ?? undefined,
+    tag: tag ?? undefined,
   })
 
   return serialized ? buildApplicationsFilterHref(serialized) : null

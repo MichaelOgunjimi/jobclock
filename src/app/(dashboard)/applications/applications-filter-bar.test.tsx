@@ -131,4 +131,26 @@ describe("ApplicationsFilterBar", () => {
     expect(navigationMock.replace).not.toHaveBeenCalled()
     expect(window.sessionStorage.getItem(APPLICATIONS_FILTER_STATE_STORAGE_KEY)).toBe("q=manual")
   })
+
+  it("links to the Archived view with its count, and back out of it", () => {
+    const { rerender } = render(
+      <ApplicationsFilterBar counts={{}} total={3} activeStatus="all" activeSort="saved_desc" activeSearch="" archivedCount={2} />
+    )
+    const pill = screen.getByRole("link", { name: /Archived\s*2/ })
+    expect(pill).toHaveAttribute("href", "/applications?archived=1")
+
+    navigationMock.searchParams = new URLSearchParams("archived=1")
+    rerender(
+      <ApplicationsFilterBar counts={{}} total={2} activeStatus="all" activeSort="saved_desc" activeSearch="" archivedCount={2} showArchived />
+    )
+    expect(screen.getByRole("link", { name: /Archived\s*2/ })).toHaveAttribute("href", "/applications")
+  })
+
+  it("shows the active tag and a link that clears only the tag", () => {
+    navigationMock.searchParams = new URLSearchParams("tag=remote&status=applied")
+    render(
+      <ApplicationsFilterBar counts={{}} total={1} activeStatus="applied" activeSort="saved_desc" activeSearch="" activeTag="remote" />
+    )
+    expect(screen.getByRole("link", { name: "Clear tag filter remote" })).toHaveAttribute("href", "/applications?status=applied")
+  })
 })

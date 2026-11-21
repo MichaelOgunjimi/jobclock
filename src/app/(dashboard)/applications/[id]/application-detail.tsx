@@ -39,6 +39,7 @@ import {
   deleteApplication,
   generateCoverLetter,
 } from "./actions"
+import { ArchiveButton, TrackingDetailsCard } from "./application-tracking"
 import { FollowUpCard } from "./follow-up-card"
 import { InterviewDateCard } from "./interview-date-card"
 import { CompanyResearchCard } from "./company-research-card"
@@ -1446,9 +1447,12 @@ export function ApplicationDetail({
         })
     : null
 
-  const sourceLabel = job?.source
-    ? job.source.charAt(0).toUpperCase() + job.source.slice(1)
-    : null
+  // The owner's own source (editable below) wins over the posting's.
+  const sourceLabel = application.source
+    ? application.source
+    : job?.source
+      ? job.source.charAt(0).toUpperCase() + job.source.slice(1)
+      : null
 
   const detailItems = [
     postedAt ? { label: "Posted", value: postedAt } : null,
@@ -1524,7 +1528,20 @@ export function ApplicationDetail({
             <Badge className={getStatusBadgeClass(application.status)}>
               {getStatusLabel(application.status)}
             </Badge>
+            {application.archived_at && <Badge className="border-border bg-secondary text-muted-foreground">Archived</Badge>}
           </div>
+          {application.tags && application.tags.length > 0 && (
+            <ul aria-label="Tags" className="flex flex-wrap gap-1.5">
+              {application.tags.map((tag) => (
+                <li key={tag} className="border border-border bg-secondary px-2 py-0.5 text-xs font-medium">{tag}</li>
+              ))}
+            </ul>
+          )}
+          {application.archived_at && (
+            <p className="text-sm text-muted-foreground">
+              Archived: hidden from your list and dashboard, and no reminders or digests mention it. Restore it to bring it back.
+            </p>
+          )}
         </div>
         <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:w-auto xl:max-w-[40rem] xl:flex-wrap xl:items-center xl:justify-end">
           <Link
@@ -1566,6 +1583,7 @@ export function ApplicationDetail({
               View posting
             </a>
           )}
+          <ArchiveButton applicationId={application.id} archived={!!application.archived_at} />
           <DeleteButton applicationId={application.id} />
         </div>
       </div>
@@ -1643,6 +1661,12 @@ export function ApplicationDetail({
         <NotesCard
           applicationId={application.id}
           initialNotes={application.notes}
+        />
+        <TrackingDetailsCard
+          applicationId={application.id}
+          tags={application.tags ?? []}
+          source={application.source}
+          appliedAt={application.applied_at}
         />
         <FollowUpCard
           applicationId={application.id}

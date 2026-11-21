@@ -14,6 +14,14 @@ import {
   isApplicationStatus,
   type ApplicationStatusIntent,
 } from "@/lib/applications/status-transitions"
+import {
+  archiveApplicationForUser,
+  restoreApplicationForUser,
+  setApplicationAppliedAtForUser,
+  setApplicationSourceForUser,
+  setApplicationTagsForUser,
+  type ManageResult,
+} from "@/lib/applications/manage"
 import { interviewAtSchema } from "@/lib/applications/interview-at"
 import { JOB_DETAIL_FIELDS, jobDetailSchema } from "@/lib/applications/job-detail"
 
@@ -320,4 +328,53 @@ export async function updateInterviewAt(
 
   revalidatePath(`/applications/${applicationId}`)
   return {}
+}
+
+// ── Archive, tags, source and applied date ────────────────────────────────────
+
+async function manage(
+  applicationId: string,
+  run: (userId: string) => Promise<ManageResult>,
+): Promise<{ error?: string }> {
+  if (!isSupabaseConfigured()) return { error: "Supabase not configured" }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Unauthorized" }
+  if (!applicationId) return { error: "Missing application ID" }
+
+  let result: ManageResult
+  try {
+    result = await run(user.id)
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not save the change" }
+  }
+  if (!result) return { error: "Application not found" }
+  if ("error" in result) return { error: result.error }
+
+  revalidatePath(`/applications/${applicationId}`)
+  revalidatePath("/applications")
+  revalidatePath("/dashboard")
+  return {}
+}
+
+export async function archiveApplication(applicationId: string) {
+  return manage(applicationId, (userId) => archiveApplicationForUser(userId, applicationId))
+}
+
+export async function restoreApplication(applicationId: string) {
+  return manage(applicationId, (userId) => restoreApplicationForUser(userId, applicationId))
+}
+
+export async function updateTags(applicationId: string, tags: string[]) {
+  return manage(applicationId, (userId) => setApplicationTagsForUser(userId, applicationId, tags))
+}
+
+export async function updateSource(applicationId: string, source: string | null) {
+  return manage(applicationId, (userId) => setApplicationSourceForUser(userId, applicationId, source))
+}
+
+/** `appliedAt` is `YYYY-MM-DD`, or null to clear the date. */
+export async function updateAppliedAt(applicationId: string, appliedAt: string | null) {
+  return manage(applicationId, (userId) => setApplicationAppliedAtForUser(userId, applicationId, appliedAt))
 }

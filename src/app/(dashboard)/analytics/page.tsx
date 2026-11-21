@@ -3,7 +3,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getCurrentUser } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
-import { asc, eq } from "drizzle-orm"
+import { and, asc, eq, isNull } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { applications, applicationStatusEvents, jobsCache } from "@/lib/db/schema"
 import { differenceInDays } from "date-fns"
@@ -65,14 +65,15 @@ export default async function AnalyticsPage({
       })
       .from(applications)
       .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
-      .where(eq(applications.userId, user.id)),
+      .where(and(eq(applications.userId, user.id), isNull(applications.archivedAt))),
     db
       .select({
         fromStatus: applicationStatusEvents.fromStatus,
         toStatus: applicationStatusEvents.toStatus,
       })
       .from(applicationStatusEvents)
-      .where(eq(applicationStatusEvents.userId, user.id))
+      .innerJoin(applications, eq(applicationStatusEvents.applicationId, applications.id))
+      .where(and(eq(applicationStatusEvents.userId, user.id), isNull(applications.archivedAt)))
       .orderBy(asc(applicationStatusEvents.createdAt)),
   ])
 
@@ -92,13 +93,15 @@ export default async function AnalyticsPage({
     appliedRows.length === 0
       ? null
       : Math.round(
-          appliedRows.reduce((sum, r) => sum + differenceInDays(new Date(r.appliedAt!), new Date(r.createdAt!)), 0) /
+          // An applied date the owner backdated to before the save date counts as 0 days, not negative.
+          appliedRows.reduce((sum, r) => sum + Math.max(0, differenceInDays(new Date(r.appliedAt!), new Date(r.createdAt!))), 0) /
             appliedRows.length
         )
 
   const sourceCounts: Record<string, number> = {}
   for (const row of rows) {
-    const src = row.jobSource ?? row.source ?? "manual"
+    // The owner's own correction wins over the posting's source.
+    const src = row.source ?? row.jobSource ?? "manual"
     sourceCounts[src] = (sourceCounts[src] ?? 0) + 1
   }
   const topSources = Object.entries(sourceCounts)

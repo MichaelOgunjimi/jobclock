@@ -11,6 +11,13 @@ vi.mock("@/lib/generation/enqueue", () => ({
 vi.mock("@/lib/jobs/persist-job", () => ({
   updateApplicationStatusForUser: vi.fn(),
 }))
+vi.mock("@/lib/applications/manage", () => ({
+  archiveApplicationForUser: vi.fn(),
+  restoreApplicationForUser: vi.fn(),
+  setApplicationTagsForUser: vi.fn(),
+  setApplicationSourceForUser: vi.fn(),
+  setApplicationAppliedAtForUser: vi.fn(),
+}))
 vi.mock("@/lib/applications/audit", () => ({
   updateApplicationWithAuditForUser: vi.fn(),
   deleteApplicationWithAuditForUser: vi.fn(),
@@ -27,14 +34,26 @@ import {
   updateApplicationWithAuditForUser,
 } from "@/lib/applications/audit"
 import {
+  archiveApplicationForUser,
+  restoreApplicationForUser,
+  setApplicationAppliedAtForUser,
+  setApplicationSourceForUser,
+  setApplicationTagsForUser,
+} from "@/lib/applications/manage"
+import {
+  archiveApplication,
   deleteApplication,
   generateCoverLetter,
   updateCoverLetter,
   updateCv,
   updateDescription,
   updateFollowUp,
+  restoreApplication,
+  updateAppliedAt,
   updateInterviewAt,
   updateJobDetail,
+  updateSource,
+  updateTags,
   updateNotes,
   updateStatus,
   updateWritingStyle,
@@ -340,5 +359,49 @@ describe("application actions", () => {
       error: "Unauthorized",
     })
     expect(await generateCoverLetter("app-1")).toEqual({ error: "Not authenticated." })
+  })
+
+  describe("archive, tags, source and applied date", () => {
+    const ok = { changed: true, before: {}, after: {} } as never
+
+    it("archives and restores for the signed-in user and refreshes the list", async () => {
+      vi.mocked(archiveApplicationForUser).mockResolvedValue(ok)
+      vi.mocked(restoreApplicationForUser).mockResolvedValue(ok)
+
+      expect(await archiveApplication("app-1")).toEqual({})
+      expect(archiveApplicationForUser).toHaveBeenCalledWith(mockUser.id, "app-1")
+      expect(await restoreApplication("app-1")).toEqual({})
+      expect(restoreApplicationForUser).toHaveBeenCalledWith(mockUser.id, "app-1")
+      expect(revalidatePath).toHaveBeenCalledWith("/applications")
+      expect(revalidatePath).toHaveBeenCalledWith("/dashboard")
+    })
+
+    it("passes tags, source and the applied date to their helpers", async () => {
+      vi.mocked(setApplicationTagsForUser).mockResolvedValue(ok)
+      vi.mocked(setApplicationSourceForUser).mockResolvedValue(ok)
+      vi.mocked(setApplicationAppliedAtForUser).mockResolvedValue(ok)
+
+      await updateTags("app-1", ["remote"])
+      await updateSource("app-1", "LinkedIn")
+      await updateAppliedAt("app-1", "2026-11-01")
+      expect(setApplicationTagsForUser).toHaveBeenCalledWith(mockUser.id, "app-1", ["remote"])
+      expect(setApplicationSourceForUser).toHaveBeenCalledWith(mockUser.id, "app-1", "LinkedIn")
+      expect(setApplicationAppliedAtForUser).toHaveBeenCalledWith(mockUser.id, "app-1", "2026-11-01")
+    })
+
+    it("returns validation and not-found errors without revalidating", async () => {
+      vi.mocked(setApplicationTagsForUser).mockResolvedValue({ error: "Too many" })
+      vi.mocked(archiveApplicationForUser).mockResolvedValue(null)
+
+      expect(await updateTags("app-1", ["a"])).toEqual({ error: "Too many" })
+      expect(await archiveApplication("app-1")).toEqual({ error: "Application not found" })
+      expect(revalidatePath).not.toHaveBeenCalled()
+    })
+
+    it("does nothing when signed out", async () => {
+      supabaseMock.client.auth.getUser = vi.fn().mockResolvedValue({ data: { user: null } }) as never
+      expect(await archiveApplication("app-1")).toEqual({ error: "Unauthorized" })
+      expect(archiveApplicationForUser).not.toHaveBeenCalled()
+    })
   })
 })

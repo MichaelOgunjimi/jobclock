@@ -377,6 +377,7 @@ export type Database = {
 					custom_location: string | null;
 					custom_salary_text: string | null;
 					custom_description: string | null;
+					archived_at: string | null;
 				};
 				Insert: {
 					id?: string;
@@ -403,6 +404,7 @@ export type Database = {
 					custom_location?: string | null;
 					custom_salary_text?: string | null;
 					custom_description?: string | null;
+					archived_at?: string | null;
 				};
 				Update: {
 					id?: string;
@@ -429,6 +431,7 @@ export type Database = {
 					custom_location?: string | null;
 					custom_salary_text?: string | null;
 					custom_description?: string | null;
+					archived_at?: string | null;
 				};
 				Relationships: [];
 			};
