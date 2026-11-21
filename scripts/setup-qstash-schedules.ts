@@ -9,6 +9,7 @@
  *
  * Required env vars (copy from the target environment):
  *   QSTASH_TOKEN      — from Upstash console → QStash → API Keys
+ *   QSTASH_URL        — the token's regional endpoint, e.g. https://qstash-eu-central-1.upstash.io
  *   CRON_SECRET       — same value as set in that environment's Vercel env vars
  */
 
@@ -29,7 +30,8 @@ if (!appUrl || !appUrl.startsWith("https://")) {
 }
 console.log(`Target: ${appUrl}${apply ? "" : "  (dry run, add --yes to register)"}`)
 
-const client = new Client({ token })
+// QSTASH_URL selects the region the token belongs to (production is qstash-eu-central-1); the default endpoint would not see it.
+const client = new Client({ token, baseUrl: process.env.QSTASH_URL?.trim() })
 
 const schedules = [
   {
