@@ -28,7 +28,7 @@ async function authenticate(bearer: string): Promise<Auth | Failure> {
     const grant = await authenticateOAuthAccessToken(bearer)
     // Audience check: a grant issued for another resource (e.g. before the host changed) is not valid here.
     if (grant && grant.resource === getMcpResourceUrl()) {
-      return { userId: grant.userId, scopes: grant.scopes, connection: { kind: "oauth", id: grant.grantId, dailyCreateCap: grant.dailyCreateCap } }
+      return { userId: grant.userId, scopes: grant.scopes, connection: { kind: "oauth", id: grant.grantId, dailyCreateCap: grant.dailyCreateCap, dailyDeleteCap: grant.dailyDeleteCap, dailyCreditCap: grant.dailyCreditCap } }
     }
     return { message: `Invalid, expired or revoked access token. Connected apps refresh it automatically; if this keeps happening the connection ended (it was removed, or reached the end of the period the owner chose). ${reconnect}` }
   }
@@ -36,7 +36,7 @@ async function authenticate(bearer: string): Promise<Auth | Failure> {
   if (token && "expired" in token) {
     return { message: `This token expired on ${token.expiredAt.toISOString().slice(0, 10)}. The owner chose its lifetime when creating it. ${reconnect}` }
   }
-  if (token) return { userId: token.userId, scopes: token.scopes, connection: { kind: "token", id: token.tokenId, dailyCreateCap: token.dailyCreateCap } }
+  if (token) return { userId: token.userId, scopes: token.scopes, connection: { kind: "token", id: token.tokenId, dailyCreateCap: token.dailyCreateCap, dailyDeleteCap: token.dailyDeleteCap, dailyCreditCap: token.dailyCreditCap } }
   return { message: "Invalid or revoked token." }
 }
 

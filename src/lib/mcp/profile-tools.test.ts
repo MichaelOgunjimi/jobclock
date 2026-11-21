@@ -223,7 +223,7 @@ describe("update_profile validation (nothing is written when a value is refused)
 describe("update_profile", () => {
   it("changes only what was sent, returns before and after, and records field names but not the values", async () => {
     resetFakeDb(forOwner(() => [profileRow()]))
-    const outcome = await runAsConnection({ kind: "token", id: "tok-1", dailyCreateCap: 100 }, () => updateProfile(OWNER, { phone: "+44 7911 123456", desired_roles: ["Engineer", "Staff Engineer"], right_to_work_uk: true }))
+    const outcome = await runAsConnection({ kind: "token", id: "tok-1", dailyCreateCap: 100, dailyDeleteCap: 10, dailyCreditCap: 20 }, () => updateProfile(OWNER, { phone: "+44 7911 123456", desired_roles: ["Engineer", "Staff Engineer"], right_to_work_uk: true }))
     expect(outcome).toMatchObject({
       data: {
         changed: true,

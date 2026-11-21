@@ -150,7 +150,7 @@ describe("get_interview_prep", () => {
 describe("add_story and update_story", () => {
   it("adds a manual, confirmed story with the workspace's validation and logs field names and lengths only", async () => {
     resetFakeDb(forOwner(() => [story({ title: "Fixed prod" })]))
-    const outcome = await runAsConnection({ kind: "oauth", id: "grant-1", dailyCreateCap: 100 }, () => addStory(OWNER, { title: "  Fixed prod ", action: "Rolled back", tags: ["ops"] }))
+    const outcome = await runAsConnection({ kind: "oauth", id: "grant-1", dailyCreateCap: 100, dailyDeleteCap: 10, dailyCreditCap: 20 }, () => addStory(OWNER, { title: "  Fixed prod ", action: "Rolled back", tags: ["ops"] }))
     expect(outcome).toMatchObject({ data: { changed: true, after: { id: STORY } } })
     const insert = statements(/^insert into "story_bank"/)[0]
     expect(insert.params).toContain("Fixed prod")

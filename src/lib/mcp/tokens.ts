@@ -12,7 +12,7 @@ import {
   type ExtraScope,
   type TokenAccess,
 } from "./access-policy"
-import { DEFAULT_DAILY_CREATE_CAP, MAX_DAILY_CREATE_CAP } from "./limits"
+import { DEFAULT_DAILY_CREATE_CAP, DEFAULT_DAILY_CREDIT_CAP, DEFAULT_DAILY_DELETE_CAP, MAX_DAILY_CREATE_CAP, MAX_DAILY_CREDIT_CAP, MAX_DAILY_DELETE_CAP } from "./limits"
 
 export const TOKEN_PREFIX = "jc_"
 
@@ -24,6 +24,9 @@ export interface ApiTokenMetadata {
   /** null = never expires. */
   expiresAt: string | null
   dailyCreateCap: number
+  dailyDeleteCap: number
+  /** null = no limit. */
+  dailyCreditCap: number | null
   createdAt: string
   lastUsedAt: string | null
   revokedAt: string | null
@@ -46,6 +49,8 @@ function toMetadata(row: typeof apiTokens.$inferSelect): ApiTokenMetadata {
     scopes: row.scopes,
     expiresAt: row.expiresAt?.toISOString() ?? null,
     dailyCreateCap: row.dailyCreateCap,
+    dailyDeleteCap: row.dailyDeleteCap,
+    dailyCreditCap: row.dailyCreditCap,
     createdAt: row.createdAt.toISOString(),
     lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
     revokedAt: row.revokedAt?.toISOString() ?? null,
@@ -59,6 +64,25 @@ export function parseDailyCap(value: unknown): number | null {
 
 export const DAILY_CAP_ERROR = `Enter a whole number from 0 to ${MAX_DAILY_CREATE_CAP.toLocaleString("en-GB")}. 0 means no daily limit.`
 
+export type LimitKind = "create" | "delete" | "credit"
+
+/** Whole numbers within the kind's bounds. A credit cap may also be null: the owner's explicit "no limit" choice. Null for anything else. */
+export function parseLimit(kind: LimitKind, value: unknown): number | null | undefined {
+  if (kind === "credit" && value === null) return null
+  const max = kind === "create" ? MAX_DAILY_CREATE_CAP : kind === "delete" ? MAX_DAILY_DELETE_CAP : MAX_DAILY_CREDIT_CAP
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= max ? value : undefined
+}
+
+export const LIMIT_ERRORS: Record<LimitKind, string> = {
+  create: DAILY_CAP_ERROR,
+  delete: `Enter a whole number from 0 to ${MAX_DAILY_DELETE_CAP.toLocaleString("en-GB")}. 0 switches deleting off for this connection.`,
+  credit: `Enter a whole number of credits from 0 to ${MAX_DAILY_CREDIT_CAP.toLocaleString("en-GB")}, or choose no limit. 0 switches AI generation off for this connection.`,
+}
+
+/** The column a limit kind sets, shared by api_tokens and oauth_grants (same column names). */
+export const limitUpdate = (kind: LimitKind, value: number | null) =>
+  kind === "create" ? { dailyCreateCap: value as number } : kind === "delete" ? { dailyDeleteCap: value as number } : { dailyCreditCap: value }
+
 export interface CreateTokenOptions {
   /** Default: read only. */
   access?: TokenAccess
@@ -67,6 +91,9 @@ export interface CreateTokenOptions {
   /** One of TOKEN_EXPIRY_OPTIONS (default 90 days). */
   expiry?: string
   dailyCreateCap?: number
+  /** Defaults to DEFAULT_DAILY_DELETE_CAP / DEFAULT_DAILY_CREDIT_CAP; the owner changes them per token in Settings. */
+  dailyDeleteCap?: number
+  dailyCreditCap?: number | null
 }
 
 /** Returns the plaintext once; only its hash is stored. */
@@ -96,6 +123,8 @@ export async function createApiToken(
       scopes: tokenScopes(access, options.extraScopes),
       expiresAt: expiry.expiresAt,
       dailyCreateCap,
+      dailyDeleteCap: options.dailyDeleteCap ?? DEFAULT_DAILY_DELETE_CAP,
+      dailyCreditCap: options.dailyCreditCap === undefined ? DEFAULT_DAILY_CREDIT_CAP : options.dailyCreditCap,
     })
     .returning()
   return { token, metadata: toMetadata(row) }
@@ -117,10 +146,10 @@ export async function revokeApiToken(userId: string, tokenId: string): Promise<b
 }
 
 /** Scoped to the owner. Returns false if the token is not theirs or was revoked. */
-export async function setApiTokenDailyCap(userId: string, tokenId: string, cap: number): Promise<boolean> {
+export async function setApiTokenDailyCap(userId: string, tokenId: string, cap: number | null, kind: LimitKind = "create"): Promise<boolean> {
   const rows = await db
     .update(apiTokens)
-    .set({ dailyCreateCap: cap })
+    .set(limitUpdate(kind, cap))
     .where(and(eq(apiTokens.id, tokenId), eq(apiTokens.userId, userId), isNull(apiTokens.revokedAt)))
     .returning({ id: apiTokens.id })
   return rows.length > 0
@@ -131,6 +160,8 @@ export interface ApiTokenAuth {
   userId: string
   scopes: string[]
   dailyCreateCap: number
+  dailyDeleteCap: number
+  dailyCreditCap: number | null
 }
 
 /**
@@ -145,7 +176,7 @@ export async function authenticateApiToken(rawToken: string, now = new Date()): 
     .update(apiTokens)
     .set({ lastUsedAt: now })
     .where(and(eq(apiTokens.tokenHash, tokenHash), isNull(apiTokens.revokedAt), or(isNull(apiTokens.expiresAt), gt(apiTokens.expiresAt, now))))
-    .returning({ tokenId: apiTokens.id, userId: apiTokens.userId, scopes: apiTokens.scopes, dailyCreateCap: apiTokens.dailyCreateCap })
+    .returning({ tokenId: apiTokens.id, userId: apiTokens.userId, scopes: apiTokens.scopes, dailyCreateCap: apiTokens.dailyCreateCap, dailyDeleteCap: apiTokens.dailyDeleteCap, dailyCreditCap: apiTokens.dailyCreditCap })
   if (row) return row
 
   const [lapsed] = await db

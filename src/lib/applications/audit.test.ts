@@ -107,6 +107,43 @@ describe("application audit", () => {
     expect(values.mock.invocationCallOrder[0]).toBeLessThan(deleteWhere.mock.invocationCallOrder[0])
   })
 
+  function deleteTransaction(row: Record<string, unknown>) {
+    const values = vi.fn().mockResolvedValue(undefined)
+    const deleteWhere = vi.fn().mockResolvedValue(undefined)
+    const tx = {
+      select: vi.fn(() => ({ from: () => ({ where: () => ({ limit: () => ({ for: vi.fn().mockResolvedValue([row]) }) }) }) })),
+      insert: vi.fn(() => ({ values })),
+      delete: vi.fn(() => ({ where: deleteWhere })),
+    }
+    db.transaction.mockImplementation((callback) => callback(tx))
+    return { values, deleteWhere }
+  }
+
+  it("an MCP deletion records who did it (source) and never the application's slug, title or company", async () => {
+    const { values, deleteWhere } = deleteTransaction({ slug: "engineer-acme", title: "Engineer", company: "Acme", archivedAt: new Date() })
+
+    expect(await deleteApplicationWithAuditForUser("user-1", "app-1", { source: "mcp", omitText: true, requireArchived: true })).toBe(true)
+    const [event] = values.mock.calls[0][0]
+    expect(event).toMatchObject({ applicationId: "app-1", userId: "user-1", eventType: "application.deleted", metadata: { source: "mcp", text_omitted: true } })
+    expect(JSON.stringify(event)).not.toMatch(/engineer|acme/i)
+    expect(deleteWhere).toHaveBeenCalledOnce()
+  })
+
+  it("requireArchived refuses an application that is not archived: nothing is recorded or deleted", async () => {
+    const { values, deleteWhere } = deleteTransaction({ slug: "engineer-acme", title: "Engineer", company: "Acme", archivedAt: null })
+
+    expect(await deleteApplicationWithAuditForUser("user-1", "app-1", { source: "mcp", omitText: true, requireArchived: true })).toBe(false)
+    expect(values).not.toHaveBeenCalled()
+    expect(deleteWhere).not.toHaveBeenCalled()
+  })
+
+  it("the web delete (no options) is unchanged: it still records slug, title and company and needs no archive", async () => {
+    const { values } = deleteTransaction({ slug: "engineer-acme", title: "Engineer", company: "Acme", archivedAt: null })
+
+    expect(await deleteApplicationWithAuditForUser("user-1", "app-1")).toBe(true)
+    expect(values.mock.calls[0][0][0].metadata).toEqual({ slug: "engineer-acme", title: "Engineer", company: "Acme" })
+  })
+
   it("queries one owner's timeline with a deterministic tie-breaker", async () => {
     const orderBy = vi.fn().mockResolvedValue([{ id: "event-2" }, { id: "event-1" }])
     const where = vi.fn(() => ({ orderBy }))

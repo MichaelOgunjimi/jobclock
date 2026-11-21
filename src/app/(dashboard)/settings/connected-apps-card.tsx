@@ -35,7 +35,7 @@ export function ConnectedAppsCard({ apps: initialApps, mcpUrl, activity }: { app
         <CardTitle>Connected apps</CardTitle>
         <CardDescription>
           The easy way to connect Claude or another MCP app: add the server URL below in the app, sign in when it opens JobClock,
-          and choose what to allow and for how long. Apps start read-only; you decide whether they may make changes. We email you when an app is connected.
+          and choose what to allow and for how long. Apps start read-only; you decide whether they may make changes, and separately whether they may permanently delete applications or use your AI credits. We email you when an app is connected.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
@@ -57,7 +57,7 @@ export function ConnectedAppsCard({ apps: initialApps, mcpUrl, activity }: { app
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="break-words text-sm font-medium text-foreground">{app.clientName}</p>
                         <Badge variant="outline">{scopeLabel(app.scopes)}</Badge>
-                        {extraScopeOptions(app.scopes).map((option) => <Badge key={option.scope} variant="outline">{option.label}</Badge>)}
+                        {extraScopeOptions(app.scopes).map((option) => <Badge key={option.scope} variant={option.group === "power" ? "destructive" : "outline"}>{option.label}</Badge>)}
                         {expired && <Badge variant="destructive">Expired</Badge>}
                       </div>
                       <p className="break-all text-xs text-muted-foreground">
@@ -70,6 +70,8 @@ export function ConnectedAppsCard({ apps: initialApps, mcpUrl, activity }: { app
                     </Button>
                   </div>
                   {!expired && canWrite(app.scopes) && <DailyLimitEditor kind="app" id={app.id} value={app.dailyCreateCap} />}
+                  {!expired && app.scopes.includes("applications:delete") && <DailyLimitEditor kind="app" id={app.id} value={app.dailyDeleteCap} limit="delete" />}
+                  {!expired && app.scopes.includes("ai:generate") && <DailyLimitEditor kind="app" id={app.id} value={app.dailyCreditCap} limit="credit" />}
                   <RecentActivity items={activity[app.id] ?? []} />
                 </li>
               )

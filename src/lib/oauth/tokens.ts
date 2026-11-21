@@ -2,7 +2,7 @@ import { randomBytes } from "crypto"
 import { and, desc, eq, gt, isNotNull, isNull, lt, notExists, or, sql } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { apiTokens, oauthAuthorizationCodes, oauthClients, oauthGrants, oauthTokens } from "@/lib/db/schema"
-import { hashApiToken } from "@/lib/mcp/tokens"
+import { hashApiToken, limitUpdate, type LimitKind } from "@/lib/mcp/tokens"
 import { ACCESS_TOKEN_PREFIX, ACCESS_TOKEN_TTL_SECONDS, isMcpResource, REFRESH_TOKEN_PREFIX, REFRESH_TOKEN_TTL_MS } from "./config"
 import { verifyPkce } from "./pkce"
 
@@ -117,6 +117,8 @@ export interface OAuthAuthContext {
   grantId: string
   resource: string
   dailyCreateCap: number
+  dailyDeleteCap: number
+  dailyCreditCap: number | null
 }
 
 /** One statement: unknown, expired and revoked tokens match nothing, so they cannot authenticate even if revoked mid-request. */
@@ -135,7 +137,7 @@ export async function authenticateOAuthAccessToken(rawToken: string, now = new D
         or(isNull(oauthGrants.expiresAt), gt(oauthGrants.expiresAt, now)),
       ),
     )
-    .returning({ userId: oauthGrants.userId, scopes: oauthGrants.scopes, grantId: oauthGrants.id, resource: oauthGrants.resource, dailyCreateCap: oauthGrants.dailyCreateCap })
+    .returning({ userId: oauthGrants.userId, scopes: oauthGrants.scopes, grantId: oauthGrants.id, resource: oauthGrants.resource, dailyCreateCap: oauthGrants.dailyCreateCap, dailyDeleteCap: oauthGrants.dailyDeleteCap, dailyCreditCap: oauthGrants.dailyCreditCap })
   return row ?? null
 }
 
@@ -159,6 +161,9 @@ export interface ConnectedApp {
   /** null = until revoked. */
   expiresAt: string | null
   dailyCreateCap: number
+  dailyDeleteCap: number
+  /** null = no limit. */
+  dailyCreditCap: number | null
   createdAt: string
   lastUsedAt: string | null
 }
@@ -180,6 +185,8 @@ export async function listConnectedApps(userId: string): Promise<ConnectedApp[]>
       scopes: oauthGrants.scopes,
       expiresAt: oauthGrants.expiresAt,
       dailyCreateCap: oauthGrants.dailyCreateCap,
+      dailyDeleteCap: oauthGrants.dailyDeleteCap,
+      dailyCreditCap: oauthGrants.dailyCreditCap,
       createdAt: oauthGrants.createdAt,
       lastUsedAt: oauthGrants.lastUsedAt,
     })
@@ -194,16 +201,18 @@ export async function listConnectedApps(userId: string): Promise<ConnectedApp[]>
     scopes: row.scopes,
     expiresAt: row.expiresAt?.toISOString() ?? null,
     dailyCreateCap: row.dailyCreateCap,
+    dailyDeleteCap: row.dailyDeleteCap,
+    dailyCreditCap: row.dailyCreditCap,
     createdAt: row.createdAt.toISOString(),
     lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
   }))
 }
 
 /** Scoped to the owner. Returns false when the connection is not theirs or was removed. */
-export async function setConnectedAppDailyCap(userId: string, grantId: string, cap: number): Promise<boolean> {
+export async function setConnectedAppDailyCap(userId: string, grantId: string, cap: number | null, kind: LimitKind = "create"): Promise<boolean> {
   const rows = await db
     .update(oauthGrants)
-    .set({ dailyCreateCap: cap })
+    .set(limitUpdate(kind, cap))
     .where(and(eq(oauthGrants.id, grantId), eq(oauthGrants.userId, userId), isNull(oauthGrants.revokedAt)))
     .returning({ id: oauthGrants.id })
   return rows.length > 0

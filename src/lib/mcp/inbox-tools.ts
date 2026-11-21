@@ -29,6 +29,7 @@ import {
   iso,
   MCP_SOURCE,
   NOT_FOUND,
+  notArchived,
   overdueFollowUp,
   summaryColumns,
   toSummary,
@@ -60,16 +61,19 @@ const ownedApplications = (userId: string, ...conditions: (SQL | undefined)[]) =
     .where(and(eq(applications.userId, userId), ...conditions))
 
 const staleConditions = (now: Date): SQL[] => [
+  notArchived,
   inArray(applications.status, [...STALE_STATUSES]),
   lte(applications.lastStatusUpdate, new Date(now.getTime() - STALE_AFTER_DAYS * DAY_MS)),
 ]
 const dayKey = (date: Date) => date.toISOString().slice(0, 10)
 const deadlineConditions = (now: Date): SQL[] => [
+  notArchived,
   eq(applications.status, "saved"),
   gt(jobsCache.applyDeadline, dayKey(now)),
   lte(jobsCache.applyDeadline, dayKey(new Date(now.getTime() + DEADLINE_WINDOW_DAYS * DAY_MS))),
 ]
 const interviewConditions = (now: Date, days: number): SQL[] => [
+  notArchived,
   gte(applications.interviewAt, now),
   lte(applications.interviewAt, new Date(now.getTime() + days * DAY_MS)),
   inArray(applications.status, [...ACTIVE_APPLICATION_STATUSES]),
@@ -86,7 +90,7 @@ export async function getPipelineSummary(userId: string, now = new Date()): Prom
   }
   const [stats, overdue, interviews, stale, deadlines] = await Promise.all([
     getApplicationStats(userId),
-    countWhere(false, ...overdueFollowUp(now)),
+    countWhere(false, notArchived, ...overdueFollowUp(now)),
     countWhere(false, ...interviewConditions(now, 7)),
     countWhere(false, ...staleConditions(now)),
     countWhere(true, ...deadlineConditions(now)),
@@ -358,6 +362,10 @@ const REVERTIBLE = {
   customSalaryText: { name: "salary", date: false },
   followUpDueAt: { name: "follow_up_due_at", date: true },
   interviewAt: { name: "interview_at", date: true },
+  archivedAt: { name: "archived_at", date: true },
+  tags: { name: "tags", date: false },
+  source: { name: "source", date: false },
+  appliedAt: { name: "applied_at", date: true },
 } as const
 type RevertibleField = keyof typeof REVERTIBLE
 const isRevertible = (field: string): field is RevertibleField => field in REVERTIBLE
@@ -368,7 +376,14 @@ const refuse = (message: string): ToolOutcome => ({ error: `Not undone: ${messag
 function asRecord(value: unknown): Record<string, Json> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, Json>) : {}
 }
-const sameValue = (current: unknown, recorded: unknown) => (current instanceof Date ? current.toISOString() : current ?? null) === (recorded ?? null)
+// A missing tag list and an empty one are the same thing (as in the audit helper).
+const sameValue = (current: unknown, recorded: unknown) =>
+  Array.isArray(current) || Array.isArray(recorded)
+    ? JSON.stringify(current ?? []) === JSON.stringify(recorded ?? [])
+    : (current instanceof Date ? current.toISOString() : current ?? null) === (recorded ?? null)
+
+/** Undoing an archive is a restore and vice versa; every other event keeps its own type. */
+const UNDO_EVENT_TYPE: Record<string, ApplicationAuditEventType> = { "application.archived": "application.restored", "application.restored": "application.archived" }
 
 /**
  * Reverts the newest agent change (source "mcp") that is not already undone, using the before values the audit event
@@ -394,7 +409,7 @@ export async function undoLastChange(userId: string, applicationId: string): Pro
 
   if (target.eventType === "application.status_changed") return undoStatusChange(userId, applicationId, agentEvents)
   if (!("changes" in asRecord(target.metadata))) {
-    return refuse(`the last agent change was "${target.eventType}", which cannot be reverted from here (adding an application is never undone by the agent; the owner can remove it in JobClock).`)
+    return refuse(`the last agent change was "${target.eventType}", which cannot be reverted from here (adding an application is never undone by the agent; archive_application hides it, and only the owner, or an agent holding the separate delete permission, can delete it. A permanent deletion can never be undone).`)
   }
 
   const recorded = asRecord(asRecord(target.metadata).changes) as Record<string, { before?: Json; after?: Json }>
@@ -420,7 +435,7 @@ export async function undoLastChange(userId: string, applicationId: string): Pro
         }
         return changes as AuditedApplicationChanges
       },
-      target.eventType as ApplicationAuditEventType,
+      UNDO_EVENT_TYPE[target.eventType] ?? (target.eventType as ApplicationAuditEventType),
       MCP_SOURCE,
       { undoes: [target.id] },
     )

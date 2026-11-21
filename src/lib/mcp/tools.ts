@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, ilike, inArray, isNotNull, lte, or, type SQL } from "drizzle-orm"
+import { and, asc, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lte, or, type SQL } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { applicationAuditEvents, applicationStatusEvents, applications, jobsCache } from "@/lib/db/schema"
 import { applyAuditedChangesForUser } from "@/lib/applications/audit"
@@ -13,8 +13,8 @@ import type { ApplicationStatus } from "@/lib/supabase/database.types"
 
 /**
  * The agent-facing operations. Every function takes the token owner's userId first and puts it in every
- * query's WHERE clause; nothing here reads or writes another user's rows. There are deliberately no delete,
- * billing or AI-credit operations.
+ * query's WHERE clause; nothing here reads or writes another user's rows. Deleting (manage-tools.ts) and AI generation
+ * (generation-tools.ts) live in their own files behind their own scopes; there are no billing operations.
  */
 
 export const MCP_SOURCE = "mcp"
@@ -24,6 +24,9 @@ export type ToolOutcome = { data: Record<string, unknown> } | { error: string }
 export const NOT_FOUND: ToolOutcome = { error: "Application not found." }
 const MAX_NOTES_CHARS = 8000
 export const DAY_MS = 24 * 60 * 60 * 1000
+
+/** Archived applications are hidden from lists, summaries and reminders unless a tool says otherwise (same rule as the web app and the emails). */
+export const notArchived = isNull(applications.archivedAt)
 
 export const iso = (value: Date | null | undefined) => value?.toISOString() ?? null
 
@@ -53,6 +56,8 @@ export function toSummary(row: {
   customCompany: string | null
   jobTitle: string | null
   jobCompany: string | null
+  /** Only selected by tools that can show archived rows. */
+  archivedAt?: Date | null
 }) {
   return {
     id: row.id,
@@ -64,6 +69,7 @@ export function toSummary(row: {
     last_status_update: iso(row.lastStatusUpdate),
     follow_up_due_at: iso(row.followUpDueAt),
     interview_at: iso(row.interviewAt),
+    ...(row.archivedAt !== undefined ? { archived: row.archivedAt !== null, archived_at: iso(row.archivedAt) } : {}),
   }
 }
 
@@ -82,9 +88,13 @@ export function overdueFollowUp(now: Date): SQL[] {
 
 export async function listApplications(
   userId: string,
-  args: { status?: ApplicationStatus; overdueFollowUps?: boolean; search?: string; limit: number },
+  args: { status?: ApplicationStatus; overdueFollowUps?: boolean; search?: string; limit: number; includeArchived?: boolean; archivedOnly?: boolean },
 ): Promise<ToolOutcome> {
+  if (args.archivedOnly && args.includeArchived === false) return { error: "archived_only and include_archived: false contradict each other. Use archived_only: true alone to see only archived applications." }
   const conditions: (SQL | undefined)[] = [eq(applications.userId, userId)]
+  // Default: archived rows are left out, like the web list. archived_only wins; include_archived shows both.
+  if (args.archivedOnly) conditions.push(isNotNull(applications.archivedAt))
+  else if (!args.includeArchived) conditions.push(notArchived)
   if (args.status) conditions.push(eq(applications.status, args.status))
   if (args.overdueFollowUps) conditions.push(...overdueFollowUp(new Date()))
   const search = args.search?.trim()
@@ -100,7 +110,7 @@ export async function listApplications(
   }
 
   const rows = await db
-    .select(summaryColumns)
+    .select({ ...summaryColumns, archivedAt: applications.archivedAt })
     .from(applications)
     .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
     .where(and(...conditions))
@@ -114,6 +124,8 @@ export async function findApplication(userId: string, applicationId: string) {
   const [row] = await db
     .select({
       ...summaryColumns,
+      archivedAt: applications.archivedAt,
+      tags: applications.tags,
       notes: applications.notes,
       followUpNotes: applications.followUpNotes,
       followUpCount: applications.followUpCount,
@@ -159,6 +171,7 @@ export async function getApplication(userId: string, applicationId: string): Pro
       ...toSummary(row),
       posting_url: row.postingUrl ?? null,
       source: row.source ?? null,
+      tags: row.tags ?? [],
       notes: notes.slice(0, MAX_NOTES_CHARS),
       notes_truncated: notes.length > MAX_NOTES_CHARS,
       follow_up_note: row.followUpNotes ?? null,
@@ -288,7 +301,7 @@ export async function listDue(userId: string, days: number, now = new Date()): P
       .select(summaryColumns)
       .from(applications)
       .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
-      .where(and(eq(applications.userId, userId), ...conditions))
+      .where(and(eq(applications.userId, userId), notArchived, ...conditions))
 
   const [overdue, upcoming, interviews] = await Promise.all([
     rows(...overdueFollowUp(now)).orderBy(asc(applications.followUpDueAt)).limit(50),

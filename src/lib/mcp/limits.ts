@@ -1,3 +1,4 @@
+import { MAX_SOURCE_LENGTH, MAX_TAG_LENGTH, MAX_TAGS } from "@/lib/applications/details"
 import { ACCESS_TOKEN_TTL_SECONDS, AUTHORIZATION_CODE_TTL_MS, MAX_CLIENT_NAME_LENGTH, MAX_REDIRECT_URIS, MAX_REGISTRATION_BODY_BYTES, REFRESH_TOKEN_TTL_MS } from "@/lib/oauth/config"
 
 /**
@@ -15,6 +16,14 @@ export const MAX_BATCH_JOBS = 20
 /** What a new token or connection starts with. The owner can change it per token or connection; 0 means unlimited. */
 export const DEFAULT_DAILY_CREATE_CAP = 100
 export const MAX_DAILY_CREATE_CAP = 1_000_000
+/** applications:delete. Per connection per rolling 24 hours; 0 switches deleting off (there is deliberately no unlimited choice). */
+export const DEFAULT_DAILY_DELETE_CAP = 10
+export const MAX_DAILY_DELETE_CAP = 1_000
+/** ai:generate. AI credits one connection may spend per rolling 24 hours. null = no limit (an explicit choice), 0 = generation switched off. */
+export const DEFAULT_DAILY_CREDIT_CAP = 20
+export const MAX_DAILY_CREDIT_CAP = 100_000
+/** Generation calls per minute per connection, whatever their cost (a prompt-injected agent cannot burst through the credit cap). */
+export const MCP_GENERATIONS_PER_MINUTE = 5
 /** An application with the same company and title created this recently is reported as a possible duplicate. */
 export const DUPLICATE_WINDOW_DAYS = 90
 export const MAX_DESCRIPTION_CHARS = 20_000
@@ -65,6 +74,10 @@ const days = (ms: number) => `${Math.round(ms / 86_400_000)} days`
 
 export const LIMITS: LimitInfo[] = [
   { name: "Daily new applications", value: `${DEFAULT_DAILY_CREATE_CAP} per connection per rolling 24 hours (0 = unlimited)`, reason: "A safety net against an agent that loops and floods your list. Set per token or connected app, so you decide.", status: "owner-editable", owner: true },
+  { name: "Daily permanent deletions", value: `${DEFAULT_DAILY_DELETE_CAP} per connection per rolling 24 hours (0 = deleting switched off; at most ${MAX_DAILY_DELETE_CAP.toLocaleString("en-GB")}; there is no unlimited choice)`, reason: "Only for connections you gave the separate 'Delete applications' permission. A safety net against an agent that loops or is fed malicious text. A deletion also needs the application to be archived first and its exact title repeated. You set it per token or connected app.", status: "owner-editable", owner: true },
+  { name: "Daily AI credits", value: `${DEFAULT_DAILY_CREDIT_CAP} credits per connection per rolling 24 hours (0 = AI generation switched off; or choose no limit explicitly)`, reason: "Only for connections you gave the separate 'Use AI credits' permission. Counted from the credits JobClock actually charged to jobs that connection started (plus the worst-case cost of jobs still running), so a looping or prompt-injected agent cannot drain your allowance. A call that would go over is refused before it starts. You set it per token or connected app.", status: "owner-editable", owner: true },
+  { name: "AI generation calls per minute", value: `${MCP_GENERATIONS_PER_MINUTE} per connection`, reason: "Each generation can spend your credits, so bursts are slowed down whatever they cost. A repeat of a generation that is already queued or running is deduped and charged nothing.", status: "kept", owner: true },
+  { name: "Tags, source and applied date", value: `${MAX_TAGS} tags of ${MAX_TAG_LENGTH} characters; source ${MAX_SOURCE_LENGTH} characters; applied date from 2000 to today (set_tags, set_source, set_applied_at)`, reason: "The web app's own limits, so an agent cannot save what you could not. set_tags replaces the whole list.", status: "kept", owner: true },
   { name: "Requests per minute", value: `${MCP_REQUESTS_PER_MINUTE} per account`, reason: "Stops a runaway agent loop from hammering the database. Raised from 60 so a full inbox run is not slowed down.", status: "raised", owner: true },
   { name: "Jobs per batch call", value: `${MAX_BATCH_JOBS}`, reason: "Keeps one add_applications call inside the server's time limit and its per-job results readable. Send several calls for more.", status: "kept", owner: true },
   { name: "Request size", value: `${MCP_MAX_BODY_BYTES / 1_000_000} MB per request`, reason: "Raised from 100 KB. Fits the largest legitimate batch (20 jobs at full description length is about 400 KB) and rejects anything absurd.", status: "raised", owner: true },

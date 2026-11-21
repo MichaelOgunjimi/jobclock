@@ -27,6 +27,8 @@ const token = (overrides: Partial<ApiTokenMetadata> = {}): ApiTokenMetadata => (
   scopes: ["applications:read", "applications:write"],
   expiresAt: null,
   dailyCreateCap: 100,
+  dailyDeleteCap: 10,
+  dailyCreditCap: 20,
   createdAt: iso(-10),
   lastUsedAt: null,
   revokedAt: null,
@@ -40,6 +42,8 @@ const app = (overrides: Partial<ConnectedApp> = {}): ConnectedApp => ({
   scopes: ["applications:read"],
   expiresAt: iso(20),
   dailyCreateCap: 100,
+  dailyDeleteCap: 10,
+  dailyCreditCap: 20,
   createdAt: iso(-10),
   lastUsedAt: null,
   ...overrides,
@@ -90,12 +94,14 @@ describe("access tokens card", () => {
     await waitFor(() => expect(createAgentToken).toHaveBeenCalledWith("Mine", "read", "90", []))
   })
 
-  it("offers the three private-data choices unticked, in plain words, and sends exactly the ticked ones", async () => {
+  it("offers the private-data and powerful choices unticked, in plain words, and sends exactly the ticked ones", async () => {
     createAgentToken.mockResolvedValue({ success: true, token: "jc_realtokenvalue", metadata: token({ id: "new", label: "Private", scopes: ["applications:read", "profile:read"] }) })
     render(<AgentAccessCard mcpUrl={MCP_URL} activity={{}} tokens={[]} />)
     const boxes = screen.getAllByRole("checkbox")
-    expect(boxes).toHaveLength(3)
+    expect(boxes).toHaveLength(5)
     for (const box of boxes) expect(box).not.toBeChecked()
+    expect(screen.getByText("Permanently delete applications")).toBeInTheDocument()
+    expect(screen.getByText("Use your AI credits (generate CVs, cover letters, research, interview prep)")).toBeInTheDocument()
     expect(screen.getByText(/Your name, phone, links and the full text of your CVs/)).toBeInTheDocument()
     expect(screen.getByText(/Your interview stories and notes about yourself/)).toBeInTheDocument()
     expect(screen.getByText("Change profile and interview material")).toBeInTheDocument()
@@ -157,13 +163,51 @@ describe("access tokens card", () => {
   })
 
   it("saves the daily limit for a token with write access, and hides it for a read-only one", async () => {
-    setAgentDailyLimit.mockResolvedValue({ success: true, dailyCreateCap: 0 })
+    setAgentDailyLimit.mockResolvedValue({ success: true, cap: 0 })
     render(<AgentAccessCard mcpUrl={MCP_URL} activity={{}} tokens={[token({ id: "w" }), token({ id: "r", label: "Reader", scopes: ["applications:read"] })]} />)
     expect(screen.getAllByLabelText("New applications per day")).toHaveLength(1)
     fireEvent.change(screen.getByLabelText("New applications per day"), { target: { value: "0" } })
     fireEvent.click(screen.getByRole("button", { name: "Save" }))
-    await waitFor(() => expect(setAgentDailyLimit).toHaveBeenCalledWith("token", "w", 0))
+    await waitFor(() => expect(setAgentDailyLimit).toHaveBeenCalledWith("token", "w", 0, "create"))
     expect(await screen.findByText(/No limit\. 0 means no limit\./)).toBeInTheDocument()
+  })
+})
+
+describe("delete and AI credit limits", () => {
+  it("shows the deletion limit only for a token that holds applications:delete, and saves it as a delete limit", async () => {
+    setAgentDailyLimit.mockResolvedValue({ success: true, cap: 3 })
+    render(<AgentAccessCard mcpUrl={MCP_URL} activity={{}} tokens={[token({ id: "d", scopes: ["applications:read", "applications:delete"] }), token({ id: "r", label: "Reader", scopes: ["applications:read"] })]} />)
+    expect(screen.getAllByLabelText("Permanent deletions per day")).toHaveLength(1)
+    expect(screen.getByText(/0 switches deleting off for this connection/)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText("Permanent deletions per day"), { target: { value: "3" } })
+    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+    await waitFor(() => expect(setAgentDailyLimit).toHaveBeenCalledWith("token", "d", 3, "delete"))
+  })
+
+  it("makes 'no limit' an explicit choice for AI credits and says 0 switches generation off", async () => {
+    setAgentDailyLimit.mockResolvedValue({ success: true, cap: null })
+    render(<AgentAccessCard mcpUrl={MCP_URL} activity={{}} tokens={[token({ id: "g", scopes: ["applications:read", "ai:generate"] })]} />)
+    expect(screen.getByLabelText("AI credits per day")).toHaveValue(20)
+    expect(screen.getByText(/0 switches AI generation off for this connection/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("checkbox", { name: "No limit" }))
+    expect(screen.getByLabelText("AI credits per day")).toBeDisabled()
+    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+    await waitFor(() => expect(setAgentDailyLimit).toHaveBeenCalledWith("token", "g", null, "credit"))
+    expect(await screen.findByText(/No limit: it can use all your AI credits/)).toBeInTheDocument()
+  })
+
+  it("an unlimited credit cap loads as 'No limit' ticked, and 0 loads as generation off", () => {
+    render(<AgentAccessCard mcpUrl={MCP_URL} activity={{}} tokens={[token({ id: "u", scopes: ["applications:read", "ai:generate"], dailyCreditCap: null }), token({ id: "z", scopes: ["applications:read", "ai:generate"], dailyCreditCap: 0 })]} />)
+    expect(screen.getByText(/No limit: it can use all your AI credits/)).toBeInTheDocument()
+    expect(screen.getByText(/AI generation is switched off/)).toBeInTheDocument()
+  })
+
+  it("shows the two powerful scopes as their own badges on connected apps", () => {
+    render(<ConnectedAppsCard mcpUrl={MCP_URL} activity={{}} apps={[app({ scopes: ["applications:read", "applications:delete", "ai:generate"] })]} />)
+    expect(screen.getByText("Delete applications")).toBeInTheDocument()
+    expect(screen.getByText("Use AI credits")).toBeInTheDocument()
+    expect(screen.getByLabelText("Permanent deletions per day")).toBeInTheDocument()
+    expect(screen.getByLabelText("AI credits per day")).toBeInTheDocument()
   })
 })
 

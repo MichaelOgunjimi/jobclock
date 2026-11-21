@@ -59,6 +59,7 @@ const matchColumns = {
   jobTitle: jobsCache.title,
   jobCompany: jobsCache.company,
   url: jobsCache.url,
+  archivedAt: applications.archivedAt,
 }
 
 function toMatch(row: {
@@ -70,6 +71,7 @@ function toMatch(row: {
   customCompany: string | null
   jobTitle: string | null
   jobCompany: string | null
+  archivedAt?: Date | null
 }) {
   return {
     id: row.id,
@@ -78,6 +80,8 @@ function toMatch(row: {
     company: row.customCompany ?? row.jobCompany ?? "Unknown company",
     status: row.status ?? "saved",
     created_at: row.createdAt?.toISOString() ?? null,
+    // Archived applications are still found here, so a finder does not add them again.
+    archived: row.archivedAt != null,
   }
 }
 
@@ -126,7 +130,15 @@ export async function checkJobExists(userId: string, args: { url?: string; compa
   const similar = company && title
     ? (await findByCompanyAndTitle(userId, company, title)).map(toMatch).filter((match) => !urlMatches.some((m) => m.id === match.id))
     : []
-  return { data: { exists: urlMatches.length > 0, url_matches: urlMatches, same_company_and_title: similar } }
+  const archived = [...urlMatches, ...similar].some((match) => match.archived)
+  return {
+    data: {
+      exists: urlMatches.length > 0,
+      url_matches: urlMatches,
+      same_company_and_title: similar,
+      ...(archived ? { note: "A match is archived (archived: true): the owner archived it, so do not add it again. Archived applications are hidden from lists; restore_application brings one back if the owner asks." } : {}),
+    },
+  }
 }
 
 /** What this connection added in the window. Without a connection (a direct call) it counts everything added through MCP by the user. */
@@ -147,6 +159,8 @@ async function createdViaMcpSince(userId: string, since: Date): Promise<number> 
 
 type AddContext = { createdToday: number; now: Date; dailyCap: number }
 
+const ARCHIVED_HINT = "This application is archived (the owner hid it), so it was not added again and is not restored. Leave it alone unless the owner asks you to restore_application."
+
 const dailyCapFor = () => currentConnection()?.dailyCreateCap ?? DAILY_CREATE_CAP
 
 async function addJob(userId: string, args: JobArgs, ctx: AddContext): Promise<ToolOutcome> {
@@ -160,7 +174,7 @@ async function addJob(userId: string, args: JobArgs, ctx: AddContext): Promise<T
   }
 
   const [existing] = await findByUrl(userId, normalized)
-  if (existing) return { data: { created: false, duplicate: "url", existing: toMatch(existing) } }
+  if (existing) return { data: { created: false, duplicate: "url", existing: toMatch(existing), ...(existing.archivedAt ? { hint: ARCHIVED_HINT } : {}) } }
 
   if (!args.allow_duplicate) {
     const since = new Date(ctx.now.getTime() - DUPLICATE_WINDOW_DAYS * DAY_MS)
@@ -171,7 +185,7 @@ async function addJob(userId: string, args: JobArgs, ctx: AddContext): Promise<T
           created: false,
           duplicate: "company_and_title",
           existing: toMatch(similar[0]),
-          hint: "The same company and title was added in the last 90 days. If this is a different posting, call again with allow_duplicate: true.",
+          hint: similar[0].archivedAt ? ARCHIVED_HINT : "The same company and title was added in the last 90 days. If this is a different posting, call again with allow_duplicate: true.",
         },
       }
     }
@@ -236,7 +250,7 @@ async function addJob(userId: string, args: JobArgs, ctx: AddContext): Promise<T
       url: normalized,
       ...(descriptionTruncated ? { description_truncated: true } : {}),
       ...(warnings.length ? { warnings } : {}),
-      to_undo: "Agents cannot delete applications: the owner can remove it in the JobClock web app.",
+      to_undo: "Call archive_application to hide it (restore_application brings it back). Permanent deletion needs the separate applications:delete permission.",
     },
   }
 }

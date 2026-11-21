@@ -66,8 +66,8 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl, activity }: { t
         <p className="section-label">Advanced</p>
         <CardTitle>Access tokens</CardTitle>
         <CardDescription>
-          For agents that cannot sign in through the browser. You choose what a token may do and how long it lasts; it can never
-          delete anything or spend AI credits. Prefer Connected apps above where you can.
+          For agents that cannot sign in through the browser. You choose what a token may do and how long it lasts. A token can
+          never delete anything or spend AI credits unless you tick those two permissions below. Prefer Connected apps above where you can.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
@@ -94,7 +94,7 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl, activity }: { t
           <fieldset className="w-full space-y-2">
             <legend className="text-sm font-medium text-foreground">Private details (all off unless you tick them)</legend>
             <div className="grid gap-2 sm:grid-cols-3">
-              {EXTRA_SCOPE_OPTIONS.map((option) => (
+              {EXTRA_SCOPE_OPTIONS.filter((option) => option.group === "private").map((option) => (
                 <label key={option.scope} className="flex cursor-pointer gap-3 border p-3 has-[:checked]:border-foreground">
                   <input
                     type="checkbox"
@@ -104,6 +104,25 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl, activity }: { t
                   />
                   <span className="space-y-1">
                     <span className="block text-sm text-foreground">{option.label}</span>
+                    <span className="block text-xs text-muted-foreground">{option.description}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset className="w-full space-y-2">
+            <legend className="text-sm font-medium text-foreground">Powerful permissions (off unless you tick them)</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {EXTRA_SCOPE_OPTIONS.filter((option) => option.group === "power").map((option) => (
+                <label key={option.scope} className="flex cursor-pointer gap-3 border border-destructive/40 p-3 has-[:checked]:border-destructive">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-5 shrink-0 accent-foreground"
+                    checked={extras.includes(option.scope)}
+                    onChange={(event) => setExtras((current) => (event.target.checked ? [...current, option.scope] : current.filter((scope) => scope !== option.scope)))}
+                  />
+                  <span className="space-y-1">
+                    <span className="block text-sm text-foreground">{option.prompt ?? option.label}</span>
                     <span className="block text-xs text-muted-foreground">{option.description}</span>
                   </span>
                 </label>
@@ -147,7 +166,7 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl, activity }: { t
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-medium text-foreground">{token.label}</p>
                         <Badge variant="outline">{scopeLabel(token.scopes)}</Badge>
-                        {extraScopeOptions(token.scopes).map((option) => <Badge key={option.scope} variant="outline">{option.label}</Badge>)}
+                        {extraScopeOptions(token.scopes).map((option) => <Badge key={option.scope} variant={option.group === "power" ? "destructive" : "outline"}>{option.label}</Badge>)}
                         {token.revokedAt ? <Badge variant="outline">Revoked</Badge> : expired ? <Badge variant="destructive">Expired</Badge> : <Badge variant="outline">Active</Badge>}
                       </div>
                       <p className="text-xs text-muted-foreground">
@@ -162,6 +181,8 @@ export function AgentAccessCard({ tokens: initialTokens, mcpUrl, activity }: { t
                     )}
                   </div>
                   {!token.revokedAt && !expired && token.scopes.includes("applications:write") && <DailyLimitEditor kind="token" id={token.id} value={token.dailyCreateCap} />}
+                  {!token.revokedAt && !expired && token.scopes.includes("applications:delete") && <DailyLimitEditor kind="token" id={token.id} value={token.dailyDeleteCap} limit="delete" />}
+                  {!token.revokedAt && !expired && token.scopes.includes("ai:generate") && <DailyLimitEditor kind="token" id={token.id} value={token.dailyCreditCap} limit="credit" />}
                   <RecentActivity items={activity[token.id] ?? []} />
                 </li>
               )

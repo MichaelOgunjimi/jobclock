@@ -91,6 +91,7 @@ export type ProfileEventType =
   | "profile.updated"
   | "profile.cv_primary_changed"
   | "profile.cv_renamed"
+  | "profile.cv_reviewed"
   | "interview.story_added"
   | "interview.story_updated"
   | "interview.fact_added"
@@ -101,6 +102,7 @@ export const PROFILE_EVENT_TOOLS: Record<ProfileEventType, string> = {
   "profile.updated": "update_profile",
   "profile.cv_primary_changed": "set_primary_cv",
   "profile.cv_renamed": "rename_cv",
+  "profile.cv_reviewed": "review_cv",
   "interview.story_added": "add_story",
   "interview.story_updated": "update_story",
   "interview.fact_added": "add_interview_profile_fact",

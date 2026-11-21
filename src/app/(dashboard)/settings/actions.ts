@@ -12,7 +12,7 @@ import {
 } from "@/lib/personal-api-tokens"
 import { sendAgentAccessNotice } from "@/lib/email/agent-access"
 import { parseExtraScopes, parseTokenAccess } from "@/lib/mcp/access-policy"
-import { createApiToken, DAILY_CAP_ERROR, parseDailyCap, revokeApiToken, setApiTokenDailyCap } from "@/lib/mcp/tokens"
+import { createApiToken, LIMIT_ERRORS, parseLimit, revokeApiToken, setApiTokenDailyCap, type LimitKind } from "@/lib/mcp/tokens"
 import { revokeConnectedApp, setConnectedAppDailyCap } from "@/lib/oauth/tokens"
 import { and, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
@@ -456,18 +456,19 @@ export async function revokeAgentConnection(grantId: string) {
   }
 }
 
-/** `kind` says which table the id belongs to; both are scoped to the signed-in owner. */
-export async function setAgentDailyLimit(kind: "token" | "app", id: string, cap: number) {
+/** `kind` says which table the id belongs to (both are scoped to the signed-in owner); `limit` says which daily limit. A credit limit of null is the explicit "no limit" choice. */
+export async function setAgentDailyLimit(kind: "token" | "app", id: string, cap: number | null, limit: LimitKind = "create") {
   const auth = await getAuthenticatedUserId()
   if ("error" in auth) return { error: auth.error }
-  const parsed = parseDailyCap(cap)
-  if (parsed === null) return { error: DAILY_CAP_ERROR }
+  if (limit !== "create" && limit !== "delete" && limit !== "credit") return { error: "Unknown limit." }
+  const parsed = parseLimit(limit, cap)
+  if (parsed === undefined) return { error: LIMIT_ERRORS[limit] }
 
   try {
-    const updated = kind === "token" ? await setApiTokenDailyCap(auth.userId, id, parsed) : await setConnectedAppDailyCap(auth.userId, id, parsed)
+    const updated = kind === "token" ? await setApiTokenDailyCap(auth.userId, id, parsed, limit) : await setConnectedAppDailyCap(auth.userId, id, parsed, limit)
     if (!updated) return { error: "Connection not found or already removed" }
     revalidatePath("/settings")
-    return { success: true as const, dailyCreateCap: parsed }
+    return { success: true as const, cap: parsed }
   } catch {
     return { error: "Failed to save the limit" }
   }

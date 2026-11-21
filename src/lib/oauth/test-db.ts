@@ -4,7 +4,7 @@ import { PGlite } from "@electric-sql/pglite"
 import { drizzle } from "drizzle-orm/pglite"
 import * as schema from "@/lib/db/schema"
 
-const MIGRATIONS = ["0035_mcp_api_tokens", "0036_mcp_oauth", "0037_mcp_access_controls"]
+const MIGRATIONS = ["0035_mcp_api_tokens", "0036_mcp_oauth", "0037_mcp_access_controls", "0040_mcp_delete_and_ai_generate"]
 
 export async function applyMigrations(client: PGlite, names: string[] = MIGRATIONS) {
   for (const name of names) {
@@ -21,6 +21,8 @@ export async function applyMigrations(client: PGlite, names: string[] = MIGRATIO
 export async function createOAuthTestDb() {
   const client = new PGlite()
   await client.exec("CREATE TABLE profiles (id uuid PRIMARY KEY)")
+  // Only so migration 0040 (which adds columns and an index to generation_jobs) can run.
+  await client.exec("CREATE TABLE generation_jobs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), created_at timestamptz DEFAULT now() NOT NULL)")
   await applyMigrations(client)
   return drizzle(client, { schema })
 }

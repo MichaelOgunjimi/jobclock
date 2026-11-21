@@ -1,5 +1,5 @@
 import { Ratelimit } from "@upstash/ratelimit"
-import { MCP_AUTH_FAILURES_PER_MINUTE, MCP_REQUESTS_PER_MINUTE, OAUTH_REGISTRATIONS_PER_MINUTE, OAUTH_TOKEN_REQUESTS_PER_MINUTE } from "@/lib/mcp/limits"
+import { MCP_AUTH_FAILURES_PER_MINUTE, MCP_GENERATIONS_PER_MINUTE, MCP_REQUESTS_PER_MINUTE, OAUTH_REGISTRATIONS_PER_MINUTE, OAUTH_TOKEN_REQUESTS_PER_MINUTE } from "@/lib/mcp/limits"
 import { Redis } from "@upstash/redis"
 
 type RatelimitResponse = Awaited<ReturnType<Ratelimit["limit"]>>
@@ -55,6 +55,9 @@ export const billingRateLimit = createLimiter("ratelimit:billing", 10, { failOpe
 // MCP limits and the reason for each live in src/lib/mcp/limits.ts.
 // MCP endpoint: per user (keyed by the token's owner, so extra tokens do not add headroom).
 export const mcpRateLimit = createLimiter("ratelimit:mcp", MCP_REQUESTS_PER_MINUTE)
+
+// AI generation started through MCP (ai:generate): per connection (token or connected app), on top of the web limit that enqueueGeneration applies per user.
+export const mcpGenerationLimit = createLimiter("ratelimit:mcp-generate", MCP_GENERATIONS_PER_MINUTE)
 
 // Failed MCP authentication, per client IP, to blunt token guessing and DB hammering.
 export const mcpAuthFailureLimit = createLimiter("ratelimit:mcp-auth-failure", MCP_AUTH_FAILURES_PER_MINUTE)

@@ -295,7 +295,7 @@ describe("input validation", () => {
 })
 
 describe("daily cap", () => {
-  const as = (dailyCreateCap: number) => <T>(fn: () => T) => runAsConnection({ kind: "token", id: "tok-1", dailyCreateCap }, fn)
+  const as = (dailyCreateCap: number) => <T>(fn: () => T) => runAsConnection({ kind: "token", id: "tok-1", dailyCreateCap, dailyDeleteCap: 10, dailyCreditCap: 20 }, fn)
 
   it("refuses once the connection has added its own limit in the last 24 hours, and the error names the limit, why and where to change it", async () => {
     seed([], { createdToday: 5 })

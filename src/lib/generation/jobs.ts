@@ -49,6 +49,8 @@ export async function createGenerationJob(input: {
   applicationId: string
   kind: GenerationKind
   params?: unknown
+  /** The MCP token or connected app that asked for it, so its daily credit cap can be counted. */
+  requestedBy?: { kind: "token" | "oauth"; id: string }
 }): Promise<{ job: GenerationJob; deduped: boolean }> {
   const existing = await findActiveJob(input.applicationId, input.kind)
 
@@ -64,6 +66,8 @@ export async function createGenerationJob(input: {
       kind: input.kind,
       status: "queued",
       params: input.params ?? null,
+      requestedByKind: input.requestedBy?.kind ?? null,
+      requestedById: input.requestedBy?.id ?? null,
     })
     .returning()) as GenerationJob[]
 

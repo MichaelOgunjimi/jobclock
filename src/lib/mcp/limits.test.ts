@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { describe, expect, it, vi } from "vitest"
-import { LIMITS, limitMessage, MAX_BATCH_JOBS, MAX_CV_CHARS, MAX_INTERVIEW_CHARS, MAX_LETTER_CHARS, MAX_LINK_CHARS, MAX_NAME_CHARS, MAX_PHONE_CHARS, MAX_PRIVATE_LIST, MAX_PROFILE_LIST_ITEM_CHARS, MAX_PROFILE_LIST_ITEMS, MAX_TARGET_SALARY, MCP_AUTH_FAILURES_PER_MINUTE, MCP_MAX_BODY_BYTES, MCP_REQUESTS_PER_MINUTE } from "./limits"
+import { LIMITS, limitMessage, MAX_BATCH_JOBS, MAX_CV_CHARS, MAX_INTERVIEW_CHARS, MAX_LETTER_CHARS, MAX_LINK_CHARS, MAX_NAME_CHARS, MAX_PHONE_CHARS, MAX_PRIVATE_LIST, MAX_PROFILE_LIST_ITEM_CHARS, MAX_PROFILE_LIST_ITEMS, MAX_TARGET_SALARY, MCP_AUTH_FAILURES_PER_MINUTE, MCP_GENERATIONS_PER_MINUTE, MCP_MAX_BODY_BYTES, MCP_REQUESTS_PER_MINUTE, DEFAULT_DAILY_CREDIT_CAP, DEFAULT_DAILY_DELETE_CAP } from "./limits"
 
 const docs = readFileSync(resolve(process.cwd(), "docs/mcp-agent-access.md"), "utf8")
 
@@ -54,6 +54,33 @@ describe("limits that live next to their tools", () => {
     expect(byName("Status changes per batch call")).toContain("25")
     expect(byName("Snooze length")).toContain("365")
     expect(byName("Company research text")).toContain("12,000")
+  })
+})
+
+describe("limits of delete and AI generation", () => {
+  const byName = (name: string) => LIMITS.find((limit) => limit.name === name)!
+
+  it("states each default, what 0 means and that the owner can change it", () => {
+    expect(byName("Daily permanent deletions").value).toContain(`${DEFAULT_DAILY_DELETE_CAP} per connection`)
+    expect(byName("Daily permanent deletions").value).toContain("0 = deleting switched off")
+    expect(byName("Daily permanent deletions").value).toContain("no unlimited choice")
+    expect(byName("Daily AI credits").value).toContain(`${DEFAULT_DAILY_CREDIT_CAP} credits`)
+    expect(byName("Daily AI credits").value).toContain("0 = AI generation switched off")
+    expect(byName("Daily AI credits").value).toContain("no limit explicitly")
+    expect(byName("AI generation calls per minute").value).toContain(String(MCP_GENERATIONS_PER_MINUTE))
+    for (const name of ["Daily permanent deletions", "Daily AI credits", "AI generation calls per minute", "Tags, source and applied date"]) expect(byName(name).owner, name).toBe(true)
+    expect(byName("Daily permanent deletions").status).toBe("owner-editable")
+    expect(byName("Daily AI credits").status).toBe("owner-editable")
+  })
+
+  it("the safe defaults: 10 deletions and 20 credits a day, a per-minute limit on generation", () => {
+    expect([DEFAULT_DAILY_DELETE_CAP, DEFAULT_DAILY_CREDIT_CAP, MCP_GENERATIONS_PER_MINUTE]).toEqual([10, 20, 5])
+  })
+
+  it("the tag, source and date limits are the web app's own, imported rather than copied", async () => {
+    const details = await import("@/lib/applications/details")
+    expect(byName("Tags, source and applied date").value).toContain(`${details.MAX_TAGS} tags of ${details.MAX_TAG_LENGTH}`)
+    expect(byName("Tags, source and applied date").value).toContain(`source ${details.MAX_SOURCE_LENGTH}`)
   })
 })
 

@@ -1,12 +1,12 @@
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
-import { Briefcase, Eye, MessagesSquare, Pencil, UserRound } from "lucide-react"
+import { Briefcase, Eye, MessagesSquare, Pencil, Sparkles, Trash2, UserRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AUTHORIZE_PARAMS, buildClientRedirect, parseAuthorizeRequest } from "@/lib/oauth/authorize"
 import { isLoopbackRedirect } from "@/lib/oauth/clients"
 import { CONNECTION_DURATION_OPTIONS, DEFAULT_CONNECTION_DURATION, EXTRA_SCOPE_OPTIONS, type ExtraScope } from "@/lib/mcp/access-policy"
-import { SCOPE_INTERVIEW_READ, SCOPE_PROFILE_READ, SCOPE_PROFILE_WRITE, SCOPE_WRITE } from "@/lib/oauth/config"
+import { SCOPE_AI_GENERATE, SCOPE_DELETE, SCOPE_INTERVIEW_READ, SCOPE_PROFILE_READ, SCOPE_PROFILE_WRITE, SCOPE_WRITE } from "@/lib/oauth/config"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { createClient } from "@/lib/supabase/server"
 import { decideConsent } from "./actions"
@@ -22,6 +22,8 @@ const EXTRA_ICONS: Record<ExtraScope, React.ReactNode> = {
   [SCOPE_PROFILE_READ]: <UserRound className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />,
   [SCOPE_INTERVIEW_READ]: <MessagesSquare className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />,
   [SCOPE_PROFILE_WRITE]: <Pencil className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />,
+  [SCOPE_DELETE]: <Trash2 className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />,
+  [SCOPE_AI_GENERATE]: <Sparkles className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />,
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -69,7 +71,8 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
   const redirectUrl = new URL(request.redirectUri)
   const local = isLoopbackRedirect(request.redirectUri)
   const offersWrite = request.offeredScopes.includes(SCOPE_WRITE)
-  const offeredExtras = EXTRA_SCOPE_OPTIONS.filter((option) => request.offeredScopes.includes(option.scope))
+  const offeredExtras = EXTRA_SCOPE_OPTIONS.filter((option) => option.group === "private" && request.offeredScopes.includes(option.scope))
+  const offeredPower = EXTRA_SCOPE_OPTIONS.filter((option) => option.group === "power" && request.offeredScopes.includes(option.scope))
 
   return (
     <Shell>
@@ -127,8 +130,27 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
                 </p>
               </div>
             )}
+            {offeredPower.length > 0 && (
+              <div className="space-y-3 pt-2">
+                <p className="section-label">Powerful permissions (off unless you tick them)</p>
+                {offeredPower.map((option) => (
+                  <label key={option.scope} className="flex cursor-pointer gap-3 border border-destructive/40 p-4 has-[:checked]:border-destructive">
+                    {EXTRA_ICONS[option.scope]}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="text-sm font-medium text-foreground">{option.prompt ?? option.label}</p>
+                      <p className="text-[13px] text-muted-foreground">{option.description}</p>
+                    </div>
+                    <input type="checkbox" name={option.scope} className="mt-0.5 size-5 shrink-0 accent-foreground" aria-label={`Allow: ${option.prompt ?? option.label}`} />
+                  </label>
+                ))}
+                <p className="text-[12px] text-muted-foreground">
+                  You set a daily limit for each in Settings, under AI Agent. Only tick what the app needs for what you asked it to do.
+                </p>
+              </div>
+            )}
             <p className="text-[12px] text-muted-foreground">
-              It can never delete anything, spend AI credits or touch billing. You can disconnect it any time in Settings, under AI Agent.
+              {offeredPower.length > 0 ? "Unless you tick them above, it can never delete anything or spend AI credits. " : "It can never delete anything or spend AI credits. "}
+              It can never touch billing. You can disconnect it any time in Settings, under AI Agent.
             </p>
           </div>
 
