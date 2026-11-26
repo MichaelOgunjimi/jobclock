@@ -1,6 +1,6 @@
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { applications, emailPreferences, jobsCache } from "@/lib/db/schema"
+import { applications, emailPreferences, jobsCache, profiles } from "@/lib/db/schema"
 import { DEADLINE_WINDOW_DAYS, STALE_AFTER_DAYS, STALE_STATUSES } from "@/lib/applications/attention"
 import { getAppUrl } from "@/lib/site"
 import { FOLLOW_UP_STATUSES, type FollowUpItem } from "@/lib/telegram/digest"
@@ -73,6 +73,7 @@ export async function sendFollowUpReminders(now = new Date()): Promise<JobRunRes
       id: applications.id,
       slug: applications.slug,
       dueAt: applications.followUpDueAt,
+      timezone: profiles.timezone,
       title: jobsCache.title,
       company: jobsCache.company,
       customTitle: applications.customTitle,
@@ -81,6 +82,7 @@ export async function sendFollowUpReminders(now = new Date()): Promise<JobRunRes
     .from(applications)
     .innerJoin(emailPreferences, and(eq(emailPreferences.userId, applications.userId), eq(emailPreferences.followUpReminders, true)))
     .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
+    .leftJoin(profiles, eq(profiles.id, applications.userId))
     .where(and(isNull(applications.archivedAt), isNotNull(applications.followUpDueAt), lte(applications.followUpDueAt, now), inArray(applications.status, [...FOLLOW_UP_STATUSES])))
     .orderBy(asc(applications.followUpDueAt))
 
@@ -91,6 +93,7 @@ export async function sendFollowUpReminders(now = new Date()): Promise<JobRunRes
       title: row.customTitle ?? row.title ?? "Untitled role",
       company: row.customCompany ?? row.company ?? "Unknown company",
       dueAt: row.dueAt!.toISOString(),
+      timezone: row.timezone,
       url: applicationUrl(row.slug),
     }))
     return sendGrouped<FollowUpItem & { key: string }>(userId, "follow_up_reminders", items, now, (fresh, url) => followUpDueEmail(fresh, url))
@@ -144,6 +147,7 @@ export async function sendInterviewReminders(now = new Date()): Promise<JobRunRe
       id: applications.id,
       slug: applications.slug,
       interviewAt: applications.interviewAt,
+      timezone: profiles.timezone,
       title: jobsCache.title,
       company: jobsCache.company,
       customTitle: applications.customTitle,
@@ -152,6 +156,7 @@ export async function sendInterviewReminders(now = new Date()): Promise<JobRunRe
     .from(applications)
     .innerJoin(emailPreferences, and(eq(emailPreferences.userId, applications.userId), eq(emailPreferences.interviewReminders, true)))
     .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
+    .leftJoin(profiles, eq(profiles.id, applications.userId))
     .where(and(isNull(applications.archivedAt), gte(applications.interviewAt, tomorrow), lt(applications.interviewAt, dayAfter), inArray(applications.status, [...FOLLOW_UP_STATUSES])))
     .orderBy(asc(applications.interviewAt))
 
@@ -162,6 +167,7 @@ export async function sendInterviewReminders(now = new Date()): Promise<JobRunRe
         title: row.customTitle ?? row.title ?? "Untitled role",
         company: row.customCompany ?? row.company ?? "Unknown company",
         interviewAt: row.interviewAt!.toISOString(),
+        timezone: row.timezone,
         url: applicationUrl(row.slug),
       }
       // A rescheduled interview has a new time, so it gets its own reminder.

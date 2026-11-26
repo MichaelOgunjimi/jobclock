@@ -95,6 +95,7 @@ export type Database = {
 					github_url: string | null;
 					portfolio_url: string | null;
 					avatar_url: string | null;
+					timezone: string | null;
 				};
 				Insert: {
 					id: string;
@@ -115,6 +116,7 @@ export type Database = {
 					github_url?: string | null;
 					portfolio_url?: string | null;
 					avatar_url?: string | null;
+					timezone?: string | null;
 				};
 				Update: {
 					id?: string;
@@ -135,6 +137,7 @@ export type Database = {
 					github_url?: string | null;
 					portfolio_url?: string | null;
 					avatar_url?: string | null;
+					timezone?: string | null;
 				};
 				Relationships: [];
 			};

@@ -1,6 +1,6 @@
 import { and, eq, gt, gte, lte, sql } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { aiUsagePeriods, emailPreferences } from "@/lib/db/schema"
+import { aiUsagePeriods, emailPreferences, profiles } from "@/lib/db/schema"
 import { sendOptionalEmail } from "./optional"
 import type { JobRunResult } from "./application-emails"
 import { creditsLowEmail, creditsResetEmail } from "./templates"
@@ -40,9 +40,10 @@ async function eachPeriod<T extends { userId: string }>(rows: T[], label: string
  */
 export async function sendCreditsLowEmails(now = new Date()): Promise<JobRunResult> {
   const rows = await db
-    .select({ userId: aiUsagePeriods.userId, start: aiUsagePeriods.periodStart, end: aiUsagePeriods.periodEnd, limit: aiUsagePeriods.creditLimit, used: aiUsagePeriods.creditsUsed, reserved: aiUsagePeriods.creditsReserved })
+    .select({ userId: aiUsagePeriods.userId, start: aiUsagePeriods.periodStart, end: aiUsagePeriods.periodEnd, limit: aiUsagePeriods.creditLimit, used: aiUsagePeriods.creditsUsed, reserved: aiUsagePeriods.creditsReserved, timezone: profiles.timezone })
     .from(aiUsagePeriods)
     .innerJoin(emailPreferences, and(eq(emailPreferences.userId, aiUsagePeriods.userId), eq(emailPreferences.creditAlerts, true)))
+    .leftJoin(profiles, eq(profiles.id, aiUsagePeriods.userId))
     .where(and(
       lte(aiUsagePeriods.periodStart, now),
       gt(aiUsagePeriods.periodEnd, now),
@@ -54,7 +55,7 @@ export async function sendCreditsLowEmails(now = new Date()): Promise<JobRunResu
       userId: row.userId,
       category: "credit_alerts",
       dedupeKey: `low:${row.start.toISOString()}`,
-      render: (url) => creditsLowEmail({ remaining: row.limit - row.used - row.reserved, limit: row.limit, resetsAt: row.end.toISOString() }, url),
+      render: (url) => creditsLowEmail({ remaining: row.limit - row.used - row.reserved, limit: row.limit, resetsAt: row.end.toISOString(), timezone: row.timezone }, url),
     }),
   )
 }

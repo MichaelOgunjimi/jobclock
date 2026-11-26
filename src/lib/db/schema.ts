@@ -59,6 +59,8 @@ export const profiles = pgTable("profiles", {
   avatarUrl: text("avatar_url"),
   // Set when the one-time welcome email is claimed, so it can never send twice. Existing accounts were backfilled.
   welcomeSentAt: timestamp("welcome_sent_at", { withTimezone: true }),
+  // IANA zone name (e.g. Europe/London), captured from the browser; null until then. Emails fall back to Europe/London.
+  timezone: text("timezone"),
 })
 
 // ============================================================

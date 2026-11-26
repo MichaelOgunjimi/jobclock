@@ -43,6 +43,9 @@ export function createLimiter(prefix: string, max: number, { failOpen = false } 
 // 20 requests per 60 seconds per user
 export const chatRateLimit = createLimiter("ratelimit:chat", 20)
 
+// Saving the browser timezone: a few a minute per user is plenty, and a limiter outage must not break the dashboard
+export const timezoneRateLimit = createLimiter("ratelimit:timezone", 5, { failOpen: true })
+
 // CV generation: 5 requests per 60 seconds per user
 export const cvGenerateRateLimit = createLimiter("ratelimit:cv-generate", 5)
 

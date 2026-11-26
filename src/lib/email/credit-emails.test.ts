@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => {
   const state = { rows: [] as unknown[] }
   // A stand-in for a drizzle query: every builder method returns itself and awaiting it gives the rows.
   const chain: Record<string, unknown> = {}
-  for (const method of ["from", "innerJoin", "where"]) chain[method] = () => chain
+  for (const method of ["from", "innerJoin", "leftJoin", "where"]) chain[method] = () => chain
   chain.then = (resolve: (rows: unknown[]) => unknown) => resolve(state.rows)
   return { state, chain, sendOptional: vi.fn() }
 })
@@ -57,6 +57,14 @@ describe("sendCreditsLowEmails", () => {
     expect(email.html).toContain("2026-12-01")
     expect(email.html).toContain("https://jobclock.dev/settings?tab=billing")
     expect(email.text).toContain("Unsubscribe from these emails: https://jobclock.dev/u?t=1")
+  })
+
+  it("shows the reset date on the user's own calendar day", async () => {
+    // END is a UTC instant late on 30 November; in Tokyo that is already 1 December.
+    mocks.state.rows = [{ userId: "u1", start: START, end: new Date("2026-11-30T23:30:00Z"), limit: 100, used: 85, reserved: 0, timezone: "Asia/Tokyo" }]
+    await sendCreditsLowEmails(NOW)
+    const email = mocks.sendOptional.mock.calls[0][0].render("https://jobclock.dev/u?t=1")
+    expect(email.html).toContain("reset on 2026-12-01")
   })
 })
 

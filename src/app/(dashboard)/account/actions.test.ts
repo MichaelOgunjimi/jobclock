@@ -28,6 +28,7 @@ describe("saveAccountInfo", () => {
       githubUrl: "",
       portfolioUrl: "",
       avatarUrl: "",
+      timezone: "",
     })
 
     expect(result).toEqual({ success: true })
@@ -41,6 +42,7 @@ describe("saveAccountInfo", () => {
       github_url: null,
       portfolio_url: null,
       avatar_url: null,
+      timezone: null,
     })
     expect(revalidatePath).toHaveBeenCalledWith("/account")
     expect(revalidatePath).toHaveBeenCalledWith("/", "layout")
@@ -54,6 +56,7 @@ describe("saveAccountInfo", () => {
       githubUrl: "",
       portfolioUrl: "",
       avatarUrl: "",
+      timezone: "",
     }
 
     vi.mocked(isSupabaseConfigured).mockReturnValue(false)
@@ -66,5 +69,15 @@ describe("saveAccountInfo", () => {
     supabaseMock.setUser({ id: "test-user-id", email: "test@example.com" })
     supabaseMock.setQueryResult("profiles.update", { error: { message: "failed" } })
     expect(await saveAccountInfo(payload)).toEqual({ error: "failed" })
+  })
+
+  it("saves a valid timezone and rejects an unknown one", async () => {
+    const payload = { fullName: "", phone: "", linkedinUrl: "", githubUrl: "", portfolioUrl: "", avatarUrl: "" }
+    expect(await saveAccountInfo({ ...payload, timezone: " America/New_York " })).toEqual({ success: true })
+    const update = supabaseMock.getQueryCalls().find((call) => call.table === "profiles" && call.operation === "update")
+    expect(update?.payload).toMatchObject({ timezone: "America/New_York" })
+
+    expect(await saveAccountInfo({ ...payload, timezone: "Mars/Olympus" })).toEqual({ error: "Choose a timezone from the list, such as Europe/London." })
+    expect(supabaseMock.getQueryCalls().filter((call) => call.operation === "update")).toHaveLength(1)
   })
 })

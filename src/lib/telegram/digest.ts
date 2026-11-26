@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, isNotNull, isNull, lte } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { applications, jobsCache } from "@/lib/db/schema"
+import { applications, jobsCache, profiles } from "@/lib/db/schema"
+import { formatLocalDate } from "@/lib/timezone"
 import { escapeHtml } from "./client"
 import { appOrigin } from "./recent-jobs"
 import { formatStats, getApplicationStats, type ApplicationStats } from "./stats"
@@ -13,6 +14,8 @@ export interface FollowUpItem {
   title: string
   company: string
   dueAt: string
+  /** The owner's IANA zone, used to show the due date; Europe/London when null. */
+  timezone?: string | null
   url: string
 }
 
@@ -24,7 +27,7 @@ export function formatDigest(followUps: FollowUpItem[], statsHtml: string): stri
       `⏰ <b>Follow-ups due</b>\n${followUps
         .map(
           (item) =>
-            `• <a href="${escapeHtml(item.url)}">${escapeHtml(item.title)}</a> at ${escapeHtml(item.company)} <i>(due ${item.dueAt.slice(0, 10)})</i>`
+            `• <a href="${escapeHtml(item.url)}">${escapeHtml(item.title)}</a> at ${escapeHtml(item.company)} <i>(due ${formatLocalDate(item.dueAt, item.timezone)})</i>`
         )
         .join("\n")}`
     )
@@ -38,6 +41,7 @@ async function listOverdueFollowUps(userId: string): Promise<FollowUpItem[]> {
     .select({
       slug: applications.slug,
       dueAt: applications.followUpDueAt,
+      timezone: profiles.timezone,
       title: jobsCache.title,
       company: jobsCache.company,
       customTitle: applications.customTitle,
@@ -45,6 +49,7 @@ async function listOverdueFollowUps(userId: string): Promise<FollowUpItem[]> {
     })
     .from(applications)
     .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
+    .leftJoin(profiles, eq(profiles.id, applications.userId))
     .where(
       and(
         eq(applications.userId, userId),
@@ -61,6 +66,7 @@ async function listOverdueFollowUps(userId: string): Promise<FollowUpItem[]> {
     title: row.customTitle ?? row.title ?? "Untitled role",
     company: row.customCompany ?? row.company ?? "Unknown company",
     dueAt: row.dueAt!.toISOString(),
+    timezone: row.timezone,
     url: new URL(`/applications/${row.slug}`, appOrigin()).toString(),
   }))
 }
