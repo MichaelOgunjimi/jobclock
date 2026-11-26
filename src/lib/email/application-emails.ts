@@ -3,6 +3,7 @@ import { db } from "@/lib/db"
 import { applications, emailPreferences, jobsCache, profiles } from "@/lib/db/schema"
 import { DEADLINE_WINDOW_DAYS, STALE_AFTER_DAYS, STALE_STATUSES } from "@/lib/applications/attention"
 import { getAppUrl } from "@/lib/site"
+import { addDaysToDate, formatLocalDate, startOfLocalDay } from "@/lib/timezone"
 import { FOLLOW_UP_STATUSES, type FollowUpItem } from "@/lib/telegram/digest"
 import type { EmailCategory } from "./categories"
 import { sendOptionalEmail } from "./optional"
@@ -100,15 +101,19 @@ export async function sendFollowUpReminders(now = new Date()): Promise<JobRunRes
   })
 }
 
-/** Deadline reminders: saved jobs whose apply_deadline is one or two days away. One email per job, ever; a missed cron day still catches up. */
+/**
+ * Deadline reminders: saved jobs whose apply_deadline is one or two days away on the recipient's own calendar. One email per job,
+ * ever; a missed cron day still catches up. The deadline is a plain date, so "today" is the user's local date, not the UTC one
+ * (08:00 UTC is still the previous evening in Hawaii and Alaska).
+ */
 export async function sendDeadlineReminders(now = new Date()): Promise<JobRunResult> {
-  const today = dayKey(now)
-  const rows = await db
+  const rows = (await db
     .select({
       userId: applications.userId,
       jobId: jobsCache.id,
       slug: applications.slug,
       deadline: jobsCache.applyDeadline,
+      timezone: profiles.timezone,
       title: jobsCache.title,
       company: jobsCache.company,
       customTitle: applications.customTitle,
@@ -117,8 +122,13 @@ export async function sendDeadlineReminders(now = new Date()): Promise<JobRunRes
     .from(applications)
     .innerJoin(emailPreferences, and(eq(emailPreferences.userId, applications.userId), eq(emailPreferences.deadlineReminders, true)))
     .innerJoin(jobsCache, eq(applications.jobId, jobsCache.id))
-    .where(and(isNull(applications.archivedAt), eq(applications.status, "saved"), gt(jobsCache.applyDeadline, today), lte(jobsCache.applyDeadline, dayKey(new Date(now.getTime() + DEADLINE_WINDOW_DAYS * DAY_MS)))))
-    .orderBy(asc(jobsCache.applyDeadline))
+    .leftJoin(profiles, eq(profiles.id, applications.userId))
+    // Coarse UTC-date bounds that contain every zone's window; the exact local-date cut is made below.
+    .where(and(isNull(applications.archivedAt), eq(applications.status, "saved"), gt(jobsCache.applyDeadline, dayKey(new Date(now.getTime() - DAY_MS))), lte(jobsCache.applyDeadline, dayKey(new Date(now.getTime() + (DEADLINE_WINDOW_DAYS + 1) * DAY_MS)))))
+    .orderBy(asc(jobsCache.applyDeadline))).filter((row) => {
+    const today = formatLocalDate(now, row.timezone)
+    return row.deadline! > today && row.deadline! <= addDaysToDate(today, DEADLINE_WINDOW_DAYS)
+  })
 
   return eachUser(byUser(rows), "deadlines", async (userId, userRows) => {
     let sent = 0
@@ -128,7 +138,7 @@ export async function sendDeadlineReminders(now = new Date()): Promise<JobRunRes
         title: row.customTitle ?? row.title,
         company: row.customCompany ?? row.company,
         deadline,
-        daysLeft: Math.round((Date.parse(deadline) - Date.parse(today)) / DAY_MS),
+        daysLeft: Math.round((Date.parse(deadline) - Date.parse(formatLocalDate(now, row.timezone))) / DAY_MS),
         url: applicationUrl(row.slug),
       }
       if (await sendOptionalEmail({ userId, category: "deadline_reminders", dedupeKey: `job:${row.jobId}`, render: (url) => deadlineEmail(item, url) })) sent += 1
@@ -137,11 +147,20 @@ export async function sendDeadlineReminders(now = new Date()): Promise<JobRunRes
   })
 }
 
-/** Interview reminders: interviews that fall on tomorrow (UTC), one email per interview. Needs applications.interview_at, which nothing sets yet. */
+/**
+ * The interviews a daily run reminds about, in the user's zone: from the end of the day the previous run (24h ago) called
+ * "tomorrow" to the end of the day this run calls "tomorrow". On an ordinary day that is exactly the local tomorrow. Runs are
+ * exactly 24h apart, so these windows tile: an interview lands in one run's window, never two, and never in a gap, even on a
+ * DST day where the 08:00 UTC run's local date repeats or skips (Alaska). The dedupe key stays as a belt-and-braces guard.
+ */
+export function interviewWindow(now: Date, timezone?: string | null): { from: Date; to: Date } {
+  const end = (at: Date) => startOfLocalDay(addDaysToDate(formatLocalDate(at, timezone), 2), timezone)
+  return { from: end(new Date(now.getTime() - DAY_MS)), to: end(now) }
+}
+
+/** Interview reminders: interviews on tomorrow in the recipient's own timezone, one email per interview. Needs applications.interview_at. */
 export async function sendInterviewReminders(now = new Date()): Promise<JobRunResult> {
-  const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
-  const dayAfter = new Date(tomorrow.getTime() + DAY_MS)
-  const rows = await db
+  const rows = (await db
     .select({
       userId: applications.userId,
       id: applications.id,
@@ -157,8 +176,12 @@ export async function sendInterviewReminders(now = new Date()): Promise<JobRunRe
     .innerJoin(emailPreferences, and(eq(emailPreferences.userId, applications.userId), eq(emailPreferences.interviewReminders, true)))
     .leftJoin(jobsCache, eq(applications.jobId, jobsCache.id))
     .leftJoin(profiles, eq(profiles.id, applications.userId))
-    .where(and(isNull(applications.archivedAt), gte(applications.interviewAt, tomorrow), lt(applications.interviewAt, dayAfter), inArray(applications.status, [...FOLLOW_UP_STATUSES])))
-    .orderBy(asc(applications.interviewAt))
+    // Coarse UTC bounds that contain every zone's window (UTC-12 to UTC+14); the exact local-day cut is made below.
+    .where(and(isNull(applications.archivedAt), gte(applications.interviewAt, new Date(now.getTime() - DAY_MS)), lt(applications.interviewAt, new Date(now.getTime() + 3 * DAY_MS)), inArray(applications.status, [...FOLLOW_UP_STATUSES])))
+    .orderBy(asc(applications.interviewAt))).filter((row) => {
+    const { from, to } = interviewWindow(now, row.timezone)
+    return row.interviewAt! >= from && row.interviewAt! < to
+  })
 
   return eachUser(byUser(rows), "interviews", async (userId, userRows) => {
     let sent = 0

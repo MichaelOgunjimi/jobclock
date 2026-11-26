@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { DEFAULT_TIMEZONE, formatLocalDate, formatLocalDateTime, isValidTimezone, resolveTimezone } from "./timezone"
+import { addDaysToDate, DEFAULT_TIMEZONE, formatLocalDate, formatLocalDateTime, isValidTimezone, resolveTimezone, startOfLocalDay } from "./timezone"
 
 describe("isValidTimezone", () => {
   it("accepts IANA names, UTC and legacy aliases", () => {
@@ -54,5 +54,44 @@ describe("formatLocalDate", () => {
     expect(formatLocalDate("2026-11-21T23:30:00Z", "Asia/Tokyo")).toBe("2026-11-22")
     expect(formatLocalDate("2026-06-21T23:30:00Z", undefined)).toBe("2026-06-22")
     expect(formatLocalDate("2026-06-21T23:30:00Z", "UTC")).toBe("2026-06-21")
+  })
+})
+
+describe("addDaysToDate", () => {
+  it("moves a calendar date across month, year and leap-day boundaries", () => {
+    expect(addDaysToDate("2026-11-30", 2)).toBe("2026-12-02")
+    expect(addDaysToDate("2026-12-31", 1)).toBe("2027-01-01")
+    expect(addDaysToDate("2028-03-01", -1)).toBe("2028-02-29")
+  })
+})
+
+describe("startOfLocalDay", () => {
+  it.each([
+    ["Europe/London", "2026-11-21", "2026-11-21T00:00:00.000Z"],
+    ["Europe/London", "2026-07-02", "2026-07-01T23:00:00.000Z"],
+    ["Asia/Tokyo", "2026-07-02", "2026-07-01T15:00:00.000Z"],
+    ["America/New_York", "2026-07-02", "2026-07-02T04:00:00.000Z"],
+    ["America/New_York", "2026-12-02", "2026-12-02T05:00:00.000Z"],
+    ["Asia/Kolkata", "2026-07-02", "2026-07-01T18:30:00.000Z"],
+    // The day after the clocks go forward starts an hour earlier in UTC than the day of the change.
+    ["Europe/London", "2026-03-29", "2026-03-29T00:00:00.000Z"],
+    ["Europe/London", "2026-03-30", "2026-03-29T23:00:00.000Z"],
+    ["Europe/London", "2026-10-26", "2026-10-26T00:00:00.000Z"],
+    // Havana's clocks skip midnight on 8 Mar 2026, so the day starts at 01:00 local (06:00Z).
+    ["America/Havana", "2026-03-08", "2026-03-08T05:00:00.000Z"],
+    [null, "2026-07-02", "2026-07-01T23:00:00.000Z"],
+  ])("%s %s starts at %s", (zone, date, expected) => {
+    expect(startOfLocalDay(date, zone).toISOString()).toBe(expected)
+  })
+
+  it("always starts exactly on the first moment of the date", () => {
+    for (const zone of ["Europe/London", "America/New_York", "America/Havana", "America/Anchorage", "Australia/Lord_Howe", "Asia/Tokyo"]) {
+      for (let day = 0; day < 400; day += 1) {
+        const date = addDaysToDate("2026-01-01", day)
+        const start = startOfLocalDay(date, zone)
+        expect(formatLocalDate(start, zone), `${zone} ${date}`).toBe(date)
+        expect(formatLocalDate(new Date(start.getTime() - 1), zone), `${zone} ${date}`).not.toBe(date)
+      }
+    }
   })
 })

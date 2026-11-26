@@ -38,3 +38,34 @@ export function formatLocalDateTime(iso: string | Date, timezone?: string | null
   const time = new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date)
   return `${formatLocalDate(date, timeZone)} ${time} ${zoneAbbreviation(date, timeZone)}`
 }
+
+const HOUR_MS = 3_600_000
+
+/** Adds whole days to a YYYY-MM-DD calendar date. */
+export function addDaysToDate(date: string, days: number): string {
+  const [year, month, day] = date.split("-").map(Number)
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10)
+}
+
+// How far the zone's wall clock is ahead of UTC at this instant, in ms.
+function offsetMs(instant: Date, timeZone: string): number {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", { timeZone, year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric", hourCycle: "h23" })
+      .formatToParts(instant)
+      .map((part) => [part.type, Number(part.value)]),
+  )
+  return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - Math.floor(instant.getTime() / 1000) * 1000
+}
+
+/** The first instant of a calendar date (YYYY-MM-DD) in the user's zone. DST days are 23 or 25 hours long, so never add 24h to this. */
+export function startOfLocalDay(date: string, timezone?: string | null): Date {
+  const timeZone = resolveTimezone(timezone)
+  const [year, month, day] = date.split("-").map(Number)
+  const wall = Date.UTC(year, month - 1, day)
+  let t = wall - offsetMs(new Date(wall), timeZone)
+  t = wall - offsetMs(new Date(t), timeZone)
+  // A zone whose clock skips midnight (Havana) lands an hour early; one that repeats it lands an hour late.
+  while (formatLocalDate(new Date(t), timeZone) < date) t += HOUR_MS
+  while (formatLocalDate(new Date(t - 1), timeZone) >= date) t -= HOUR_MS
+  return new Date(t)
+}
