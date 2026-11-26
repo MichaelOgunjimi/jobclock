@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const push = vi.fn()
@@ -23,6 +23,7 @@ describe("signup code step", () => {
   const fetchMock = vi.fn()
 
   beforeEach(() => {
+    sessionStorage.clear()
     vi.clearAllMocks()
     vi.stubGlobal("fetch", fetchMock)
     fetchMock.mockResolvedValueOnce(reply({ ok: true, needsCode: true, message: "Enter the 6-digit code we sent to your email." }))
@@ -78,5 +79,37 @@ describe("signup code step", () => {
     fireEvent.click(resend)
     await waitFor(() => expect((fetchMock.mock.calls[1][1].body as FormData).get("intent")).toBe("resend_code"))
     expect(await screen.findByRole("button", { name: "Resend code in 60s" })).toBeDisabled()
+  })
+
+  it("offers sign-in on the code step, keeping the email and dropping the code step", async () => {
+    await reachCodeStep()
+    fireEvent.change(screen.getByLabelText("Confirmation code"), { target: { value: "123" } })
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }))
+
+    expect(screen.queryByLabelText("Confirmation code")).not.toBeInTheDocument()
+    expect(screen.getByText("Sign in to continue.")).toBeInTheDocument()
+    expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("ada@example.com")
+    expect(sessionStorage.length).toBe(0)
+  })
+
+  it("restores the code step after a reload from the email alone", async () => {
+    await reachCodeStep()
+    expect(sessionStorage.getItem("auth:pending-signup-email")).toBe("ada@example.com")
+    expect(JSON.stringify({ ...sessionStorage })).not.toContain("secret1")
+    cleanup()
+
+    render(<AuthPageClient />)
+    expect(await screen.findByLabelText("Confirmation code")).toHaveValue("")
+    expect(screen.getByText(/ada@example.com/)).toBeInTheDocument()
+  })
+
+  it("clears the pending email once the code is accepted", async () => {
+    await reachCodeStep()
+    fetchMock.mockResolvedValueOnce(reply({ ok: true, redirect: "/dashboard" }))
+    fireEvent.change(screen.getByLabelText("Confirmation code"), { target: { value: "123456" } })
+    fireEvent.click(screen.getByRole("button", { name: /Confirm Email/ }))
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"))
+    expect(sessionStorage.length).toBe(0)
   })
 })
