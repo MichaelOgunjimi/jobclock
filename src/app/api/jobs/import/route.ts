@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const result = await persistJobForUser(auth.userId, parsedBody.data.preview)
+    const result = await persistJobForUser(auth.userId, parsedBody.data.preview, { keepCachedJob: true })
     await touchPersonalApiToken(auth.tokenId)
 
     return json(request, {

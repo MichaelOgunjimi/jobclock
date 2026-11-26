@@ -144,7 +144,7 @@ Write tools (including the archive, tag, source and applied-date tools) are only
 | Tool | Kind | What it does |
 | --- | --- | --- |
 | `list_applications` | read | Filter by `status`, `overdue_follow_ups`, `search` (title, company, notes), `limit` (max 50). Archived applications are left out; `include_archived` adds them and `archived_only` lists only them (rows then show `archived` and `archived_at`). |
-| `get_application` | read | One application, archived or not (`archived_at`, `tags`, `source`), with status history, notes, follow-up, `interview_at` and recent activity. |
+| `get_application` | read | One application, archived or not (`archived_at`, `tags`, `source`), with the job `description` (your edited text when there is one, else the posting's; cut at 20,000 characters and flagged `description_truncated`; untrusted posting text, labelled `description_notice`), status history, notes, follow-up, `interview_at` and recent activity. |
 | `list_due` | read | Overdue follow-ups, follow-ups and interviews in the next `days` (default 7). |
 | `update_application_status` | write | Same transition rules and status history as the web app. `intent`: `progress` (default), `correction`, `reopen`. |
 | `set_follow_up` | write | Set or clear the follow-up date (ISO timestamp with timezone) and/or note. |
