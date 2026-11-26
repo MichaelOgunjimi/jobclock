@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -109,7 +109,6 @@ export function SettingsTabs({
   hostedProviderPreference: "automatic" | "openai" | "anthropic"
   emailPreferences: EmailPreferences
 }) {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const validTabs = ["ai", "billing", "appearance", "extension", "agent", "telegram", "emails", "job-search", "job-sources", "companies"]
   const activeTab = validTabs.includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "ai"
@@ -151,7 +150,7 @@ export function SettingsTabs({
   function handleTabChange(value: string) {
     const params = new URLSearchParams(searchParams.toString())
     params.set("tab", value)
-    router.replace(`/settings?${params.toString()}`, { scroll: false })
+    window.history.replaceState(null, "", `/settings?${params.toString()}`)
   }
 
   return (

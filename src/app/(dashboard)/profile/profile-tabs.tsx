@@ -1,7 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -46,10 +45,7 @@ export function ProfileTabs({
 	userStyles: WritingStyle[];
 	generationAutomation?: { generateCv: boolean; generateCoverLetter: boolean };
 }) {
-	const router = useRouter();
 	const searchParams = useSearchParams();
-
-	const [isTabPending, startTabTransition] = useTransition();
 
 	const validTabs = ["cvs", "writing-styles", "automation"];
 	const activeTab =
@@ -58,18 +54,14 @@ export function ProfileTabs({
 		:	"cvs";
 
 	function handleTabChange(value: string) {
-		startTabTransition(() => {
-			const params = new URLSearchParams(searchParams.toString());
-			params.set("tab", value);
-			router.replace(`/profile?${params.toString()}`, { scroll: false });
-		});
+		const params = new URLSearchParams(searchParams.toString());
+		params.set("tab", value);
+		window.history.replaceState(null, "", `/profile?${params.toString()}`);
 	}
 
 	return (
 		<Tabs value={activeTab} onValueChange={handleTabChange}>
-			<TabsList
-				className={cn("mb-8 transition-opacity", isTabPending && "opacity-60")}
-			>
+			<TabsList className="mb-8">
 				<TabsTrigger value="cvs">CVs</TabsTrigger>
 				<TabsTrigger value="writing-styles">Writing Styles</TabsTrigger>
 				<TabsTrigger value="automation">Automation</TabsTrigger>

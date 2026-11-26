@@ -30,7 +30,7 @@ export function AuthPageClient() {
 
   useEffect(() => {
     if (searchParams.get("message")) {
-      router.replace(next ? `/auth?next=${encodeURIComponent(next)}` : "/auth", { scroll: false })
+      window.history.replaceState(null, "", next ? `/auth?next=${encodeURIComponent(next)}` : "/auth")
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
