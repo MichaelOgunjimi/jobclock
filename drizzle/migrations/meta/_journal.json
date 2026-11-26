@@ -288,6 +288,13 @@
       "when": 1795267509826,
       "tag": "0040_mcp_delete_and_ai_generate",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1795716932819,
+      "tag": "0041_profiles_timezone",
+      "breakpoints": true
     }
   ]
 }

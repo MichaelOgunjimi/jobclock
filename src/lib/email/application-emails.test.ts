@@ -55,6 +55,14 @@ describe("sendFollowUpReminders", () => {
     expect(email.html).toContain("https://jobclock.dev/u?t=1")
   })
 
+  it("shows the due date on the user's own calendar day", async () => {
+    mocks.state.rows = [due("u1", "a", { dueAt: new Date("2026-11-18T23:30:00Z"), timezone: "Asia/Tokyo" })]
+    await sendFollowUpReminders(NOW)
+    const email = mocks.sendOptional.mock.calls[0][0].render("https://jobclock.dev/u?t=1")
+    expect(email.html).toContain("due 2026-11-19")
+    expect(email.text).toContain("due 2026-11-19")
+  })
+
   it("leaves out applications that were already listed and sends nothing when none are new", async () => {
     mocks.state.rows = [due("u1", "a"), due("u1", "b"), due("u2", "c")]
     mocks.sentKeys.mockImplementation(async (userId: string) =>
@@ -155,9 +163,32 @@ describe("sendInterviewReminders", () => {
     const email = mocks.sendOptional.mock.calls[0][0].render("https://jobclock.dev/u?t=1")
     expect(email.subject).toBe("Interview tomorrow: Engineer at Acme & Co")
     expect(email.html).toContain("Acme &amp; Co")
-    expect(email.html).toContain("2026-11-21 14:30 UTC")
+    expect(email.html).toContain("2026-11-21 14:30 GMT")
     expect(email.html).toContain("Open interview prep")
     expect(email.html).toContain("https://jobclock.dev/applications/role-a")
+  })
+
+  it("shows the time in the recipient's timezone, across the clock change", async () => {
+    mocks.state.rows = [
+      interview("u1", "a", { timezone: "America/New_York" }),
+      // 00:30 UTC on the morning the UK clocks go forward is still GMT; an hour later it is BST.
+      interview("u2", "b", { interviewAt: new Date("2026-03-29T01:30:00Z"), timezone: "Europe/London" }),
+      interview("u3", "c", { interviewAt: new Date("2026-07-02T13:00:00Z"), timezone: "Asia/Tokyo" }),
+    ]
+    await sendInterviewReminders(NOW)
+    const html = (n: number) => mocks.sendOptional.mock.calls[n][0].render("https://jobclock.dev/u?t=1").html as string
+    expect(html(0)).toContain("2026-11-21 09:30 EST")
+    expect(html(1)).toContain("2026-03-29 02:30 BST")
+    expect(html(2)).toContain("2026-07-02 22:00 GMT+9")
+  })
+
+  it("falls back to Europe/London when the user has no stored timezone", async () => {
+    mocks.state.rows = [
+      interview("u1", "a", { interviewAt: new Date("2026-07-02T13:00:00Z"), timezone: null }),
+      interview("u2", "b", { interviewAt: new Date("2026-07-02T13:00:00Z"), timezone: "Bad/Zone" }),
+    ]
+    await sendInterviewReminders(NOW)
+    for (const n of [0, 1]) expect(mocks.sendOptional.mock.calls[n][0].render("https://jobclock.dev/u?t=1").html).toContain("2026-07-02 14:00 BST")
   })
 
   it("does nothing when no opted-in user has an interview tomorrow", async () => {

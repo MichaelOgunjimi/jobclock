@@ -24,7 +24,7 @@ export default async function AccountPage() {
   const [{ data: profile }, documents, documentFacts] = await Promise.all([
     supabase
       .from("profiles")
-      .select("full_name, phone, linkedin_url, github_url, portfolio_url, avatar_url")
+      .select("full_name, phone, linkedin_url, github_url, portfolio_url, avatar_url, timezone")
       .eq("id", user.id)
       .single(),
     db
@@ -99,6 +99,7 @@ export default async function AccountPage() {
 
         <AccountForm
           userId={user.id}
+          timezones={Intl.supportedValuesOf("timeZone")}
           initialData={{
             fullName: profile?.full_name ?? "",
             phone: profile?.phone ?? "",
@@ -106,6 +107,7 @@ export default async function AccountPage() {
             githubUrl: profile?.github_url ?? "",
             portfolioUrl: profile?.portfolio_url ?? "",
             avatarUrl: profile?.avatar_url ?? "",
+            timezone: profile?.timezone ?? "",
             email: user.email ?? "",
           }}
         />

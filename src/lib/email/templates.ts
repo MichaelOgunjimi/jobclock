@@ -2,6 +2,7 @@ import { summarizeStats } from "@/lib/applications/stats-summary"
 import type { PersistedJobInput } from "@/lib/jobs/persist-job"
 import type { DigestData, FollowUpItem } from "@/lib/telegram/digest"
 import { SUPPORT_EMAIL, getAppUrl } from "@/lib/site"
+import { formatLocalDate, formatLocalDateTime } from "@/lib/timezone"
 
 /** A finished email. The same subject/html/text goes to Resend or Beaco, so neither renders anything. */
 export interface RenderedEmail {
@@ -178,7 +179,7 @@ export function jobAlertEmail(jobs: PersistedJobInput[], unsubscribeUrl: string)
   }
 }
 
-const dateLabel = (iso: string) => iso.slice(0, 10)
+const dateLabel = (iso: string, timezone?: string | null) => formatLocalDate(iso, timezone)
 
 export function weeklyDigestEmail({ followUps, stats }: DigestData, unsubscribeUrl: string): RenderedEmail {
   const subject = "Your weekly JobClock digest"
@@ -191,14 +192,14 @@ export function weeklyDigestEmail({ followUps, stats }: DigestData, unsubscribeU
   ]
   const cta = { label: "Open JobClock", url: `${getAppUrl()}/dashboard` }
   const due = followUps.length > 0
-    ? `${paragraph("These follow-ups are due:")}\n${followUps.map((item) => listRow(item.title, `${item.company} · due ${dateLabel(item.dueAt)}`, item.url, "Open")).join("\n")}\n<div style="height:16px;"></div>`
+    ? `${paragraph("These follow-ups are due:")}\n${followUps.map((item) => listRow(item.title, `${item.company} · due ${dateLabel(item.dueAt, item.timezone)}`, item.url, "Open")).join("\n")}\n<div style="height:16px;"></div>`
     : ""
 
   return {
     subject,
     html: layout({ title: subject, eyebrow: "Weekly digest", heading: "Your week in JobClock.", bodyHtml: `${due}${lines.map(paragraph).join("\n")}`, cta, unsubscribeUrl }),
     text: [
-      ...(followUps.length > 0 ? ["Follow-ups due:", ...followUps.map((item) => `- ${item.title} at ${item.company} (due ${dateLabel(item.dueAt)}): ${item.url}`), ""] : []),
+      ...(followUps.length > 0 ? ["Follow-ups due:", ...followUps.map((item) => `- ${item.title} at ${item.company} (due ${dateLabel(item.dueAt, item.timezone)}): ${item.url}`), ""] : []),
       ...lines,
       "",
       `${cta.label}: ${cta.url}`,
@@ -246,7 +247,7 @@ export function followUpDueEmail(items: FollowUpItem[], unsubscribeUrl: string):
     eyebrow: "Follow-up",
     heading: items.length === 1 ? "A follow-up is due." : "Follow-ups are due.",
     intro: "These applications are waiting on a reply. A short, polite message can help.",
-    items: items.map((item) => ({ title: item.title, meta: `${item.company} · due ${dateLabel(item.dueAt)}`, url: item.url })),
+    items: items.map((item) => ({ title: item.title, meta: `${item.company} · due ${dateLabel(item.dueAt, item.timezone)}`, url: item.url })),
     rowLabel: "Open",
     cta: { label: "View applications", url: `${getAppUrl()}/applications` },
     unsubscribeUrl,
@@ -267,9 +268,9 @@ export function deadlineEmail(item: { title: string; company: string; deadline: 
   })
 }
 
-export function interviewEmail(item: { title: string; company: string; interviewAt: string; url: string }, unsubscribeUrl: string): RenderedEmail {
-  // The user's time zone is not stored, so the time is shown in UTC and labelled as such.
-  const when = `${dateLabel(item.interviewAt)} ${item.interviewAt.slice(11, 16)} UTC`
+export function interviewEmail(item: { title: string; company: string; interviewAt: string; timezone?: string | null; url: string }, unsubscribeUrl: string): RenderedEmail {
+  // In the user's own zone with its abbreviation (BST, EST...); Europe/London when none is stored.
+  const when = formatLocalDateTime(item.interviewAt, item.timezone)
   return listEmail({
     subject: `Interview tomorrow: ${item.title} at ${item.company}`,
     eyebrow: "Interview",
@@ -314,13 +315,13 @@ function messageEmail({ subject, eyebrow, heading, lines, cta, unsubscribeUrl }:
   }
 }
 
-export function creditsLowEmail({ remaining, limit, resetsAt }: { remaining: number; limit: number; resetsAt: string }, unsubscribeUrl: string): RenderedEmail {
+export function creditsLowEmail({ remaining, limit, resetsAt, timezone }: { remaining: number; limit: number; resetsAt: string; timezone?: string | null }, unsubscribeUrl: string): RenderedEmail {
   return messageEmail({
     subject: "Your JobClock credits are running low",
     eyebrow: "Credits",
     heading: "Your credits are running low.",
     lines: [
-      `You have ${pluralize(remaining, "credit")} left of your ${limit} monthly credits. They reset on ${dateLabel(resetsAt)}.`,
+      `You have ${pluralize(remaining, "credit")} left of your ${limit} monthly credits. They reset on ${dateLabel(resetsAt, timezone)}.`,
       "If you need more before then, you can buy extra credits in Settings. Purchased credits never expire.",
     ],
     cta: { label: "Buy more credits", url: billingUrl() },

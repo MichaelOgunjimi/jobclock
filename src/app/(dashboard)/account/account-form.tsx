@@ -48,17 +48,21 @@ interface AccountFormProps {
     githubUrl: string
     portfolioUrl: string
     avatarUrl: string
+    timezone: string
     email: string
   }
+  /** Zone names offered as suggestions for the timezone field. */
+  timezones: string[]
 }
 
-export function AccountForm({ userId, initialData }: AccountFormProps) {
+export function AccountForm({ userId, initialData, timezones }: AccountFormProps) {
   const [fullName, setFullName] = useState(initialData.fullName)
   const [phone, setPhone] = useState(initialData.phone)
   const [linkedinUrl, setLinkedinUrl] = useState(initialData.linkedinUrl)
   const [githubUrl, setGithubUrl] = useState(initialData.githubUrl)
   const [portfolioUrl, setPortfolioUrl] = useState(initialData.portfolioUrl)
   const [avatarUrl, setAvatarUrl] = useState(initialData.avatarUrl)
+  const [timezone, setTimezone] = useState(initialData.timezone)
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -71,7 +75,8 @@ export function AccountForm({ userId, initialData }: AccountFormProps) {
     linkedinUrl !== saved.linkedinUrl ||
     githubUrl !== saved.githubUrl ||
     portfolioUrl !== saved.portfolioUrl ||
-    avatarUrl !== saved.avatarUrl
+    avatarUrl !== saved.avatarUrl ||
+    timezone !== saved.timezone
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -121,13 +126,14 @@ export function AccountForm({ userId, initialData }: AccountFormProps) {
         githubUrl,
         portfolioUrl,
         avatarUrl,
+        timezone,
       })
 
       if (result?.error) {
         toast.error(result.error)
       } else {
         toast.success("Account updated")
-        setSaved({ ...saved, fullName, phone, linkedinUrl, githubUrl, portfolioUrl, avatarUrl })
+        setSaved({ ...saved, fullName, phone, linkedinUrl, githubUrl, portfolioUrl, avatarUrl, timezone })
       }
     })
   }
@@ -217,6 +223,24 @@ export function AccountForm({ userId, initialData }: AccountFormProps) {
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" value={initialData.email} disabled className="opacity-50" />
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="timezone">Timezone</Label>
+                <Input
+                  id="timezone"
+                  list="timezone-options"
+                  placeholder="Europe/London"
+                  autoComplete="off"
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                />
+                <datalist id="timezone-options">
+                  {timezones.map((zone) => <option key={zone} value={zone} />)}
+                </datalist>
+                <p className="text-xs text-muted-foreground">
+                  Set from your browser. Interview and reminder emails show times in this zone.
+                </p>
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">

@@ -5,6 +5,7 @@ import { createClient, getCurrentUser } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { GenerationJobsProvider } from "@/components/generation-jobs-provider"
+import { TimezoneCapture } from "@/components/timezone-capture"
 import { resolveAiSettings, type UserPreferences } from "@/lib/ai"
 import { resolveEntitlement, SUBSCRIPTION_STATUSES, toPlanGrant, type SubscriptionStatus } from "@/lib/billing/entitlements"
 import { hasPersonalApiTokenHistory } from "@/lib/personal-api-tokens"
@@ -41,7 +42,7 @@ export default async function DashboardLayout({
   const [{ data: profile }, { data: subscription }, { data: grantRow }, hasExtensionTokenHistory] = await Promise.all([
     supabase
       .from("profiles")
-      .select("full_name, avatar_url, preferences, allow_platform_ai_key")
+      .select("full_name, avatar_url, preferences, allow_platform_ai_key, timezone")
       .eq("id", user.id)
       .single(),
     supabase.from("billing_subscriptions").select("status, grace_ends_at").eq("user_id", user.id).maybeSingle(),
@@ -71,6 +72,7 @@ export default async function DashboardLayout({
 
   return (
     <GenerationJobsProvider userId={user.id}>
+      {profile?.timezone ? null : <TimezoneCapture />}
       <DashboardShell
         initialSidebarCollapsed={initialSidebarCollapsed}
         aiKeyBanner={

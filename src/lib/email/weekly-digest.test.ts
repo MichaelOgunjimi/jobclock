@@ -58,4 +58,15 @@ describe("sendWeeklyDigests", () => {
     expect(email.html).toContain("https://jobclock.dev/u?t=1")
     expect(email.text).toContain("Unsubscribe from these emails: https://jobclock.dev/u?t=1")
   })
+
+  it("shows follow-up due dates in the owner's timezone", async () => {
+    mocks.listOptedIn.mockResolvedValue(["u1"])
+    mocks.getData.mockResolvedValue({ ...data, followUps: [{ title: "Dev", company: "Acme", dueAt: "2026-11-10T23:30:00.000Z", timezone: "Asia/Tokyo", url: "https://jobclock.dev/applications/dev" }] })
+    mocks.sendOptional.mockResolvedValue(true)
+    await sendWeeklyDigests()
+
+    const email = mocks.sendOptional.mock.calls[0][0].render("https://jobclock.dev/u?t=1")
+    expect(email.html).toContain("due 2026-11-11")
+    expect(email.text).toContain("due 2026-11-11")
+  })
 })

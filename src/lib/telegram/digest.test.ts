@@ -24,6 +24,13 @@ describe("formatDigest", () => {
     expect(text).not.toContain("<b>Dev</b>")
   })
 
+  it("shows the due date in the owner's timezone, Europe/London when none", () => {
+    const item = { title: "Dev", company: "Acme", dueAt: "2026-10-01T23:30:00.000Z", url: "https://x.test/a" }
+    expect(formatDigest([{ ...item, timezone: "Asia/Tokyo" }], "STATS")).toContain("(due 2026-10-02)")
+    expect(formatDigest([{ ...item, timezone: null }], "STATS")).toContain("(due 2026-10-02)") // 00:30 BST
+    expect(formatDigest([{ ...item, timezone: "America/New_York" }], "STATS")).toContain("(due 2026-10-01)")
+  })
+
   it("omits the follow-up section when nothing is due", () => {
     expect(formatDigest([], "STATS")).not.toContain("Follow-ups due")
   })
