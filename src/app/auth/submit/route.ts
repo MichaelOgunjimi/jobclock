@@ -2,10 +2,11 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { getSupabaseConfig, getSupabaseSetupHint } from "@/lib/supabase/config"
 import type { Database } from "@/lib/supabase/database.types"
+import { authCodeResendLimit } from "@/lib/rate-limit"
 
 type Result =
   | { ok: true; redirect: string }
-  | { ok: true; message: string }
+  | { ok: true; message: string; needsCode?: true }
   | { ok: false; message: string }
 
 function json(data: Result, cookies: Array<{ name: string; value: string; options: object }> = []) {
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
     return json({ ok: false, message: "Enter your email address." })
   }
 
-  if (intent !== "magic_link" && intent !== "forgot_password" && !password) {
+  if (intent !== "magic_link" && intent !== "forgot_password" && intent !== "resend_code" && !password) {
     return json({ ok: false, message: "Enter your password." })
   }
 
@@ -74,7 +75,27 @@ export async function POST(request: NextRequest) {
     if (data.session) {
       return json({ ok: true, redirect: next }, pendingCookies)
     }
-    return json({ ok: true, message: "Check your email for a confirmation link." }, pendingCookies)
+    // A registered email also lands here (Supabase hides it), so the code step must read the same either way.
+    return json({ ok: true, message: "Enter the 6-digit code we sent to your email.", needsCode: true }, pendingCookies)
+  }
+
+  if (intent === "resend_code") {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
+    const [byIp, byEmail] = await Promise.all([
+      authCodeResendLimit.limit(`ip:${ip}`),
+      authCodeResendLimit.limit(`email:${email.toLowerCase()}`),
+    ])
+    if (!byIp.success || !byEmail.success) {
+      return json({ ok: false, message: "Too many requests. Wait a minute and try again." })
+    }
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}` },
+    })
+    if (error) console.error("[auth/resend_code] error:", error.status, error.message)
+    // Same answer for an unknown, confirmed or failing address, so this cannot reveal which emails are registered.
+    return json({ ok: true, message: "If that email is waiting for confirmation, we sent a new code." })
   }
 
   if (intent === "magic_link") {

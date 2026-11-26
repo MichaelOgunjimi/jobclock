@@ -52,6 +52,11 @@ export const aiGenerateRateLimit = createLimiter("ratelimit:ai-generate", 10)
 // Billing routes (checkout, portal, resume, credits): a Redis outage must not stop someone paying.
 export const billingRateLimit = createLimiter("ratelimit:billing", 10, { failOpen: true })
 
+// Signup confirmation code: checking is keyed per client IP and per email (the six digits are the only secret, so guessing
+// across IPs must stall too); resending sends an email, so it is tighter.
+export const authCodeVerifyLimit = createLimiter("ratelimit:auth-code-verify", 10)
+export const authCodeResendLimit = createLimiter("ratelimit:auth-code-resend", 3)
+
 // MCP limits and the reason for each live in src/lib/mcp/limits.ts.
 // MCP endpoint: per user (keyed by the token's owner, so extra tokens do not add headroom).
 export const mcpRateLimit = createLimiter("ratelimit:mcp", MCP_REQUESTS_PER_MINUTE)

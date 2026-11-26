@@ -11,6 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ArrowRight, Briefcase, Loader2, Sparkles } from "lucide-react"
 
+const RESEND_COOLDOWN_SECONDS = 60
+
 export function AuthPageClient() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -18,6 +20,10 @@ export function AuthPageClient() {
   const [password, setPassword] = useState("")
   const [mode, setMode] = useState<"signin" | "signup" | "forgot_password">("signin")
   const [pendingIntent, setPendingIntent] = useState<string | null>(null)
+  // After signup, the account waits for the six-digit code from the confirmation email.
+  const [awaitingCode, setAwaitingCode] = useState(false)
+  const [code, setCode] = useState("")
+  const [cooldown, setCooldown] = useState(0)
   const isConfigured = isSupabaseConfigured()
   const next = searchParams.get("next")
 
@@ -35,7 +41,14 @@ export function AuthPageClient() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function submitForm(intent: string) {
+  // Seconds until "Resend code" works again; Supabase also refuses a second email inside its own window.
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const timer = setTimeout(() => setCooldown((seconds) => seconds - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [cooldown])
+
+  async function submitForm(intent: string, endpoint = "/auth/submit") {
     if (!isConfigured) return
     setPendingIntent(intent)
     setFeedback(null)
@@ -45,16 +58,21 @@ export function AuthPageClient() {
     body.set("email", email)
     if (next) body.set("next", next)
     if (password) body.set("password", password)
+    if (intent === "verify_code") body.set("code", code)
 
     try {
-      const res = await fetch("/auth/submit", { method: "POST", body })
-      const data = await res.json() as { ok: boolean; redirect?: string; message?: string }
+      const res = await fetch(endpoint, { method: "POST", body })
+      const data = await res.json() as { ok: boolean; redirect?: string; message?: string; needsCode?: boolean }
 
       if (data.redirect) {
         router.push(data.redirect)
         return
       }
 
+      if (data.ok && (data.needsCode || intent === "resend_code")) {
+        setAwaitingCode(true)
+        setCooldown(RESEND_COOLDOWN_SECONDS)
+      }
       setFeedback({ status: data.ok ? "success" : "error", message: data.message ?? "Something went wrong." })
       setPendingIntent(null)
     } catch {
@@ -65,6 +83,9 @@ export function AuthPageClient() {
 
   function changeMode(newMode: "signin" | "signup" | "forgot_password") {
     setMode(newMode)
+    setAwaitingCode(false)
+    setCode("")
+    setCooldown(0)
     setFeedback(null)
     setPendingIntent(null)
   }
@@ -138,7 +159,16 @@ export function AuthPageClient() {
                       </CardDescription>
                     </>
                   )}
-                  {mode === "signup" && (
+                  {mode === "signup" && awaitingCode && (
+                    <>
+                      <p className="page-kicker">Almost there</p>
+                      <CardTitle>Check your email.</CardTitle>
+                      <CardDescription>
+                        Enter the 6-digit code we sent to {email}.
+                      </CardDescription>
+                    </>
+                  )}
+                  {mode === "signup" && !awaitingCode && (
                     <>
                       <p className="page-kicker">Get started</p>
                       <CardTitle>Create your account.</CardTitle>
@@ -183,7 +213,53 @@ export function AuthPageClient() {
                 </div>
               )}
 
-              {mode === "forgot_password" ? (
+              {awaitingCode ? (
+                <form
+                  className="space-y-5"
+                  onSubmit={(e) => { e.preventDefault(); submitForm("verify_code", "/auth/verify-code") }}
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="code">Confirmation code</Label>
+                    <Input
+                      id="code"
+                      name="code"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      placeholder="123456"
+                      className="text-center font-mono text-lg tracking-[0.4em]"
+                      value={code}
+                      // Paste can bring spaces or a dash ("123 456"); keep the digits only.
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={!isConfigured || !!pendingIntent || code.length !== 6}>
+                    {pendingIntent === "verify_code" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>Confirm Email <ArrowRight className="h-4 w-4" /></>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={!isConfigured || !!pendingIntent || cooldown > 0}
+                    onClick={() => submitForm("resend_code")}
+                  >
+                    {pendingIntent === "resend_code" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : cooldown > 0 ? (
+                      `Resend code in ${cooldown}s`
+                    ) : (
+                      "Resend code"
+                    )}
+                  </Button>
+                </form>
+              ) : mode === "forgot_password" ? (
                 <form
                   className="space-y-5"
                   onSubmit={(e) => { e.preventDefault(); submitForm("forgot_password") }}

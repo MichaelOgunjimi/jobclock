@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Your JobClock confirmation code</title>
+<style>
+:root{color-scheme:light dark;supported-color-schemes:light dark}
+@media (prefers-color-scheme: dark){
+.em-bg{background-color:#0a0a0a !important}
+.em-card{background-color:#171717 !important;border-color:#2c2c2c !important}
+.em-head{background-color:#000000 !important}
+.em-strong{color:#f5f5f2 !important}
+.em-text{color:#b9b9b5 !important}
+.em-muted{color:#8b8b87 !important}
+.em-code{background-color:#101010 !important;border-color:#2c2c2c !important}
+.em-foot{background-color:#101010 !important;border-color:#2c2c2c !important}
+}
+</style>
+</head>
+<body class="em-bg" style="margin:0;padding:0;background-color:#f4f4f0;">
+<table class="em-bg" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f0;padding:40px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<tr><td align="center">
+<table class="em-card" width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border:1px solid #e5e5e5;max-width:100%;">
+<tr><td class="em-head" style="background-color:#0f0f0f;padding:28px 40px;">
+<table cellpadding="0" cellspacing="0"><tr>
+<td style="vertical-align:middle;"><img src="https://jobclock.dev/email/logo-mark.png" width="44" height="44" alt="JobClock" style="display:block;border:0;outline:none;"></td>
+<td style="padding-left:12px;vertical-align:middle;"><p style="margin:0;color:#ffffff;font-size:16px;font-weight:500;">JobClock</p></td>
+</tr></table>
+</td></tr>
+<tr><td style="padding:40px;">
+<p class="em-muted" style="margin:0 0 8px;color:#888888;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;">Confirm your email</p>
+<h1 class="em-strong" style="margin:0 0 16px;color:#0f0f0f;font-size:28px;font-weight:600;letter-spacing:-0.04em;line-height:1.1;">Your confirmation code.</h1>
+<p class="em-text" style="margin:0 0 24px;color:#666666;font-size:15px;line-height:1.6;">Type this code on the JobClock sign-up page to confirm your email and finish creating your account.</p>
+<table class="em-code" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9f9f7;border:1px solid #e5e5e5;">
+<tr><td align="center" style="padding:24px 16px;"><p class="em-strong" style="margin:0;color:#0f0f0f;font-family:'SFMono-Regular',Menlo,Consolas,monospace;font-size:36px;font-weight:600;letter-spacing:0.3em;">{{ .Token }}</p></td></tr>
+</table>
+<p class="em-muted" style="margin:24px 0 0;color:#999999;font-size:13px;line-height:1.6;">The code works for one hour. If you opened this email on the same device, you can also <a class="em-muted" href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&amp;type=signup&amp;next=/dashboard" style="color:#999999;">confirm with this link instead</a>.</p>
+<p class="em-muted" style="margin:16px 0 0;color:#999999;font-size:13px;line-height:1.6;">Did not create a JobClock account? You can ignore this email.</p>
+</td></tr>
+<tr><td class="em-foot" style="background-color:#f9f9f7;border-top:1px solid #e5e5e5;padding:20px 40px;">
+<p class="em-muted" style="margin:0;color:#999999;font-size:12px;">JobClock &mdash; a calmer way to organise your job search. Questions? Write to <a class="em-muted" href="mailto:support@jobclock.dev" style="color:#999999;">support@jobclock.dev</a>.</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
