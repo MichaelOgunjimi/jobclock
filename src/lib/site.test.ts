@@ -44,7 +44,7 @@ describe("isProductionSite", () => {
 })
 
 describe("EXTENSION_HOSTS", () => {
-  it("lists the new host first and the legacy host second", () => {
-    expect(EXTENSION_HOSTS).toEqual(["jobclock.dev", "jobclock.michaelogunjimi.com"])
+  it("lists only the JobClock host", () => {
+    expect(EXTENSION_HOSTS).toEqual(["jobclock.dev"])
   })
 })
