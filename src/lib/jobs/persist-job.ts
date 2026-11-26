@@ -216,7 +216,11 @@ export async function updateApplicationStatusForUser(
 export interface PersistJobOptions {
   /** Run the owner's "generate on job add" automations (they spend AI credits). Default true. */
   autoGenerate?: boolean
-  /** When another row already caches this URL, leave its content alone (jobs_cache is shared by every user). Default false. */
+  /**
+   * When another row already caches this URL, leave its content alone (jobs_cache is shared by every user) and keep this
+   * caller's description on their own application as `customDescription` instead. Use it for anything a user supplied
+   * (extension, Telegram, MCP). Default false, for the scraped search results that refresh the cache.
+   */
   keepCachedJob?: boolean
   /** Who created it, recorded as `source` in the audit event (the posting's own source moves to `postingSource`). */
   auditSource?: string
@@ -273,7 +277,11 @@ export async function persistJobForUser(
               lastSeenAt: new Date(),
             },
       })
-      .returning({ id: jobsCache.id })
+      .returning({ id: jobsCache.id, description: jobsCache.description })
+
+    // A shared row that already existed keeps its text; what this user supplied differs, so it lives on their application only.
+    const customDescription =
+      options.keepCachedJob && job.description && job.description !== cachedJob.description ? job.description : null
 
     const [insertedApplication] = await tx
       .insert(applications)
@@ -282,6 +290,7 @@ export async function persistJobForUser(
         jobId: cachedJob.id,
         slug: createApplicationSlug(job.title),
         status: "saved",
+        ...(customDescription ? { customDescription } : {}),
       })
       .onConflictDoNothing({
         target: [applications.userId, applications.jobId],

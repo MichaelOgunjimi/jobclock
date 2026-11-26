@@ -180,7 +180,7 @@ async function handleJobLink(
       pageHints: page.pageHints,
       pageText: page.pageText,
     })
-    const saved = await persistJobForUser(userId, preview)
+    const saved = await persistJobForUser(userId, preview, { keepCachedJob: true })
     const heading = saved.alreadySaved ? "📌 <b>Already saved</b>" : "✅ <b>Saved</b>"
     await sendTelegramText(
       update.chatId,

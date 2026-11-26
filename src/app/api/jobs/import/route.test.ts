@@ -218,7 +218,7 @@ describe("POST /api/jobs/import", () => {
     expect(persistJobForUser).toHaveBeenCalledWith("user-1", expect.objectContaining({
       url: "https://example.com/job-2",
       source: "linkedin",
-    }))
+    }), { keepCachedJob: true })
     expect(touchPersonalApiToken).toHaveBeenCalledWith("token-1")
   })
 
