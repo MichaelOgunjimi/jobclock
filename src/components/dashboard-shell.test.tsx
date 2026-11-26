@@ -10,10 +10,6 @@ vi.mock("@/components/dashboard-topbar", () => ({
   DashboardTopbar: () => <header>Topbar</header>,
 }))
 
-vi.mock("@/components/extension-availability-banner", () => ({
-  ExtensionAvailabilityBanner: () => <div>Extension promotion</div>,
-}))
-
 const userProfile = {
   email: "person@example.com",
   fullName: "Example Person",
@@ -21,24 +17,27 @@ const userProfile = {
 }
 
 describe("DashboardShell", () => {
-  it("shows the extension promotion before setup", () => {
+  it("renders streamed banners before the dashboard content", () => {
     render(
-      <DashboardShell showExtensionBanner userProfile={userProfile}>
+      <DashboardShell
+        banners={<div>Account notice</div>}
+        userProfile={userProfile}
+      >
         <div>Dashboard content</div>
       </DashboardShell>
     )
 
-    expect(screen.getByText("Extension promotion")).toBeInTheDocument()
+    expect(screen.getByText("Account notice")).toBeInTheDocument()
+    expect(screen.getByText("Dashboard content")).toBeInTheDocument()
   })
 
-  it("hides the extension promotion after setup or use", () => {
+  it("renders dashboard content without a banner", () => {
     render(
-      <DashboardShell showExtensionBanner={false} userProfile={userProfile}>
+      <DashboardShell userProfile={userProfile}>
         <div>Dashboard content</div>
       </DashboardShell>
     )
 
-    expect(screen.queryByText("Extension promotion")).not.toBeInTheDocument()
     expect(screen.getByText("Dashboard content")).toBeInTheDocument()
   })
 })

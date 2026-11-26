@@ -58,7 +58,7 @@ import {
 import { GET, OPTIONS, PATCH, POST } from "./route"
 
 function createRequest(body: unknown, token = "test-token") {
-  return new NextRequest("https://app.example.com/api/jobs/import", {
+  return new NextRequest("https://jobclock.michaelogunjimi.com/api/jobs/import", {
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
@@ -69,7 +69,7 @@ function createRequest(body: unknown, token = "test-token") {
 }
 
 function createGetRequest(token = "test-token", query = "") {
-  return new NextRequest(`https://app.example.com/api/jobs/import${query}`, {
+  return new NextRequest(`https://jobclock.michaelogunjimi.com/api/jobs/import${query}`, {
     method: "GET",
     headers: {
       authorization: `Bearer ${token}`,
@@ -78,7 +78,7 @@ function createGetRequest(token = "test-token", query = "") {
 }
 
 function createPatchRequest(body: unknown, token = "test-token") {
-  return new NextRequest("https://app.example.com/api/jobs/import", {
+  return new NextRequest("https://jobclock.michaelogunjimi.com/api/jobs/import", {
     method: "PATCH",
     headers: {
       authorization: `Bearer ${token}`,
@@ -178,6 +178,11 @@ describe("POST /api/jobs/import", () => {
         postingUrl: "https://example.com/job-1",
       },
     })
+    expect(findExistingApplicationByUrl).toHaveBeenCalledWith(
+      "user-1",
+      "https://example.com/job-1",
+      "https://jobclock.dev"
+    )
     expect(touchPersonalApiToken).toHaveBeenCalledWith("token-1")
   })
 
@@ -213,7 +218,7 @@ describe("POST /api/jobs/import", () => {
       success: true,
       alreadySaved: false,
       applicationId: "app-2",
-      applicationUrl: "https://app.example.com/applications/engineer-app2",
+      applicationUrl: "https://jobclock.dev/applications/engineer-app2",
     })
     expect(persistJobForUser).toHaveBeenCalledWith("user-1", expect.objectContaining({
       url: "https://example.com/job-2",
@@ -320,7 +325,7 @@ describe("GET /api/jobs/import", () => {
         },
       ],
     })
-    expect(listRecentApplicationsForUser).toHaveBeenCalledWith("user-1", "https://app.example.com", 5)
+    expect(listRecentApplicationsForUser).toHaveBeenCalledWith("user-1", "https://jobclock.dev", 5)
     expect(touchPersonalApiToken).toHaveBeenCalledWith("token-1")
   })
 })
@@ -377,6 +382,7 @@ describe("PATCH /api/jobs/import", () => {
       "550e8400-e29b-41d4-a716-446655440000",
       "interview"
     )
+    expect(listRecentApplicationsForUser).toHaveBeenCalledWith("user-1", "https://jobclock.dev", 5)
     expect(touchPersonalApiToken).toHaveBeenCalledWith("token-1")
   })
 })

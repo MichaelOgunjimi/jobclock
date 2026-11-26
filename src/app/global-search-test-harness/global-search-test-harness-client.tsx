@@ -39,8 +39,6 @@ export function GlobalSearchTestHarnessClient({ view }: { view?: string }) {
       }}
     >
       <DashboardShell
-        aiKeyBanner={null}
-        showExtensionBanner={false}
         userProfile={{
           email: "playwright@example.com",
           fullName: "Playwright User",

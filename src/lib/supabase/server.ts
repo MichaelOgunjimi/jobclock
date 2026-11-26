@@ -37,6 +37,13 @@ export async function createClient() {
 
 export const getCurrentUser = cache(async () => {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  return user
+  const { data, error } = await supabase.auth.getClaims()
+  const subject = data?.claims.sub
+
+  if (error || !subject) return null
+
+  return {
+    id: subject,
+    email: typeof data.claims.email === "string" ? data.claims.email : undefined,
+  }
 })
