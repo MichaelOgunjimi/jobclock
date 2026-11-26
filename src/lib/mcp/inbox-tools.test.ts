@@ -37,6 +37,8 @@ const state = {
   app: {} as Record<string, unknown>,
   events: [] as AuditEvent[],
   research: null as string | null,
+  grant: null as { kind: string; creditLimit: number | null; expiresAt: Date | null; createdAt: Date } | null,
+  noPeriod: false,
 }
 
 const freshApp = () => ({
@@ -71,7 +73,9 @@ function seed() {
     if (/from "application_audit_events"/.test(sql)) return state.events.map((event) => [event.id, event.eventType, event.metadata, event.createdAt])
     if (/from "interview_prep"|join "interview_prep"/.test(sql)) return [[state.research, NOW]]
     if (/from "user_cvs"/.test(sql)) return [["cv-1", "Main CV", true, NOW], ["cv-2", null, false, NOW]]
+    if (/from "billing_grants"/.test(sql)) return state.grant ? [row(["kind", "creditLimit", "expiresAt", "createdAt"], state.grant)] : []
     if (/from "ai_usage_periods"/.test(sql)) {
+      if (state.noPeriod) return []
       return [tableRow(aiUsagePeriods, { userId: OWNER, periodStart: new Date("2026-11-01T00:00:00Z"), periodEnd: new Date("2026-12-01T00:00:00Z"), creditLimit: 300, creditsReserved: 10, creditsUsed: 250 })]
     }
     if (/from "billing_subscriptions"/.test(sql)) return []
@@ -96,6 +100,8 @@ beforeEach(() => {
   state.app = freshApp()
   state.events = []
   state.research = null
+  state.grant = null
+  state.noPeriod = false
   seed()
 })
 
@@ -218,6 +224,34 @@ describe("read-only lookups", () => {
         total_remaining: 80,
       },
     })
+  })
+
+  it("get_credits treats an active lifetime grant with no credit limit as an unmetered plan, not as no plan", async () => {
+    state.noPeriod = true
+    state.grant = { kind: "lifetime", creditLimit: null, expiresAt: null, createdAt: new Date("2026-01-05T00:00:00Z") }
+    expect(await getCredits(OWNER, NOW)).toEqual({
+      data: expect.objectContaining({ plan: "lifetime", unmetered: true, monthly_allowance: null, total_remaining: null, purchased_credits: 40 }),
+    })
+  })
+
+  it("get_credits reports a metered grant's allowance before its first use, on windows anchored at the grant date", async () => {
+    state.noPeriod = true
+    state.grant = { kind: "comp", creditLimit: 150, expiresAt: new Date("2027-06-01T00:00:00Z"), createdAt: new Date("2026-10-15T00:00:00Z") }
+    expect(await getCredits(OWNER, NOW)).toEqual({
+      data: expect.objectContaining({
+        plan: "comp",
+        monthly_allowance: { limit: 150, used: 0, reserved: 0, resets_at: "2026-12-15T00:00:00.000Z", remaining: 150 },
+        total_remaining: 190,
+      }),
+    })
+  })
+
+  it("get_credits ignores an expired grant", async () => {
+    state.noPeriod = true
+    state.grant = { kind: "lifetime", creditLimit: null, expiresAt: new Date("2026-11-01T00:00:00Z"), createdAt: new Date("2026-01-05T00:00:00Z") }
+    const result = (await getCredits(OWNER, NOW)) as { data: Record<string, unknown> }
+    expect(result.data).toMatchObject({ monthly_allowance: null, total_remaining: 40 })
+    expect(result.data).not.toHaveProperty("unmetered")
   })
 
   it("list_cvs returns ids, names and primary flag only", async () => {
