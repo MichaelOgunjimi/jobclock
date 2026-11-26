@@ -5,6 +5,7 @@ import {
   aiUsagePeriods,
   applicationAuditEvents,
   applications,
+  billingGrants,
   billingSubscriptions,
   interviewPrep,
   jobsCache,
@@ -21,6 +22,7 @@ import {
 } from "@/lib/applications/status-transitions"
 import { updateApplicationStatusForUser } from "@/lib/jobs/persist-job"
 import { allowanceWindow, PRO_CREDIT_LIMIT } from "@/lib/billing/plans"
+import { isGrantActive } from "@/lib/billing/entitlements"
 import { getApplicationStats } from "@/lib/telegram/stats"
 import type { ApplicationStatus, Json } from "@/lib/supabase/database.types"
 import {
@@ -208,27 +210,52 @@ export async function getCompanyResearch(userId: string, applicationId: string):
   }
 }
 
-/** The allowance period covering now (what the credits-low email reads), else the subscription's window with nothing used yet. */
+/**
+ * The allowance period covering now (what the credits-low email reads), else the plan's window with nothing used yet.
+ * A plan is an active subscription or an unexpired grant (lifetime/comp), as in runAiAction; a grant with no credit
+ * limit is unmetered, so there is no allowance to report.
+ */
 export async function getCredits(userId: string, now = new Date()): Promise<ToolOutcome> {
-  const [[period], [subscription], [balance]] = await Promise.all([
+  const [[period], [subscription], [balance], [grant]] = await Promise.all([
     db.select().from(aiUsagePeriods)
       .where(and(eq(aiUsagePeriods.userId, userId), lte(aiUsagePeriods.periodStart, now), gt(aiUsagePeriods.periodEnd, now)))
       .limit(1),
     db.select({ status: billingSubscriptions.status, start: billingSubscriptions.currentPeriodStart, end: billingSubscriptions.currentPeriodEnd })
       .from(billingSubscriptions).where(eq(billingSubscriptions.userId, userId)).limit(1),
     db.select({ credits: aiCreditBalances.credits }).from(aiCreditBalances).where(eq(aiCreditBalances.userId, userId)).limit(1),
+    db.select({ kind: billingGrants.kind, creditLimit: billingGrants.creditLimit, expiresAt: billingGrants.expiresAt, createdAt: billingGrants.createdAt })
+      .from(billingGrants).where(eq(billingGrants.userId, userId)).limit(1),
   ])
+
+  const purchased = balance?.credits ?? 0
+  const granted = grant && isGrantActive({ kind: grant.kind as "lifetime" | "comp", expiresAt: grant.expiresAt }, now) ? grant : null
+  if (granted && granted.creditLimit === null) {
+    return {
+      data: {
+        plan: granted.kind,
+        unmetered: true,
+        monthly_allowance: null,
+        purchased_credits: purchased,
+        total_remaining: null,
+        note: "This account has a granted plan with no credit limit, so hosted AI is not metered. A safety backstop still applies, and the connection's own daily credit cap still limits this agent.",
+      },
+    }
+  }
 
   let allowance: { limit: number; used: number; reserved: number; resets_at: string } | null = null
   if (period) {
     allowance = { limit: period.creditLimit, used: period.creditsUsed, reserved: period.creditsReserved, resets_at: period.periodEnd.toISOString() }
+  } else if (granted && granted.creditLimit !== null) {
+    // Same monthly windows as runAiAction: anchored on the grant date, never ending with a Stripe period.
+    const window = allowanceWindow(granted.createdAt, new Date(Date.UTC(granted.createdAt.getUTCFullYear() + 100, 0, 1)), now)
+    allowance = { limit: granted.creditLimit, used: 0, reserved: 0, resets_at: window.end.toISOString() }
   } else if (subscription && ["active", "trialing"].includes(subscription.status)) {
     const window = allowanceWindow(subscription.start, subscription.end, now)
     allowance = { limit: PRO_CREDIT_LIMIT, used: 0, reserved: 0, resets_at: window.end.toISOString() }
   }
-  const purchased = balance?.credits ?? 0
   return {
     data: {
+      ...(granted ? { plan: granted.kind } : {}),
       monthly_allowance: allowance && { ...allowance, remaining: allowance.limit - allowance.used - allowance.reserved },
       purchased_credits: purchased,
       total_remaining: (allowance ? allowance.limit - allowance.used - allowance.reserved : 0) + purchased,
