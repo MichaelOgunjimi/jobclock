@@ -244,6 +244,12 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
+# Signup confirmation: shows the six-digit code and keeps a link. Hosted projects take the same
+# subject and HTML through the management API (mailer_subjects_confirmation, mailer_templates_confirmation_content).
+[auth.email.template.confirmation]
+subject = "Your JobClock confirmation code"
+content_path = "./supabase/templates/confirmation.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"
