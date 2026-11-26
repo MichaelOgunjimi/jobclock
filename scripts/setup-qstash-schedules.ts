@@ -9,6 +9,7 @@
  *
  * Required env vars (copy from the target environment):
  *   QSTASH_TOKEN      — from Upstash console → QStash → API Keys
+ *   QSTASH_URL        — the token's regional endpoint, e.g. https://qstash-eu-central-1.upstash.io
  *   CRON_SECRET       — same value as set in that environment's Vercel env vars
  */
 
