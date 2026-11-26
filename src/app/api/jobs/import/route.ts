@@ -14,7 +14,6 @@ import {
 } from "@/lib/jobs/persist-job"
 import type { ApplicationStatus } from "@/lib/supabase/database.types"
 import { authenticatePersonalApiToken, touchPersonalApiToken } from "@/lib/personal-api-tokens"
-import { getAppUrl } from "@/lib/site"
 
 const previewRequestSchema = z.object({
   mode: z.literal("preview"),
@@ -155,7 +154,7 @@ export async function GET(request: NextRequest) {
   try {
     const recentApplications = await listRecentApplicationsForUser(
       auth.userId,
-      getAppUrl(),
+      request.nextUrl.origin,
       limit
     )
     await touchPersonalApiToken(auth.tokenId)
@@ -202,7 +201,7 @@ export async function PATCH(request: NextRequest) {
 
     const recentApplications = await listRecentApplicationsForUser(
       auth.userId,
-      getAppUrl(),
+      request.nextUrl.origin,
       5
     )
     await touchPersonalApiToken(auth.tokenId)
@@ -243,7 +242,7 @@ export async function POST(request: NextRequest) {
       const existingApplication = await findExistingApplicationByUrl(
         auth.userId,
         preview.url,
-          getAppUrl()
+        request.nextUrl.origin
       )
       await touchPersonalApiToken(auth.tokenId)
 
@@ -262,7 +261,7 @@ export async function POST(request: NextRequest) {
       success: true,
       alreadySaved: result.alreadySaved,
       applicationId: result.applicationId,
-        applicationUrl: new URL(`/applications/${result.applicationSlug}`, getAppUrl()).toString(),
+      applicationUrl: new URL(`/applications/${result.applicationSlug}`, request.nextUrl.origin).toString(),
     })
   } catch (error) {
     if (error instanceof JobImportError) {
