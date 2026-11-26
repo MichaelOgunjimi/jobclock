@@ -12,6 +12,18 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { ArrowRight, Briefcase, Loader2, Sparkles } from "lucide-react"
 
 const RESEND_COOLDOWN_SECONDS = 60
+// Holds the pending signup email (never the password or code) so a reload keeps the code step.
+const PENDING_SIGNUP_KEY = "auth:pending-signup-email"
+
+function readPendingEmail() {
+  try { return sessionStorage.getItem(PENDING_SIGNUP_KEY) } catch { return null }
+}
+function writePendingEmail(email: string | null) {
+  try {
+    if (email) sessionStorage.setItem(PENDING_SIGNUP_KEY, email)
+    else sessionStorage.removeItem(PENDING_SIGNUP_KEY)
+  } catch { /* storage blocked: the code step just won't survive a reload */ }
+}
 
 export function AuthPageClient() {
   const searchParams = useSearchParams()
@@ -41,6 +53,15 @@ export function AuthPageClient() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Restore the code step after a reload (state is set after mount to keep server and client markup equal).
+  useEffect(() => {
+    const pending = readPendingEmail()
+    if (!pending) return
+    setEmail(pending)
+    setMode("signup")
+    setAwaitingCode(true)
+  }, [])
+
   // Seconds until "Resend code" works again; Supabase also refuses a second email inside its own window.
   useEffect(() => {
     if (cooldown <= 0) return
@@ -65,12 +86,14 @@ export function AuthPageClient() {
       const data = await res.json() as { ok: boolean; redirect?: string; message?: string; needsCode?: boolean }
 
       if (data.redirect) {
+        writePendingEmail(null)
         router.push(data.redirect)
         return
       }
 
       if (data.ok && (data.needsCode || intent === "resend_code")) {
         setAwaitingCode(true)
+        writePendingEmail(email)
         setCooldown(RESEND_COOLDOWN_SECONDS)
       }
       setFeedback({ status: data.ok ? "success" : "error", message: data.message ?? "Something went wrong." })
@@ -83,11 +106,17 @@ export function AuthPageClient() {
 
   function changeMode(newMode: "signin" | "signup" | "forgot_password") {
     setMode(newMode)
+    writePendingEmail(null)
     setAwaitingCode(false)
     setCode("")
     setCooldown(0)
     setFeedback(null)
     setPendingIntent(null)
+  }
+
+  function editEmail(value: string) {
+    setEmail(value)
+    writePendingEmail(null)
   }
 
   return (
@@ -258,6 +287,16 @@ export function AuthPageClient() {
                       "Resend code"
                     )}
                   </Button>
+                  <p className="text-center text-[13px] text-muted-foreground">
+                    Already have an account?{" "}
+                    <button
+                      type="button"
+                      className="font-medium text-foreground transition-opacity hover:opacity-70"
+                      onClick={() => changeMode("signin")}
+                    >
+                      Sign in
+                    </button>
+                  </p>
                 </form>
               ) : mode === "forgot_password" ? (
                 <form
@@ -271,7 +310,7 @@ export function AuthPageClient() {
                       type="email"
                       placeholder="you@example.com"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => editEmail(e.target.value)}
                       required
                     />
                   </div>
@@ -296,7 +335,7 @@ export function AuthPageClient() {
                         type="email"
                         placeholder="you@example.com"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => editEmail(e.target.value)}
                         required
                       />
                     </div>
@@ -375,6 +414,7 @@ export function AuthPageClient() {
                 </>
               )}
 
+              {!awaitingCode && (
               <div className="flex items-center justify-between gap-4 border-t pt-5 text-[13px] text-muted-foreground">
                 {mode === "forgot_password" ? (
                   <>
@@ -400,6 +440,7 @@ export function AuthPageClient() {
                   </>
                 )}
               </div>
+              )}
               <nav className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground" aria-label="Legal pages">
                 <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
                 <Link href="/terms" className="hover:text-foreground">Terms</Link>
