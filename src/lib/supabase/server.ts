@@ -35,8 +35,22 @@ export async function createClient() {
   )
 }
 
+/**
+ * The signed-in user as proven by the access-token JWT, verified locally against the project's
+ * JWKS (no Auth-server round trip). A revoked session therefore still renders until its access
+ * token expires, so use this ONLY to render read-only pages. Server actions, route handlers,
+ * writes, billing and consent screens must call `supabase.auth.getUser()` instead
+ * (enforced by server.test.ts).
+ */
 export const getCurrentUser = cache(async () => {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  return user
+  const { data, error } = await supabase.auth.getClaims()
+  const subject = data?.claims.sub
+
+  if (error || !subject) return null
+
+  return {
+    id: subject,
+    email: typeof data.claims.email === "string" ? data.claims.email : undefined,
+  }
 })
