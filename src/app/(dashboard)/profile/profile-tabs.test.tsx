@@ -8,7 +8,6 @@ const { navigationState } = vi.hoisted(() => ({
 }))
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(navigationState.search),
 }))
 
@@ -29,6 +28,16 @@ vi.mock("./writing-styles-tab", () => ({
 }))
 
 describe("ProfileTabs CV cards", () => {
+  it("switches tabs without a server navigation", () => {
+    const replaceState = vi.spyOn(window.history, "replaceState")
+    render(<ProfileTabs cvs={[]} builtInStyles={[]} userStyles={[]} />)
+
+    fireEvent.click(screen.getByRole("tab", { name: "Writing Styles" }))
+
+    expect(replaceState).toHaveBeenCalledWith(null, "", "/profile?tab=writing-styles")
+    replaceState.mockRestore()
+  })
+
   it("shows the number of review issues for a CV", () => {
     render(
       <ProfileTabs
